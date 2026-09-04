@@ -1,0 +1,361 @@
+#!/bin/bash
+# ==============================================================================
+#  GARUDATELL - CLI MANAGEMENT SUITE (BASH INTERACTIVE INTERFACE)
+# ==============================================================================
+#  Skrip manajemen interaktif untuk VPS GarudaTel v2.
+#  Dapat dipanggil kapan saja dari direktori mana saja: `garudatell`
+# ==============================================================================
+
+# Warna Terminal
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m' # No Color
+
+# 1. Deteksi Direktori Proyek GarudaTel Secara Akurat (Mendukung Symlink)
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do
+    DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+    SOURCE="$(readlink "$SOURCE")"
+    [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+PROJECT_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+
+# Fallback ke lokasi standar jika dipanggil di luar repositori
+if [ ! -f "$PROJECT_DIR/run.py" ]; then
+    if [ -d "/var/www/garudatel" ] && [ -f "/var/www/garudatel/run.py" ]; then
+        PROJECT_DIR="/var/www/garudatel"
+    elif [ -d "/opt/garudatel" ] && [ -f "/opt/garudatel/run.py" ]; then
+        PROJECT_DIR="/opt/garudatel"
+    fi
+fi
+
+# Validasi keberadaan file utama
+if [ ! -f "$PROJECT_DIR/run.py" ]; then
+    echo -e "${RED}[ERROR] Direktori instalasi GarudaTel tidak dapat ditemukan!${NC}"
+    echo -e "Pastikan proyek telah di-clone ke ${CYAN}/var/www/garudatel${NC} atau jalankan skrip dari direktori proyek."
+    exit 1
+fi
+
+VENV_PYTHON="$PROJECT_DIR/venv/bin/python"
+if [ ! -f "$VENV_PYTHON" ]; then
+    VENV_PYTHON="python3"
+fi
+
+# Fungsi Tampilkan Header
+show_header() {
+    clear
+    echo -e "${CYAN}${BOLD}"
+    echo "  ╔══════════════════════════════════════════════════════════════╗"
+    echo "  ║                                                              ║"
+    echo "  ║             🦅 GARUDATELL - VPS CONTROL PANEL 🦅             ║"
+    echo "  ║              Management Suite & Operation Center             ║"
+    echo "  ║                                                              ║"
+    echo "  ╚══════════════════════════════════════════════════════════════╝"
+    echo -e "${NC}"
+    echo -e "  📂 ${BOLD}Lokasi Proyek :${NC} ${YELLOW}$PROJECT_DIR${NC}"
+    
+    # Cek status cepat service
+    if systemctl is-active --quiet garudatel 2>/dev/null; then
+        STATUS_WEB="${GREEN}● RUNNING${NC}"
+    else
+        STATUS_WEB="${RED}● STOPPED${NC}"
+    fi
+
+    if systemctl is-active --quiet garudatel-bot-admin 2>/dev/null; then
+        STATUS_BOT="${GREEN}● RUNNING${NC}"
+    else
+        STATUS_BOT="${RED}● STOPPED${NC}"
+    fi
+
+    if systemctl is-active --quiet cloudflared 2>/dev/null; then
+        STATUS_CF="${GREEN}● CONNECTED${NC}"
+    else
+        STATUS_CF="${YELLOW}● OFF / NOT FOUND${NC}"
+    fi
+
+    echo -e "  🌐 ${BOLD}Server Web    :${NC} $STATUS_WEB  │  🤖 ${BOLD}Bot Admin :${NC} $STATUS_BOT  │  ☁️ ${BOLD}Tunnel :${NC} $STATUS_CF"
+    echo -e "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+}
+
+# Helper Pause
+pause() {
+    echo ""
+    read -p "Tekan [ENTER] untuk kembali ke menu utama..." dummy
+}
+
+# 1. Cek Status Server Web
+menu_status_web() {
+    echo -e "${CYAN}${BOLD}[1] STATUS SERVER WEB GARUDATEL (SYSTEMD)${NC}"
+    echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    sudo systemctl status garudatel --no-pager || true
+    pause
+}
+
+# 2. Restart Server Web
+menu_restart_web() {
+    echo -e "${YELLOW}${BOLD}[2] RESTART SERVER WEB GARUDATEL${NC}"
+    echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo -e "${BLUE}[*] Merestart service garudatel.service...${NC}"
+    sudo systemctl restart garudatel
+    sleep 1
+    if systemctl is-active --quiet garudatel; then
+        echo -e "${GREEN}[✔] Server web berhasil direstart dan berjalan normal!${NC}"
+    else
+        echo -e "${RED}[✖] Gagal merestart server. Silakan periksa log error.${NC}"
+    fi
+    pause
+}
+
+# 3. Pantau Log Error
+menu_tail_log() {
+    echo -e "${CYAN}${BOLD}[3] PANTAU LOG ERROR (LIVE STREAM)${NC}"
+    echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    LOG_FILE="$PROJECT_DIR/storage/logs/error.log"
+    APP_LOG="$PROJECT_DIR/storage/logs/garudatel.log"
+
+    TARGET_LOG=""
+    if [ -f "$LOG_FILE" ] && [ -s "$LOG_FILE" ]; then
+        TARGET_LOG="$LOG_FILE"
+    elif [ -f "$APP_LOG" ]; then
+        TARGET_LOG="$APP_LOG"
+    else
+        mkdir -p "$PROJECT_DIR/storage/logs"
+        touch "$LOG_FILE"
+        TARGET_LOG="$LOG_FILE"
+    fi
+
+    echo -e "Membuka log: ${YELLOW}$TARGET_LOG${NC}"
+    echo -e "${PURPLE}Tekan CTRL+C untuk berhenti memantau log.${NC}\n"
+    sleep 1
+    tail -n 50 -f "$TARGET_LOG" || true
+    pause
+}
+
+# 4. Cek Status Bot 3 Admin
+menu_status_bot() {
+    echo -e "${CYAN}${BOLD}[4] STATUS TELEGRAM BOT 3 ADMIN PANEL${NC}"
+    echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    sudo systemctl status garudatel-bot-admin --no-pager || true
+    echo ""
+    read -p "Apakah Anda ingin merestart Bot Admin sekarang? (Y/N): " ans_bot
+    if [[ "$ans_bot" =~ ^[Yy]$ ]]; then
+        echo -e "${BLUE}[*] Merestart garudatel-bot-admin.service...${NC}"
+        sudo systemctl restart garudatel-bot-admin
+        sleep 1
+        echo -e "${GREEN}[✔] Bot 3 Admin berhasil direstart.${NC}"
+    fi
+    pause
+}
+
+# 5. Backup Database Manual
+menu_backup_db() {
+    echo -e "${CYAN}${BOLD}[5] SNAPSHOT BACKUP DATABASE MANUAL & TELEGRAM${NC}"
+    echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo -e "${BLUE}[*] Membuat snapshot non-blocking SQLite WAL & kompresi gzip...${NC}"
+    cd "$PROJECT_DIR"
+    $VENV_PYTHON -c "
+import sys, os
+from app.services.telegram_service import perform_database_backup, send_backup_notification
+try:
+    gz = perform_database_backup()
+    sz = os.path.getsize(gz)/1024
+    print(f'\033[0;32m[✔] File cadangan lokal berhasil dibuat:\033[0m {gz} ({sz:.2f} KB)')
+    send_backup_notification(gz, status='SUKSES', details='Backup manual via CLI garudatell')
+    print('\033[0;32m[✔] File dokumen database berhasil dikirimkan ke Bot Telegram!\033[0m')
+except Exception as e:
+    print(f'\033[0;31m[✖] Gagal membuat backup: {e}\033[0m')
+"
+    pause
+}
+
+# 6. Pengujian Otomatis Sistem
+menu_run_tests() {
+    echo -e "${CYAN}${BOLD}[6] MENJALANKAN TEST SUITE OTOMATIS (DIAGNOSTIK)${NC}"
+    echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    cd "$PROJECT_DIR"
+    echo -e "${BLUE}[*] Menguji Telegram Bot 2 & 3, Universal OTP, dan Database WAL...${NC}\n"
+    $VENV_PYTHON "$PROJECT_DIR/tools/test_telegram_and_otp.py"
+    pause
+}
+
+# 7. Manajemen Cloudflare Zero Trust
+menu_cloudflare() {
+    while true; do
+        clear
+        echo -e "${CYAN}${BOLD}"
+        echo "  ╔══════════════════════════════════════════════════════════════╗"
+        echo "  ║             ☁️ MANAJEMEN CLOUDFLARE ZERO TRUST ☁️             ║"
+        echo "  ╚══════════════════════════════════════════════════════════════╝"
+        echo -e "${NC}"
+        
+        if systemctl is-active --quiet cloudflared 2>/dev/null; then
+            echo -e "  Status Daemon : ${GREEN}● AKTIF & BERJALAN (cloudflared)${NC}"
+        else
+            echo -e "  Status Daemon : ${RED}● NONAKTIF / TIDAK DITEMUKAN${NC}"
+        fi
+        echo -e "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo -e "  ${BOLD}[1]${NC} Tampilkan Status Detail Tunnel (systemctl status cloudflared)"
+        echo -e "  ${BOLD}[2]${NC} Ganti / Edit Token Cloudflare Zero Trust (Update Tunnel Domain)"
+        echo -e "  ${BOLD}[3]${NC} Restart Service Cloudflared"
+        echo -e "  ${BOLD}[0]${NC} Kembali ke Menu Utama"
+        echo -e "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        read -p ">> Masukkan pilihan [0-3]: " cf_choice
+
+        case $cf_choice in
+            1)
+                echo ""
+                echo -e "${CYAN}${BOLD}Status Layanan Cloudflared:${NC}"
+                sudo systemctl status cloudflared --no-pager || true
+                pause
+                ;;
+            2)
+                echo ""
+                echo -e "${YELLOW}${BOLD}GANTI / UPDATE TOKEN CLOUDFLARE ZERO TRUST${NC}"
+                echo -e "Fitur ini sangat berguna jika domain Anda tersuspend, berganti domain,"
+                echo -e "atau Anda membuat tunnel baru di Cloudflare Zero Trust Dashboard.\n"
+                echo -e "Dapatkan token di: ${CYAN}Zero Trust -> Networks -> Tunnels -> Connector Token${NC}"
+                echo -e "(String panjang diawali ${PURPLE}eyJhIjoiMTgyYT...${NC})\n"
+                
+                read -p ">> Masukkan Token Cloudflare Baru: " NEW_CF_TOKEN
+                NEW_CF_TOKEN=$(echo "$NEW_CF_TOKEN" | tr -d '\r\n ' | sed -e "s/'//g" -e 's/"//g')
+
+                if [ -z "$NEW_CF_TOKEN" ]; then
+                    echo -e "${RED}[!] Token kosong. Dibatalkan.${NC}"
+                else
+                    echo -e "${BLUE}[*] Memasang ulang connector tunnel dengan token baru...${NC}"
+                    if command -v cloudflared &> /dev/null; then
+                        sudo cloudflared service uninstall || true
+                        sudo cloudflared service install "$NEW_CF_TOKEN"
+                        sudo systemctl daemon-reload
+                        sudo systemctl enable cloudflared
+                        sudo systemctl restart cloudflared
+                        sleep 2
+                        if systemctl is-active --quiet cloudflared; then
+                            echo -e "${GREEN}[✔] Token Cloudflare berhasil diperbarui dan tunnel telah aktif!${NC}"
+                        else
+                            echo -e "${YELLOW}[!] Tunnel terpasang, periksa status: sudo systemctl status cloudflared${NC}"
+                        fi
+                    else
+                        echo -e "${RED}[✖] cloudflared belum terinstal. Jalankan install.sh terlebih dahulu.${NC}"
+                    fi
+                fi
+                pause
+                ;;
+            3)
+                echo ""
+                echo -e "${BLUE}[*] Merestart cloudflared service...${NC}"
+                sudo systemctl restart cloudflared
+                sleep 1
+                echo -e "${GREEN}[✔] Service cloudflared telah direstart.${NC}"
+                pause
+                ;;
+            0)
+                break
+                ;;
+            *)
+                echo -e "${RED}Pilihan tidak valid!${NC}"
+                sleep 1
+                ;;
+        esac
+    done
+}
+
+# 8. Cek Pembaruan (Update Repository)
+menu_check_update() {
+    echo -e "${CYAN}${BOLD}[8] CEK PEMBARUAN SISTEM (GIT REPOSITORY UPDATE)${NC}"
+    echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    cd "$PROJECT_DIR"
+
+    if [ ! -d ".git" ]; then
+        echo -e "${RED}[!] Direktori ini bukan repositori Git resmi.${NC}"
+        pause
+        return
+    fi
+
+    echo -e "${BLUE}[*] Memeriksa pembaruan terbaru dari GitHub (origin/main)...${NC}"
+    git fetch origin main >/dev/null 2>&1 || git fetch origin master >/dev/null 2>&1
+
+    # Tentukan branch aktif
+    CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+    LOCAL_HASH=$(git rev-parse HEAD)
+    REMOTE_HASH=$(git rev-parse "origin/$CURRENT_BRANCH" 2>/dev/null || git rev-parse origin/main)
+
+    if [ "$LOCAL_HASH" = "$REMOTE_HASH" ]; then
+        echo -e "${GREEN}[✔] GarudaTel Anda sudah menggunakan versi TERBARU (Up-to-Date)!${NC}"
+        echo -e "    Commit saat ini: ${YELLOW}${LOCAL_HASH:0:8}${NC} pada branch ${CYAN}$CURRENT_BRANCH${NC}."
+    else
+        echo -e "${YELLOW}${BOLD}📢 PEMBARUAN TERSEDIA DARI GITHUB!${NC}"
+        echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo -e "Daftar pembaruan fitur / patch perbaikan terbaru:"
+        git log HEAD.."origin/$CURRENT_BRANCH" --oneline --decorate -n 5 2>/dev/null || git log HEAD..origin/main --oneline -n 5
+        echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+
+        read -p ">> Ada pembaruan tersedia. Update sekarang? (Y/N): " do_update
+        if [[ "$do_update" =~ ^[Yy]$ ]]; then
+            echo ""
+            echo -e "${BLUE}[1/4] Mengambil pembaruan source code (git pull)...${NC}"
+            git pull origin "$CURRENT_BRANCH" || git pull origin main
+
+            echo -e "${BLUE}[2/4] Memeriksa & mengupgrade dependensi paket (requirements.txt)...${NC}"
+            $PROJECT_DIR/venv/bin/pip install -r requirements.txt --upgrade --quiet 2>/dev/null || true
+
+            echo -e "${BLUE}[3/4] Menjalankan verifikasi database seeder...${NC}"
+            $VENV_PYTHON "$PROJECT_DIR/tools/init_app.py" >/dev/null 2>&1 || true
+
+            echo -e "${BLUE}[4/4] Merestart layanan GarudaTel & Bot Admin...${NC}"
+            sudo systemctl restart garudatel 2>/dev/null || true
+            sudo systemctl restart garudatel-bot-admin 2>/dev/null || true
+
+            echo ""
+            echo -e "${GREEN}${BOLD}🎉 PEMBARUAN SUKSES DIAPLIKASIKAN SECARA LENGKAP! 🚀${NC}"
+            echo -e "Seluruh service telah berjalan dengan versi terbaru."
+        else
+            echo -e "${YELLOW}[!] Pembaruan ditunda oleh pengguna.${NC}"
+        fi
+    fi
+    pause
+}
+
+# ==============================================================================
+# LOOP MENU UTAMA
+# ==============================================================================
+while true; do
+    show_header
+    echo -e "  ${BOLD}PILIH MENU MANAJEMEN:${NC}"
+    echo -e "  ${BOLD}[1]${NC} Cek Status Server Web        ${BLUE}(sudo systemctl status garudatel)${NC}"
+    echo -e "  ${BOLD}[2]${NC} Restart Server Web           ${BLUE}(sudo systemctl restart garudatel)${NC}"
+    echo -e "  ${BOLD}[3]${NC} Pantau Log Error (Live)      ${BLUE}(tail -f storage/logs/error.log)${NC}"
+    echo -e "  ${BOLD}[4]${NC} Cek Status Bot 3 Admin       ${BLUE}(sudo systemctl status garudatel-bot-admin)${NC}"
+    echo -e "  ${BOLD}[5]${NC} Backup Database Manual       ${BLUE}(Snapshot WAL SQLite -> Telegram)${NC}"
+    echo -e "  ${BOLD}[6]${NC} Pengujian Otomatis Sistem    ${BLUE}(Jalankan test_telegram_and_otp.py)${NC}"
+    echo -e "  ${BOLD}[7]${NC} Manajemen Cloudflare Tunnel  ${BLUE}(Status & Ganti Token Zero Trust)${NC}"
+    echo -e "  ${BOLD}[8]${NC} Cek Pembaruan (Git Update)   ${BLUE}(Git Fetch, Pull & Auto-Restart)${NC}"
+    echo -e "  ${BOLD}[0]${NC} Keluar (Exit)"
+    echo -e "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    read -p ">> Masukkan angka pilihan Anda [0-8]: " choice
+
+    case $choice in
+        1) menu_status_web ;;
+        2) menu_restart_web ;;
+        3) menu_tail_log ;;
+        4) menu_status_bot ;;
+        5) menu_backup_db ;;
+        6) menu_run_tests ;;
+        7) menu_cloudflare ;;
+        8) menu_check_update ;;
+        0) 
+            echo -e "\n${GREEN}Terima kasih telah menggunakan GarudaTell CLI! Sampai jumpa.${NC}\n"
+            exit 0
+            ;;
+        *)
+            echo -e "\n${RED}[!] Pilihan tidak valid, silakan masukkan angka 0 hingga 8.${NC}"
+            sleep 1
+            ;;
+    esac
+done

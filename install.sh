@@ -43,6 +43,14 @@ CURRENT_USER="${SUDO_USER:-$USER}"
 
 echo -e "${BLUE}[*] Direktori Proyek:${NC} $PROJECT_DIR"
 echo -e "${BLUE}[*] User Eksekusi:${NC} $CURRENT_USER"
+
+# Rekomendasi Best Practice Linux FHS
+BEST_PRACTICE_DIR="/var/www/garudatel"
+if [ "$PROJECT_DIR" != "$BEST_PRACTICE_DIR" ]; then
+    echo -e "${YELLOW}[i] Rekomendasi Best Practice Linux:${NC}"
+    echo -e "    Standar industri penempatan aplikasi web di Ubuntu/Debian adalah ${CYAN}$BEST_PRACTICE_DIR${NC}."
+    echo -e "    Instalasi saat ini berjalan di: ${YELLOW}$PROJECT_DIR${NC} (didukung penuh)."
+fi
 echo ""
 
 # 2. Input Interaktif: Cloudflare Zero Trust Tunnel
@@ -194,6 +202,13 @@ systemctl enable garudatel-bot-admin.service
 systemctl restart garudatel-bot-admin.service
 echo -e "${GREEN}[✔] Service garudatel-bot-admin.service aktif.${NC}"
 
+# Registrasi Perintah Global CLI 'garudatell'
+echo -e "${BLUE}[*] Mendaftarkan perintah global 'garudatell' ke /usr/local/bin/garudatell...${NC}"
+chmod +x "$PROJECT_DIR/garudatell"
+ln -sf "$PROJECT_DIR/garudatell" /usr/local/bin/garudatell
+chmod +x /usr/local/bin/garudatell
+echo -e "${GREEN}[✔] Perintah global 'garudatell' siap digunakan dari terminal mana saja!${NC}"
+
 # 8. Konfigurasi Cloudflare Zero Trust (Jika Token Diisi)
 echo ""
 echo -e "${YELLOW}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -262,11 +277,18 @@ echo -e "   • ${CYAN}Pakasir / PK${NC}   : Project & API Key (Payment Gateway 
 echo -e "   • ${CYAN}Bot Telegram${NC}   : Token Bot 1 (CS), Bot 2 (Notif), Bot 3 (Admin)"
 echo -e "4. Hubungkan WhatsApp Bot melalui menu QR Code WhatsApp jika diperlukan."
 echo ""
-echo -e "${BOLD}PERINTAH PENTING UNTUK PEMELIHARAAN (CLI):${NC}"
-echo -e "• Cek status server web : ${YELLOW}sudo systemctl status garudatel${NC}"
-echo -e "• Restart server web    : ${YELLOW}sudo systemctl restart garudatel${NC}"
-echo -e "• Cek log error web     : ${YELLOW}tail -f storage/logs/error.log${NC}"
-echo -e "• Cek status Bot Admin  : ${YELLOW}sudo systemctl status garudatel-bot-admin${NC}"
-echo -e "• Backup Database cepat : ${YELLOW}./venv/bin/python -c 'from app.services.telegram_service import perform_database_backup; print(perform_database_backup())'${NC}"
+echo -e "${BOLD}MANAJEMEN SISTEM DENGAN PERINTAH GLOBAL CLI:${NC}"
+echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo -e "  🚀 Ketik perintah ini di terminal VPS dari direktori mana saja:"
+echo -e "     ${YELLOW}${BOLD}garudatell${NC}"
+echo ""
+echo -e "  Menu interaktif akan muncul otomatis untuk:"
+echo -e "  • Cek status & restart server web / Bot Telegram"
+echo -e "  • Live stream pemantauan log error"
+echo -e "  • Ganti / update token Cloudflare Zero Trust (domain baru)"
+echo -e "  • Snapshot backup database langsung kirim ke Telegram"
+echo -e "  • Cek & update otomatis (Git Pull) versi terbaru"
+echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 echo -e "${GREEN}${BOLD}Selamat menggunakan GarudaTel v2! 🚀${NC}"
+

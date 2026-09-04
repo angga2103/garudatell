@@ -109,7 +109,39 @@ BOT_ADMIN_CHAT_ID=chat_id_admin
 
 ---
 
-## 🛠️ Perintah Pemeliharaan (Maintenance CLI)
+## 🛠️ Antarmuka CLI Manajemen Cepat (`garudatell`)
+
+GarudaTel v2 menyediakan antarmuka CLI interaktif berbasis Bash yang dapat dipanggil **kapan saja dari direktori mana saja** di terminal VPS:
+
+```bash
+garudatell
+```
+
+Antarmuka menu interaktif akan langsung terbuka:
+```text
+  ╔══════════════════════════════════════════════════════════════╗
+  ║             🦅 GARUDATELL - VPS CONTROL PANEL 🦅             ║
+  ║              Management Suite & Operation Center             ║
+  ╚══════════════════════════════════════════════════════════════╝
+  📂 Lokasi Proyek : /var/www/garudatel
+  🌐 Server Web    : ● RUNNING  │  🤖 Bot Admin : ● RUNNING  │  ☁️ Tunnel : ● CONNECTED
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [1] Cek Status Server Web        (sudo systemctl status garudatel)
+  [2] Restart Server Web           (sudo systemctl restart garudatel)
+  [3] Pantau Log Error (Live)      (tail -f storage/logs/error.log)
+  [4] Cek Status Bot 3 Admin       (sudo systemctl status garudatel-bot-admin)
+  [5] Backup Database Manual       (Snapshot WAL SQLite -> Telegram)
+  [6] Pengujian Otomatis Sistem    (Jalankan test_telegram_and_otp.py)
+  [7] Manajemen Cloudflare Tunnel  (Status & Ganti Token Zero Trust)
+  [8] Cek Pembaruan (Git Update)   (Git Fetch, Pull & Auto-Restart)
+  [0] Keluar (Exit)
+```
+
+Cukup ketikkan angka pilihan Anda untuk mengeksekusi operasi tanpa perlu mengingat perintah panjang.
+
+---
+
+### Perintah Pemeliharaan Manual (Opsional):
 
 ```bash
 # Cek status server web
@@ -118,13 +150,13 @@ sudo systemctl status garudatel
 # Restart server web
 sudo systemctl restart garudatel
 
-# Pantau log error
+# Pantau log error secara live
 tail -f storage/logs/error.log
 
 # Cek status Bot 3 Admin
 sudo systemctl status garudatel-bot-admin
 
-# Buat snapshot backup database manual
+# Snapshot backup database cepat ke Telegram
 ./venv/bin/python -c "from app.services.telegram_service import perform_database_backup; print(perform_database_backup())"
 
 # Jalankan pengujian otomatis sistem
@@ -135,3 +167,4 @@ sudo systemctl status garudatel-bot-admin
 
 ## 📄 Lisensi
 Hak Cipta © 2026 GarudaTel. Seluruh hak cipta dilindungi undang-undang.
+
