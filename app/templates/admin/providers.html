@@ -1,0 +1,105 @@
+
+{% extends "admin/layout.html" %}
+{% set page_title="Provider SDK Center" %}
+
+{% block admin_content %}
+
+<div class="grid">
+
+    <div class="card stat">
+        <h2>Payment Provider</h2>
+        <small>Active: {{ payment_active or 0 }}</small>
+    </div>
+
+    <div class="card stat">
+        <h2>PPOB Provider</h2>
+        <small>Active: {{ ppob_active or 0 }}</small>
+    </div>
+
+    <div class="card stat">
+        <h2>AI Provider</h2>
+        <small>Active: {{ ai_active or 0 }}</small>
+    </div>
+
+    <div class="card stat">
+        <h2>Total Provider</h2>
+        <small>{{ total or 0 }}</small>
+    </div>
+
+</div>
+
+<br>
+
+<div class="card">
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:15px;">
+
+        <input class="input" placeholder="Search provider...">
+
+        <a class="btn btn-primary" href="/admin/providers/add">
+            + Add Provider
+        </a>
+
+    </div>
+
+    <table class="table">
+
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Health</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+
+        <tbody>
+
+        {% for p in providers %}
+
+            <tr>
+
+                <td><b>{{ p.name }}</b></td>
+
+                <td>{{ p.provider_type }}</td>
+
+                <td>
+                    {% if p.enabled %}
+                        <span class="badge badge-success">ON</span>
+                    {% else %}
+                        <span class="badge badge-danger">OFF</span>
+                    {% endif %}
+                </td>
+
+                <td>
+                    <span class="badge badge-info">OK</span>
+                </td>
+
+                <td>
+
+                    <a class="btn btn-primary" href="/admin/providers/{{p.id}}/edit">
+                        Edit
+                    </a>
+
+                    <a class="btn btn-success" href="/admin/providers/{{p.id}}/test">
+                        Test
+                    </a>
+
+                    <a class="btn btn-danger" class="toggle-btn btn btn-danger" data-id="{{p.id}}">
+                        Toggle
+                    </a>
+
+                </td>
+
+            </tr>
+
+        {% endfor %}
+
+        </tbody>
+
+    </table>
+
+</div>
+
+{% endblock %}

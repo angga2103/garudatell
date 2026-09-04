@@ -1,0 +1,252 @@
+{% extends "admin/layout.html" %}
+{% block admin_content %}
+
+<div class="section-header">
+<i class="fas fa-plug"></i>
+
+{% if provider %}
+Edit Provider
+{% else %}
+Tambah Provider
+{% endif %}
+
+</div>
+
+<form method="post">
+
+<div class="config-card">
+
+{% if provider %}
+
+<h3>{{provider.name}}</h3>
+
+<p style="opacity:.7">
+{{provider.provider_type}}
+</p>
+
+<input
+type="hidden"
+name="provider_type"
+value="{{provider.provider_type}}">
+
+<input
+type="hidden"
+name="name"
+value="{{provider.name}}">
+
+<label>Status</label>
+
+<select
+class="form-control"
+name="enabled">
+
+<option value="1"
+{% if provider.enabled %}selected{% endif %}>
+Enabled
+</option>
+
+<option value="0"
+{% if not provider.enabled %}selected{% endif %}>
+Disabled
+</option>
+
+</select>
+
+<br>
+
+{% for field in sdk.fields %}
+
+<label>{{field.label}}</label>
+
+<input
+class="form-control"
+type="{{field.type}}"
+name="cfg_{{field.key}}"
+placeholder="{{field.placeholder}}"
+value="{{values.get(field.key,'')}}"
+{% if field.required %}
+required
+{% endif %}
+>
+
+<br>
+
+{% endfor %}
+
+{% else %}
+
+<label>Jenis Provider</label>
+
+<select
+class="form-control"
+name="provider_type">
+
+<option value="payment">Payment Gateway</option>
+<option value="ppob">PPOB</option>
+<option value="ai">AI</option>
+<option value="telegram">Telegram</option>
+<option value="whatsapp">WhatsApp</option>
+<option value="email">Email</option>
+
+</select>
+
+<br>
+
+<label>Provider</label>
+
+<select
+class="form-control"
+name="name"
+id="provider-name"
+required>
+<option value="">-- Pilih Provider --</option>
+</select>
+
+<br>
+
+{% endif %}
+
+<button class="action-btn">
+
+<i class="fas fa-save"></i>
+
+Simpan
+
+</button>
+
+<a
+href="/admin/providers"
+class="action-btn">
+
+Kembali
+
+</a>
+
+</div>
+
+</form>
+
+
+
+<div id="sdk-fields"></div>
+
+<script>
+
+async function loadSDK(){
+
+    let type=document.querySelector("[name=provider_type]");
+
+    let name=document.querySelector("[name=name]");
+
+    if(!type || !name) return;
+
+    if(name.value.trim()=="") return;
+
+    let r=await fetch(
+        "/admin/provider-sdk/"
+        +type.value+"/"
+        +encodeURIComponent(name.value)
+    );
+
+    let j=await r.json();
+
+    if(!j.status) return;
+
+    let html="";
+
+    j.provider.fields.forEach(function(f){
+
+        html+=`
+<label>${f.label}</label>
+
+<input
+class="form-control"
+type="${f.type}"
+name="cfg_${f.key}"
+placeholder="${f.placeholder||""}"
+${f.required?"required":""}
+>
+
+<br>
+`;
+
+    });
+
+    document.getElementById("sdk-fields").innerHTML=html;
+
+}
+
+document.addEventListener("DOMContentLoaded",function(){
+
+    let t=document.querySelector("[name=provider_type]");
+    let n=document.querySelector("[name=name]");
+
+    if(t) t.onchange=loadSDK;
+    if(n) n.onchange=loadSDK;
+
+});
+
+</script>
+
+
+
+
+<script>
+
+async function loadProviderList(){
+
+    let type=document.querySelector("[name=provider_type]");
+    let sel=document.getElementById("provider-name");
+
+    if(!type || !sel) return;
+
+    let r=await fetch("/admin/provider-sdk-list");
+    let j=await r.json();
+
+    if(!j.status) return;
+
+    sel.innerHTML='<option value="">-- Pilih Provider --</option>';
+
+    j.providers.forEach(function(p){
+
+        if(p.type!=type.value) return;
+
+        let o=document.createElement("option");
+        o.value=p.name;
+        o.textContent=p.name;
+        sel.appendChild(o);
+
+    });
+
+}
+
+document.addEventListener("DOMContentLoaded",function(){
+
+    let t=document.querySelector("[name=provider_type]");
+
+    if(t){
+
+        loadProviderList();
+
+        t.addEventListener("change",function(){
+
+            loadProviderList();
+
+            if(typeof loadSDK==="function")
+                loadSDK();
+
+        });
+
+    }
+
+    let s=document.getElementById("provider-name");
+
+    if(s && typeof loadSDK==="function")
+        s.addEventListener("change",loadSDK);
+
+});
+
+</script>
+
+
+{% endblock %}

@@ -1,0 +1,213 @@
+{% extends 'admin/layout.html' %}
+
+{% block title %}GarudaTel - Notifikasi & Pengumuman{% endblock %}
+
+{% set page_title = "Pusat Notifikasi & Broadcast" %}
+
+{% block page_css %}
+<style>
+    .notif-form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+    }
+    @media (max-width: 640px) {
+        .notif-form-grid { grid-template-columns: 1fr; }
+    }
+    .badge-notif {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 10px;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+    .badge-info { background: #e0f2fe; color: #0284c7; }
+    .badge-promo { background: #fef3c7; color: #d97706; }
+    .badge-warning { background: #fee2e2; color: #dc2626; }
+    .badge-system { background: #ede9fe; color: #7c3aed; }
+    
+    .table-responsive {
+        width: 100%;
+        overflow-x: auto;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+    }
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+        text-align: left;
+    }
+    .data-table th {
+        background: #f8fafc;
+        color: #475569;
+        font-weight: 800;
+        padding: 12px 16px;
+        border-bottom: 2px solid #e2e8f0;
+    }
+    .data-table td {
+        padding: 14px 16px;
+        border-bottom: 1px solid #f1f5f9;
+        color: #334155;
+        vertical-align: top;
+    }
+    .data-table tr:hover {
+        background: #f8fafc;
+    }
+    .btn-danger-sm {
+        background: #ef4444;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        transition: 0.15s;
+    }
+    .btn-danger-sm:hover { background: #dc2626; }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+
+<div class="config-card" style="margin-bottom: 25px;">
+    <div class="config-title" style="color: #00877a;">
+        <i class="fas fa-paper-plane"></i> Buat & Siarkan Notifikasi Baru
+    </div>
+    <p style="font-size: 12px; color: #64748b; margin-top: -10px; margin-bottom: 20px;">
+        Notifikasi yang disiarkan akan langsung muncul pada ikon lonceng dashboard pengguna GarudaTel.
+    </p>
+
+    <form action="{{ url_for('admin.notifications') }}" method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+        <div class="notif-form-grid">
+            <div class="form-group">
+                <label>Judul Notifikasi <span style="color:#ef4444;">*</span></label>
+                <input type="text" name="title" class="form-control" placeholder="Contoh: Promo Cashback 10% Spesial Weekend!" required>
+            </div>
+
+            <div class="form-group">
+                <label>Kategori / Tipe Notifikasi</label>
+                <select name="type" class="form-control">
+                    <option value="info">📢 Informasi Umum (Info)</option>
+                    <option value="promo">🎉 Promo & Diskon (Promo)</option>
+                    <option value="warning">⚠️ Peringatan Sistem (Warning)</option>
+                    <option value="system">🛠️ Pemeliharaan Server (System)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="notif-form-grid">
+            <div class="form-group">
+                <label>Target Penerima</label>
+                <select name="target" class="form-control">
+                    <option value="all">🌐 Semua Pengguna (Broadcast Massal)</option>
+                    <optgroup label="Pengguna Tertentu">
+                        {% for u in users %}
+                        <option value="{{ u.id }}">{{ u.name }} ({{ u.phone }})</option>
+                        {% endfor %}
+                    </optgroup>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Tautan / Link Target (Opsional)</label>
+                <input type="text" name="link" class="form-control" placeholder="Contoh: /kategori/pulsa atau https://...">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Isi Pesan Notifikasi <span style="color:#ef4444;">*</span></label>
+            <textarea name="message" class="form-control" rows="4" placeholder="Tuliskan isi pesan pengumuman untuk pelanggan Anda..." style="resize: vertical;" required></textarea>
+        </div>
+
+        <div style="margin-top: 15px;">
+            <button type="submit" class="btn-save" style="background: #00877a; width: 100%;">
+                <i class="fas fa-bullhorn"></i> Siarkan Notifikasi Sekarang
+            </button>
+        </div>
+    </form>
+</div>
+
+<div class="section-header" style="margin-bottom: 15px;">
+    <i class="fas fa-history"></i> Riwayat Notifikasi Terkirim ({{ notifications|length }})
+</div>
+
+<div class="table-responsive">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th style="width: 50px;">ID</th>
+                <th style="width: 140px;">Waktu (WIB)</th>
+                <th style="width: 110px;">Tipe</th>
+                <th>Judul & Pesan</th>
+                <th style="width: 140px;">Target</th>
+                <th style="width: 80px; text-align: center;">Aksi</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for n in notifications %}
+            <tr>
+                <td><b>#{{ n.id }}</b></td>
+                <td style="color: #64748b; font-size: 11px;">{{ n.created_at_wib }}</td>
+                <td>
+                    {% if n.type == 'promo' %}
+                        <span class="badge-notif badge-promo"><i class="fas fa-gift"></i> Promo</span>
+                    {% elif n.type == 'warning' %}
+                        <span class="badge-notif badge-warning"><i class="fas fa-exclamation-triangle"></i> Peringatan</span>
+                    {% elif n.type == 'system' %}
+                        <span class="badge-notif badge-system"><i class="fas fa-tools"></i> Sistem</span>
+                    {% else %}
+                        <span class="badge-notif badge-info"><i class="fas fa-info-circle"></i> Info</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div style="font-weight: 800; color: #1e293b; margin-bottom: 4px;">{{ n.title }}</div>
+                    <div style="color: #475569; font-size: 11px; white-space: pre-wrap; line-height: 1.4;">{{ n.message }}</div>
+                    {% if n.link %}
+                    <div style="margin-top: 6px;">
+                        <a href="{{ n.link }}" target="_blank" style="color: #00877a; font-size: 11px; font-weight: 700; text-decoration: underline;">
+                            <i class="fas fa-link"></i> {{ n.link }}
+                        </a>
+                    </div>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if n.is_broadcast or not n.target_user_id %}
+                        <span style="font-weight: 700; color: #0284c7;"><i class="fas fa-globe"></i> Semua User</span>
+                    {% else %}
+                        <span style="font-weight: 700; color: #475569;"><i class="fas fa-user"></i> {{ n.target_user.name if n.target_user else 'User #' ~ n.target_user_id }}</span>
+                    {% endif %}
+                </td>
+                <td align="center">
+                    <form action="{{ url_for('admin.delete_notification', id=n.id) }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus notifikasi ini?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <button type="submit" class="btn-danger-sm" title="Hapus Notifikasi">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" align="center" style="padding: 35px; color: #94a3b8;">
+                    <i class="fas fa-bell-slash" style="font-size: 28px; margin-bottom: 8px; display: block;"></i>
+                    Belum ada notifikasi yang pernah disiarkan.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}
+

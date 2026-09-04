@@ -1,0 +1,228 @@
+{% extends 'admin/layout.html' %}
+
+{% block title %}GarudaTel - Tiket Bantuan CS (Bot 1 Telegram){% endblock %}
+
+{% set page_title = "Pusat Tiket CS & Bantuan" %}
+
+{% block page_css %}
+<style>
+    .filter-bar {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 20px;
+        overflow-x: auto;
+        padding-bottom: 5px;
+    }
+    .filter-btn {
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 700;
+        text-decoration: none;
+        color: #475569;
+        background: white;
+        border: 1px solid #e2e8f0;
+        transition: 0.15s;
+        white-space: nowrap;
+    }
+    .filter-btn:hover { background: #f1f5f9; }
+    .filter-btn.active {
+        background: #0284c7;
+        color: white;
+        border-color: #0284c7;
+        box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3);
+    }
+    .table-responsive {
+        width: 100%;
+        overflow-x: auto;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+    }
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+        text-align: left;
+    }
+    .data-table th {
+        background: #f8fafc;
+        color: #475569;
+        font-weight: 800;
+        padding: 12px 16px;
+        border-bottom: 2px solid #e2e8f0;
+    }
+    .data-table td {
+        padding: 14px 16px;
+        border-bottom: 1px solid #f1f5f9;
+        color: #334155;
+        vertical-align: top;
+    }
+    .data-table tr:hover {
+        background: #f8fafc;
+    }
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 10px;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+    .status-OPEN { background: #fee2e2; color: #dc2626; }
+    .status-PROCESS { background: #fef3c7; color: #d97706; }
+    .status-RESOLVED { background: #dcfce7; color: #16a34a; }
+    .status-CLOSED { background: #f1f5f9; color: #64748b; }
+    .btn-wa-reply {
+        background: #22c55e;
+        color: white;
+        padding: 5px 10px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 700;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        transition: 0.15s;
+    }
+    .btn-wa-reply:hover { background: #16a34a; color: white; }
+    .status-select {
+        padding: 5px 8px;
+        border-radius: 6px;
+        border: 1px solid #cbd5e1;
+        font-size: 11px;
+        font-weight: 700;
+        background: #f8fafc;
+        outline: none;
+    }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+
+<!-- STATISTIK KARTU -->
+<div class="stats-grid" style="margin-bottom: 20px;">
+    <div class="stat-card" style="border-left: 4px solid #ef4444;">
+        <i class="fas fa-exclamation-circle" style="color:#ef4444;"></i>
+        <div class="stat-val" style="color:#ef4444;">{{ total_open }}</div>
+        <div class="stat-label">Tiket Baru (Open)</div>
+    </div>
+    <div class="stat-card" style="border-left: 4px solid #f59e0b;">
+        <i class="fas fa-spinner" style="color:#f59e0b;"></i>
+        <div class="stat-val" style="color:#f59e0b;">{{ total_process }}</div>
+        <div class="stat-label">Sedang Diproses</div>
+    </div>
+    <div class="stat-card" style="border-left: 4px solid #10b981;">
+        <i class="fas fa-check-double" style="color:#10b981;"></i>
+        <div class="stat-val" style="color:#10b981;">{{ total_resolved }}</div>
+        <div class="stat-label">Selesai / Teratasi</div>
+    </div>
+</div>
+
+<!-- FILTER TABS -->
+<div class="filter-bar">
+    <a href="{{ url_for('admin.tickets', status='ALL') }}" class="filter-btn {% if current_filter == 'ALL' %}active{% endif %}">Semua Tiket</a>
+    <a href="{{ url_for('admin.tickets', status='OPEN') }}" class="filter-btn {% if current_filter == 'OPEN' %}active{% endif %}">🔴 Tiket Open ({{ total_open }})</a>
+    <a href="{{ url_for('admin.tickets', status='PROCESS') }}" class="filter-btn {% if current_filter == 'PROCESS' %}active{% endif %}">🟡 Sedang Diproses ({{ total_process }})</a>
+    <a href="{{ url_for('admin.tickets', status='RESOLVED') }}" class="filter-btn {% if current_filter == 'RESOLVED' %}active{% endif %}">🟢 Selesai ({{ total_resolved }})</a>
+    <a href="{{ url_for('admin.tickets', status='CLOSED') }}" class="filter-btn {% if current_filter == 'CLOSED' %}active{% endif %}">⚪ Ditutup</a>
+</div>
+
+<!-- TABEL TIKET -->
+<div class="table-responsive">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th style="width: 140px;">Nomor & Waktu</th>
+                <th style="width: 160px;">Pelapor / Pengguna</th>
+                <th style="width: 150px;">Kategori Masalah</th>
+                <th>Detail Keluhan & Transaksi</th>
+                <th style="width: 130px;">Status Tiket</th>
+                <th style="width: 120px; text-align: center;">Tindakan</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for t in tickets %}
+            <tr>
+                <td>
+                    <div style="font-weight: 800; color: #0284c7;">#{{ t.ticket_number }}</div>
+                    <div style="color: #64748b; font-size: 10px; margin-top: 2px;">{{ t.created_at_wib }}</div>
+                    {% if t.telegram_sent %}
+                        <div style="font-size: 9px; color: #16a34a; font-weight: 700; margin-top: 4px;">
+                            <i class="fab fa-telegram-plane"></i> Terkirim ke Bot
+                        </div>
+                    {% else %}
+                        <div style="font-size: 9px; color: #ef4444; font-weight: 700; margin-top: 4px;">
+                            <i class="fas fa-times-circle"></i> Gagal Kirim Bot
+                        </div>
+                    {% endif %}
+                </td>
+                <td>
+                    <div style="font-weight: 800; color: #1e293b;">{{ t.user_name }}</div>
+                    <div style="font-size: 11px; color: #64748b; font-family: monospace;">{{ t.user_phone }}</div>
+                    {% if t.user %}
+                        <div style="font-size: 10px; color: #00877a; font-weight: 700;">ID User: #{{ t.user.id }}</div>
+                    {% else %}
+                        <div style="font-size: 10px; color: #94a3b8;">Guest</div>
+                    {% endif %}
+                </td>
+                <td>
+                    <span style="font-weight: 700; color: #334155;">{{ t.category }}</span>
+                </td>
+                <td>
+                    <!-- Pesan Keluhan -->
+                    <div style="background: #f8fafc; padding: 10px 12px; border-radius: 8px; border-left: 3px solid #0284c7; margin-bottom: 8px; font-size: 12px; color: #1e293b; white-space: pre-wrap;">
+                        {{ t.message }}
+                    </div>
+
+                    <!-- Rincian Transaksi Jika Ada -->
+                    {% if t.transaction %}
+                    <div style="background: #fff; border: 1px solid #e2e8f0; padding: 8px 10px; border-radius: 8px; font-size: 11px;">
+                        <span style="font-weight: 800; color: #475569;">📦 Transaksi Terkait:</span>
+                        <span style="color: #0284c7; font-weight: 700; margin-left: 4px;">{{ t.transaction.ref_id }}</span>
+                        <div><b>Produk:</b> {{ t.transaction.product_name or '-' }}</div>
+                        <div><b>Tujuan:</b> <code>{{ t.transaction.target_number or '-' }}</code> | <b>Nominal:</b> Rp {{ "{:,.0f}".format(t.transaction.amount or 0).replace(',', '.') }}</div>
+                        <div>
+                            <b>Status Trx:</b> 
+                            <span style="font-weight: 800; color: {% if t.transaction.status == 'SUCCESS' %}#16a34a{% elif t.transaction.status == 'FAILED' %}#dc2626{% else %}#d97706{% endif %};">
+                                {{ t.transaction.status }}
+                            </span>
+                            {% if t.transaction.sn %} | <b>SN:</b> <code>{{ t.transaction.sn }}</code>{% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </td>
+                <td>
+                    <form action="{{ url_for('admin.update_ticket_status', id=t.id) }}" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <select name="status" class="status-select" onchange="this.form.submit()">
+                            <option value="OPEN" {% if t.status == 'OPEN' %}selected{% endif %}>🔴 OPEN</option>
+                            <option value="PROCESS" {% if t.status == 'PROCESS' %}selected{% endif %}>🟡 PROCESS</option>
+                            <option value="RESOLVED" {% if t.status == 'RESOLVED' %}selected{% endif %}>🟢 RESOLVED</option>
+                            <option value="CLOSED" {% if t.status == 'CLOSED' %}selected{% endif %}>⚪ CLOSED</option>
+                        </select>
+                    </form>
+                </td>
+                <td align="center">
+                    <a href="https://wa.me/{{ t.clean_phone_for_wa }}?text=Halo%20{{ t.user_name }},%20kami%20dari%20Customer%20Service%20GarudaTel%20ingin%20menindaklanjuti%20tiket%20bantuan%20nomor%20{{ t.ticket_number }}:" target="_blank" class="btn-wa-reply" title="Balas via WhatsApp">
+                        <i class="fab fa-whatsapp"></i> Chat WA
+                    </a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" align="center" style="padding: 40px; color: #94a3b8;">
+                    <i class="fas fa-inbox" style="font-size: 32px; margin-bottom: 8px; display: block;"></i>
+                    Belum ada tiket keluhan pada kategori ini.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}
+

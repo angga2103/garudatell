@@ -1,0 +1,169 @@
+{% extends 'admin/layout.html' %}
+
+{% block title %}GarudaTel - Banner Center{% endblock %}
+
+{% set page_title = "Banner Center" %}
+
+{% block page_css %}
+<style>
+    .banner-stats { display: flex; gap: 15px; margin-bottom: 20px; }
+    .banner-stat-card { flex: 1; background: white; padding: 18px; border-radius: 12px; border: 1px solid #E2E8F0; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
+    .banner-stat-val { font-size: 24px; font-weight: 900; color: #1E293B; margin-top: 5px; }
+    .banner-stat-lbl { font-size: 11px; font-weight: 800; color: #64748B; text-transform: uppercase; }
+
+    .card-banner { background: white; border-radius: 12px; border: 1px solid #E2E8F0; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
+    .card-title { font-size: 15px; font-weight: 800; color: #1E293B; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 11px; font-weight: 800; color: #64748B; margin-bottom: 5px; }
+    .form-ctrl { width: 100%; padding: 10px 12px; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 12px; font-family: inherit; box-sizing: border-box; outline: none; }
+    .form-ctrl:focus { border-color: #3A827F; }
+
+    .btn-save-banner { background: #3A827F; color: white; border: none; padding: 11px 20px; border-radius: 8px; font-size: 12px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-save-banner:hover { background: #2D6664; }
+
+    .banner-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .banner-table th { background: #F8FAFC; color: #334155; padding: 12px 10px; border-bottom: 2px solid #E2E8F0; text-align: left; font-weight: 800; }
+    .banner-table td { padding: 12px 10px; border-bottom: 1px solid #F1F5F9; vertical-align: middle; }
+    .banner-thumb { width: 120px; height: 55px; border-radius: 6px; object-fit: cover; border: 1px solid #E2E8F0; background: #F1F5F9; }
+
+    .badge-active { background: #D1FAE5; color: #065F46; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; }
+    .badge-inactive { background: #F1F5F9; color: #64748B; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; }
+
+    .btn-toggle { background: #E2E8F0; color: #334155; border: none; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; }
+    .btn-delete { background: #FEE2E2; color: #DC2626; border: none; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+
+<div class="banner-stats">
+    <div class="banner-stat-card">
+        <i class="fas fa-images" style="font-size: 22px; color: #3A827F;"></i>
+        <div class="banner-stat-val">{{ total_banners }}</div>
+        <div class="banner-stat-lbl">Total Banner</div>
+    </div>
+    <div class="banner-stat-card">
+        <i class="fas fa-check-circle" style="font-size: 22px; color: #10B981;"></i>
+        <div class="banner-stat-val">{{ active_banners }}</div>
+        <div class="banner-stat-lbl">Banner Aktif</div>
+    </div>
+</div>
+
+<!-- FORM TAMBAH BANNER -->
+<div class="card-banner">
+    <div class="card-title">
+        <i class="fas fa-plus-circle" style="color: #3A827F;"></i>
+        Tambah Banner Baru
+    </div>
+
+    <form method="POST" action="{{ url_for('admin.add_banner') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        
+        <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 250px;" class="form-group">
+                <label>Judul Promo / Label Banner</label>
+                <input type="text" name="title" required placeholder="Contoh: Promo Cashback Merdeka 50%" class="form-ctrl">
+            </div>
+
+            <div style="flex: 1; min-width: 250px;" class="form-group">
+                <label>URL Gambar Banner (Image Link / CDN)</label>
+                <input type="url" name="image_url" required placeholder="https://domain.com/banner-promo.jpg" class="form-ctrl">
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
+            <div style="flex: 2; min-width: 250px;" class="form-group">
+                <label>Target URL / Tautan Klik (Opsional)</label>
+                <input type="text" name="link_url" placeholder="/trx/checkout atau https://wa.me/..." class="form-ctrl">
+            </div>
+
+            <div style="flex: 1; min-width: 150px; margin-top: 5px;">
+                <label style="display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 12px; cursor: pointer;">
+                    <input type="checkbox" name="is_active" value="1" checked style="width: 18px; height: 18px; accent-color: #3A827F;">
+                    Status Langsung Aktif
+                </label>
+            </div>
+        </div>
+
+        <button type="submit" class="btn-save-banner">
+            <i class="fas fa-save"></i> Simpan Banner
+        </button>
+    </form>
+</div>
+
+<!-- TABEL BANNER -->
+<div class="card-banner">
+    <div class="card-title">
+        <i class="fas fa-list" style="color: #3A827F;"></i>
+        Daftar Banner Promo
+    </div>
+
+    <div style="overflow-x: auto;">
+        <table class="banner-table">
+            <thead>
+                <tr>
+                    <th style="width: 130px;">Preview</th>
+                    <th>Judul Banner</th>
+                    <th>Tautan</th>
+                    <th>Status</th>
+                    <th style="text-align: right;">Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in banners %}
+                <tr>
+                    <td>
+                        <img src="{{ b.image_url }}" alt="{{ b.title }}" class="banner-thumb" onerror="this.src='https://placehold.co/120x55?text=No+Image';">
+                    </td>
+                    <td>
+                        <div style="font-weight: 800; color: #1E293B;">{{ b.title }}</div>
+                        <div style="font-size: 10px; color: #64748B;">ID: #{{ b.id }}</div>
+                    </td>
+                    <td>
+                        {% if b.link_url %}
+                            <a href="{{ b.link_url }}" target="_blank" style="color: #0284C7; text-decoration: none; font-size: 11px;">
+                                <i class="fas fa-external-link-alt"></i> {{ b.link_url[:40] }}{% if b.link_url|length > 40 %}...{% endif %}
+                            </a>
+                        {% else %}
+                            <span style="color: #94A3B8; font-size: 11px;">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if b.is_active %}
+                            <span class="badge-active"><i class="fas fa-check"></i> AKTIF</span>
+                        {% else %}
+                            <span class="badge-inactive">NONAKTIF</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right;">
+                        <div style="display: inline-flex; gap: 6px;">
+                            <form method="POST" action="{{ url_for('admin.toggle_banner', id=b.id) }}" style="display: inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                <button type="submit" class="btn-toggle" title="Ubah Status Aktif">
+                                    <i class="fas fa-power-off"></i> {% if b.is_active %}Matikan{% else %}Nyalakan{% endif %}
+                                </button>
+                            </form>
+                            <form method="POST" action="{{ url_for('admin.delete_banner', id=b.id) }}" style="display: inline;" onsubmit="return confirm('Hapus banner ini permanen?');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                <button type="submit" class="btn-delete" title="Hapus Banner">
+                                    <i class="fas fa-trash"></i> Hapus
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 30px; color: #64748B;">
+                        <i class="fas fa-image" style="font-size: 30px; color: #CBD5E1; display: block; margin-bottom: 8px;"></i>
+                        Belum ada banner promo yang ditambahkan.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

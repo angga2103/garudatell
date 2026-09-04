@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}
+{{ title or "Garudatel Admin" }}
+{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/garudatel-admin.css') }}">
+{% block page_css %}{% endblock %}
+{% endblock %}
+
+{% block content %}
+
+<div class="admin-container">
+
+    <div class="admin-header">
+        <div class="admin-header-title">
+            <i class="fas fa-cogs"></i>
+            {{ page_title or "Panel Admin" }}
+            <span class="badge-super-admin">SUPER ADMIN</span>
+        </div>
+
+        <a href="{{ url_for('admin.dashboard') }}" style="color:white;font-size:18px;">
+            <i class="fas fa-home"></i>
+        </a>
+    </div>
+
+    {% with messages=get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category,message in messages %}
+    <div class="alert alert-{{ category }}">
+        <i class="fas fa-check-circle"></i>
+        {{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    {% block admin_content %}
+    {% endblock %}
+
+    <a href="{{ url_for('admin.dashboard') }}" class="fab-home">
+        <i class="fas fa-home"></i>
+    </a>
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,492 @@
+{% include 'user/header.html' ignore missing %}
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+<style>
+    .cuan-body { font-family: 'Poppins', sans-serif !important; background-color: #FAFAFA; min-height: 100vh; margin: 0; padding: 0; }
+    .cuan-body * { font-family: 'Poppins', sans-serif !important; box-sizing: border-box; }
+    .cuan-header { background-color: #0d9488; padding: 20px 20px 60px 20px; color: white; border-bottom-left-radius: 30px; border-bottom-right-radius: 30px; position: relative; z-index: 10;}
+    .cuan-top { display: flex; align-items: center; margin-bottom: 25px; cursor: pointer; width: fit-content; }
+    .cuan-top h1 { font-size: 1.1rem; font-weight: 600; margin: 0 0 0 10px; }
+    .cuan-provider-info { display: flex; justify-content: space-between; align-items: center; }
+    .provider-left { display: flex; align-items: center; gap: 12px; }
+    .provider-logo { background: white; color: {{ data.color }}; width: 45px; height: 45px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1.2rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); letter-spacing: -0.5px;}
+    .provider-text h2 { margin: 0; font-size: 1.1rem; font-weight: 800; text-transform: uppercase; letter-spacing: -0.2px;}
+    .provider-text p { margin: 0; font-size: 0.75rem; opacity: 0.9; }
+    .balance-pill { background: rgba(255,255,255,0.2); padding: 8px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+    
+    .cuan-card { background: white; margin: -35px 20px 20px 20px; padding: 20px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); position: relative; z-index: 20;}
+    .input-group label { font-size: 0.8rem; font-weight: 800; color: #334155; margin-bottom: 12px; display: block; }
+    .input-wrapper { position: relative; margin-bottom: 15px; }
+    .input-wrapper input { width: 100%; padding: 15px; padding-right: 50px; border: 1px solid #E2E8F0; border-radius: 12px; font-size: 0.95rem; outline: none; background: #F8FAFC; color:#334155; font-weight:700; letter-spacing: 0.5px;}
+    .input-wrapper input:focus { border-color: #0d9488; background: white;}
+    .icon-input { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #0d9488; background: #E0F2FE; padding: 8px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+    
+    .btn-cari { width: 100%; background: #E2E8F0; color: #94A3B8; border: none; padding: 15px; border-radius: 12px; font-weight: 800; font-size: 0.95rem; transition: 0.3s; display: flex; align-items: center; justify-content: center; gap: 8px;}
+    .btn-cari.active { background: #0d9488; color: white; cursor: pointer; box-shadow: 0 4px 10px rgba(13, 148, 136, 0.3); }
+    
+    .radar-container { text-align: center; padding: 50px 20px; }
+    .radar-circle { background: #CCFBF1; width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px auto; position: relative; }
+    .radar-icon { color: #0d9488; position: relative; z-index: 10; }
+    .radar-wave { position: absolute; top: 0; left: 0; right: 0; bottom: 0; border-radius: 50%; border: 2px solid #14B8A6; animation: wave 1.5s infinite ease-out; }
+    @keyframes wave { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(2); opacity: 0; } }
+    
+    .category-scroll { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; margin-bottom: 15px; scrollbar-width: none; }
+    .category-scroll::-webkit-scrollbar { display: none; }
+    .cat-pill { padding: 8px 16px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; cursor: pointer; white-space: nowrap; border: 1px solid #E2E8F0; color: #64748B; background: white; transition: 0.2s;}
+    .cat-pill.active { background: #0d9488; color: white; border-color: #0d9488; }
+    
+    .filter-row { display: flex; gap: 10px; margin-bottom: 20px; }
+    .search-mini { flex: 1; position: relative; }
+    .search-mini input { width: 100%; padding: 12px 12px 12px 35px; border-radius: 12px; border: 1px solid #E2E8F0; background: white; outline: none; font-size: 0.85rem;}
+    .search-mini svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94A3B8; }
+    .filter-btn { background: white; border: 1px solid #E2E8F0; border-radius: 12px; padding: 0 12px; display: flex; align-items: center; justify-content: center; color: #64748B; cursor: pointer; transition: 0.2s;}
+    .filter-btn.active { background: #E0F2FE; color: #0284C7; border-color: #bae6fd; }
+    
+    .product-container { display: flex; gap: 12px; }
+    .product-container.view-list { flex-direction: column; }
+    .product-container.view-grid { flex-direction: row; flex-wrap: wrap; }
+    
+    .prod-card { background: white; border-radius: 16px; padding: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); border: 1px solid #F1F5F9; cursor: pointer; transition: 0.2s; position: relative; overflow: hidden; display: flex; flex-direction: column;}
+    .prod-card:active { transform: scale(0.98); }
+    
+    .badge-tersedia { background: #0d9488; color: white; padding: 4px 8px; border-radius: 6px; font-size: 0.65rem; font-weight: 700; white-space: nowrap; width: fit-content; margin-bottom: 8px;}
+    .badge-validity { font-size: 0.7rem; border: 1px solid #E2E8F0; border-radius: 6px; padding: 4px 8px; display: inline-flex; align-items: center; color: #475569; font-weight: 700; width: fit-content; background: white; margin-bottom: 8px;}
+    .prod-title { font-weight: 800; color: #334155; line-height: 1.3; }
+    .prod-price { font-weight: 900; color: #0d9488; }
+    .btn-beli { background: #0d9488; color: white; border: none; padding: 8px 18px; border-radius: 8px; font-weight: 700; font-size: 0.85rem; box-shadow: 0 2px 4px rgba(13, 148, 136, 0.2); pointer-events: none;}
+
+    .view-list .prod-card { width: 100%; gap: 0;}
+    .view-list .card-top { display: flex; justify-content: space-between; align-items: flex-start; }
+    .view-list .card-top-left { display: flex; flex-direction: column; flex: 1; padding-right: 10px;}
+    .view-list .prod-title { font-size: 0.95rem; margin-bottom: 12px;}
+    .view-list .card-bottom { display: flex; justify-content: space-between; align-items: center; border-top: 1px dotted #CBD5E1; padding-top: 12px; }
+    .view-list .prod-price { font-size: 1.15rem; }
+    .view-list .grid-only { display: none !important; }
+    
+    .view-grid .prod-card { width: calc(50% - 6px); padding: 12px; gap: 0;}
+    .view-grid .card-top { display: flex; flex-direction: column; }
+    .view-grid .card-top-left { display: flex; flex-direction: column; }
+    .view-grid .prod-title { font-size: 0.85rem; margin-bottom: 8px;}
+    .view-grid .card-bottom { display: block; border-top: none; padding-top: 0; }
+    .view-grid .prod-price { font-size: 0.95rem; }
+    .view-grid .list-only { display: none !important; }
+
+    /* MIUI POPUP CSS */
+    .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 1000; display: none; opacity: 0; transition: opacity 0.3s; align-items: flex-end; justify-content: center; }
+    .modal-overlay.show { display: flex; opacity: 1; }
+    .bottom-sheet { background: #FAFAFA; width: 100%; max-width: 500px; border-radius: 20px 20px 0 0; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1); display: flex; flex-direction: column; max-height: 90vh; overflow: hidden;}
+    .modal-overlay.show .bottom-sheet { transform: translateY(0); }
+    
+    .bs-header { background: #0d9488; color: white; padding: 18px 20px; display: flex; justify-content: space-between; align-items: center;}
+    .bs-title { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.1rem;}
+    .bs-close { background: none; border: none; color: white; cursor: pointer; padding: 0;}
+    
+    .bs-body { padding: 20px; overflow-y: auto; flex: 1; background: white;}
+    
+    .bs-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #F1F5F9;}
+    .bs-row:first-child { padding-top: 0; }
+    .bs-label { color: #64748B; font-size: 0.9rem; font-weight: 500;}
+    .bs-value { color: #334155; font-size: 0.95rem; font-weight: 800; text-align: right; max-width: 60%;}
+    
+    .bs-instruction { background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 16px; padding: 15px; margin: 20px 0; font-size: 0.8rem; color: #475569; line-height: 1.6;}
+    .bs-instruction ul { margin: 0; padding-left: 20px;}
+    .bs-instruction li { margin-bottom: 6px; }
+    .bs-warning { color: #EF4444; margin-top: 10px; font-weight: 600;}
+    
+    .pay-title { font-weight: 800; color: #334155; font-size: 1rem; margin-bottom: 12px; margin-top: 5px;}
+    
+    .pay-card { border: 1.5px solid #E2E8F0; border-radius: 12px; padding: 15px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: 0.2s;}
+    .pay-card.active { border-color: #0d9488; background: #F0FDFA; }
+    .pay-left { display: flex; align-items: center; gap: 12px; }
+    .pay-icon { background: #F1F5F9; color: #0d9488; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center;}
+    .pay-card.active .pay-icon { background: #0d9488; color: white;}
+    .pay-name { font-weight: 800; color: #334155; font-size: 0.95rem;}
+    .pay-desc { font-size: 0.75rem; color: #94A3B8; font-weight: 500;}
+    
+    .check-circle { width: 24px; height: 24px; border-radius: 50%; border: 2px solid #CBD5E1; display: flex; align-items: center; justify-content: center; color: transparent;}
+    .pay-card.active .check-circle { background: #0d9488; border-color: #0d9488; color: white; }
+    
+    .bs-footer { padding: 15px 20px; background: white; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #F1F5F9; box-shadow: 0 -4px 10px rgba(0,0,0,0.02);}
+    .bs-total { font-weight: 900; color: #0d9488; font-size: 1.3rem;}
+    .btn-beli-now { background: #0d9488; color: white; border: none; padding: 12px 24px; border-radius: 12px; font-weight: 800; font-size: 0.95rem; cursor: pointer; letter-spacing: 0.5px;}
+    .btn-beli-now:disabled { background: #94A3B8; cursor: not-allowed; }
+</style>
+
+<div class="cuan-body">
+    <div class="cuan-header">
+        <div class="cuan-top" onclick="window.location.href='/'">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            <h1>Kembali</h1>
+        </div>
+        <div class="cuan-provider-info">
+            <div class="provider-left">
+                <div class="provider-logo">{{ data.logo }}</div>
+                <div class="provider-text">
+                    <h2>{{ data.title }}</h2>
+                    <p>Promo Khusus Nomor Anda</p>
+                </div>
+            </div>
+            <div class="balance-pill">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/><path d="M4 6v12c0 1.1.9 2 2 2h14v-8H6a2 2 0 0 1-2-2Z"/></svg>
+                Rp {{ "{:,.0f}".format(current_user.balance | default(0)).replace(',', '.') }}
+            </div>
+        </div>
+    </div>
+
+    <div class="cuan-card" id="cardInput">
+        <div class="input-group">
+            <label>Nomor Tujuan {{ data.label }}</label>
+            <div class="input-wrapper">
+                <input type="number" id="nohp" placeholder="Misal: {{ data.placeholder }}" oninput="checkInput()">
+                <div class="icon-input">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+                </div>
+            </div>
+            <button class="btn-cari" id="btnCari" disabled>
+                Cari Promo Spesial 
+                <span id="btnIcon" style="display:flex;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                </span>
+            </button>
+        </div>
+    </div>
+
+    <div class="empty-state" id="emptyState" style="text-align:center; padding: 20px; color: #64748B;">
+        <svg width="45" height="45" viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:15px;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <h3 style="font-size: 1.05rem; font-weight: 800; color: #334155; margin: 0 0 8px 0;">Mulai Pencarian</h3>
+        <p style="font-size: 0.85rem; margin: 0;">Masukkan nomor HP dan klik cari untuk melihat daftar paket {{ data.label }} murah.</p>
+    </div>
+
+    <div class="radar-container" id="loadingState" style="display: none;">
+        <div class="radar-circle">
+            <svg class="radar-icon" width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            <div class="radar-wave"></div>
+            <div class="radar-wave" style="animation-delay: 0.5s;"></div>
+        </div>
+        <h3 style="font-weight:900; color:#334155; margin:0 0 8px 0; font-size:1.15rem;">Menganalisis Nomor...</h3>
+        <p style="color:#64748B; font-size:0.85rem; margin:0;">Menghubungkan ke server pusat</p>
+    </div>
+
+    <div id="resultContainer" style="display: none; padding: 0 20px 80px 20px;">
+        <div class="category-scroll" id="catScroll"></div>
+        
+        <div class="filter-row">
+            <div class="search-mini">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                <input type="text" id="filterInput" onkeyup="renderProducts()" placeholder="Cari paket...">
+            </div>
+            <div class="filter-btn" id="btnSort" onclick="toggleSort()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5h10"/><path d="M11 9h7"/><path d="M11 13h4"/><path d="M3 17l3 3 3-3"/><path d="M6 18V4"/></svg>
+            </div>
+            <div class="filter-btn" id="btnList" onclick="setView('list')">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            </div>
+            <div class="filter-btn active" id="btnGrid" onclick="setView('grid')">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            </div>
+        </div>
+        
+        <div id="productList" class="product-container view-grid"></div>
+    </div>
+</div>
+
+<!-- BOTTOM SHEET CHECKOUT ELEGAN -->
+<div class="modal-overlay" id="checkoutModal">
+    <div class="bottom-sheet">
+        <div class="bs-header">
+            <div class="bs-title">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                Rincian
+            </div>
+            <button class="bs-close" onclick="closeCheckout()"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+        </div>
+        
+        <div class="bs-body">
+            <div class="bs-row">
+                <div class="bs-label">Pilihan Paket</div>
+                <div class="bs-value" id="bsName">XL 5.000</div>
+            </div>
+            <div class="bs-row">
+                <div class="bs-label">Nomor HP</div>
+                <div class="bs-value" id="bsTujuan">08...</div>
+            </div>
+            
+            <div class="bs-instruction">
+                <ul id="bsDescList">
+                    <li>Pastikan nomor pengisian benar</li>
+                    <li>Tidak menggunakan Simbol & Spasi</li>
+                    <li>Pastikan Nomor Tidak berada Dalam Masa Tenggang</li>
+                </ul>
+                <div class="bs-warning">Jika ada kendala setelah Transaksi. Silahkan Klik Riwayat, lalu pilih transaksi yang terkendala untuk melaporkannya kepada CS.</div>
+            </div>
+            
+            <div class="pay-title">Metode Pembayaran</div>
+            
+            <div class="pay-card active" id="paySaldo" onclick="selectPayment('saldo')">
+                <div class="pay-left">
+                    <div class="pay-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
+                    <div>
+                        <div class="pay-name">Saldo Akun</div>
+                        <div class="pay-desc">Otomatis (Refund jika gagal)</div>
+                    </div>
+                </div>
+                <div class="check-circle"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+            </div>
+            
+            <div class="pay-card" id="payQris" onclick="selectPayment('qris')">
+                <div class="pay-left">
+                    <div class="pay-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>
+                    <div>
+                        <div class="pay-name">QRIS</div>
+                        <div class="pay-desc">Scan Barcode (Refund ke Saldo)</div>
+                    </div>
+                </div>
+                <div class="check-circle"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+            </div>
+        </div>
+        
+        <div class="bs-footer">
+            <div class="bs-total" id="bsPrice">Rp 0</div>
+            <button class="btn-beli-now" id="btnProsesBeli" onclick="submitCheckout()">BELI SEKARANG</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const currentProvider = window.location.pathname.split('/').pop();
+let globalProducts = [];
+let currentCategory = 'ALL';
+let currentSort = 'asc';
+let currentView = 'grid';
+window.filteredDataGlobal = [];
+
+const userIsLoggedIn = {{ 'true' if current_user.is_authenticated else 'false' }};
+let currentSelectedProduct = null;
+let currentPayMethod = 'saldo';
+
+function checkInput() {
+    const input = document.getElementById('nohp').value;
+    const btn = document.getElementById('btnCari');
+    const iconSpan = document.getElementById('btnIcon');
+    
+    if(input.length >= 10) {
+        btn.classList.add('active');
+        btn.removeAttribute('disabled');
+        btn.onclick = startAnalysis;
+        iconSpan.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>';
+    } else {
+        btn.classList.remove('active');
+        btn.setAttribute('disabled', 'true');
+        btn.onclick = null;
+        iconSpan.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
+    }
+}
+
+function startAnalysis() {
+    const nohp = document.getElementById('nohp').value;
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('resultContainer').style.display = 'none';
+    document.getElementById('loadingState').style.display = 'block';
+    setTimeout(() => { fetchProducts(nohp); }, 1500);
+}
+
+function fetchProducts(nohp) {
+    fetch('/api/search_cuan_live/' + currentProvider + '/' + nohp)
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('loadingState').style.display = 'none';
+        if(data.status === 'success' && data.data.length > 0) {
+            globalProducts = data.data;
+            document.getElementById('resultContainer').style.display = 'block';
+            renderCategories();
+            renderProducts();
+        } else {
+            document.getElementById('emptyState').style.display = 'block';
+            document.getElementById('emptyState').innerHTML = '<p style="color: #EF4444; font-weight: 700; margin-top:20px;">' + (data.message || 'Promo tidak tersedia.') + '</p>';
+        }
+    })
+    .catch(error => {
+        document.getElementById('loadingState').style.display = 'none';
+        alert('Gagal terhubung ke sistem.');
+    });
+}
+
+function renderCategories() {
+    const catScroll = document.getElementById('catScroll');
+    const categories = new Set(['ALL']);
+    globalProducts.forEach(p => categories.add(p.category));
+    let html = '';
+    categories.forEach(cat => {
+        const title = cat === 'ALL' ? 'SEMUA PAKET' : cat;
+        const activeClass = cat === currentCategory ? 'active' : '';
+        html += `<div class="cat-pill ${activeClass}" onclick="setCategory('${cat}')">${title}</div>`;
+    });
+    catScroll.innerHTML = html;
+}
+
+function setCategory(cat) {
+    currentCategory = cat;
+    renderCategories(); 
+    renderProducts();
+}
+
+function toggleSort() {
+    currentSort = (currentSort === 'asc') ? 'desc' : 'asc';
+    const btnSort = document.getElementById('btnSort');
+    if(currentSort === 'desc') btnSort.classList.add('active');
+    else btnSort.classList.remove('active');
+    renderProducts();
+}
+
+function setView(viewType) {
+    currentView = viewType;
+    document.getElementById('btnList').classList.remove('active');
+    document.getElementById('btnGrid').classList.remove('active');
+    if(viewType === 'list') {
+        document.getElementById('btnList').classList.add('active');
+        document.getElementById('productList').className = 'product-container view-list';
+    } else {
+        document.getElementById('btnGrid').classList.add('active');
+        document.getElementById('productList').className = 'product-container view-grid';
+    }
+}
+
+function renderProducts() {
+    const list = document.getElementById('productList');
+    const searchQuery = document.getElementById('filterInput').value.toLowerCase();
+    
+    let filteredData = globalProducts.filter(item => {
+        if(currentCategory !== 'ALL' && item.category !== currentCategory) return false;
+        if(searchQuery && !item.name.toLowerCase().includes(searchQuery)) return false;
+        return true;
+    });
+
+    window.filteredDataGlobal = filteredData;
+    filteredData.sort((a, b) => { return (currentSort === 'asc') ? a.price - b.price : b.price - a.price; });
+    
+    let html = '';
+    filteredData.forEach((item, index) => {
+        const harga = new Intl.NumberFormat('id-ID').format(item.price);
+        let match = item.name.match(/(\d+)\s*(hr|hari|days|bln|bulan)/i);
+        let validityHtml = '';
+        if(match) {
+            let spanText = match[2].toLowerCase();
+            if (spanText === 'hr' || spanText === 'hari') spanText = 'Hari';
+            else if (spanText === 'days') spanText = 'Days';
+            else spanText = 'Bulan';
+            validityHtml = `<div class="badge-validity">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:2px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                ${match[1]} ${spanText}
+            </div>`;
+        }
+        
+        html += `
+        <div class="prod-card" onclick="openCheckout(${index})">
+            <div class="card-top">
+                <div class="card-top-left">
+                    <div class="badge-tersedia grid-only">Tersedia</div>
+                    ${validityHtml}
+                    <div class="prod-title">${item.name}</div>
+                </div>
+                <div class="badge-tersedia list-only">Tersedia</div>
+            </div>
+            <div class="card-bottom">
+                <div class="prod-price">Rp ${harga}</div>
+                <button type="button" class="btn-beli list-only">Beli</button>
+            </div>
+        </div>
+        `;
+    });
+    
+    if(html === '') html = '<div style="text-align:center; padding:30px; color:#94A3B8; font-weight:600; width:100%;">Paket tidak ditemukan.</div>';
+    list.innerHTML = html;
+}
+
+function openCheckout(index) {
+    if (!userIsLoggedIn) {
+        window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname);
+        return;
+    }
+    
+    const item = window.filteredDataGlobal[index];
+    if(!item) return;
+    
+    currentSelectedProduct = item;
+    const nohp = document.getElementById('nohp').value;
+    
+    document.getElementById('bsName').innerText = item.name;
+    document.getElementById('bsTujuan').innerText = nohp;
+    document.getElementById('bsPrice').innerText = 'Rp ' + new Intl.NumberFormat('id-ID').format(item.price);
+    
+    const descBox = document.getElementById('bsDescList');
+    if(item.desc && item.desc.length > 5) {
+        let lines = item.desc.split('\\n').filter(l => l.trim().length > 0);
+        if(lines.length > 0) {
+            descBox.innerHTML = lines.map(l => `<li>${l.replace(/-/g, '').trim()}</li>`).join('');
+        }
+    } else {
+        descBox.innerHTML = `<li>Pastikan nomor pengisian benar</li><li>Tidak menggunakan Simbol & Spasi</li><li>Pastikan Nomor Tidak berada Dalam Masa Tenggang</li>`;
+    }
+    
+    const modal = document.getElementById('checkoutModal');
+    modal.style.display = 'flex';
+    setTimeout(() => { modal.classList.add('show'); }, 10);
+}
+
+function closeCheckout() {
+    const modal = document.getElementById('checkoutModal');
+    modal.classList.remove('show');
+    setTimeout(() => { modal.style.display = 'none'; }, 300);
+}
+
+function selectPayment(method) {
+    currentPayMethod = method;
+    document.getElementById('paySaldo').classList.remove('active');
+    document.getElementById('payQris').classList.remove('active');
+    if(method === 'saldo') document.getElementById('paySaldo').classList.add('active');
+    else document.getElementById('payQris').classList.add('active');
+}
+
+function submitCheckout() {
+    if(!currentSelectedProduct) return;
+    const btn = document.getElementById('btnProsesBeli');
+    btn.innerHTML = 'Memproses...';
+    btn.disabled = true;
+    
+    const payload = {
+        sku: currentSelectedProduct.sku,
+        tujuan: document.getElementById('bsTujuan').innerText,
+        metode: currentPayMethod
+    };
+    
+    fetch('/trx/checkout', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() if csrf_token else "" }}'
+        },
+        body: JSON.stringify(payload)
+    })
+    .then(response => {
+        if(response.redirected) { window.location.href = response.url; return; }
+        return response.json();
+    })
+    .then(data => {
+        if(data && data.status === 'error') {
+            alert(data.message);
+            btn.innerHTML = 'BELI SEKARANG';
+            btn.disabled = false;
+        } else if(data && data.status === 'success' && data.qr_url) {
+            // Arahkan langsung ke halaman Invoice/Barcode PaymentKita
+            window.location.href = data.qr_url;
+        } else if(data && data.redirect) {
+            window.location.href = data.redirect;
+        } else if(data && data.status === 'success') {
+            window.location.href = '/riwayat';
+        }
+    })
+    .catch(error => { window.location.href = '/user/history'; });
+}
+</script>
+{% include 'user/footer.html' ignore missing %}

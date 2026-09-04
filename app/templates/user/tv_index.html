@@ -1,0 +1,882 @@
+{% extends "base.html" %}
+{% block title %}Transaksi - TV Berlangganan{% endblock %}
+
+{% block head %}
+<style>
+    /* HEADER KATEGORI */
+    .cat-header { 
+        background: linear-gradient(135deg, #00877a 0%, #00695c 100%); 
+        padding: 20px 20px 60px 20px; 
+        color: white; 
+        border-bottom-left-radius: 28px; 
+        border-bottom-right-radius: 28px; 
+    }
+    .top-bar { 
+        display: flex; 
+        align-items: center; 
+        gap: 12px; 
+        font-size: 16px; 
+        font-weight: 800; 
+        margin-bottom: 20px; 
+        color: white; 
+        cursor: pointer; 
+        width: fit-content;
+        text-decoration: none;
+    }
+    .top-bar:hover { opacity: 0.85; }
+    .cat-title-area { 
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center; 
+    }
+    .cat-title-wrap { display: flex; align-items: center; gap: 14px; }
+    .cat-icon { 
+        width: 46px; 
+        height: 46px; 
+        background: rgba(255,255,255,0.22); 
+        border-radius: 14px; 
+        display: flex; 
+        justify-content: center; 
+        align-items: center; 
+        font-size: 22px; 
+    }
+    .cat-name h2 { margin: 0; font-size: 20px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+    .cat-name p { margin: 2px 0 0 0; font-size: 11px; opacity: 0.9; }
+
+    .wallet-badge {
+        background: rgba(255,255,255,0.22);
+        padding: 8px 14px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: 0.2s;
+    }
+    .wallet-badge:hover { background: rgba(255,255,255,0.3); }
+
+    /* INPUT NOMOR PELANGGAN / SMARTCARD */
+    .input-wrapper { 
+        margin: -40px 15px 20px 15px; 
+        background: white; 
+        padding: 18px 20px; 
+        border-radius: 20px; 
+        box-shadow: 0 8px 25px rgba(0,0,0,0.06); 
+        border: 1px solid #f0f4f8; 
+    }
+    .input-label-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+    .input-wrapper label { 
+        font-size: 13px; 
+        font-weight: 800; 
+        color: #334155; 
+        margin: 0;
+    }
+    .detected-badge {
+        font-size: 11px;
+        font-weight: 800;
+        padding: 2px 8px;
+        border-radius: 6px;
+        background: #e0f2fe;
+        color: #0284c7;
+        display: none;
+    }
+    .input-box { 
+        display: flex; 
+        background: #f8fafc; 
+        border-radius: 14px; 
+        padding: 6px 10px; 
+        align-items: center; 
+        border: 1.5px solid #e2e8f0; 
+        transition: 0.2s ease; 
+    }
+    .input-box:focus-within { border-color: #00877a; background: white; box-shadow: 0 0 0 3px rgba(0,135,122,0.12); }
+    .input-box.error { border-color: #ef4444; background: #fff5f5; } 
+    .input-box input { 
+        flex: 1; 
+        background: transparent; 
+        border: none; 
+        padding: 8px 10px; 
+        font-size: 17px; 
+        font-weight: 800; 
+        outline: none; 
+        color: #1e293b; 
+        letter-spacing: 0.5px; 
+    }
+    .action-btn { 
+        width: 36px; 
+        height: 36px; 
+        background: #e6f7f5; 
+        color: #00877a; 
+        border-radius: 10px; 
+        display: flex; 
+        justify-content: center; 
+        align-items: center; 
+        margin-left: 6px; 
+        cursor: pointer; 
+        transition: 0.2s; 
+    }
+    .action-btn:hover { background: #00877a; color: white; }
+    .action-btn.clear-btn { background: #fee2e2; color: #ef4444; display: none; }
+    .action-btn.clear-btn:hover { background: #ef4444; color: white; }
+    
+    /* TABS OPERATOR TV */
+    .operator-tabs { 
+        display: flex; 
+        gap: 8px; 
+        overflow-x: auto; 
+        padding: 0 15px; 
+        margin-bottom: 18px; 
+        scrollbar-width: none; 
+        scroll-behavior: smooth; 
+    }
+    .operator-tabs::-webkit-scrollbar { display: none; }
+    .tab-pill { 
+        padding: 8px 16px; 
+        border-radius: 20px; 
+        font-size: 12px; 
+        font-weight: 800; 
+        white-space: nowrap; 
+        background: white; 
+        color: #64748b; 
+        border: 1px solid #e2e8f0; 
+        display: flex; 
+        align-items: center; 
+        gap: 6px; 
+        cursor: pointer; 
+        transition: 0.2s ease; 
+    }
+    .tab-pill:hover { border-color: #cbd5e1; color: #334155; }
+    .tab-pill.active { 
+        background: #00877a; 
+        color: white; 
+        border-color: #00877a; 
+        box-shadow: 0 4px 12px rgba(0,135,122,0.25); 
+    }
+
+    /* TOOLBAR (SEARCH, SORT, VIEW) */
+    .filter-bar { display: flex; gap: 8px; padding: 0 15px; margin-bottom: 16px; align-items: center; }
+    .search-box { 
+        flex: 1; 
+        display: flex; 
+        align-items: center; 
+        background: white; 
+        border-radius: 12px; 
+        padding: 8px 12px; 
+        border: 1px solid #e2e8f0; 
+        gap: 8px;
+    }
+    .search-box input { border: none; background: transparent; outline: none; width: 100%; font-weight: 700; font-size: 13px; color: #1e293b; }
+    .search-box i { color: #94a3b8; }
+    .tool-btn { 
+        width: 40px; 
+        height: 40px; 
+        background: white; 
+        border-radius: 12px; 
+        display: flex; 
+        justify-content: center; 
+        align-items: center; 
+        border: 1px solid #e2e8f0; 
+        color: #64748b; 
+        cursor: pointer; 
+        transition: 0.2s; 
+    }
+    .tool-btn:hover { background: #f8fafc; color: #1e293b; }
+    .tool-btn.active { background: #e6f7f5; color: #00877a; border-color: #00877a; }
+
+    /* TOAST NOTIFIKASI */
+    #toastNotification { 
+        position: fixed; 
+        top: 20px; 
+        left: 50%; 
+        transform: translateX(-50%); 
+        background: #1e293b; 
+        color: white; 
+        padding: 12px 22px; 
+        border-radius: 30px; 
+        font-weight: 800; 
+        font-size: 13px; 
+        z-index: 99999; 
+        display: none; 
+        align-items: center; 
+        gap: 10px; 
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2); 
+        opacity: 0; 
+        transition: opacity 0.3s ease; 
+    }
+
+    /* DROPDOWN SORT */
+    .sort-container { position: relative; }
+    .sort-menu { 
+        position: absolute; 
+        top: 48px; 
+        right: 0; 
+        background: white; 
+        border-radius: 14px; 
+        box-shadow: 0 12px 30px rgba(0,0,0,0.12); 
+        width: 170px; 
+        z-index: 100; 
+        display: none; 
+        border: 1px solid #e2e8f0; 
+        overflow: hidden;
+    }
+    .sort-menu.show { display: block; }
+    .sort-option { 
+        padding: 10px 16px; 
+        font-size: 12px; 
+        font-weight: 700; 
+        color: #334155; 
+        cursor: pointer; 
+        transition: 0.15s; 
+    }
+    .sort-option:hover { background: #f1f5f9; color: #00877a; }
+    
+    /* KARTU PRODUK */
+    .product-container { padding: 0 15px 40px 15px; }
+    .product-list { display: grid; gap: 12px; grid-template-columns: 1fr; transition: 0.3s; }
+    .product-list.grid-mode { grid-template-columns: repeat(2, 1fr); }
+    
+    .product-card { 
+        background: white; 
+        border-radius: 16px; 
+        padding: 14px; 
+        border: 1px solid #e2e8f0; 
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center; 
+        box-shadow: 0 2px 8px rgba(0,0,0,0.02); 
+        cursor: pointer; 
+        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease; 
+        position: relative;
+    }
+    .product-card:hover { 
+        transform: translateY(-2px); 
+        box-shadow: 0 6px 18px rgba(0,135,122,0.1); 
+        border-color: #00877a; 
+    }
+    .grid-mode .product-card { 
+        flex-direction: column; 
+        align-items: flex-start; 
+        gap: 8px;
+    }
+    
+    .p-header-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 6px;
+    }
+    .p-code { 
+        background: #f1f5f9; 
+        padding: 3px 6px; 
+        border-radius: 5px; 
+        font-size: 10px; 
+        font-weight: 800; 
+        color: #64748b; 
+    }
+    .p-provider-badge {
+        background: #e0f2fe;
+        color: #0369a1;
+        padding: 3px 6px;
+        border-radius: 5px;
+        font-size: 10px;
+        font-weight: 800;
+    }
+    .p-name { 
+        font-size: 13px; 
+        font-weight: 800; 
+        margin: 0 0 6px 0; 
+        color: #1e293b; 
+        line-height: 1.35; 
+    }
+    .p-desc { font-size: 11px; color: #94a3b8; margin: 0 0 8px 0; font-weight: 600; }
+    .p-price { 
+        font-size: 16px; 
+        font-weight: 900; 
+        color: #00877a; 
+        margin: 0; 
+    }
+
+    .p-action-col {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 8px;
+    }
+    .grid-mode .p-action-col {
+        width: 100%;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 6px;
+        padding-top: 8px;
+        border-top: 1px dashed #f1f5f9;
+    }
+
+    .btn-card-beli {
+        background: #00877a;
+        color: white;
+        border: none;
+        padding: 6px 14px;
+        border-radius: 8px;
+        font-weight: 800;
+        font-size: 11px;
+        cursor: pointer;
+        transition: 0.15s;
+    }
+    .btn-card-beli:hover { background: #00695c; }
+
+    .p-status-badge { 
+        background: #dcfce7; 
+        color: #15803d; 
+        padding: 3px 8px; 
+        border-radius: 6px; 
+        font-size: 10px; 
+        font-weight: 800; 
+        letter-spacing: 0.3px; 
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 50px 20px;
+        color: #94a3b8;
+    }
+    .empty-state i { font-size: 40px; margin-bottom: 12px; color: #cbd5e1; }
+    .empty-state h4 { font-weight: 800; font-size: 15px; color: #475569; margin: 0 0 6px 0; }
+    .empty-state p { font-size: 12px; margin: 0; }
+
+    /* BOTTOM SHEET CHECKOUT */
+    .sheet-overlay { 
+        position: fixed; 
+        top: 0; left: 0; right: 0; bottom: 0; 
+        background: rgba(0,0,0,0.6); 
+        z-index: 9999; 
+        display: none; 
+        opacity: 0; 
+        transition: opacity 0.2s; 
+    }
+    .bottom-sheet { 
+        position: fixed; 
+        bottom: -100%; 
+        left: 0; right: 0; 
+        background: #f8fafc; 
+        border-radius: 24px 24px 0 0; 
+        z-index: 10000; 
+        transition: bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+        display: flex; 
+        flex-direction: column; 
+        max-height: 90vh; 
+        box-shadow: 0 -10px 40px rgba(0,0,0,0.2);
+    }
+    .bottom-sheet.show { bottom: 0; }
+    .sheet-overlay.show { display: block; opacity: 1; }
+
+    .sheet-header { 
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center; 
+        padding: 16px 20px; 
+        background: #00877a; 
+        color: white; 
+        border-radius: 24px 24px 0 0; 
+    }
+    .sheet-body { padding: 20px; overflow-y: auto; }
+
+    .sheet-card-header { 
+        background: white; 
+        border-radius: 16px; 
+        padding: 18px 16px; 
+        margin-bottom: 14px; 
+        text-align: center; 
+        box-shadow: 0 2px 10px rgba(0,0,0,0.03); 
+        border: 1px solid #e2e8f0;
+    }
+    .sheet-title { font-weight: 800; font-size: 15px; margin-bottom: 6px; color: #1e293b; }
+    .sheet-price { font-weight: 900; font-size: 22px; color: #00877a; }
+
+    .detail-box { 
+        background: white; 
+        border-radius: 14px; 
+        padding: 14px 16px; 
+        margin-bottom: 14px; 
+        box-shadow: 0 2px 8px rgba(0,0,0,0.03); 
+        border: 1px solid #e2e8f0;
+    }
+    .detail-row { 
+        display: flex; 
+        justify-content: space-between; 
+        margin-bottom: 10px; 
+        font-size: 12px; 
+        font-weight: 600; 
+        color: #64748b; 
+    }
+    .detail-row:last-child { margin-bottom: 0; }
+    .detail-row span:last-child { color: #1e293b; font-weight: 800; }
+
+    .payment-options { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+    .pay-option { 
+        display: flex; 
+        align-items: center; 
+        padding: 12px 16px; 
+        border: 1.5px solid #cbd5e1; 
+        border-radius: 12px; 
+        cursor: pointer; 
+        background: white; 
+        transition: 0.15s;
+    }
+    .pay-option.selected { border-color: #00877a; background: #e6f7f5; }
+    .pay-option input { margin-right: 12px; transform: scale(1.2); }
+    .pay-option div { font-weight: 800; color: #1e293b; font-size: 13px; }
+
+    .sheet-footer { display: flex; gap: 10px; }
+    .btn-batal { 
+        flex: 1; 
+        padding: 13px; 
+        border: 1px solid #cbd5e1; 
+        background: white; 
+        border-radius: 12px; 
+        font-weight: 800; 
+        font-size: 13px;
+        color: #64748b; 
+        cursor: pointer; 
+    }
+    .btn-bayar { 
+        flex: 2; 
+        padding: 13px; 
+        border: none; 
+        background: #00877a; 
+        border-radius: 12px; 
+        font-weight: 800; 
+        font-size: 13px;
+        color: white; 
+        cursor: pointer; 
+        transition: 0.2s; 
+    }
+    .btn-bayar:disabled { background: #94a3b8; cursor: not-allowed; }
+</style>
+{% endblock %}
+
+{% block bottom_nav %}{% endblock %}
+
+{% block content %}
+<!-- TOAST NOTIFIKASI -->
+<div id="toastNotification">
+    <i class="fas fa-info-circle"></i> <span id="toastMsg">Notifikasi</span>
+</div>
+
+<!-- HEADER KATEGORI -->
+<div class="cat-header">
+    <a href="/" class="top-bar">
+        <i class="fas fa-arrow-left"></i><span>Kembali</span>
+    </a>
+    <div class="cat-title-area">
+        <div class="cat-title-wrap">
+            <div class="cat-icon"><i class="fas fa-tv"></i></div>
+            <div class="cat-name">
+                <h2 id="pageTitle">{{ title }}</h2>
+                <p>K-Vision, Nex Parabola, Transvision, Matrix, Tanaka, Orange TV</p>
+            </div>
+        </div>
+        {% if current_user.is_authenticated %}
+        <div class="wallet-badge" onclick="window.location.href='/deposit'" title="Tambah Saldo">
+            <i class="fas fa-wallet"></i> Rp {{ "{:,.0f}".format(current_user.balance)|replace(',', '.') }} <i class="fas fa-plus-circle" style="font-size: 10px;"></i>
+        </div>
+        {% else %}
+        <div class="wallet-badge" onclick="window.location.href='/login'" title="Login Member">
+            <i class="fas fa-sign-in-alt"></i> Masuk
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- INPUT NOMOR PELANGGAN / SMARTCARD -->
+<div class="input-wrapper">
+    <div class="input-label-row">
+        <label>Nomor Pelanggan / ID Smartcard (SMC ID)</label>
+        <span class="detected-badge" id="detectedBadge"></span>
+    </div>
+    <div class="input-box" id="inputContainer">
+        <input type="text" id="noHpInput" placeholder="Contoh: 1234567890 atau No. Pelanggan">
+        <div class="action-btn clear-btn" id="btnClear" onclick="clearInput()" title="Hapus"><i class="fas fa-times"></i></div>
+        <div class="action-btn" onclick="pilihKontak()" title="Pilih dari Kontak HP"><i class="fas fa-address-book"></i></div>
+    </div>
+</div>
+
+<!-- TABS OPERATOR TV -->
+<div class="operator-tabs" id="opTabs">
+    <div class="tab-pill active" data-op="ALL"><i class="fas fa-layer-group"></i> SEMUA</div>
+    <div class="tab-pill" data-op="K-VISION"><i class="fas fa-satellite-dish"></i> K-VISION</div>
+    <div class="tab-pill" data-op="NEX PARABOLA"><i class="fas fa-broadcast-tower"></i> NEX PARABOLA</div>
+    <div class="tab-pill" data-op="TRANSVISION"><i class="fas fa-tv"></i> TRANSVISION</div>
+    <div class="tab-pill" data-op="MATRIX"><i class="fas fa-satellite"></i> MATRIX TV</div>
+    <div class="tab-pill" data-op="TANAKA"><i class="fas fa-film"></i> TANAKA</div>
+    <div class="tab-pill" data-op="ORANGE TV"><i class="fas fa-video"></i> ORANGE TV</div>
+</div>
+
+<!-- TOOLBAR (SEARCH, SORT, VIEW) -->
+<div class="filter-bar">
+    <div class="search-box">
+        <i class="fas fa-search"></i>
+        <input type="text" id="searchInput" placeholder="Cari paket TV (contoh: cling, juara, bola, euro)..." onkeyup="filterProduk()">
+    </div>
+    <div class="sort-container">
+        <div class="tool-btn" id="btnSort" onclick="toggleSortMenu()" title="Urutkan"><i class="fas fa-sort-amount-down"></i></div>
+        <div class="sort-menu" id="sortMenu">
+            <div class="sort-option" onclick="sortProduk('harga_asc')"><i class="fas fa-arrow-down-short-wide"></i> Harga Terendah</div>
+            <div class="sort-option" onclick="sortProduk('harga_desc')"><i class="fas fa-arrow-up-wide-short"></i> Harga Tertinggi</div>
+            <div class="sort-option" onclick="sortProduk('nama_asc')"><i class="fas fa-arrow-down-a-z"></i> Nama A - Z</div>
+            <div class="sort-option" onclick="sortProduk('nama_desc')"><i class="fas fa-arrow-up-z-a"></i> Nama Z - A</div>
+        </div>
+    </div>
+    <div class="tool-btn active" id="btnList" onclick="ubahView('list')" title="Tampilan Daftar"><i class="fas fa-list"></i></div>
+    <div class="tool-btn" id="btnGrid" onclick="ubahView('grid')" title="Tampilan Grid"><i class="fas fa-th-large"></i></div>
+</div>
+
+<!-- DAFTAR KARTU PRODUK -->
+<div class="product-container">
+    <div class="product-list" id="daftarProduk">
+        {% if products %}
+            {% for p in products %}
+            <div class="product-card item-produk" 
+                 data-provider="{{ p.provider | upper }}"
+                 data-sku="{{ p.kode_produk }}"
+                 data-nama="{{ p.nama_produk }}"
+                 data-harga="{{ '{:,.0f}'.format(p.harga)|replace(',', '.') }}"
+                 data-rawprice="{{ p.harga }}"
+                 data-active="{{ 'true' if p.is_active else 'false' }}"
+                 onclick="beliProdukModal(this)">
+                
+                <div style="flex: 1;">
+                    <div class="p-header-row">
+                        <span class="p-code">{{ p.kode_produk }}</span>
+                        <span class="p-provider-badge">{{ p.provider }}</span>
+                        {% if p.is_active %}
+                            <span class="p-status-badge">Tersedia</span>
+                        {% else %}
+                            <span class="p-status-badge gangguan">Gangguan</span>
+                        {% endif %}
+                    </div>
+                    <h3 class="p-name">{{ p.nama_produk }}</h3>
+                    <p class="p-desc">⚡ Proses Otomatis 24 Jam</p>
+                    <h4 class="p-price">Rp {{ "{:,.0f}".format(p.harga)|replace(',', '.') }}</h4>
+                </div>
+                
+                <div class="p-action-col">
+                    <button class="btn-card-beli" type="button">BELI</button>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <i class="fas fa-box-open"></i>
+                <h4>Tidak Ada Produk</h4>
+                <p>Paket TV berlangganan belum tersedia.</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- NOTIFIKASI HASIL PENCARIAN KOSONG -->
+    <div class="empty-state" id="emptySearch" style="display: none;">
+        <i class="fas fa-search"></i>
+        <h4>Paket TV Tidak Ditemukan</h4>
+        <p>Coba kata kunci lain atau pilih tab provider yang sesuai.</p>
+    </div>
+</div>
+
+<!-- ================= BOTTOM SHEET CHECKOUT ================= -->
+<div class="sheet-overlay" id="sheetOverlay" onclick="closeModal()"></div>
+<div class="bottom-sheet" id="checkoutModal">
+    <div class="sheet-header">
+        <div style="font-weight: 800; font-size: 15px;"><i class="fas fa-shopping-cart"></i> Konfirmasi Transaksi</div>
+        <i class="fas fa-times" onclick="closeModal()" style="cursor:pointer; font-size: 18px;"></i>
+    </div>
+    <div class="sheet-body">
+        
+        <div class="sheet-card-header">
+            <div class="sheet-title" id="mProdName">Nama Paket TV</div>
+            <div class="sheet-price" id="mProdPrice">Rp 0</div>
+        </div>
+
+        <div class="detail-box">
+            <div class="detail-row">
+                <span>Kategori</span>
+                <span>TV Berlangganan</span>
+            </div>
+            <div class="detail-row">
+                <span>Status Server</span>
+                <span style="color: #10b981;"><i class="fas fa-check-circle"></i> Siap Proses (Otomatis)</span>
+            </div>
+            <div class="detail-row">
+                <span>No. Pelanggan / Smartcard</span>
+                <span id="mTargetNo" style="color: #ef4444; font-size: 13px;">Belum diisi</span>
+            </div>
+        </div>
+
+        <div style="font-size: 12px; font-weight: 800; color: #475569; margin-bottom: 8px;">Pilih Metode Pembayaran:</div>
+        <div class="payment-options">
+            <label class="pay-option selected" id="optSaldo">
+                <input type="radio" name="payMethod" value="saldo" checked onchange="selectPay('saldo')">
+                <div><i class="fas fa-wallet" style="color: #00877a; margin-right: 6px;"></i> Saldo Akun (Rp {{ "{:,.0f}".format(current_user.balance)|replace(',', '.') if current_user.is_authenticated else '0' }})</div>
+            </label>
+            <label class="pay-option" id="optQris">
+                <input type="radio" name="payMethod" value="qris" onchange="selectPay('qris')">
+                <div><i class="fas fa-qrcode" style="color: #0284c7; margin-right: 6px;"></i> QRIS (Scan Otomatis 24 Jam)</div>
+            </label>
+        </div>
+
+        <div class="sheet-footer">
+            <button class="btn-batal" onclick="closeModal()">Batal</button>
+            <button class="btn-bayar" id="btnProsesBayar" onclick="prosesBayarModal()">Bayar Sekarang</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 1. KEMBALI KE HALAMAN UTAMA USER
+    function goBack() { 
+        window.location.href = '/'; 
+    }
+
+    // 2. TOAST
+    function showToast(msg) {
+        const toast = document.getElementById('toastNotification');
+        const text = document.getElementById('toastMsg');
+        text.innerText = msg;
+        toast.style.display = 'flex';
+        setTimeout(() => { toast.style.opacity = '1'; }, 10);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => { toast.style.display = 'none'; }, 300);
+        }, 2500);
+    }
+
+    // 3. INPUT NOMOR PELANGGAN / SMARTCARD
+    const noHpInput = document.getElementById('noHpInput');
+    const btnClear = document.getElementById('btnClear');
+    const inputContainer = document.getElementById('inputContainer');
+
+    noHpInput.addEventListener('input', function() {
+        btnClear.style.display = this.value.trim().length > 0 ? 'flex' : 'none';
+        if (this.value.trim().length >= 4) {
+            inputContainer.classList.remove('error');
+        }
+    });
+
+    function clearInput() {
+        noHpInput.value = '';
+        btnClear.style.display = 'none';
+        noHpInput.focus();
+    }
+
+    // 4. CONTACT PICKER
+    async function pilihKontak() {
+        if ('contacts' in navigator && 'ContactsManager' in window) {
+            try {
+                const props = ['tel'];
+                const contacts = await navigator.contacts.select(props, { multiple: false });
+                if (contacts && contacts[0] && contacts[0].tel && contacts[0].tel[0]) {
+                    let clean = contacts[0].tel[0].replace(/[^0-9]/g, '');
+                    noHpInput.value = clean;
+                    btnClear.style.display = 'flex';
+                }
+            } catch (err) {
+                console.log('Kontak dibatalkan:', err);
+            }
+        } else {
+            showToast('Fitur kontak hanya tersedia di browser smartphone!');
+        }
+    }
+
+    // 5. TABS OPERATOR
+    let activeOperator = 'ALL';
+    const pills = document.querySelectorAll('.tab-pill');
+
+    pills.forEach(pill => {
+        pill.addEventListener('click', function() {
+            pills.forEach(p => p.classList.remove('active'));
+            this.classList.add('active');
+            activeOperator = this.getAttribute('data-op');
+            filterProduk();
+        });
+    });
+
+    // 6. FILTER PRODUK
+    function filterProduk() {
+        const query = document.getElementById('searchInput').value.toLowerCase().trim();
+        const items = document.querySelectorAll('.item-produk');
+        let visibleCount = 0;
+
+        items.forEach(item => {
+            const provider = item.getAttribute('data-provider') || '';
+            const nama = item.getAttribute('data-nama').toLowerCase();
+            const harga = item.getAttribute('data-harga').replace('.', '').toLowerCase();
+
+            let matchOp = (activeOperator === 'ALL') || (provider === activeOperator);
+            let matchSearch = !query || nama.includes(query) || harga.includes(query);
+
+            if (matchOp && matchSearch) {
+                item.style.display = 'flex';
+                visibleCount++;
+            } else {
+                item.style.display = 'none';
+            }
+        });
+
+        document.getElementById('emptySearch').style.display = (visibleCount === 0) ? 'block' : 'none';
+    }
+
+    // 7. SORT
+    function toggleSortMenu() {
+        document.getElementById('sortMenu').classList.toggle('show');
+    }
+
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.sort-container')) {
+            document.getElementById('sortMenu').classList.remove('show');
+        }
+    });
+
+    function sortProduk(tipe) {
+        document.getElementById('sortMenu').classList.remove('show');
+        const list = document.getElementById('daftarProduk');
+        const items = Array.from(list.getElementsByClassName('item-produk'));
+
+        items.sort((a, b) => {
+            let pA = parseFloat(a.getAttribute('data-rawprice') || 0);
+            let pB = parseFloat(b.getAttribute('data-rawprice') || 0);
+            let nA = a.getAttribute('data-nama').toLowerCase();
+            let nB = b.getAttribute('data-nama').toLowerCase();
+
+            if (tipe === 'harga_asc') return pA - pB;
+            if (tipe === 'harga_desc') return pB - pA;
+            if (tipe === 'nama_asc') return nA.localeCompare(nB);
+            if (tipe === 'nama_desc') return nB.localeCompare(nA);
+            return 0;
+        });
+
+        items.forEach(item => list.appendChild(item));
+        showToast('Urutan produk diperbarui!');
+    }
+
+    // 8. VIEW TOGGLE (LIST / GRID)
+    function ubahView(mode) {
+        const list = document.getElementById('daftarProduk');
+        const bList = document.getElementById('btnList');
+        const bGrid = document.getElementById('btnGrid');
+
+        if (mode === 'grid') {
+            list.classList.add('grid-mode');
+            bGrid.classList.add('active');
+            bList.classList.remove('active');
+        } else {
+            list.classList.remove('grid-mode');
+            bList.classList.add('active');
+            bGrid.classList.remove('active');
+        }
+    }
+
+    // 9. MODAL CHECKOUT
+    let selectedSku = null;
+    let selectedPrice = 0;
+    let selectedMetode = 'saldo';
+
+    function beliProdukModal(card) {
+        const isActive = card.getAttribute('data-active');
+        if (isActive === 'false') {
+            showToast('Maaf, paket TV ini sedang gangguan server.');
+            return;
+        }
+
+        const noHp = noHpInput.value.trim();
+        if (!noHp || noHp.length < 4) {
+            inputContainer.classList.add('error');
+            noHpInput.focus();
+            showToast('Masukkan Nomor Pelanggan / ID Smartcard dengan benar!');
+            return;
+        }
+
+        selectedSku = card.getAttribute('data-sku');
+        const nama = card.getAttribute('data-nama');
+        const harga = card.getAttribute('data-harga');
+        selectedPrice = parseFloat(card.getAttribute('data-rawprice') || 0);
+
+        document.getElementById('mProdName').innerText = nama;
+        document.getElementById('mProdPrice').innerText = 'Rp ' + harga;
+        document.getElementById('mTargetNo').innerText = noHp;
+
+        document.getElementById('sheetOverlay').classList.add('show');
+        document.getElementById('checkoutModal').classList.add('show');
+    }
+
+    function closeModal() {
+        document.getElementById('sheetOverlay').classList.remove('show');
+        document.getElementById('checkoutModal').classList.remove('show');
+    }
+
+    function selectPay(metode) {
+        selectedMetode = metode;
+        const optSaldo = document.getElementById('optSaldo');
+        const optQris = document.getElementById('optQris');
+
+        if (metode === 'saldo') {
+            optSaldo.classList.add('selected');
+            optQris.classList.remove('selected');
+        } else {
+            optQris.classList.add('selected');
+            optSaldo.classList.remove('selected');
+        }
+    }
+
+    // 10. PROSES CHECKOUT AJAX
+    function prosesBayarModal() {
+        const noHp = noHpInput.value.trim();
+        if (!selectedSku || !noHp) {
+            showToast('Informasi pesanan belum lengkap!');
+            return;
+        }
+
+        const btn = document.getElementById('btnProsesBayar');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memproses...';
+
+        fetch('/trx/checkout', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                sku_code: selectedSku,
+                target_number: noHp,
+                payment_method: selectedMetode.toUpperCase()
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                if (data.redirect_url) {
+                    window.location.href = data.redirect_url;
+                } else if (data.ref_id) {
+                    window.location.href = '/trx/invoice/' + data.ref_id;
+                } else {
+                    window.location.href = '/riwayat';
+                }
+            } else {
+                showToast(data.message || 'Transaksi gagal diproses.');
+                btn.disabled = false;
+                btn.innerHTML = 'Bayar Sekarang';
+            }
+        })
+        .catch(err => {
+            showToast('Kesalahan jaringan: ' + err.message);
+            btn.disabled = false;
+            btn.innerHTML = 'Bayar Sekarang';
+        });
+    }
+</script>
+{% endblock %}

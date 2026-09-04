@@ -1,0 +1,525 @@
+{% extends "base.html" %}
+{% block title %}Riwayat Transaksi{% endblock %}
+
+{% block head %}
+<style>
+    .riwayat-header {
+        background: linear-gradient(135deg, #00877a 0%, #00695c 100%);
+        border-bottom-left-radius: 28px;
+        border-bottom-right-radius: 28px;
+        padding: 20px 20px 30px 20px;
+        margin: -15px -15px 20px -15px;
+        color: white;
+        box-shadow: 0 4px 15px rgba(0,135,122,0.15);
+    }
+    .header-nav-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+    .btn-header-back {
+        color: white;
+        text-decoration: none;
+        font-size: 15px;
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: 0.15s;
+    }
+    .btn-header-back:hover { opacity: 0.85; }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        margin-bottom: 16px;
+    }
+    .stat-card {
+        border-radius: 14px;
+        padding: 10px 6px;
+        text-align: center;
+        color: white;
+        box-shadow: 0 3px 8px rgba(0,0,0,0.06);
+        cursor: pointer;
+        transition: transform 0.15s;
+    }
+    .stat-card:hover { transform: translateY(-2px); }
+    .stat-card.sukses { background: linear-gradient(135deg, #10b981, #059669); }
+    .stat-card.antri { background: linear-gradient(135deg, #0ea5e9, #0284c7); }
+    .stat-card.proses { background: linear-gradient(135deg, #f59e0b, #d97706); }
+    .stat-card.gagal { background: linear-gradient(135deg, #ef4444, #dc2626); }
+    .stat-card .label { font-size: 10px; font-weight: 800; opacity: 0.9; margin-bottom: 2px; }
+    .stat-card .num { font-size: 18px; font-weight: 900; }
+
+    /* Filter Kapsul */
+    .filter-tabs {
+        background: #f1f5f9;
+        border-radius: 14px;
+        display: flex;
+        padding: 4px;
+        margin-bottom: 14px;
+        gap: 4px;
+    }
+    .filter-tab {
+        flex: 1;
+        padding: 8px 0;
+        text-align: center;
+        font-size: 12px;
+        font-weight: 800;
+        color: #64748b;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: 0.15s;
+    }
+    .filter-tab.active {
+        background: white;
+        color: #00877a;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    }
+
+    /* Search Box */
+    .search-wrap {
+        position: relative;
+        margin-bottom: 16px;
+    }
+    .search-wrap i {
+        position: absolute;
+        left: 14px;
+        top: 13px;
+        color: #94a3b8;
+    }
+    .search-wrap input {
+        width: 100%;
+        padding: 10px 14px 10px 38px;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        font-size: 13px;
+        font-weight: 700;
+        color: #1e293b;
+        outline: none;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
+    .search-wrap input:focus { border-color: #00877a; }
+
+    /* Card Transaksi */
+    .trx-card {
+        background: white;
+        border-radius: 16px;
+        padding: 15px;
+        margin-bottom: 12px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+        transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+    .trx-card:hover {
+        border-color: #00877a;
+        transform: translateY(-1px);
+    }
+    .trx-top-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 8px;
+        gap: 8px;
+    }
+    .trx-product-title {
+        font-size: 14px;
+        font-weight: 800;
+        color: #1e293b;
+        line-height: 1.35;
+    }
+    .badge-status {
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.3px;
+        white-space: nowrap;
+    }
+    .badge-status.sukses { background: #dcfce7; color: #15803d; }
+    .badge-status.antri { background: #e0f2fe; color: #0284c7; }
+    .badge-status.proses { background: #fef3c7; color: #b45309; }
+    .badge-status.gagal { background: #fee2e2; color: #b91c1c; }
+
+    .trx-meta-row {
+        font-size: 12px;
+        color: #64748b;
+        font-weight: 600;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-bottom: 12px;
+    }
+    .trx-meta-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .trx-ref-id {
+        font-family: monospace;
+        background: #f1f5f9;
+        padding: 2px 6px;
+        border-radius: 4px;
+        color: #475569;
+        font-size: 11px;
+    }
+    .sn-box {
+        background: #eff6ff;
+        border: 1px dashed #bfdbfe;
+        border-radius: 8px;
+        padding: 6px 10px;
+        font-size: 11px;
+        font-family: monospace;
+        color: #1d4ed8;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 4px;
+    }
+
+    .trx-bottom-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-top: 10px;
+        border-top: 1px dashed #e2e8f0;
+        gap: 10px;
+    }
+    .trx-price {
+        font-size: 15px;
+        font-weight: 900;
+        color: #00877a;
+    }
+    .trx-actions {
+        display: flex;
+        gap: 6px;
+    }
+    .btn-action-sm {
+        padding: 5px 10px;
+        border-radius: 8px;
+        font-size: 11px;
+        font-weight: 800;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        transition: 0.15s;
+    }
+    .btn-action-detail {
+        background: #f1f5f9;
+        color: #475569;
+        border: 1px solid #cbd5e1;
+    }
+    .btn-action-detail:hover { background: #e2e8f0; color: #1e293b; }
+    .btn-action-wa {
+        background: #25d366;
+        color: white;
+    }
+    .btn-action-wa:hover { background: #128c7e; }
+    .btn-action-pay {
+        background: #0284c7;
+        color: white;
+    }
+    .btn-action-pay:hover { background: #0369a1; }
+    .btn-action-cs {
+        background: #f0f9ff;
+        color: #0284c7;
+        border: 1px solid #bae6fd;
+    }
+    .btn-action-cs:hover { background: #e0f2fe; color: #0369a1; }
+
+    /* Toast */
+    #toastNotification {
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #1e293b;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 30px;
+        font-size: 12px;
+        font-weight: 800;
+        z-index: 99999;
+        display: none;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="toastNotification">
+    <i class="fas fa-check-circle" style="color: #10b981;"></i> <span id="toastMsg">Tersalin!</span>
+</div>
+
+<!-- HEADER RIWAYAT -->
+<div class="riwayat-header">
+    <div class="header-nav-row">
+        <a href="/" class="btn-header-back">
+            <i class="fas fa-arrow-left"></i><span>Kembali</span>
+        </a>
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <div style="background: rgba(255,255,255,0.2); padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 800; cursor: pointer;" onclick="document.getElementById('modalFilter').style.display='flex'">
+                <i class="fas fa-calendar-alt"></i> Filter Tanggal
+            </div>
+        </div>
+    </div>
+    <div>
+        <h2 style="margin: 0; font-size: 20px; font-weight: 800;">Riwayat Transaksi</h2>
+        <p style="margin: 3px 0 0 0; font-size: 11px; opacity: 0.9;">Pantau status transaksi dan bagikan struk pembayaran</p>
+    </div>
+</div>
+
+<!-- MODAL FILTER TANGGAL -->
+<div id="modalFilter" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center; padding: 20px;">
+    <div style="background: white; width: 100%; max-width: 400px; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+        <div style="background: #00877a; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-weight: 800; font-size: 14px;">Filter Berdasarkan Tanggal</span>
+            <i class="fas fa-times" style="font-size: 16px; cursor: pointer;" onclick="document.getElementById('modalFilter').style.display='none'"></i>
+        </div>
+        <form action="/riwayat" method="GET" style="padding: 20px;">
+            <div style="margin-bottom: 14px;">
+                <label style="display: block; color: #475569; margin-bottom: 6px; font-size: 12px; font-weight: 700;">Dari Tanggal</label>
+                <input type="date" name="start_date" value="{{ request.args.get('start_date', '') }}" style="width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px; outline: none; font-size: 13px;">
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; color: #475569; margin-bottom: 6px; font-size: 12px; font-weight: 700;">Ke Tanggal</label>
+                <input type="date" name="end_date" value="{{ request.args.get('end_date', '') }}" style="width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px; outline: none; font-size: 13px;">
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <a href="/riwayat" style="flex: 1; padding: 10px; text-align: center; border: 1px solid #cbd5e1; color: #475569; border-radius: 10px; text-decoration: none; font-weight: 800; font-size: 13px;">Reset</a>
+                <button type="submit" style="flex: 1; padding: 10px; border: none; background: #00877a; color: white; border-radius: 10px; font-weight: 800; font-size: 13px; cursor: pointer;">Terapkan</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div style="padding: 0 15px; padding-bottom: 80px;">
+    <!-- KOTAK STATISTIK -->
+    <div class="stats-grid">
+        <div class="stat-card sukses" onclick="setFilter('SUKSES', document.getElementById('tab-SUKSES'))">
+            <div class="label">SUKSES</div>
+            <div class="num">{{ count_sukses }}</div>
+        </div>
+        <div class="stat-card antri" onclick="setFilter('ANTRI', document.getElementById('tab-ANTRI'))">
+            <div class="label">ANTRI</div>
+            <div class="num">{{ count_antri }}</div>
+        </div>
+        <div class="stat-card proses" onclick="setFilter('PROSES', document.getElementById('tab-PROSES'))">
+            <div class="label">PROSES</div>
+            <div class="num">{{ count_proses }}</div>
+        </div>
+        <div class="stat-card gagal" onclick="setFilter('GAGAL', document.getElementById('tab-GAGAL'))">
+            <div class="label">GAGAL</div>
+            <div class="num">{{ count_gagal }}</div>
+        </div>
+    </div>
+
+    <!-- FILTER TABS KAPSUL -->
+    <div class="filter-tabs">
+        <div class="filter-tab active" id="tab-SEMUA" onclick="setFilter('SEMUA', this)">Semua</div>
+        <div class="filter-tab" id="tab-SUKSES" onclick="setFilter('SUKSES', this)">Sukses</div>
+        <div class="filter-tab" id="tab-ANTRI" onclick="setFilter('ANTRI', this)">Antri</div>
+        <div class="filter-tab" id="tab-PROSES" onclick="setFilter('PROSES', this)">Proses</div>
+        <div class="filter-tab" id="tab-GAGAL" onclick="setFilter('GAGAL', this)">Gagal</div>
+    </div>
+
+    <!-- PENCARIAN REAL-TIME -->
+    <div class="search-wrap">
+        <i class="fas fa-search"></i>
+        <input type="text" id="inputSearchRiwayat" onkeyup="jalankanFilter()" placeholder="Cari Ref ID, Nomor Tujuan, atau Produk...">
+    </div>
+
+    <!-- DAFTAR TRANSAKSI -->
+    <div id="containerRiwayat">
+        {% if transactions %}
+            {% for t in transactions %}
+            {% set s = (t.status or 'PENDING')|upper %}
+            <div class="trx-card" 
+                 data-status="{{ s }}"
+                 data-ref="{{ t.ref_id|upper }}"
+                 data-target="{{ (t.target_number or t.target or '')|upper }}"
+                 data-product="{{ (t.product_name or '')|upper }}"
+                 data-sn="{{ (t.sn or '')|upper }}">
+                
+                <div class="trx-top-row">
+                    <span class="trx-product-title">
+                        {{ t.product_name or 'Transaksi PPOB' }}
+                    </span>
+                    {% if s in ['SUCCESS', 'PAID', 'SUKSES'] %}
+                        <span class="badge-status sukses">Sukses</span>
+                    {% elif s in ['PROCESSING', 'PROSES'] %}
+                        <span class="badge-status proses">Proses</span>
+                    {% elif s in ['FAILED', 'CANCELLED', 'GAGAL'] %}
+                        <span class="badge-status gagal">Gagal</span>
+                    {% else %}
+                        <span class="badge-status antri">Antri / Unpaid</span>
+                    {% endif %}
+                </div>
+
+                <div class="trx-meta-row">
+                    <div class="trx-meta-item">
+                        <span>Ref ID</span>
+                        <span class="trx-ref-id" onclick="copyText('{{ t.ref_id }}')" title="Klik untuk salin">
+                            {{ t.ref_id }} <i class="far fa-copy" style="font-size: 9px;"></i>
+                        </span>
+                    </div>
+                    <div class="trx-meta-item">
+                        <span>Tujuan</span>
+                        <span style="font-weight: 800; color: #1e293b;">{{ t.target_number or t.target or '-' }}</span>
+                    </div>
+                    <div class="trx-meta-item">
+                        <span>Waktu</span>
+                        <span>{{ t.created_at_wib if t.created_at_wib else (t.created_at.strftime('%d-%m-%Y %H:%M') if t.created_at else '-') }}</span>
+                    </div>
+
+                    {% if t.sn %}
+                    <div class="sn-box" onclick="copyText('{{ t.sn }}')" title="Klik untuk salin SN">
+                        <span>SN: {{ t.sn }}</span>
+                        <i class="far fa-copy"></i>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="trx-bottom-row">
+                    <div>
+                        <div style="font-size: 10px; color: #94a3b8; font-weight: 700;">TOTAL BAYAR</div>
+                        <div class="trx-price">Rp {{ "{:,.0f}".format(t.amount or t.price or 0).replace(',', '.') }}</div>
+                    </div>
+                    <div class="trx-actions">
+                        <a href="/trx/invoice/{{ t.ref_id }}" class="btn-action-sm btn-action-detail" title="Lihat Invoice">
+                            <i class="fas fa-file-invoice"></i> Invoice
+                        </a>
+                        <a href="/bantuan?ref={{ t.ref_id }}" class="btn-action-sm btn-action-cs" title="Laporkan Masalah ke CS">
+                            <i class="fas fa-headset"></i> CS
+                        </a>
+                        {% if s in ['SUCCESS', 'PAID', 'SUKSES'] %}
+                        <button type="button" class="btn-action-sm btn-action-wa" 
+                                onclick="bagikanStruk('{{ t.ref_id }}', '{{ (t.product_name or 'Produk')|escape }}', '{{ (t.target_number or t.target or '-')|escape }}', '{{ '{:,.0f}'.format(t.amount or t.price or 0).replace(',', '.') }}', '{{ (t.sn or '-')|escape }}', '{{ t.created_at_wib }}', 'SUKSES')" 
+                                title="Kirim Struk ke WhatsApp">
+                            <i class="fab fa-whatsapp"></i> Struk WA
+                        </button>
+                        {% elif s in ['UNPAID', 'PENDING'] %}
+                        <a href="/trx/invoice/{{ t.ref_id }}" class="btn-action-sm btn-action-pay" title="Bayar Sekarang via QRIS">
+                            <i class="fas fa-qrcode"></i> Bayar
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div style="text-align: center; padding: 60px 20px;">
+                <i class="fas fa-receipt" style="font-size: 45px; color: #cbd5e1; margin-bottom: 14px;"></i>
+                <h4 style="font-weight: 800; font-size: 15px; color: #475569; margin: 0 0 6px 0;">Belum Ada Riwayat Transaksi</h4>
+                <p style="font-size: 12px; color: #94a3b8; margin: 0 0 20px 0;">Transaksi yang Anda lakukan akan tercatat rapi di sini.</p>
+                <a href="/" style="background: #00877a; color: white; text-decoration: none; padding: 10px 20px; border-radius: 12px; font-weight: 800; font-size: 13px; display: inline-block;">Mulai Transaksi</a>
+            </div>
+        {% endif %}
+
+        <div id="emptySearchNotice" style="display: none; text-align: center; padding: 40px 20px;">
+            <i class="fas fa-search" style="font-size: 35px; color: #cbd5e1; margin-bottom: 10px;"></i>
+            <h4 style="font-weight: 800; font-size: 14px; color: #475569; margin: 0 0 4px 0;">Transaksi Tidak Ditemukan</h4>
+            <p style="font-size: 12px; color: #94a3b8; margin: 0;">Periksa kembali kata kunci pencarian atau ganti tab filter.</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentFilter = 'SEMUA';
+
+    function setFilter(status, el) {
+        currentFilter = status;
+        document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+        if (el) el.classList.add('active');
+        jalankanFilter();
+    }
+
+    function jalankanFilter() {
+        const query = document.getElementById('inputSearchRiwayat').value.toLowerCase().trim();
+        const cards = document.querySelectorAll('.trx-card');
+        let visibleCount = 0;
+
+        cards.forEach(card => {
+            const cardStatus = (card.getAttribute('data-status') || '').toUpperCase();
+            const ref = (card.getAttribute('data-ref') || '').toLowerCase();
+            const target = (card.getAttribute('data-target') || '').toLowerCase();
+            const product = (card.getAttribute('data-product') || '').toLowerCase();
+            const sn = (card.getAttribute('data-sn') || '').toLowerCase();
+
+            // Cek kecocokan status
+            let matchStatus = false;
+            if (currentFilter === 'SEMUA') {
+                matchStatus = true;
+            } else if (currentFilter === 'SUKSES' && ['SUCCESS', 'PAID', 'SUKSES'].includes(cardStatus)) {
+                matchStatus = true;
+            } else if (currentFilter === 'ANTRI' && ['UNPAID', 'PENDING', 'ANTRI'].includes(cardStatus)) {
+                matchStatus = true;
+            } else if (currentFilter === 'PROSES' && ['PROCESSING', 'PROSES'].includes(cardStatus)) {
+                matchStatus = true;
+            } else if (currentFilter === 'GAGAL' && ['FAILED', 'CANCELLED', 'GAGAL'].includes(cardStatus)) {
+                matchStatus = true;
+            }
+
+            // Cek kecocokan search
+            let matchSearch = !query || ref.includes(query) || target.includes(query) || product.includes(query) || sn.includes(query);
+
+            if (matchStatus && matchSearch) {
+                card.style.display = 'block';
+                visibleCount++;
+            } else {
+                card.style.display = 'none';
+            }
+        });
+
+        const emptyNotice = document.getElementById('emptySearchNotice');
+        if (emptyNotice) {
+            emptyNotice.style.display = (cards.length > 0 && visibleCount === 0) ? 'block' : 'none';
+        }
+    }
+
+    function copyText(text) {
+        if (!text) return;
+        navigator.clipboard.writeText(text).then(() => {
+            showToast('Tersalin ke papan klip!');
+        }).catch(() => {
+            showToast('Gagal menyalin teks.');
+        });
+    }
+
+    function showToast(msg) {
+        const toast = document.getElementById('toastNotification');
+        document.getElementById('toastMsg').innerText = msg;
+        toast.style.display = 'flex';
+        setTimeout(() => {
+            toast.style.display = 'none';
+        }, 2000);
+    }
+
+    function bagikanStruk(refId, produk, tujuan, harga, sn, waktu, status) {
+        const text = 
+            `*STRUK TRANSAKSI GARUDATEL*\n` +
+            `--------------------------------\n` +
+            `Status   : [ ${status} ]\n` +
+            `No. Ref  : ${refId}\n` +
+            `Produk   : ${produk}\n` +
+            `Tujuan   : ${tujuan}\n` +
+            `Harga    : Rp ${harga}\n` +
+            `SN / Ket : ${sn}\n` +
+            `Waktu    : ${waktu}\n` +
+            `--------------------------------\n` +
+            `Terima kasih telah bertransaksi di GarudaTel!\n` +
+            `Layanan Pelanggan: 081775700114`;
+
+        const encoded = encodeURIComponent(text);
+        window.location.href = `whatsapp://send?text=${encoded}`;
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,266 @@
+
+
+{% extends "base.html" %}
+{% block content %}
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+    body { background: #f4f6f8; font-family: 'Nunito', sans-serif; margin: 0; }
+    .prof-header { background: #3b8a81; padding: 40px 20px 50px 20px; border-bottom-left-radius: 30px; border-bottom-right-radius: 30px; color: white; display: flex; align-items: center; justify-content: space-between; position: relative; }
+    .prof-header-left { display: flex; align-items: center; gap: 15px; }
+    .prof-avatar { width: 65px; height: 65px; background: white; color: #3b8a81; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    .prof-info h2 { margin: 0; font-size: 18px; font-weight: 900; }
+    .prof-info p { margin: 0; font-size: 13px; opacity: 0.9; }
+    .prof-edit { color: white; font-size: 18px; }
+    .prof-card { background: white; margin: -20px 20px 20px 20px; border-radius: 20px; padding: 20px; box-shadow: 0 10px 20px rgba(0,0,0,0.03); position: relative; z-index: 2; }
+    .prof-row { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px dashed #eee; font-size: 14px; }
+    .prof-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .prof-row-left { display: flex; align-items: center; gap: 12px; color: #333; font-weight: 800; }
+    .prof-row-left i { color: #3b8a81; font-size: 16px; width: 20px; text-align: center; }
+    .prof-row-right { color: #666; font-weight: 700; }
+    .prof-row-right.active { color: #3b8a81; font-weight: 800; }
+    .prof-row-right.mitra { color: #ff5722; font-weight: 800; }
+    .section-title { font-size: 12px; font-weight: 900; color: #999; margin: 0 20px 10px 25px; text-transform: uppercase; letter-spacing: 1px; }
+    .sec-card { background: white; margin: 0 20px 20px 20px; border-radius: 20px; padding: 10px 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.02); }
+    .sec-row { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px dashed #eee; cursor: pointer; }
+    .sec-row:last-child { border-bottom: none; }
+    .sec-row-left { display: flex; align-items: center; gap: 12px; font-size: 14px; font-weight: 800; color: #333; }
+    .sec-row-left i { color: #3b8a81; font-size: 16px; width: 20px; text-align: center; }
+    .sec-row i.fa-chevron-right { color: #ccc; font-size: 12px; }
+    .btn-logout { background: white; border: 1px solid #ffcdd2; color: #d32f2f; margin: 0 20px 30px 20px; padding: 15px; border-radius: 16px; font-size: 14px; font-weight: 800; display: flex; justify-content: center; align-items: center; gap: 10px; text-decoration: none; transition: 0.2s; }
+    .btn-logout:active { background: #ffebee; transform: scale(0.98); }
+    
+    /* GUEST VIEW STYLES */
+    .guest-container { text-align: center; padding: 60px 20px; }
+    .guest-icon { font-size: 70px; color: #3b8a81; margin-bottom: 25px; text-shadow: 0 10px 20px rgba(59,138,129,0.2); }
+    .guest-title { font-size: 22px; font-weight: 900; color: #1e293b; margin-bottom: 12px; }
+    .guest-desc { font-size: 14px; color: #64748b; margin-bottom: 35px; line-height: 1.6; font-weight: 600; padding: 0 10px; }
+    .btn-primary { background: #3b8a81; color: white; padding: 16px; border-radius: 16px; font-weight: 800; display: block; text-decoration: none; margin-bottom: 15px; box-shadow: 0 8px 20px rgba(59,138,129,0.25); transition: 0.2s; }
+    .btn-primary:active { transform: translateY(2px); box-shadow: 0 4px 10px rgba(59,138,129,0.2); }
+    .btn-outline { background: white; color: #3b8a81; border: 2px solid #3b8a81; padding: 14px; border-radius: 16px; font-weight: 800; display: block; text-decoration: none; transition: 0.2s; }
+    .btn-outline:active { background: #f4f6f8; }
+
+    /* CSS OTP MODAL TAMBAHAN */
+    .otp-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: flex-end; }
+    .otp-modal-content { background: white; width: 100%; border-top-left-radius: 25px; border-top-right-radius: 25px; padding: 30px 20px 40px; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); position: relative; }
+    .otp-modal.active .otp-modal-content { transform: translateY(0); }
+    .otp-close { position: absolute; top: 15px; right: 20px; font-size: 24px; color: #999; border: none; background: none; font-weight: bold; }
+    .otp-title { font-size: 20px; font-weight: 900; color: #333; margin-bottom: 5px; text-align: center; }
+    .otp-desc { font-size: 13px; color: #666; text-align: center; margin-bottom: 25px; line-height: 1.5; font-weight: 600;}
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; font-size: 12px; font-weight: 800; color: #777; margin-bottom: 8px; }
+    .form-control { width: 100%; box-sizing: border-box; padding: 15px; border-radius: 12px; border: 2px solid #eee; font-family: 'Nunito', sans-serif; font-weight: 700; font-size: 15px; outline: none; transition: 0.2s; background: #fafafa;}
+    .form-control:focus { border-color: #3b8a81; background: white;}
+    .btn-submit { background: #3b8a81; color: white; width: 100%; padding: 16px; border-radius: 12px; border: none; font-weight: 900; font-size: 16px; font-family: 'Nunito'; cursor: pointer; transition: 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px; }
+    .btn-submit:active { transform: scale(0.98); }
+    
+    /* Step 2 (Kotak OTP) */
+    .otp-input-box { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 25px;}
+    .otp-input-box input { width: 100%; text-align: center; font-size: 24px; font-weight: 900; padding: 15px 0; letter-spacing: 10px; color: #3b8a81; border: 2px dashed #3b8a81; background: #f0fbfa; }
+
+</style>
+<div style="max-width:480px; margin:0 auto; padding-bottom:30px;">
+    {% if current_user.is_authenticated %}
+        {% set user = current_user %}
+        <div class="prof-header">
+            <div class="prof-header-left">
+                <div class="prof-avatar"><i class="fas fa-user"></i></div>
+                <div class="prof-info">
+                    <h2>{{ user.name if hasattr(user, 'name') else 'Pengguna' }}</h2>
+                    <p>{{ user.phone }}</p>
+                </div>
+            </div>
+            <i class="fas fa-pen prof-edit"></i>
+        </div>
+        <div class="prof-card">
+            <div class="prof-row">
+                <div class="prof-row-left"><i class="fas fa-shield-alt"></i> Status Akun</div>
+                <div class="prof-row-right active">Aktif</div>
+            </div>
+            <div class="prof-row">
+                <div class="prof-row-left"><i class="fas fa-id-card"></i> ID User</div>
+                <div class="prof-row-right">{{ "GT" + user.id|string if hasattr(user, 'id') else 'GT01' }}</div>
+            </div>
+            <div class="prof-row">
+                <div class="prof-row-left"><i class="fas fa-envelope"></i> Email</div>
+                <div class="prof-row-right" style="font-size:12px;">{{ user.email if hasattr(user, 'email') and user.email else 'Belum diatur' }}</div>
+            </div>
+            <div class="prof-row">
+                <div class="prof-row-left"><i class="fas fa-crown"></i> Tipe Akun</div>
+                <div class="prof-row-right mitra">Member</div>
+            </div>
+        </div>
+        <div class="section-title">KEAMANAN</div>
+        <div class="sec-card">
+            <div class="sec-row">
+                <div class="sec-row-left"><i class="fas fa-key"></i> Ubah PIN Transaksi</div>
+                <i class="fas fa-chevron-right"></i>
+            </div>
+            <div class="sec-row">
+                <div class="sec-row-left"><i class="fas fa-lock"></i> Ubah Password</div>
+                <i class="fas fa-chevron-right"></i>
+            </div>
+        </div>
+        <a href="{{ url_for('auth.logout') }}" class="btn-logout"><i class="fas fa-sign-out-alt"></i> Keluar Akun</a>
+    
+    {% else %}
+        <!-- TAMPILAN GUEST (BELUM LOGIN) -->
+        <div class="guest-container">
+            <i class="fas fa-user-lock guest-icon"></i>
+            <div class="guest-title">Akses Terbatas</div>
+            <div class="guest-desc">Anda belum masuk ke dalam sistem. Silakan masuk atau daftar baru untuk mengakses profil dan melakukan transaksi.</div>
+            <a href="/profil" class="btn-primary">Masuk ke Akun</a>
+            <a href="/profil?action=register" class="btn-outline">Daftar Akun Baru</a>
+        </div>
+    {% endif %}
+</div>
+
+<div class="otp-modal" id="modalOTP">
+    <div class="otp-modal-content">
+        <button class="otp-close" onclick="closeModal()">×</button>
+        
+        <div id="step-1-register">
+            <div class="otp-title">Buat Akun Baru</div>
+            <div class="otp-desc">Daftar sekarang untuk menikmati layanan PPOB Garudatel.</div>
+            
+            <div class="form-group">
+                <label>Nama Lengkap</label>
+                <input type="text" id="reg_name" class="form-control" placeholder="Cth: Ansor Nusantara">
+            </div>
+            <div class="form-group">
+                <label>Nomor WhatsApp</label>
+                <input type="number" id="reg_phone" class="form-control" placeholder="Cth: 08123456789">
+            </div>
+            <div class="form-group">
+                <label>Kata Sandi</label>
+                <input type="password" id="reg_pass" class="form-control" placeholder="Minimal 6 karakter">
+            </div>
+            
+            <button class="btn-submit" id="btn-minta-otp" onclick="requestOTP()">
+                Lanjutkan <i class="fas fa-arrow-right"></i>
+            </button>
+        </div>
+
+        <div id="step-2-otp" style="display: none;">
+            <div class="otp-title">Verifikasi WhatsApp</div>
+            <div class="otp-desc">Masukkan 6 digit kode OTP yang baru saja kami kirimkan ke nomor <strong id="show_phone"></strong></div>
+            
+            <div class="otp-input-box">
+                <input type="number" id="otp_code" class="form-control" placeholder="------" maxlength="6" oninput="if(this.value.length > 6) this.value = this.value.slice(0,6);">
+            </div>
+            
+            <button class="btn-submit" id="btn-verif-otp" onclick="verifyOTP()">
+                <i class="fas fa-check-circle"></i> Verifikasi & Daftar
+            </button>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    function openRegisterModal() {
+        document.getElementById('modalOTP').style.display = 'flex';
+        setTimeout(() => { document.getElementById('modalOTP').classList.add('active'); }, 10);
+        document.getElementById('step-1-register').style.display = 'block';
+        document.getElementById('step-2-otp').style.display = 'none';
+    }
+
+    function closeModal() {
+        document.getElementById('modalOTP').classList.remove('active');
+        setTimeout(() => { document.getElementById('modalOTP').style.display = 'none'; }, 300);
+    }
+
+    // Timpa tombol Register/Daftar bawaan di halaman agar membuka modal kita
+    document.addEventListener("DOMContentLoaded", function() {
+        const btnDaftar = document.querySelector('.btn-outline'); // Tombol daftar putih
+        if(btnDaftar) {
+            btnDaftar.removeAttribute('href');
+            btnDaftar.onclick = function(e) {
+                e.preventDefault();
+                openRegisterModal();
+            };
+        }
+    });
+
+    // FUNGSI TAHAP 1: MINTA OTP
+    function requestOTP() {
+        const name = document.getElementById('reg_name').value;
+        const phone = document.getElementById('reg_phone').value;
+        const password = document.getElementById('reg_pass').value;
+
+        if(!name || !phone || !password) {
+            Swal.fire({ icon: 'warning', title: 'Oops', text: 'Semua kolom wajib diisi!' });
+            return;
+        }
+
+        const btn = document.getElementById('btn-minta-otp');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengirim OTP...';
+        btn.disabled = true;
+
+        fetch('/api/auth_ajax', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ action: 'request_otp_register', name: name, phone: phone, password: password })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.status === 'otp_sent') {
+                document.getElementById('show_phone').innerText = phone;
+                document.getElementById('step-1-register').style.display = 'none';
+                document.getElementById('step-2-otp').style.display = 'block';
+                Swal.fire({ icon: 'success', title: 'Terkirim!', text: data.message, timer: 2000, showConfirmButton: false });
+            } else {
+                Swal.fire({ icon: 'error', title: 'Gagal', text: data.message });
+            }
+        })
+        .catch(err => {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'Koneksi ke server terputus.' });
+        })
+        .finally(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        });
+    }
+
+    // FUNGSI TAHAP 2: VERIFIKASI & DAFTAR
+    function verifyOTP() {
+        const name = document.getElementById('reg_name').value;
+        const phone = document.getElementById('reg_phone').value;
+        const password = document.getElementById('reg_pass').value;
+        const otp = document.getElementById('otp_code').value;
+
+        if(otp.length !== 6) {
+            Swal.fire({ icon: 'warning', title: 'Kode Tidak Valid', text: 'OTP harus 6 digit angka.' });
+            return;
+        }
+
+        const btn = document.getElementById('btn-verif-otp');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memverifikasi...';
+        btn.disabled = true;
+
+        fetch('/api/auth_ajax', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ action: 'verify_otp_register', name: name, phone: phone, password: password, otp: otp })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.status === 'success') {
+                Swal.fire({ icon: 'success', title: 'Berhasil!', text: data.message, showConfirmButton: false });
+                setTimeout(() => { window.location.reload(); }, 1500);
+            } else {
+                Swal.fire({ icon: 'error', title: 'Gagal', text: data.message });
+            }
+        })
+        .catch(err => {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'Koneksi ke server terputus.' });
+        })
+        .finally(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        });
+    }
+</script>
+
+{% endblock %}

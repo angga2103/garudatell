@@ -1,0 +1,727 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block head %}
+<style>
+    /* Variabel Warna Premium */
+    :root {
+        --teal-main: #008f81;
+        --teal-dark: #006056;
+        --teal-darker: #004b44;
+        --bg-light: #f5f8fa;
+        --text-dark: #2d3748;
+        --text-muted: #718096;
+    }
+    body { background-color: var(--bg-light); }
+
+    /* 1. Bagian Header Atas */
+    .top-header {
+        background: var(--teal-main);
+        padding: 40px 20px 80px 20px;
+        color: white;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        border-bottom-left-radius: 35px;
+        border-bottom-right-radius: 35px;
+    }
+    .user-profile { display: flex; align-items: center; gap: 15px; }
+    .avatar {
+        width: 55px; height: 55px; background: #e2e8f0; border-radius: 50%;
+        display: flex; justify-content: center; align-items: center;
+        color: #a0aec0; font-size: 26px; border: 2.5px solid white; overflow: hidden;
+    }
+    .greeting { font-size: 13px; margin: 0; font-weight: 600; opacity: 0.9; }
+    .user-name { font-size: 20px; font-weight: 800; margin: 2px 0 0 0; }
+
+    .top-actions { display: flex; align-items: center; gap: 10px; margin-top: 5px; }
+    .date-pill {
+        background: rgba(255,255,255,0.25); padding: 7px 14px;
+        border-radius: 20px; font-size: 13px; font-weight: 700;
+    }
+    .bell-btn {
+        width: 38px; height: 38px; background: rgba(255,255,255,0.25);
+        border-radius: 50%; display: flex; justify-content: center; align-items: center;
+        font-size: 16px; position: relative; cursor: pointer;
+    }
+    .bell-dot {
+        position: absolute; top: 10px; right: 10px; width: 6px; height: 6px;
+        background: #ff4757; border-radius: 50%;
+    }
+
+    /* 2. Kartu Utama (Melayang) */
+    .main-card-wrapper {
+        margin: -60px 15px 15px 15px; background: white; border-radius: 28px;
+        padding: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.06); position: relative; z-index: 10;
+    }
+    .balance-card {
+        background: var(--teal-dark); border-radius: 22px;
+        display: flex; overflow: hidden; color: white; margin-bottom: 25px;
+    }
+    .balance-info {
+        flex: 1; padding: 18px 20px; display: flex; justify-content: space-between; align-items: center;
+    }
+    .bal-section { flex: 1; }
+    .bal-divider { width: 1px; background: rgba(255,255,255,0.2); height: 40px; margin: 0 15px; }
+    .bal-label { font-size: 12px; display: flex; align-items: center; gap: 6px; opacity: 0.9; margin-bottom: 6px; font-weight: 600; }
+    .bal-amount { font-size: 22px; font-weight: 800; margin: 0; letter-spacing: 0.5px; }
+    .scan-btn {
+        background: var(--teal-darker); width: 85px; display: flex; justify-content: center; align-items: center;
+        font-size: 32px; cursor: pointer; transition: background-color 0.2s;
+    }
+
+    /* 3. Grid Menu Aksi (Isi Saldo dll) */
+    .action-grid {
+        display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; text-align: center;
+    }
+    .action-item { text-decoration: none; color: var(--text-dark); cursor: pointer; display: flex; flex-direction: column; align-items: center; }
+    .action-icon {
+        width: 55px; height: 55px; background: #eef9f8; border-radius: 18px;
+        display: flex; justify-content: center; align-items: center;
+        margin-bottom: 10px; color: var(--teal-main); font-size: 22px; position: relative;
+    }
+    /* Efek Bintang/Sparkle */
+    .action-icon::after { content: '✦'; position: absolute; color: #fbc531; font-size: 12px; top: 8px; right: 8px; }
+    .action-icon::before { content: '✦'; position: absolute; color: #fbc531; font-size: 8px; bottom: 8px; left: 8px; }
+    .action-text { font-size: 12px; font-weight: 800; }
+
+    /* 4. Teks Berjalan (Marquee) */
+    .marquee-container {
+        margin: 0 15px 20px 15px; background: white; border-radius: 20px;
+        padding: 12px 18px; display: flex; align-items: center; gap: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+    }
+    .mq-icon {
+        width: 28px; height: 28px; background: var(--teal-dark); color: white;
+        border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 12px; flex-shrink: 0;
+    }
+    .mq-text {
+        flex: 1; overflow: hidden; white-space: nowrap; font-size: 13px; font-weight: 700; color: #4a5568;
+    }
+
+    /* 5. Bagian Produk Cuan */
+    .cuan-wrapper {
+        background: white; border-radius: 28px; padding: 25px 0 20px 0; margin: 0 15px 25px 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+    }
+    .section-title {
+        display: flex; align-items: center; gap: 10px; margin: 0 20px 20px 20px;
+        font-size: 18px; font-weight: 900; color: var(--text-dark); letter-spacing: -0.3px;
+    }
+    .cuan-scroll {
+        display: flex; gap: 15px; overflow-x: auto; padding: 0 20px; scrollbar-width: none; scroll-behavior: smooth;
+    }
+    .cuan-scroll::-webkit-scrollbar { display: none; }
+    
+    .cuan-item { min-width: 75px; text-align: center; text-decoration: none; color: var(--text-dark); display: flex; flex-direction: column; align-items: center; }
+    .cuan-icon {
+        width: 65px; height: 65px; background: #eef9f8; border-radius: 20px;
+        display: flex; justify-content: center; align-items: center;
+        margin-bottom: 10px; font-size: 26px; font-weight: 900; position: relative;
+    }
+    .cuan-icon::after { content: '✦'; position: absolute; color: #b2dfdb; font-size: 14px; top: 8px; right: 8px; }
+    .cuan-icon::before { content: '✦'; position: absolute; color: #b2dfdb; font-size: 10px; bottom: 10px; left: 8px; }
+    .cuan-text { font-size: 12px; font-weight: 800; white-space: nowrap; }
+
+    .icon-tsel { color: #eb4d4b; letter-spacing: -1px; }
+    .icon-xl { color: #009432; font-style: italic; }
+    .icon-axis { font-size: 9px; position: absolute; bottom: 12px; right: 12px; color: #ab47bc; font-style: normal; }
+    .icon-im3 { color: #00b894; letter-spacing: -1px; font-family: monospace;}
+    .icon-tri { color: #eb4d4b; font-weight: 900; }
+    .icon-byu { color: #3B82F6; font-weight: 900; letter-spacing: -1px; }
+
+    /* Styling Menu Klasik (Transaksi & Hiburan) */
+    .menu-icon {
+        width: 55px; height: 55px; background: white; border-radius: 18px;
+        display: flex; justify-content: center; align-items: center;
+        margin-bottom: 10px; color: var(--teal-main); font-size: 24px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.06); border: 1px solid rgba(0,0,0,0.02);
+    }
+    .menu-text {
+        font-size: 11px; font-weight: 800; line-height: 1.3; color: var(--text-dark);
+    }
+</style>
+
+<style>
+    /* Memaksa layout grid 5 kolom presisi tanpa scroll */
+    .cuan-scroll { 
+        display: grid !important; 
+        grid-template-columns: repeat(5, 1fr) !important; 
+        gap: 5px !important; 
+        padding: 0 10px !important; 
+        overflow: hidden !important; 
+    }
+    .cuan-item { 
+        min-width: auto !important; 
+    }
+    .cuan-icon { 
+        width: 52px !important; 
+        height: 52px !important; 
+        font-size: 20px !important; 
+        margin-bottom: 5px !important;
+    }
+    .cuan-text {
+        font-size: 10px !important;
+    }
+    .cuan-icon::after { top: 5px !important; right: 5px !important; font-size: 10px !important; }
+    .cuan-icon::before { bottom: 5px !important; left: 5px !important; font-size: 8px !important; }
+
+    /* MODAL LAINNYA BOTTOM SHEET */
+    .modal-lainnya-overlay {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.6);
+        z-index: 99998;
+        display: none;
+        opacity: 0;
+        transition: opacity 0.25s ease;
+    }
+    .modal-lainnya-overlay.show { display: block; opacity: 1; }
+    .modal-lainnya-sheet {
+        position: fixed;
+        bottom: -100%;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 100%;
+        max-width: 600px;
+        background: #f8fafc;
+        border-radius: 28px 28px 0 0;
+        z-index: 99999;
+        transition: bottom 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        max-height: 85vh;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 -10px 40px rgba(0,0,0,0.25);
+    }
+    .modal-lainnya-sheet.show { bottom: 0; }
+    .modal-lainnya-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 18px 20px;
+        background: #008f81;
+        color: white;
+        border-radius: 28px 28px 0 0;
+    }
+    .modal-lainnya-header .header-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    .modal-lainnya-header .icon-circle {
+        width: 38px;
+        height: 38px;
+        background: rgba(255,255,255,0.22);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+    }
+    .modal-lainnya-header h3 { margin: 0; font-size: 16px; font-weight: 800; }
+    .modal-lainnya-header p { margin: 2px 0 0 0; font-size: 11px; opacity: 0.9; }
+    .btn-close-modal {
+        background: rgba(255,255,255,0.2);
+        border: none;
+        color: white;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 14px;
+        transition: 0.2s;
+    }
+    .btn-close-modal:hover { background: rgba(255,255,255,0.35); }
+    .modal-lainnya-body {
+        padding: 16px 18px 40px 18px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+    .layanan-group {
+        background: white;
+        border-radius: 18px;
+        padding: 14px 16px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+    }
+    .group-title {
+        font-size: 12px;
+        font-weight: 800;
+        color: #475569;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .layanan-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+    .layanan-card {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        text-decoration: none;
+        transition: 0.15s ease;
+    }
+    .layanan-card:hover {
+        background: #e6f7f5;
+        border-color: #008f81;
+        transform: translateY(-1px);
+    }
+    .layanan-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        color: white;
+        flex-shrink: 0;
+    }
+    .layanan-info h4 { margin: 0; font-size: 12px; font-weight: 800; color: #1e293b; line-height: 1.3; }
+    .layanan-info p { margin: 2px 0 0 0; font-size: 10px; color: #94a3b8; font-weight: 600; }
+    
+    .ic-pulsa { background: linear-gradient(135deg, #0284c7, #0369a1); }
+    .ic-data { background: linear-gradient(135deg, #0d9488, #0f766e); }
+    .ic-telp { background: linear-gradient(135deg, #10b981, #059669); }
+    .ic-masa { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+    .ic-pln { background: linear-gradient(135deg, #f59e0b, #d97706); }
+    .ic-games { background: linear-gradient(135deg, #ec4899, #db2777); }
+    .ic-tv { background: linear-gradient(135deg, #6366f1, #4f46e5); }
+    .ic-emoney { background: linear-gradient(135deg, #008f81, #006056); }
+    .ic-deposit { background: linear-gradient(135deg, #14b8a6, #0d9488); }
+    .ic-poin { background: linear-gradient(135deg, #eab308, #ca8a04); }
+    .ic-tracker { background: linear-gradient(135deg, #059669, #047857); }
+    .ic-riwayat { background: linear-gradient(135deg, #64748b, #475569); }
+</style>
+
+{% endblock %}
+
+{% block content %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const now = new Date();
+        const hour = now.getHours();
+        let sapaan = "Selamat Pagi";
+        if (hour >= 10 && hour < 15) sapaan = "Selamat Siang";
+        else if (hour >= 15 && hour < 18) sapaan = "Selamat Sore";
+        else if (hour >= 18 || hour < 4) sapaan = "Selamat Malam";
+        document.getElementById('teks-sapaan').innerHTML = sapaan + " 👋";
+
+        const hari = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+        const bulan = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+        document.getElementById('teks-tanggal').innerText = hari[now.getDay()] + ", " + now.getDate() + " " + bulan[now.getMonth()];
+    });
+</script>
+
+<div class="top-header">
+    <div class="user-profile">
+        <div class="avatar"><i class="fas fa-user"></i></div>
+        <div>
+            <p class="greeting" id="teks-sapaan">Selamat Datang 👋</p>
+            <h3 class="user-name">{{ (current_user.username or current_user.name) if current_user and current_user.is_authenticated else "Guest" }}</h3>
+        </div>
+    </div>
+    <div class="top-actions">
+        <div class="date-pill" id="teks-tanggal">Hari Ini</div>
+        <div class="bell-btn" onclick="bukaModalNotifikasi()" title="Pusat Notifikasi">
+            <i class="fas fa-bell"></i>
+            {% if unread_notif_count and unread_notif_count > 0 %}
+            <div class="bell-dot" id="header-bell-dot"></div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="main-card-wrapper">
+    <div class="balance-card">
+        <div class="balance-info">
+            <div class="bal-section">
+                <div class="bal-label">Saldo Utama <i class="fas fa-eye-slash"></i> <i class="fas fa-sync-alt"></i></div>
+                <h2 class="bal-amount">Rp. {{ "{:,.0f}".format(current_user.balance or 0).replace(',','.') if current_user and current_user.is_authenticated else '0' }}</h2>
+            </div>
+            <div class="bal-divider"></div>
+            <a href="/poin" class="bal-section" style="text-decoration: none; color: inherit; cursor: pointer;" title="Lihat & Klaim Poin Member">
+                <div class="bal-label">Poin Member <i class="fas fa-coins" style="color: #fbbf24;"></i> <i class="fas fa-chevron-right" style="font-size: 9px; opacity: 0.8; margin-left: 2px;"></i></div>
+                <h2 class="bal-amount">{{ "{:,}".format(current_user.points or 0).replace(',', '.') if current_user and current_user.is_authenticated else '0' }} <span style="font-size: 13px; font-weight: 700; opacity: 0.9;">Pts</span></h2>
+            </a>
+        </div>
+        <a href="/deposit" class="scan-btn" title="Top Up / Deposit Saldo" style="text-decoration: none; color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 4px;">
+            <i class="fas fa-barcode" style="font-size: 28px;"></i>
+            <span style="font-size: 10px; font-weight: 900; letter-spacing: 0.5px; opacity: 0.95;">TOP UP</span>
+        </a>
+    </div>
+
+    <div class="action-grid">
+        </div>
+</div>
+
+<div class="marquee-container">
+    <div class="mq-icon"><i class="fas fa-bullhorn"></i></div>
+    <div class="mq-text">
+        <marquee behavior="scroll" direction="left" scrollamount="4">Info Server: Selamat menikmati desain aplikasi terbaru yang lebih responsif dan elegan. Transaksi lancar cuan mengalir!</marquee>
+    </div>
+</div>
+
+<div class="cuan-wrapper">
+    <div class="section-title"><i class="fas fa-fire" style="color:#ff9f43; font-size:22px;"></i> Produk Cuan</div>
+    
+    <div class="cuan-scroll">
+        <a href="/cuan/telkomsel" class="cuan-item">
+            <div class="cuan-icon"><span class="icon-tsel">T</span></div>
+            <span class="cuan-text">Telkomsel</span>
+        </a>
+        <a href="/cuan/xl" class="cuan-item">
+            <div class="cuan-icon"><span class="icon-xl">XL</span><span class="icon-axis">AXIS</span></div>
+            <span class="cuan-text">XL & Axis</span>
+        </a>
+        <a href="/cuan/isat" class="cuan-item">
+            <div class="cuan-icon"><span class="icon-im3">im3</span></div>
+            <span class="cuan-text">Only4U</span>
+        </a>
+        <a href="/cuan/tri" class="cuan-item">
+            <div class="cuan-icon"><span class="icon-tri">3</span></div>
+            <span class="cuan-text">Tri Cuan</span>
+        </a>
+        <a href="/cuan/byu" class="cuan-item">
+            <div class="cuan-icon"><span class="icon-byu" style="color: #3B82F6; font-weight: 900; font-size: 14px;">by.U</span></div>
+            <span class="cuan-text">By.U Cuan</span>
+        </a>
+</div>
+</div>
+
+
+
+
+
+<!-- 1. Transaksi Utama -->
+<div class="cuan-wrapper" style="padding: 20px 0 25px 0; margin-bottom: 15px;">
+    <div class="section-title" style="font-size: 16px;">
+        <i class="fas fa-bolt" style="color: var(--teal-main);"></i> Transaksi Utama
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px 10px; padding: 0 15px; text-align: center;">
+        <a href="/kategori/pulsa" class="action-item" style="text-decoration:none;">
+            <div class="menu-icon"><i class="fas fa-mobile-alt"></i></div>
+            <span class="menu-text">Pulsa<br>Reguler</span>
+        </a>
+        <a href="/kategori/data" class="action-item" style="text-decoration:none;">
+            <div class="menu-icon"><i class="fas fa-wifi"></i></div>
+            <span class="menu-text">Paket<br>Data</span>
+        </a>
+        <a href="/kategori/pln" class="action-item" style="text-decoration:none;">
+            <div class="menu-icon"><i class="fas fa-lightbulb"></i></div>
+            <span class="menu-text">Token<br>PLN</span>
+        </a>
+        <a href="/kategori/emoney" class="action-item" style="text-decoration:none;">
+            <div class="menu-icon"><i class="fas fa-wallet"></i></div>
+            <span class="menu-text">Topup E-<br>Wallet</span>
+        </a>
+        <a href="/kategori/telpsms" class="action-item" style="text-decoration:none;">
+            <div class="menu-icon"><i class="fas fa-phone-volume"></i></div>
+            <span class="menu-text">Telp &<br>SMS</span>
+        </a>
+    </div>
+</div>
+
+<!-- 2. Hiburan & Lainnya -->
+<div class="cuan-wrapper" style="padding: 20px 0 25px 0; margin-bottom: 40px;">
+    <div class="section-title" style="font-size: 16px;">
+        <i class="fas fa-gamepad" style="color: #ff4757;"></i> Hiburan & Lainnya
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px 10px; padding: 0 15px; text-align: center;">
+        <a href="/kategori/games" class="action-item" style="text-decoration:none;">
+            <div class="menu-icon"><i class="fas fa-headset"></i></div>
+            <span class="menu-text">Voucher<br>Game</span>
+        </a>
+        <a href="/kategori/tv" class="action-item" style="text-decoration:none;">
+            <div class="menu-icon"><i class="fas fa-tv"></i></div>
+            <span class="menu-text">TV<br>Berlangganan</span>
+        </a>
+        <a href="/kategori/masaaktif" class="action-item" style="text-decoration:none;">
+            <div class="menu-icon"><i class="fas fa-calendar-check"></i></div>
+            <span class="menu-text">Masa<br>Aktif</span>
+        </a>
+        <a href="javascript:void(0)" onclick="bukaModalLainnya()" class="action-item" style="text-decoration:none;" title="Semua Layanan">
+            <div class="menu-icon"><i class="fas fa-th"></i></div>
+            <span class="menu-text">Lainnya</span>
+        </a>
+    </div>
+</div>
+
+<!-- ================= MODAL SEMUA LAYANAN (LAINNYA) ================= -->
+<div id="modalLainnyaOverlay" class="modal-lainnya-overlay" onclick="tutupModalLainnya()"></div>
+<div id="modalLainnyaSheet" class="modal-lainnya-sheet">
+    <div class="modal-lainnya-header">
+        <div class="header-left">
+            <div class="icon-circle"><i class="fas fa-th-large"></i></div>
+            <div>
+                <h3>Semua Layanan GarudaTel</h3>
+                <p>Pilih kategori transaksi yang Anda butuhkan</p>
+            </div>
+        </div>
+        <button type="button" class="btn-close-modal" onclick="tutupModalLainnya()" title="Tutup">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <div class="modal-lainnya-body">
+        <!-- Grup 1: Telekomunikasi & Internet -->
+        <div class="layanan-group">
+            <div class="group-title"><i class="fas fa-signal" style="color: #00877a;"></i> Telekomunikasi & Internet</div>
+            <div class="layanan-grid">
+                <a href="/kategori/pulsa" class="layanan-card">
+                    <div class="layanan-icon ic-pulsa"><i class="fas fa-mobile-alt"></i></div>
+                    <div class="layanan-info">
+                        <h4>Pulsa Reguler</h4>
+                        <p>Semua Operator 24 Jam</p>
+                    </div>
+                </a>
+                <a href="/kategori/data" class="layanan-card">
+                    <div class="layanan-icon ic-data"><i class="fas fa-wifi"></i></div>
+                    <div class="layanan-info">
+                        <h4>Paket Data</h4>
+                        <p>Kuota Internet Cepat</p>
+                    </div>
+                </a>
+                <a href="/kategori/telpsms" class="layanan-card">
+                    <div class="layanan-icon ic-telp"><i class="fas fa-phone-volume"></i></div>
+                    <div class="layanan-info">
+                        <h4>Paket Telp & SMS</h4>
+                        <p>Nelpon & SMS Hemat</p>
+                    </div>
+                </a>
+                <a href="/kategori/masaaktif" class="layanan-card">
+                    <div class="layanan-icon ic-masa"><i class="fas fa-calendar-alt"></i></div>
+                    <div class="layanan-info">
+                        <h4>Masa Aktif</h4>
+                        <p>Perpanjang Masa Aktif</p>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <!-- Grup 2: Listrik & Hiburan Digital -->
+        <div class="layanan-group">
+            <div class="group-title"><i class="fas fa-bolt" style="color: #f59e0b;"></i> Listrik & Hiburan Digital</div>
+            <div class="layanan-grid">
+                <a href="/kategori/pln" class="layanan-card">
+                    <div class="layanan-icon ic-pln"><i class="fas fa-lightbulb"></i></div>
+                    <div class="layanan-info">
+                        <h4>Token PLN</h4>
+                        <p>Listrik Prabayar Instan</p>
+                    </div>
+                </a>
+                <a href="/kategori/games" class="layanan-card">
+                    <div class="layanan-icon ic-games"><i class="fas fa-gamepad"></i></div>
+                    <div class="layanan-info">
+                        <h4>Voucher Game</h4>
+                        <p>Top Up 99 Game Populer</p>
+                    </div>
+                </a>
+                <a href="/kategori/tv" class="layanan-card">
+                    <div class="layanan-icon ic-tv"><i class="fas fa-tv"></i></div>
+                    <div class="layanan-info">
+                        <h4>TV Berlangganan</h4>
+                        <p>K-Vision, Nex, Matrix, dll</p>
+                    </div>
+                </a>
+                <a href="/kategori/emoney" class="layanan-card">
+                    <div class="layanan-icon ic-emoney"><i class="fas fa-wallet"></i></div>
+                    <div class="layanan-info">
+                        <h4>Top Up E-Money</h4>
+                        <p>DANA, OVO, GoPay, Shopee</p>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <!-- Grup 3: Keanggotaan, Poin & Super-App -->
+        <div class="layanan-group">
+            <div class="group-title"><i class="fas fa-star" style="color: #0284c7;"></i> Keanggotaan & Super-App</div>
+            <div class="layanan-grid">
+                <a href="/deposit" class="layanan-card">
+                    <div class="layanan-icon ic-deposit"><i class="fas fa-qrcode"></i></div>
+                    <div class="layanan-info">
+                        <h4>Isi Saldo</h4>
+                        <p>QRIS & Transfer Manual</p>
+                    </div>
+                </a>
+                <a href="/poin" class="layanan-card">
+                    <div class="layanan-icon ic-poin"><i class="fas fa-coins"></i></div>
+                    <div class="layanan-info">
+                        <h4>Poin Member</h4>
+                        <p>Klaim Reward Tahunan</p>
+                    </div>
+                </a>
+                <a href="/muslimtrack" class="layanan-card">
+                    <div class="layanan-icon ic-tracker"><i class="fas fa-calendar-check"></i></div>
+                    <div class="layanan-info">
+                        <h4>Daily Tracker</h4>
+                        <p>Moeslim Pro Tracker</p>
+                    </div>
+                </a>
+                <a href="/riwayat" class="layanan-card">
+                    <div class="layanan-icon ic-riwayat"><i class="fas fa-receipt"></i></div>
+                    <div class="layanan-info">
+                        <h4>Riwayat Transaksi</h4>
+                        <p>Cek Status & Cetak Struk</p>
+                    </div>
+                </a>
+                <a href="/notifikasi" class="layanan-card">
+                    <div class="layanan-icon" style="background: linear-gradient(135deg, #00877a, #005f56);"><i class="fas fa-bell"></i></div>
+                    <div class="layanan-info">
+                        <h4>Pusat Notifikasi</h4>
+                        <p>Info Promo & Sistem</p>
+                    </div>
+                </a>
+                <a href="/bantuan" class="layanan-card">
+                    <div class="layanan-icon" style="background: linear-gradient(135deg, #0284c7, #0369a1);"><i class="fas fa-headset"></i></div>
+                    <div class="layanan-info">
+                        <h4>Pusat Bantuan CS</h4>
+                        <p>Chat Bot Telegram</p>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================= -->
+<!-- MODAL PUSAT NOTIFIKASI BOTTOM SHEET -->
+<!-- ============================================================= -->
+<div class="modal-lainnya-overlay" id="modalNotifOverlay" onclick="tutupModalNotifikasi()"></div>
+<div class="modal-lainnya-sheet" id="modalNotifSheet">
+    <div class="modal-lainnya-header" style="padding: 18px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: white; border-radius: 28px 28px 0 0;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="width: 36px; height: 36px; border-radius: 10px; background: #e6f7f5; color: #00877a; display: flex; align-items: center; justify-content: center; font-size: 16px;">
+                <i class="fas fa-bell"></i>
+            </div>
+            <div>
+                <h3 style="margin: 0; font-size: 15px; font-weight: 800; color: #1e293b;">Pusat Notifikasi</h3>
+                <p style="margin: 2px 0 0 0; font-size: 11px; color: #64748b;">Pemberitahuan resmi dari admin</p>
+            </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            {% if unread_notif_count and unread_notif_count > 0 %}
+            <button onclick="tandaiSemuaDibacaDashboard()" id="btn-tandai-dibaca-dash" style="background: #e6f7f5; color: #00877a; border: none; padding: 6px 12px; border-radius: 14px; font-size: 11px; font-weight: 700; cursor: pointer;">
+                <i class="fas fa-check-double"></i> Tandai Dibaca
+            </button>
+            {% endif %}
+            <button onclick="tutupModalNotifikasi()" style="width: 32px; height: 32px; border-radius: 50%; background: #f1f5f9; border: none; color: #64748b; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="modal-lainnya-body" style="padding: 16px 20px; max-height: 55vh; overflow-y: auto;">
+        {% if notifications and notifications|length > 0 %}
+            {% for n in notifications %}
+            {% set is_unread = n.id not in read_ids %}
+            <div class="notif-item-dash" id="notif-item-{{ n.id }}" style="background: white; border-radius: 16px; padding: 14px; margin-bottom: 10px; border: 1.5px solid {% if is_unread %}#5eead4{% else %}#f1f5f9{% endif %}; {% if is_unread %}background: #f0fdfa;{% endif %} display: flex; gap: 12px; position: relative;">
+                {% if is_unread %}
+                <span class="unread-dot-badge" style="position: absolute; top: 12px; right: 12px; width: 7px; height: 7px; border-radius: 50%; background: #00877a;"></span>
+                {% endif %}
+                
+                <div style="width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;
+                    {% if n.type == 'promo' %}background: #fef3c7; color: #d97706;
+                    {% elif n.type == 'warning' %}background: #fee2e2; color: #dc2626;
+                    {% elif n.type == 'system' %}background: #ede9fe; color: #7c3aed;
+                    {% else %}background: #e0f2fe; color: #0284c7;{% endif %}">
+                    {% if n.type == 'promo' %}<i class="fas fa-gift"></i>
+                    {% elif n.type == 'warning' %}<i class="fas fa-exclamation-triangle"></i>
+                    {% elif n.type == 'system' %}<i class="fas fa-tools"></i>
+                    {% else %}<i class="fas fa-bullhorn"></i>{% endif %}
+                </div>
+
+                <div style="flex: 1;">
+                    <div style="font-size: 13px; font-weight: 800; color: #1e293b; margin-bottom: 3px;">{{ n.title }}</div>
+                    <div style="font-size: 11px; color: #475569; line-height: 1.4; white-space: pre-wrap;">{{ n.message }}</div>
+                    
+                    {% if n.link %}
+                    <div style="margin-top: 6px;">
+                        <a href="{{ n.link }}" style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; color: #00877a; text-decoration: underline;">
+                            <span>Lihat Detail</span> <i class="fas fa-arrow-right" style="font-size: 9px;"></i>
+                        </a>
+                    </div>
+                    {% endif %}
+
+                    <div style="font-size: 10px; font-weight: 600; color: #94a3b8; margin-top: 6px;">
+                        <i class="far fa-clock"></i> {{ n.time_ago }}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div style="text-align: center; padding: 40px 10px; color: #94a3b8;">
+                <i class="fas fa-bell-slash" style="font-size: 36px; margin-bottom: 8px; display: block; color: #cbd5e1;"></i>
+                <div style="font-weight: 700; font-size: 13px; color: #475569;">Belum Ada Notifikasi</div>
+                <div style="font-size: 11px; margin-top: 2px;">Pengumuman & info promo admin akan muncul di sini.</div>
+            </div>
+        {% endif %}
+    </div>
+
+    <div style="padding: 14px 20px; background: white; border-top: 1px solid #e2e8f0; display: flex; gap: 10px;">
+        <a href="/bantuan" style="flex: 1; padding: 12px; background: linear-gradient(135deg, #0284c7, #0369a1); color: white; border-radius: 12px; font-size: 12px; font-weight: 800; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 4px 12px rgba(2,132,199,0.25);">
+            <i class="fas fa-headset"></i> Butuh Bantuan CS?
+        </a>
+        <a href="/notifikasi" style="padding: 12px 18px; background: #f1f5f9; color: #475569; border-radius: 12px; font-size: 12px; font-weight: 700; text-decoration: none; display: flex; align-items: center;">
+            Semua
+        </a>
+    </div>
+</div>
+
+<script>
+    // Modal Notifikasi
+    function bukaModalNotifikasi() {
+        document.getElementById('modalNotifOverlay').classList.add('show');
+        document.getElementById('modalNotifSheet').classList.add('show');
+    }
+    function tutupModalNotifikasi() {
+        document.getElementById('modalNotifOverlay').classList.remove('show');
+        document.getElementById('modalNotifSheet').classList.remove('show');
+    }
+
+    async function tandaiSemuaDibacaDashboard() {
+        try {
+            const resp = await fetch('/api/notifikasi/read-all', { method: 'POST' });
+            const data = await resp.json();
+            if (data.success) {
+                const dot = document.getElementById('header-bell-dot');
+                if (dot) dot.style.display = 'none';
+                const btn = document.getElementById('btn-tandai-dibaca-dash');
+                if (btn) btn.style.display = 'none';
+                document.querySelectorAll('.unread-dot-badge').forEach(el => el.remove());
+                document.querySelectorAll('.notif-item-dash').forEach(el => {
+                    el.style.borderColor = '#f1f5f9';
+                    el.style.background = 'white';
+                });
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    // Modal Lainnya
+    function bukaModalLainnya() {
+        document.getElementById('modalLainnyaOverlay').classList.add('show');
+        document.getElementById('modalLainnyaSheet').classList.add('show');
+    }
+    function tutupModalLainnya() {
+        document.getElementById('modalLainnyaOverlay').classList.remove('show');
+        document.getElementById('modalLainnyaSheet').classList.remove('show');
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,475 @@
+{% extends "base.html" %}
+{% block title %}Poin Member - GarudaTel{% endblock %}
+
+{% block head %}
+<style>
+    /* HEADER POIN */
+    .poin-header {
+        background: linear-gradient(135deg, #00877a 0%, #004d40 100%);
+        padding: 20px 20px 70px 20px;
+        color: white;
+        border-bottom-left-radius: 28px;
+        border-bottom-right-radius: 28px;
+    }
+    .top-bar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 16px;
+        font-weight: 800;
+        margin-bottom: 20px;
+        color: white;
+        cursor: pointer;
+        width: fit-content;
+        text-decoration: none;
+    }
+    .top-bar:hover { opacity: 0.85; }
+    .header-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .header-title-wrap { display: flex; align-items: center; gap: 14px; }
+    .header-icon {
+        width: 48px;
+        height: 48px;
+        background: rgba(251, 191, 36, 0.25);
+        border: 1.5px solid rgba(251, 191, 36, 0.5);
+        border-radius: 14px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 24px;
+        color: #fde047;
+    }
+    .header-text h2 { margin: 0; font-size: 20px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; }
+    .header-text p { margin: 3px 0 0 0; font-size: 11px; opacity: 0.9; }
+
+    .wallet-pill {
+        background: rgba(255,255,255,0.2);
+        padding: 8px 14px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    /* KARTU UTAMA POIN */
+    .poin-main-wrapper {
+        margin: -50px 15px 20px 15px;
+        background: white;
+        border-radius: 22px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+        border: 1px solid #f1f5f9;
+        overflow: hidden;
+    }
+    .poin-card-top {
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        color: white;
+        padding: 24px 20px;
+        position: relative;
+        overflow: hidden;
+    }
+    .poin-card-top::after {
+        content: '\f51e';
+        font-family: 'Font Awesome 5 Free';
+        font-weight: 900;
+        position: absolute;
+        right: -10px;
+        bottom: -20px;
+        font-size: 110px;
+        color: rgba(255, 255, 255, 0.05);
+        pointer-events: none;
+    }
+    .poin-label {
+        font-size: 12px;
+        font-weight: 800;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .poin-value {
+        font-size: 36px;
+        font-weight: 900;
+        color: #fde047;
+        margin: 6px 0 10px 0;
+        letter-spacing: 0.5px;
+    }
+    .poin-estimate {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(255, 255, 255, 0.12);
+        backdrop-filter: blur(5px);
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 800;
+        color: #e2e8f0;
+    }
+    .poin-estimate strong { color: #34d399; }
+
+    /* STATUS BANNER */
+    .status-banner {
+        padding: 16px 20px;
+        border-bottom: 1px solid #f1f5f9;
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+    }
+    .status-banner.active {
+        background: #f0fdf4;
+        border-left: 5px solid #16a34a;
+    }
+    .status-banner.inactive {
+        background: #eff6ff;
+        border-left: 5px solid #0284c7;
+    }
+    .status-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 16px;
+        flex-shrink: 0;
+    }
+    .status-banner.active .status-icon { background: #dcfce7; color: #16a34a; }
+    .status-banner.inactive .status-icon { background: #e0f2fe; color: #0284c7; }
+    .status-text h4 { margin: 0 0 3px 0; font-size: 13px; font-weight: 800; color: #1e293b; }
+    .status-text p { margin: 0; font-size: 11px; color: #64748b; line-height: 1.4; }
+
+    /* TOMBOL KLAIM */
+    .claim-action-area {
+        padding: 18px 20px;
+        background: white;
+    }
+    .btn-claim {
+        width: 100%;
+        padding: 14px;
+        border: none;
+        border-radius: 14px;
+        font-size: 14px;
+        font-weight: 900;
+        cursor: pointer;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        transition: 0.2s;
+        box-shadow: 0 4px 15px rgba(0, 135, 122, 0.25);
+    }
+    .btn-claim.ready {
+        background: linear-gradient(135deg, #00877a 0%, #00695c 100%);
+        color: white;
+    }
+    .btn-claim.ready:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0, 135, 122, 0.35); }
+    .btn-claim.ready:active { transform: scale(0.98); }
+    .btn-claim.locked {
+        background: #e2e8f0;
+        color: #94a3b8;
+        cursor: not-allowed;
+        box-shadow: none;
+    }
+
+    /* KARTU KONTEN ATURAN */
+    .content-box {
+        margin: 0 15px 20px 15px;
+        background: white;
+        border-radius: 20px;
+        padding: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        border: 1px solid #f1f5f9;
+    }
+    .box-title {
+        font-size: 14px;
+        font-weight: 800;
+        color: #1e293b;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .rules-body {
+        font-size: 12px;
+        line-height: 1.65;
+        color: #475569;
+    }
+    .rules-body p { margin-bottom: 10px; }
+    .rules-body ul, .rules-body ol { padding-left: 20px; margin-bottom: 10px; }
+    .rules-body li { margin-bottom: 6px; }
+    .rules-body strong { color: #1e293b; }
+
+    /* RIWAYAT MUTASI POIN */
+    .log-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 0;
+        border-bottom: 1px solid #f8fafc;
+    }
+    .log-item:last-child { border-bottom: none; }
+    .log-info h5 { margin: 0 0 3px 0; font-size: 12px; font-weight: 800; color: #1e293b; }
+    .log-info p { margin: 0; font-size: 10px; color: #94a3b8; }
+    .log-points { font-size: 13px; font-weight: 900; }
+    .log-points.plus { color: #16a34a; }
+    .log-points.minus { color: #dc2626; }
+
+    /* TOAST */
+    #toastNotification {
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #1e293b;
+        color: white;
+        padding: 12px 22px;
+        border-radius: 30px;
+        font-weight: 800;
+        font-size: 13px;
+        z-index: 99999;
+        display: none;
+        align-items: center;
+        gap: 10px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+</style>
+{% endblock %}
+
+{% block bottom_nav %}{% endblock %}
+
+{% block content %}
+<div id="toastNotification">
+    <i class="fas fa-info-circle"></i> <span id="toastMsg">Notifikasi</span>
+</div>
+
+<!-- HEADER -->
+<div class="poin-header">
+    <a href="/" class="top-bar">
+        <i class="fas fa-arrow-left"></i><span>Kembali</span>
+    </a>
+    <div class="header-content">
+        <div class="header-title-wrap">
+            <div class="header-icon"><i class="fas fa-coins"></i></div>
+            <div class="header-text">
+                <h2>POIN MEMBER</h2>
+                <p>Kumpulkan Poin Transaksi & Tukar Saldo</p>
+            </div>
+        </div>
+        <div class="wallet-pill" onclick="window.location.href='/deposit'" title="Tambah Saldo">
+            <i class="fas fa-wallet"></i> Rp {{ "{:,.0f}".format(current_user.balance)|replace(',', '.') }}
+        </div>
+    </div>
+</div>
+
+<!-- KARTU UTAMA POIN -->
+<div class="poin-main-wrapper">
+    <div class="poin-card-top">
+        <div class="poin-label">
+            <i class="fas fa-star" style="color: #fde047;"></i> Total Poin Anda Saat Ini
+        </div>
+        <div class="poin-value" id="dispPoints">{{ "{:,}".format(user_points).replace(',', '.') }} <span style="font-size: 18px; color: #94a3b8; font-weight: 700;">Pts</span></div>
+        <div class="poin-estimate">
+            <i class="fas fa-exchange-alt"></i> Estimasi Saldo: <strong>Rp {{ "{:,.0f}".format(estimated_balance).replace(',', '.') }}</strong>
+            <span style="opacity: 0.6; font-size: 10px;">(1 Pts = Rp {{ point_rate }})</span>
+        </div>
+    </div>
+
+    <!-- STATUS PERIODE KLAIM -->
+    {% if is_claim_active %}
+    <div class="status-banner active">
+        <div class="status-icon"><i class="fas fa-gift"></i></div>
+        <div class="status-text">
+            <h4>PERIODE KLAIM SEDANG DIBUKA!</h4>
+            <p>Selamat! Periode klaim tahunan sedang aktif (1 - 7 Januari). Anda dapat menukarkan poin menjadi Saldo Utama sekarang.</p>
+        </div>
+    </div>
+    <div class="claim-action-area">
+        {% if user_points > 0 %}
+        <button class="btn-claim ready" id="btnClaimPoin" onclick="konfirmasiKlaim()">
+            <i class="fas fa-hand-holding-usd"></i> KLAIM POIN KE SALDO SEKARANG
+        </button>
+        {% else %}
+        <button class="btn-claim locked" disabled>
+            <i class="fas fa-ban"></i> BELUM ADA POIN UNTUK DIKLAIM
+        </button>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="status-banner inactive">
+        <div class="status-icon"><i class="fas fa-calendar-check"></i></div>
+        <div class="status-text">
+            <h4>MASA AKUMULASI POIN AKTIF</h4>
+            <p>Poin Anda otomatis terakumulasi dan <strong>TIDAK AKAN HANGUS</strong>. Periode klaim tahunan berikutnya: <strong>{{ next_claim_text }}</strong>.</p>
+        </div>
+    </div>
+    <div class="claim-action-area">
+        <button class="btn-claim locked" disabled title="Klaim hanya dibuka 1 minggu di awal Januari">
+            <i class="fas fa-lock"></i> KLAIM TERKUNCI (HANYA 1 - 7 JANUARI)
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<!-- KARTU ATURAN & SKEMA DINAMIS -->
+<div class="content-box">
+    <div class="box-title">
+        <i class="fas fa-book-open" style="color: #00877a;"></i>
+        <span>Skema & Aturan Poin Member</span>
+    </div>
+    <div class="rules-body">
+        {{ rules_content | safe }}
+    </div>
+</div>
+
+<!-- KARTU RIWAYAT MUTASI POIN -->
+<div class="content-box" style="margin-bottom: 40px;">
+    <div class="box-title">
+        <i class="fas fa-history" style="color: #0284c7;"></i>
+        <span>Riwayat Mutasi Poin</span>
+    </div>
+    <div>
+        {% if point_logs and point_logs|length > 0 %}
+            {% for log in point_logs %}
+            <div class="log-item">
+                <div class="log-info">
+                    <h5>
+                        {% if log.type == 'EARN_TRX' %}
+                            <i class="fas fa-shopping-cart" style="color: #10b981; margin-right: 4px;"></i> Reward Transaksi
+                        {% elif log.type == 'CLAIM_TO_SALDO' %}
+                            <i class="fas fa-gift" style="color: #0284c7; margin-right: 4px;"></i> Klaim Poin ke Saldo
+                        {% elif log.type == 'ADMIN_ADJUST' %}
+                            <i class="fas fa-user-shield" style="color: #f59e0b; margin-right: 4px;"></i> Penyesuaian Admin
+                        {% else %}
+                            <i class="fas fa-coins" style="color: #64748b; margin-right: 4px;"></i> {{ log.type }}
+                        {% endif %}
+                    </h5>
+                    <p>{{ log.description or '-' }} &bull; {{ log.created_at.strftime('%d %b %Y, %H:%M') if log.created_at else '-' }}</p>
+                </div>
+                <div class="log-points {{ 'plus' if log.points > 0 else 'minus' }}">
+                    {{ ("+" if log.points > 0 else "") ~ "{:,}".format(log.points).replace(',', '.') }} Pts
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div style="text-align: center; padding: 25px 10px; color: #94a3b8; font-size: 12px;">
+                <i class="fas fa-receipt" style="font-size: 28px; margin-bottom: 8px; color: #cbd5e1;"></i><br>
+                Belum ada catatan mutasi poin. Lakukan transaksi untuk mulai mengumpulkan poin!
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- MODAL KONFIRMASI KLAIM -->
+<style>
+.modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px);
+    z-index: 9999; display: none; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.25s ease;
+}
+.modal-overlay.show { display: flex; opacity: 1; }
+.confirm-box {
+    background: white; border-radius: 20px; padding: 24px; width: 90%; max-width: 380px;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.15); text-align: center;
+}
+.confirm-icon {
+    width: 60px; height: 60px; background: #e6f7f5; color: #00877a;
+    border-radius: 50%; display: flex; justify-content: center; align-items: center;
+    font-size: 28px; margin: 0 auto 16px auto;
+}
+.confirm-title { font-size: 16px; font-weight: 900; color: #1e293b; margin-bottom: 8px; }
+.confirm-desc { font-size: 12px; color: #64748b; margin-bottom: 20px; line-height: 1.5; }
+.confirm-actions { display: flex; gap: 10px; }
+.btn-batal-modal { flex: 1; padding: 12px; border: 1px solid #cbd5e1; background: white; border-radius: 12px; font-weight: 800; font-size: 13px; color: #64748b; cursor: pointer; }
+.btn-ok-modal { flex: 1; padding: 12px; border: none; background: #00877a; color: white; border-radius: 12px; font-weight: 800; font-size: 13px; cursor: pointer; }
+</style>
+
+<div class="modal-overlay" id="confirmModal">
+    <div class="confirm-box">
+        <div class="confirm-icon"><i class="fas fa-gift"></i></div>
+        <div class="confirm-title">Konfirmasi Klaim Poin</div>
+        <div class="confirm-desc">
+            Apakah Anda yakin ingin menukarkan <strong>{{ "{:,}".format(user_points).replace(',', '.') }} Poin</strong> menjadi Saldo Utama sebesar <strong>Rp {{ "{:,.0f}".format(estimated_balance).replace(',', '.') }}</strong>?
+        </div>
+        <div class="confirm-actions">
+            <button class="btn-batal-modal" onclick="closeConfirmModal()">Batal</button>
+            <button class="btn-ok-modal" id="btnEksekusiKlaim" onclick="eksekusiKlaim()">Ya, Klaim</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // KEMBALI KE HALAMAN UTAMA USER
+    function goBack() {
+        window.location.href = '/';
+    }
+
+    function showToast(msg, isError = false) {
+        const toast = document.getElementById('toastNotification');
+        document.getElementById('toastMsg').innerText = msg;
+        toast.style.background = isError ? '#ef4444' : '#00877a';
+        toast.style.display = 'flex';
+        setTimeout(() => toast.style.opacity = '1', 10);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.style.display = 'none', 300);
+        }, 3000);
+    }
+
+    function konfirmasiKlaim() {
+        document.getElementById('confirmModal').classList.add('show');
+    }
+
+    function closeConfirmModal() {
+        document.getElementById('confirmModal').classList.remove('show');
+    }
+
+    function eksekusiKlaim() {
+        const btn = document.getElementById('btnEksekusiKlaim');
+        btn.innerText = 'Memproses...';
+        btn.disabled = true;
+
+        fetch('/poin/claim', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() if csrf_token else "" }}'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            closeConfirmModal();
+            btn.innerText = 'Ya, Klaim';
+            btn.disabled = false;
+
+            if (data.status === 'success') {
+                showToast(data.message, false);
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            } else {
+                showToast(data.message || 'Gagal mengklaim poin', true);
+            }
+        })
+        .catch(err => {
+            console.error('Claim error:', err);
+            closeConfirmModal();
+            btn.innerText = 'Ya, Klaim';
+            btn.disabled = false;
+            showToast('Terjadi kesalahan koneksi sistem.', true);
+        });
+    }
+</script>
+{% endblock %}

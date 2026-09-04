@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#00877a">
+    <meta name="description" content="Aplikasi Pemantau Ibadah, Kesehatan & Akhlak - Moeslem Daily Tracker Pro GarudaTel">
+    <title>Moeslem Daily Tracker Pro - GarudaTel</title>
+
+    <!-- Tailwind CDN + GarudaTel Theme Config -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f0fdfa',
+                            100: '#ccfbf1',
+                            200: '#99f6e4',
+                            300: '#5eead4',
+                            400: '#2dd4bf',
+                            500: '#00877a',
+                            600: '#00756a',
+                            700: '#00695c',
+                            800: '#004d40',
+                            900: '#00332c',
+                        },
+                        teal: {
+                            50: '#f0fdfa',
+                            100: '#ccfbf1',
+                            200: '#99f6e4',
+                            300: '#5eead4',
+                            400: '#2dd4bf',
+                            500: '#00877a',
+                            600: '#00756a',
+                            700: '#00695c',
+                            800: '#004d40',
+                            900: '#00332c',
+                        },
+                        amber: {
+                            400: '#fbbf24',
+                            500: '#f59e0b',
+                            600: '#d97706',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Poppins', 'Segoe UI', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'soft': '0 4px 20px rgba(0,0,0,0.06)',
+                        'glow': '0 0 20px rgba(0,135,122,0.25)',
+                        'glow-amber': '0 0 20px rgba(217,119,6,0.25)',
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.3s ease-out',
+                        'slide-up': 'slideUp 0.35s cubic-bezier(0.22,1,0.36,1)',
+                        'scale-in': 'scaleIn 0.25s cubic-bezier(0.22,1,0.36,1)',
+                        'pulse-ring': 'pulseRing 2s cubic-bezier(0.4,0,0.6,1) infinite',
+                    },
+                    keyframes: {
+                        fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+                        slideUp: { '0%': { transform: 'translateY(24px)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } },
+                        scaleIn: { '0%': { transform: 'scale(0.8)', opacity: '0' }, '100%': { transform: 'scale(1)', opacity: '1' } },
+                        pulseRing: { '0%': { transform: 'scale(1)', opacity: '0.8' }, '50%': { transform: 'scale(1.15)', opacity: '0.4' }, '100%': { transform: 'scale(1)', opacity: '0.8' } },
+                    },
+                }
+            }
+        }
+    </script>
+
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+
+    <!-- Google Fonts Poppins -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+        }
+
+        body {
+            font-family: 'Poppins', 'Segoe UI', Tahoma, sans-serif;
+            background-color: #f1f5f9;
+            user-select: none;
+            -webkit-user-select: none;
+            transition: background-color 0.3s ease;
+        }
+
+        .dark body {
+            background-color: #0f172a;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 10px;
+        }
+
+        /* Modal animations */
+        .modal-bg { animation: fadeIn 0.25s ease-out; }
+        .modal-box { animation: slideUp 0.35s cubic-bezier(0.22, 1, 0.36, 1); }
+        .scale-in { animation: scaleIn 0.25s cubic-bezier(0.22, 1, 0.36, 1); }
+
+        /* Accordion transition */
+        .accordion-content {
+            transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease-in-out;
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+        }
+        .accordion-content.open {
+            max-height: 3500px;
+            opacity: 1;
+        }
+
+        .chevron {
+            transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .chevron.rotate {
+            transform: rotate(180deg);
+        }
+
+        /* Prayer circle buttons */
+        .prayer-circle {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 0.95rem;
+            cursor: pointer;
+            border: none;
+            position: relative;
+        }
+        .prayer-circle:active {
+            transform: scale(0.88);
+        }
+
+        .wajib.active {
+            background: linear-gradient(135deg, #00877a, #005f56) !important;
+            color: white !important;
+            box-shadow: 0 4px 14px rgba(0, 135, 122, 0.45);
+        }
+        .wajib.inactive {
+            background-color: #f1f5f9;
+            color: #94a3b8;
+            border: 2px solid #e2e8f0;
+        }
+        .dark .wajib.inactive {
+            background-color: #1e293b;
+            border-color: #334155;
+            color: #64748b;
+        }
+
+        .sunnah-circle.active {
+            background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+            color: white !important;
+            box-shadow: 0 4px 14px rgba(217, 119, 6, 0.45);
+        }
+        .sunnah-circle.inactive {
+            background-color: #f1f5f9;
+            color: #94a3b8;
+            border: 2px solid #e2e8f0;
+        }
+        .dark .sunnah-circle.inactive {
+            background-color: #1e293b;
+            border-color: #334155;
+            color: #64748b;
+        }
+
+        .click-area {
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+        .click-area:active {
+            transform: scale(0.98);
+        }
+
+        /* Dark mode palette adjustments */
+        .dark .bg-white { background-color: #1e293b; }
+        .dark .text-slate-800 { color: #f8fafc; }
+        .dark .text-slate-700 { color: #e2e8f0; }
+        .dark .text-slate-600 { color: #cbd5e1; }
+        .dark .text-slate-500 { color: #94a3b8; }
+        .dark .text-slate-400 { color: #64748b; }
+        .dark .border-slate-100 { border-color: #334155; }
+        .dark .border-slate-200 { border-color: #334155; }
+        .dark .bg-slate-50 { background-color: #0f172a; }
+        .dark .bg-slate-100 { background-color: #1e293b; }
+
+        /* Number input styling */
+        input[type="date"] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            cursor: pointer;
+        }
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            cursor: pointer;
+            opacity: 0.6;
+        }
+
+        .modal-overflow {
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        /* NAVBAR BAWAH PERSISTEN GARUDATEL */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            max-width: 480px;
+            background: white;
+            display: flex;
+            justify-content: space-around;
+            padding: 8px 0;
+            border-top: 1px solid #e2e8f0;
+            box-shadow: 0 -4px 15px rgba(0,0,0,0.05);
+            z-index: 1000;
+        }
+        .dark .bottom-nav {
+            background: #1e293b;
+            border-color: #334155;
+        }
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 11px;
+            color: #64748b;
+            text-decoration: none;
+            font-weight: 700;
+            gap: 2px;
+            flex: 1;
+            transition: 0.2s;
+        }
+        .dark .nav-item { color: #94a3b8; }
+        .nav-item.active { color: #00877a; }
+        .dark .nav-item.active { color: #2dd4bf; }
+        .nav-item i { font-size: 17px; margin-bottom: 2px; }
+
+        .nav-fab {
+            position: relative;
+            top: -18px;
+            background: linear-gradient(135deg, #00877a 0%, #005f56 100%);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 20px;
+            border: 3px solid white;
+            box-shadow: 0 4px 15px rgba(0,135,122,0.4);
+            text-decoration: none;
+            transition: 0.25s;
+        }
+        .dark .nav-fab { border-color: #1e293b; }
+        .nav-fab:hover { transform: scale(1.06); }
+    </style>
+</head>
+
+<body class="bg-slate-100 dark:bg-slate-900 min-h-screen pb-28 relative transition-colors duration-300">
+
+    <!-- TOAST CONTAINER -->
+    <div id="toast-container" class="fixed top-4 left-1/2 -translate-x-1/2 z-[99999] flex flex-col gap-2 items-center w-full max-w-sm px-4 pointer-events-none"></div>
+
+    <!-- LAYAR UTAMA APLIKASI (NATIVE IN-APP) -->
+    <div id="app-screen" class="max-w-md mx-auto min-h-screen bg-white dark:bg-slate-900 shadow-2xl relative">
+        
+        <!-- HEADER GARUDATEL TEAL -->
+        <div class="relative overflow-hidden mb-5" style="background: linear-gradient(135deg, #00877a 0%, #00695c 50%, #004d40 100%);">
+            <div class="absolute -top-20 -right-20 w-64 h-64 rounded-full bg-teal-400/10 blur-3xl"></div>
+            <div class="absolute -bottom-32 -left-16 w-72 h-72 rounded-full bg-amber-400/5 blur-3xl"></div>
+            <div class="text-white p-5 pt-5 relative z-10">
+                
+                <!-- Nav Back Bar -->
+                <div class="flex justify-between items-center mb-3">
+                    <a href="/" class="flex items-center gap-2 text-white/95 hover:text-white font-bold text-xs transition">
+                        <i class="fas fa-arrow-left"></i><span>Kembali ke GarudaTel</span>
+                    </a>
+                    <span class="bg-white/20 text-white text-[9px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider">
+                        <i class="fas fa-heart text-rose-300 mr-1"></i> GarudaTel Super-App
+                    </span>
+                </div>
+
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h1 class="text-xl font-extrabold tracking-tight">Moeslem Daily Tracker</h1>
+                        <p class="text-teal-100/90 text-xs mt-0.5 opacity-90" id="current-date">Memuat...</p>
+                    </div>
+                    <div class="flex gap-2 items-center">
+                        <button onclick="window.toggleDarkMode()" class="w-8 h-8 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/20 hover:bg-white/20 transition" title="Mode Gelap">
+                            <i id="dark-toggle-icon" class="fas fa-moon text-slate-200 text-xs"></i>
+                        </button>
+                        <button onclick="window.openModal('data-modal')" class="w-8 h-8 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/20 hover:bg-white/20 transition" title="Data & Backup">
+                            <i class="fas fa-database text-teal-100 text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Bar Profil User Terdeteksi Otomatis -->
+                <div class="mt-3.5 flex justify-between items-center bg-black/15 backdrop-blur-sm p-2.5 rounded-xl border border-white/10">
+                    <div class="flex items-center gap-2.5">
+                        <img id="user-avatar" class="w-8 h-8 rounded-full border border-white/40 shadow-sm" src="" alt="avatar">
+                        <div>
+                            <div id="user-name" class="text-xs font-extrabold text-white leading-tight">Memuat...</div>
+                            <div id="user-status-badge" class="text-[10px] text-teal-200/90 font-medium leading-none mt-0.5">Memeriksa status akun...</div>
+                        </div>
+                    </div>
+                    <span id="streak-badge" class="text-xs bg-white/20 px-3 py-1 rounded-full font-bold border border-white/10 shrink-0">
+                        <i class="fas fa-fire text-amber-300 mr-1"></i> Streak 0 hari
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="px-4 relative z-20">
+            <!-- Progress Card -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-soft dark:shadow-lg mb-4 border border-slate-100 dark:border-slate-700 transition-colors">
+                <div class="flex justify-between items-end mb-3">
+                    <div>
+                        <span class="text-slate-400 dark:text-slate-500 text-[10px] uppercase tracking-widest font-bold">Produktivitas Hari Ini</span>
+                        <div class="text-3xl font-extrabold text-slate-800 dark:text-slate-100 mt-1" id="progress-text">0%</div>
+                    </div>
+                    <div id="progress-icon-container" class="h-10 w-10 bg-teal-50 dark:bg-teal-900/40 rounded-full flex items-center justify-center text-teal-600 dark:text-teal-400 transition-all">
+                        <i class="fas fa-chart-pie text-base"></i>
+                    </div>
+                </div>
+                <div class="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2.5 overflow-hidden">
+                    <div id="progress-bar" class="h-full rounded-full transition-all duration-500 ease-out" style="width: 0%; background: #00877a;"></div>
+                </div>
+            </div>
+
+            <!-- Date Picker -->
+            <div id="view-date-container" class="bg-white dark:bg-slate-800 rounded-2xl p-3 shadow-soft dark:shadow-lg mb-4 border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-2 transition-all">
+                <div class="flex items-center gap-2 flex-1">
+                    <i class="fas fa-calendar-alt text-teal-600 dark:text-teal-400 text-sm"></i>
+                    <input type="date" id="view-date" class="text-xs border-none focus:ring-0 bg-transparent text-slate-700 dark:text-slate-200 font-bold cursor-pointer">
+                    <span class="text-[11px] font-bold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/40 px-2 py-0.5 rounded-full" id="view-date-percent">0%</span>
+                </div>
+                <button id="today-btn" type="button" class="text-xs bg-teal-50 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300 px-3 py-1 rounded-full font-bold hover:bg-teal-100 transition">Hari Ini</button>
+            </div>
+
+            <!-- Jurnal Harian -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-3.5 shadow-soft dark:shadow-lg mb-4 border border-slate-100 dark:border-slate-700 transition-colors">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                        <i class="fas fa-pen-alt mr-1"></i> Jurnal & Catatan Harian
+                    </span>
+                    <button id="save-journal" type="button" class="text-teal-600 dark:text-teal-400 text-xs font-bold bg-teal-50 dark:bg-teal-900/40 px-3 py-1 rounded-full hover:bg-teal-100 transition">💾 Simpan</button>
+                </div>
+                <textarea id="journal-textarea" rows="2" class="w-full border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-xl p-2.5 text-xs text-slate-600 focus:outline-none focus:border-teal-500 transition resize-none" placeholder="Tulis catatan ibadah atau rasa syukur hari ini... 💭"></textarea>
+            </div>
+
+            <!-- Tombol Aksi Lengkap -->
+            <div class="grid grid-cols-3 gap-2.5 mb-5">
+                <button onclick="window.showReport()" type="button" class="bg-white dark:bg-slate-800 p-3 rounded-2xl shadow-soft dark:shadow-lg border border-slate-100 dark:border-slate-700 flex flex-col items-center gap-1.5 active:scale-95 transition-all hover:shadow-md">
+                    <div class="w-8 h-8 rounded-full bg-teal-50 dark:bg-teal-900/40 text-teal-600 dark:text-teal-400 flex items-center justify-center">
+                        <i class="fas fa-chart-bar text-xs"></i>
+                    </div>
+                    <span class="text-[10px] font-bold text-slate-600 dark:text-slate-300">Laporan</span>
+                </button>
+                <button onclick="window.shareToWhatsApp()" type="button" class="bg-white dark:bg-slate-800 p-3 rounded-2xl shadow-soft dark:shadow-lg border border-slate-100 dark:border-slate-700 flex flex-col items-center gap-1.5 active:scale-95 transition-all hover:shadow-md">
+                    <div class="w-8 h-8 rounded-full bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                        <i class="fab fa-whatsapp text-sm"></i>
+                    </div>
+                    <span class="text-[10px] font-bold text-slate-600 dark:text-slate-300">Bagikan WA</span>
+                </button>
+                <button onclick="window.showMonthlyReport()" type="button" class="bg-white dark:bg-slate-800 p-3 rounded-2xl shadow-soft dark:shadow-lg border border-slate-100 dark:border-slate-700 flex flex-col items-center gap-1.5 active:scale-95 transition-all hover:shadow-md">
+                    <div class="w-8 h-8 rounded-full bg-amber-50 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                        <i class="fas fa-calendar-check text-xs"></i>
+                    </div>
+                    <span class="text-[10px] font-bold text-slate-600 dark:text-slate-300">Bulanan</span>
+                </button>
+            </div>
+
+            <!-- 1. Ibadah & Sunnah Accordion (Default Terbuka) -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-soft dark:shadow-lg border border-slate-100 dark:border-slate-700 overflow-hidden mb-3.5">
+                <button onclick="window.toggleSection('section-ibadah')" type="button" class="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition group">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-full bg-teal-50 dark:bg-teal-900/40 flex items-center justify-center text-teal-600 dark:text-teal-400">
+                            <i class="fas fa-mosque"></i>
+                        </div>
+                        <div class="text-left">
+                            <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm">Ibadah & Sunnah</h3>
+                            <span id="count-ibadah" class="text-[10px] font-bold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/40 px-2 py-0.5 rounded-md mt-0.5 inline-block">0/0</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="w-16 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden hidden sm:block">
+                            <div id="progress-ibadah" class="h-full bg-teal-600 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                        <i id="chevron-section-ibadah" class="fas fa-chevron-down text-slate-300 dark:text-slate-500 chevron rotate"></i>
+                    </div>
+                </button>
+                <div id="section-ibadah" class="accordion-content open bg-slate-50 dark:bg-slate-900/50">
+                    <div class="p-4 space-y-4">
+                        <!-- Shalat Wajib 5 Waktu -->
+                        <div class="bg-white dark:bg-slate-800 p-3.5 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
+                            <div class="flex justify-between items-center mb-3">
+                                <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Shalat Wajib 5 Waktu</span>
+                                <span class="text-[10px] text-teal-600 dark:text-teal-400 font-bold">5x sehari</span>
+                            </div>
+                            <div id="prayer-wajib-container" class="flex justify-between items-center">
+                                <!-- Rendered dynamically by JS -->
+                            </div>
+                        </div>
+
+                        <!-- Shalat Sunnah Utama -->
+                        <div class="bg-white dark:bg-slate-800 p-3.5 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
+                            <div class="flex justify-between items-center mb-3">
+                                <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Shalat Sunnah Utama</span>
+                                <span class="text-[10px] text-amber-500 font-bold">Sunnah</span>
+                            </div>
+                            <div id="prayer-sunnah-container" class="flex justify-between items-center">
+                                <!-- Rendered dynamically by JS -->
+                            </div>
+                        </div>
+
+                        <!-- Amalan Ibadah Tambahan -->
+                        <div>
+                            <h4 class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Amalan Ibadah Tambahan</h4>
+                            <div id="list-ibadah-extra" class="space-y-1.5">
+                                <!-- Rendered dynamically by JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Kesehatan Jasmani Accordion (Default Terbuka) -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-soft dark:shadow-lg border border-slate-100 dark:border-slate-700 overflow-hidden mb-3.5">
+                <button onclick="window.toggleSection('section-kesehatan')" type="button" class="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition group">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-full bg-blue-50 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                            <i class="fas fa-heart-pulse"></i>
+                        </div>
+                        <div class="text-left">
+                            <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm">Kesehatan Jasmani</h3>
+                            <span id="count-kesehatan" class="text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/40 px-2 py-0.5 rounded-md mt-0.5 inline-block">0/0</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="w-16 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden hidden sm:block">
+                            <div id="progress-kesehatan" class="h-full bg-blue-500 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                        <i id="chevron-section-kesehatan" class="fas fa-chevron-down text-slate-300 dark:text-slate-500 chevron rotate"></i>
+                    </div>
+                </button>
+                <div id="section-kesehatan" class="accordion-content open bg-slate-50 dark:bg-slate-900/50">
+                    <div class="p-4 space-y-1.5" id="list-kesehatan">
+                        <!-- Rendered dynamically by JS -->
+                    </div>
+                    <div class="px-4 pb-3">
+                        <p class="text-[9px] text-slate-400 dark:text-slate-500 italic">*Sumber: AHA, Harvard Health, Mayo Clinic</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Akhlak & Adab Sosial Accordion (Default Terbuka) -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-soft dark:shadow-lg border border-slate-100 dark:border-slate-700 overflow-hidden mb-8">
+                <button onclick="window.toggleSection('section-akhlak')" type="button" class="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition group">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-full bg-purple-50 dark:bg-purple-900/40 flex items-center justify-center text-purple-600 dark:text-purple-400">
+                            <i class="fas fa-heart"></i>
+                        </div>
+                        <div class="text-left">
+                            <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm">Akhlak & Adab Sosial</h3>
+                            <span id="count-akhlak" class="text-[10px] font-bold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/40 px-2 py-0.5 rounded-md mt-0.5 inline-block">0/0</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="w-16 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden hidden sm:block">
+                            <div id="progress-akhlak" class="h-full bg-purple-500 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                        <i id="chevron-section-akhlak" class="fas fa-chevron-down text-slate-300 dark:text-slate-500 chevron rotate"></i>
+                    </div>
+                </button>
+                <div id="section-akhlak" class="accordion-content open bg-slate-50 dark:bg-slate-900/50">
+                    <div class="p-4 space-y-1.5" id="list-akhlak">
+                        <!-- Rendered dynamically by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="text-center py-6 border-t border-slate-200 dark:border-slate-700 mb-8">
+                <p class="text-[11px] text-slate-400 dark:text-slate-500 font-medium">GarudaTel Super-App • Moeslem Daily Tracker Pro</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL REPORT MINGGUAN -->
+    <div id="report-modal" class="fixed inset-0 z-50 flex items-center justify-center px-4 hidden modal-bg" style="background-color: rgba(0,0,0,0.6); backdrop-filter: blur(4px);">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 max-w-sm w-full relative modal-box modal-overflow border border-slate-100 dark:border-slate-700">
+            <button onclick="window.closeModal('report-modal')" type="button" class="absolute top-4 right-4 text-slate-300 dark:text-slate-500 hover:text-slate-500 transition"><i class="fas fa-times text-xl"></i></button>
+            <h3 class="text-lg font-bold text-slate-800 dark:text-slate-100 mb-1 text-center">Laporan Mingguan</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 text-center mb-4">Konsistensi 7 Hari Terakhir</p>
+            <canvas id="weekly-chart" width="300" height="180" style="max-height: 180px; width: 100%;"></canvas>
+            <div class="flex justify-center items-center mt-4">
+                <div class="w-16 h-16 rounded-full border-4 border-teal-100 dark:border-teal-900 flex items-center justify-center bg-teal-50 dark:bg-teal-900/30">
+                    <span id="modal-score" class="text-xl font-bold text-teal-600 dark:text-teal-400">0%</span>
+                </div>
+            </div>
+            <p id="modal-msg" class="text-center text-xs font-medium text-slate-700 dark:text-slate-300 my-4 bg-slate-50 dark:bg-slate-700/50 p-3 rounded-xl">...</p>
+            <button onclick="window.shareToWhatsApp()" type="button" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition active:scale-95 text-sm">
+                <i class="fab fa-whatsapp text-base"></i> Bagikan Laporan WA
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL LAPORAN BULANAN -->
+    <div id="monthly-report-modal" class="fixed inset-0 z-50 flex items-center justify-center px-4 hidden modal-bg" style="background-color: rgba(0,0,0,0.6); backdrop-filter: blur(4px);">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-5 max-w-sm w-full relative modal-box border border-slate-100 dark:border-slate-700">
+            <button onclick="window.closeModal('monthly-report-modal')" type="button" class="absolute top-4 right-4 text-slate-300 dark:text-slate-500 hover:text-slate-500 transition"><i class="fas fa-times text-lg"></i></button>
+            <h3 class="text-base font-bold text-slate-800 dark:text-slate-100 mb-1 text-center">Rekap Bulanan</h3>
+            <p id="month-name" class="text-xs text-teal-600 dark:text-teal-400 text-center mb-3 font-bold"></p>
+
+            <div class="grid grid-cols-3 gap-2 mb-4">
+                <div class="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-2 text-center">
+                    <div class="text-[9px] font-bold text-slate-400 uppercase mb-0.5">Rata-rata</div>
+                    <div id="monthly-avg" class="text-lg font-extrabold text-teal-600 dark:text-teal-400">0%</div>
+                </div>
+                <div class="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-2 text-center">
+                    <div class="text-[9px] font-bold text-slate-400 uppercase mb-0.5">Sempurna</div>
+                    <div id="monthly-perfect" class="text-lg font-extrabold text-emerald-600 dark:text-emerald-400">0</div>
+                </div>
+                <div class="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-2 text-center">
+                    <div class="text-[9px] font-bold text-slate-400 uppercase mb-0.5">Aktif</div>
+                    <div id="monthly-total" class="text-lg font-extrabold text-blue-600 dark:text-blue-400">0</div>
+                </div>
+            </div>
+
+            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-2">Kalender Konsistensi</p>
+            <div id="monthly-calendar" class="mb-4"></div>
+
+            <button onclick="window.closeModal('monthly-report-modal')" type="button" class="w-full bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 py-2 rounded-xl font-bold text-xs">Tutup</button>
+        </div>
+    </div>
+
+    <!-- MODAL DATA & BACKUP -->
+    <div id="data-modal" class="fixed inset-0 z-50 flex items-center justify-center px-4 hidden modal-bg" style="background-color: rgba(0,0,0,0.55); backdrop-filter: blur(4px);">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-6 max-w-sm w-full relative modal-box border border-slate-100 dark:border-slate-700">
+            <button onclick="window.closeModal('data-modal')" type="button" class="absolute top-3 right-4 text-slate-300 hover:text-slate-500"><i class="fas fa-times"></i></button>
+            <h3 class="text-lg font-bold text-slate-800 dark:text-slate-100 mb-1 text-center">Data & Backup</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 text-center mb-5">Data tersimpan aman di akun Anda 🔒</p>
+            
+            <button onclick="window.backupData()" type="button" class="w-full bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 py-3 rounded-xl flex items-center justify-center gap-3 transition font-medium text-xs">
+                <i class="fas fa-download text-teal-600 dark:text-teal-400 text-sm"></i>
+                <span>Download Backup Data (JSON)</span>
+            </button>
+            
+            <button onclick="window.resetData()" type="button" class="w-full border-2 border-red-200 dark:border-red-800 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 py-2.5 rounded-xl mt-3 font-medium flex items-center justify-center gap-3 transition text-xs">
+                <i class="fas fa-trash-alt"></i>
+                <span>Reset Semua Data Tracker</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL KONFIRMASI RESET -->
+    <div id="reset-confirm-modal" class="fixed inset-0 z-50 flex items-center justify-center px-4 hidden modal-bg" style="background-color: rgba(0,0,0,0.55); backdrop-filter: blur(4px);">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-6 max-w-sm w-full relative modal-box scale-in border border-slate-100 dark:border-slate-700">
+            <div class="text-center mb-4">
+                <div class="w-14 h-14 rounded-full bg-red-50 dark:bg-red-900/40 flex items-center justify-center mx-auto text-red-500 dark:text-red-400">
+                    <i class="fas fa-exclamation-triangle text-2xl"></i>
+                </div>
+            </div>
+            <h3 class="text-base font-bold text-slate-800 dark:text-slate-100 mb-1 text-center">Reset Semua Data?</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 text-center mb-5">Semua data tracker Anda akan dihapus permanen.</p>
+            <div class="flex gap-2.5">
+                <button onclick="window.cancelResetData()" type="button" class="flex-1 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 py-2.5 rounded-xl font-bold text-xs transition">Batal</button>
+                <button onclick="window.confirmResetData()" type="button" class="flex-1 bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-xl font-bold text-xs shadow-md transition">Ya, Hapus</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- NAVBAR BAWAH PERSISTEN GARUDATEL -->
+    <div class="bottom-nav">
+        <a href="/" class="nav-item">
+            <i class="fas fa-home"></i>
+            <span>Home</span>
+        </a>
+        <a href="/riwayat" class="nav-item">
+            <i class="fas fa-history"></i>
+            <span>Riwayat</span>
+        </a>
+        <a href="/muslimtrack" class="nav-fab active" title="Moeslim Daily Tracker">
+            <i class="fas fa-calendar-check"></i>
+        </a>
+        <a href="/informasi" class="nav-item">
+            <i class="fas fa-exclamation-circle"></i>
+            <span>Mutasi</span>
+        </a>
+        <a href="/profil" class="nav-item">
+            <i class="fas fa-user"></i>
+            <span>Profil</span>
+        </a>
+    </div>
+
+    <!-- SCRIPT ENGINE UTAMA (NATIVE & DEPENDENCY-FREE) -->
+    <script>
+        // ======================================================================
+        // 1. DETEKSI STATUS LOGIN PENGGUNA APLIKASI GARUDATEL (FLASK USER SESSION)
+        // ======================================================================
+        {% if current_user and current_user.is_authenticated %}
+            const isGarudatelLoggedIn = true;
+            const appUserId = "{{ current_user.id }}";
+            const appUserName = "{{ current_user.name }}";
+            const appUserPhone = "{{ current_user.phone or '' }}";
+        {% else %}
+            const isGarudatelLoggedIn = false;
+            const appUserId = "guest";
+            const appUserName = "Tamu (Mode Guest)";
+            const appUserPhone = "";
+        {% endif %}
+
+        // Prefix penyimpanan lokal per-pengguna
+        const STORAGE_PREFIX = 'gt_habit_' + appUserId + '_';
+        const JOURNAL_PREFIX = 'gt_journal_' + appUserId + '_';
+
+        // ======================================================================
+        // 2. DATA MASTER HABIT LENGKAP (25 KEBIASAAN)
+        // ======================================================================
+        const prayerWajib = [
+            { id: 'subuh', label: 'S', name: 'Subuh', icon: 'fa-cloud-sun' },
+            { id: 'dzuhur', label: 'D', name: 'Dzuhur', icon: 'fa-sun' },
+            { id: 'ashar', label: 'A', name: 'Ashar', icon: 'fa-cloud-sun-rain' },
+            { id: 'maghrib', label: 'M', name: 'Maghrib', icon: 'fa-sun' },
+            { id: 'isya', label: 'I', name: 'Isya', icon: 'fa-moon' }
+        ];
+
+        const prayerSunnah = [
+            { id: 'rawatib', label: 'Rw', name: 'Rawatib', icon: 'fa-star' },
+            { id: 'dhuha', label: 'Dh', name: 'Dhuha', icon: 'fa-sun' },
+            { id: 'tahajud', label: 'Th', name: 'Tahajud', icon: 'fa-moon' },
+            { id: 'witir', label: 'Wt', name: 'Witir', icon: 'fa-star-and-crescent' },
+            { id: 'isyroq', label: 'Is', name: 'Isyroq', icon: 'fa-cloud-sun' }
+        ];
+
+        const ibadahExtra = [
+            { id: 'taubat', text: 'Shalat Taubat', icon: 'fa-hands-praying' },
+            { id: 'hajat', text: 'Shalat Hajat', icon: 'fa-star' },
+            { id: 'puasa', text: 'Puasa Sunnah', icon: 'fa-utensils' },
+            { id: 'quran', text: 'Baca Al-Qur\'an + Tadabbur', icon: 'fa-book-quran' },
+            { id: 'sedekah', text: 'Sedekah Harian', icon: 'fa-hand-holding-dollar' },
+            { id: 'dzikir', text: 'Dzikir Pagi & Petang', icon: 'fa-hand-holding-heart' }
+        ];
+
+        const healthHabits = [
+            { id: 'tidur', text: 'Tidur Berkualitas 7-8 Jam', desc: 'Regenerasi sel & fungsi otak', icon: 'fa-bed' },
+            { id: 'air', text: 'Minum Air Putih 2 Liter', desc: 'Hidrasi optimal (Mayo Clinic)', icon: 'fa-glass-water' },
+            { id: 'gerak', text: 'Jalan Kaki/Cardio 30 Mnt', desc: 'Kesehatan Jantung (AHA)', icon: 'fa-person-walking' },
+            { id: 'diet', text: 'Diet Whole Food (Sayur/Buah)', desc: 'Hindari makanan olahan', icon: 'fa-carrot' }
+        ];
+
+        const akhlakHabits = [
+            { id: 'silaturahmi', text: 'Silaturahmi Karena Allah', icon: 'fa-handshake' },
+            { id: 'tidakKasar', text: 'Tidak Berkata Kasar', icon: 'fa-comment-dots' },
+            { id: 'adabBaik', text: 'Menjaga Adab & Akhlak Baik', icon: 'fa-smile' },
+            { id: 'tidakBohong', text: 'Tidak Berbohong', icon: 'fa-check-double' },
+            { id: 'ajakKebaikan', text: 'Mengajak Orang Kepada Kebaikan', icon: 'fa-bullhorn' }
+        ];
+
+        const allHabits = [...prayerWajib, ...prayerSunnah, ...ibadahExtra, ...healthHabits, ...akhlakHabits];
+
+        function formatDate(date) {
+            const d = new Date(date);
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        }
+        function getTodayKey() { return formatDate(new Date()); }
+
+        let currentViewDate = getTodayKey();
+        let currentDailyData = {};
+        let currentJournal = "";
+        let streakValue = 0;
+        let weeklyScores = [0, 0, 0, 0, 0, 0, 0];
+        let monthlyData = {};
+        let chart = null;
+        let darkModeEnabled = localStorage.getItem('darkMode') === 'true';
+
+        // ======================================================================
+        // 3. SISTEM TOAST NOTIFIKASI
+        // ======================================================================
+        function showToast(message, type = 'info', duration = 2400) {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+            const colors = {
+                success: 'bg-emerald-600',
+                error: 'bg-rose-600',
+                info: 'bg-slate-800',
+                warning: 'bg-amber-600'
+            };
+            const icons = {
+                success: 'fa-check-circle',
+                error: 'fa-exclamation-circle',
+                info: 'fa-info-circle',
+                warning: 'fa-exclamation-triangle'
+            };
+            const toast = document.createElement('div');
+            toast.className = `flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg text-white text-xs font-semibold transform transition-all duration-300 translate-y-3 opacity-0 ${colors[type]}`;
+            toast.innerHTML = `<i class="fas ${icons[type]} text-base shrink-0"></i><span>${message}</span>`;
+            container.appendChild(toast);
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-3', 'opacity-0');
+                toast.classList.add('translate-y-0', 'opacity-100');
+            });
+            setTimeout(() => {
+                toast.classList.add('translate-y-3', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
+
+        // ======================================================================
+        // 4. DARK MODE
+        // ======================================================================
+        function applyDarkMode() {
+            const icon = document.getElementById('dark-toggle-icon');
+            if (darkModeEnabled) {
+                document.documentElement.classList.add('dark');
+                if (icon) icon.className = 'fas fa-sun text-amber-400';
+            } else {
+                document.documentElement.classList.remove('dark');
+                if (icon) icon.className = 'fas fa-moon text-slate-200';
+            }
+            localStorage.setItem('darkMode', darkModeEnabled);
+        }
+
+        window.toggleDarkMode = function() {
+            darkModeEnabled = !darkModeEnabled;
+            applyDarkMode();
+            showToast(darkModeEnabled ? 'Mode gelap aktif 🌙' : 'Mode terang aktif ☀️', 'info', 1500);
+        };
+
+        // ======================================================================
+        // 5. PERHITUNGAN PERSENTASE & STREAK
+        // ======================================================================
+        function computePercent(data) {
+            let total = 0, done = 0;
+            allHabits.forEach(h => {
+                total++;
+                if (data && data[h.id]) done++;
+            });
+            return total ? Math.round((done / total) * 100) : 0;
+        }
+
+        function calculateStreak(dailyDataList) {
+            let streak = 0;
+            for (let day of dailyDataList) {
+                const data = day.data || {};
+                const allWajib = prayerWajib.every(p => data[p.id] === true);
+                const sunnahHealthAkhlakIds = [...prayerSunnah, ...ibadahExtra, ...healthHabits, ...akhlakHabits].map(h => h.id);
+                let count = 0;
+                for (let id of sunnahHealthAkhlakIds) {
+                    if (data[id] === true) count++;
+                }
+                if (allWajib && count >= 3) streak++;
+                else break;
+            }
+            return streak;
+        }
+
+        function computeCategoryCounts(data) {
+            if (!data) data = {};
+            const ibadahDone = [...prayerWajib, ...prayerSunnah, ...ibadahExtra].filter(h => data[h.id]).length;
+            const ibadahTotal = prayerWajib.length + prayerSunnah.length + ibadahExtra.length;
+            const kesehatanDone = healthHabits.filter(h => data[h.id]).length;
+            const akhlakDone = akhlakHabits.filter(h => data[h.id]).length;
+            return {
+                ibadah: { done: ibadahDone, total: ibadahTotal, pct: Math.round((ibadahDone / ibadahTotal) * 100) },
+                kesehatan: { done: kesehatanDone, total: healthHabits.length, pct: Math.round((kesehatanDone / healthHabits.length) * 100) },
+                akhlak: { done: akhlakDone, total: akhlakHabits.length, pct: Math.round((akhlakDone / akhlakHabits.length) * 100) }
+            };
+        }
+
+        // ======================================================================
+        // 6. RENDER ELEMEN HABIT KE LAYAR (LANGSUNG & AMAN)
+        // ======================================================================
+        function renderUI() {
+            if (!currentDailyData) currentDailyData = {};
+            const data = currentDailyData;
+
+            // 1. Shalat Wajib 5 Waktu
+            const elWajib = document.getElementById('prayer-wajib-container');
+            if (elWajib) {
+                elWajib.innerHTML = prayerWajib.map(p => {
+                    const active = data[p.id] ? 'active' : 'inactive';
+                    return `
+                    <div class="flex flex-col items-center gap-1.5">
+                        <button type="button" onclick="window.toggleHabit('${p.id}')" class="prayer-circle wajib ${active}">
+                            ${p.label}
+                            ${data[p.id] ? '<span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-white animate-pulse"></span>' : ''}
+                        </button>
+                        <span class="text-[10px] font-bold ${data[p.id] ? 'text-teal-600 dark:text-teal-400' : 'text-slate-400 dark:text-slate-500'}">${p.name}</span>
+                    </div>`;
+                }).join('');
+            }
+
+            // 2. Shalat Sunnah Utama
+            const elSunnah = document.getElementById('prayer-sunnah-container');
+            if (elSunnah) {
+                elSunnah.innerHTML = prayerSunnah.map(p => {
+                    const active = data[p.id] ? 'active' : 'inactive';
+                    return `
+                    <div class="flex flex-col items-center gap-1.5">
+                        <button type="button" onclick="window.toggleHabit('${p.id}')" class="prayer-circle sunnah-circle ${active}">
+                            ${p.label}
+                            ${data[p.id] ? '<span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-white animate-pulse"></span>' : ''}
+                        </button>
+                        <span class="text-[10px] font-bold ${data[p.id] ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400 dark:text-slate-500'}">${p.name}</span>
+                    </div>`;
+                }).join('');
+            }
+
+            // 3. Ibadah Tambahan Checklist
+            const elExtra = document.getElementById('list-ibadah-extra');
+            if (elExtra) {
+                elExtra.innerHTML = ibadahExtra.map(h => {
+                    const isActive = !!data[h.id];
+                    return `
+                    <div onclick="window.toggleHabit('${h.id}')" class="click-area flex items-center bg-white dark:bg-slate-800 p-3 rounded-xl border-2 transition-all duration-150 hover:shadow-sm ${isActive ? 'border-teal-400 dark:border-teal-600 bg-teal-50/50 dark:bg-teal-900/30' : 'border-slate-100 dark:border-slate-700 hover:border-slate-200'} mb-1.5 cursor-pointer">
+                        <div class="w-5 h-5 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all ${isActive ? 'bg-teal-600 border-teal-600' : 'bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-500'}">
+                            <i class="fas fa-check text-white text-[10px] ${isActive ? 'block' : 'hidden'}"></i>
+                        </div>
+                        <span class="ml-3 flex-1 text-slate-700 dark:text-slate-200 text-xs font-semibold">${h.text}</span>
+                        <i class="fas ${h.icon} ${isActive ? 'text-teal-600 dark:text-teal-400' : 'text-slate-300 dark:text-slate-600'} text-xs shrink-0"></i>
+                    </div>`;
+                }).join('');
+            }
+
+            // 4. Kesehatan Jasmani Checklist
+            const elKesehatan = document.getElementById('list-kesehatan');
+            if (elKesehatan) {
+                elKesehatan.innerHTML = healthHabits.map(h => {
+                    const isActive = !!data[h.id];
+                    return `
+                    <div onclick="window.toggleHabit('${h.id}')" class="click-area flex items-start bg-white dark:bg-slate-800 p-3 rounded-xl border-2 transition-all duration-150 hover:shadow-sm ${isActive ? 'border-blue-400 dark:border-blue-600 bg-blue-50/50 dark:bg-blue-900/30' : 'border-slate-100 dark:border-slate-700 hover:border-slate-200'} mb-1.5 cursor-pointer">
+                        <div class="w-5 h-5 rounded-lg border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all ${isActive ? 'bg-blue-500 border-blue-500' : 'bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-500'}">
+                            <i class="fas fa-check text-white text-[10px] ${isActive ? 'block' : 'hidden'}"></i>
+                        </div>
+                        <div class="ml-3 flex-1">
+                            <span class="block text-slate-700 dark:text-slate-200 text-xs font-bold leading-tight">${h.text}</span>
+                            <span class="block text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">${h.desc}</span>
+                        </div>
+                        <i class="fas ${h.icon} ${isActive ? 'text-blue-500' : 'text-slate-300 dark:text-slate-600'} text-xs mt-0.5 shrink-0"></i>
+                    </div>`;
+                }).join('');
+            }
+
+            // 5. Akhlak & Adab Sosial Checklist
+            const elAkhlak = document.getElementById('list-akhlak');
+            if (elAkhlak) {
+                elAkhlak.innerHTML = akhlakHabits.map(h => {
+                    const isActive = !!data[h.id];
+                    return `
+                    <div onclick="window.toggleHabit('${h.id}')" class="click-area flex items-center bg-white dark:bg-slate-800 p-3 rounded-xl border-2 transition-all duration-150 hover:shadow-sm ${isActive ? 'border-purple-400 dark:border-purple-600 bg-purple-50/50 dark:bg-purple-900/30' : 'border-slate-100 dark:border-slate-700 hover:border-slate-200'} mb-1.5 cursor-pointer">
+                        <div class="w-5 h-5 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all ${isActive ? 'bg-purple-500 border-purple-500' : 'bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-500'}">
+                            <i class="fas fa-check text-white text-[10px] ${isActive ? 'block' : 'hidden'}"></i>
+                        </div>
+                        <span class="ml-3 flex-1 text-slate-700 dark:text-slate-200 text-xs font-semibold">${h.text}</span>
+                        <i class="fas ${h.icon} ${isActive ? 'text-purple-500' : 'text-slate-300 dark:text-slate-600'} text-xs shrink-0"></i>
+                    </div>`;
+                }).join('');
+            }
+
+            // Category Counts
+            const catCounts = computeCategoryCounts(data);
+            const cIbadah = document.getElementById('count-ibadah');
+            const cKesehatan = document.getElementById('count-kesehatan');
+            const cAkhlak = document.getElementById('count-akhlak');
+            if (cIbadah) cIbadah.innerText = `${catCounts.ibadah.done}/${catCounts.ibadah.total}`;
+            if (cKesehatan) cKesehatan.innerText = `${catCounts.kesehatan.done}/${catCounts.kesehatan.total}`;
+            if (cAkhlak) cAkhlak.innerText = `${catCounts.akhlak.done}/${catCounts.akhlak.total}`;
+
+            const pIbadah = document.getElementById('progress-ibadah');
+            const pKesehatan = document.getElementById('progress-kesehatan');
+            const pAkhlak = document.getElementById('progress-akhlak');
+            if (pIbadah) pIbadah.style.width = `${catCounts.ibadah.pct}%`;
+            if (pKesehatan) pKesehatan.style.width = `${catCounts.kesehatan.pct}%`;
+            if (pAkhlak) pAkhlak.style.width = `${catCounts.akhlak.pct}%`;
+
+            // Overall Progress
+            const percent = computePercent(data);
+            const pText = document.getElementById('progress-text');
+            const pBar = document.getElementById('progress-bar');
+            const vPercent = document.getElementById('view-date-percent');
+            if (pText) pText.innerText = percent + '%';
+            if (pBar) {
+                pBar.style.width = percent + '%';
+                pBar.style.background = percent === 100 ?
+                    'linear-gradient(90deg, #10b981, #34d399)' :
+                    percent > 50 ? 'linear-gradient(90deg, #00877a, #14b8a6)' : '#00877a';
+            }
+            if (vPercent) vPercent.innerText = `${percent}%`;
+
+            const iconCont = document.getElementById('progress-icon-container');
+            if (iconCont) {
+                if (percent === 100) iconCont.className = "h-10 w-10 bg-emerald-100 dark:bg-emerald-900/40 rounded-full flex items-center justify-center text-emerald-600 dark:text-emerald-400 transition-all";
+                else if (percent > 50) iconCont.className = "h-10 w-10 bg-teal-100 dark:bg-teal-900/40 rounded-full flex items-center justify-center text-teal-600 dark:text-teal-400 transition-all";
+                else iconCont.className = "h-10 w-10 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center text-slate-400 dark:text-slate-500 transition-all";
+            }
+
+            const jText = document.getElementById('journal-textarea');
+            if (jText) jText.value = currentJournal || "";
+
+            // Highlight Tanggal
+            const vDateCont = document.getElementById('view-date-container');
+            if (vDateCont) {
+                if (currentViewDate === getTodayKey()) {
+                    vDateCont.classList.remove('border-2', 'border-amber-400', 'bg-amber-50/50');
+                    vDateCont.classList.add('border', 'border-slate-200');
+                } else {
+                    vDateCont.classList.add('border-2', 'border-amber-400', 'bg-amber-50/50');
+                    vDateCont.classList.remove('border', 'border-slate-200');
+                }
+            }
+        }
+
+        // ======================================================================
+        // 7. PENYIMPANAN DATA & TOGGLE HABIT (PER-USER STORAGE)
+        // ======================================================================
+        function loadDayData(date) {
+            const raw = localStorage.getItem(STORAGE_PREFIX + date);
+            if (raw) {
+                try {
+                    currentDailyData = JSON.parse(raw);
+                } catch (e) {
+                    currentDailyData = {};
+                }
+            } else {
+                currentDailyData = {};
+            }
+            currentJournal = localStorage.getItem(JOURNAL_PREFIX + date) || "";
+        }
+
+        window.toggleHabit = function(habitId) {
+            if (!currentDailyData) currentDailyData = {};
+            currentDailyData[habitId] = !currentDailyData[habitId];
+
+            // Simpan langsung ke penyimpanan per-user
+            localStorage.setItem(STORAGE_PREFIX + currentViewDate, JSON.stringify(currentDailyData));
+
+            // Efek getar halus di smartphone
+            if (navigator.vibrate) navigator.vibrate(12);
+
+            // Re-render UI
+            renderUI();
+
+            // Perbarui streak & laporan
+            updateStreakAndWeekly();
+        };
+
+        function saveJournal() {
+            const jText = document.getElementById('journal-textarea');
+            if (!jText) return;
+            const newJournal = jText.value;
+            currentJournal = newJournal;
+            localStorage.setItem(JOURNAL_PREFIX + currentViewDate, newJournal);
+            showToast('Jurnal tersimpan ✓', 'success');
+        }
+
+        // ======================================================================
+        // 8. STREAK & MINGGUAN
+        // ======================================================================
+        function updateStreakAndWeekly() {
+            const today = new Date();
+            const last7Days = [];
+            for (let i = 6; i >= 0; i--) {
+                let d = new Date(today);
+                d.setDate(today.getDate() - i);
+                const k = formatDate(d);
+                const raw = localStorage.getItem(STORAGE_PREFIX + k);
+                let dData = {};
+                if (raw) {
+                    try { dData = JSON.parse(raw); } catch(e){}
+                }
+                weeklyScores[6 - i] = computePercent(dData);
+                last7Days.push({ date: k, data: dData, score: computePercent(dData) });
+            }
+
+            streakValue = calculateStreak([...last7Days].reverse());
+            const sBadge = document.getElementById('streak-badge');
+            if (sBadge) {
+                sBadge.innerHTML = `<i class="fas fa-fire text-amber-300 mr-1"></i> Streak ${streakValue} hari`;
+            }
+
+            if (chart) {
+                chart.data.datasets[0].data = weeklyScores;
+                chart.update();
+            }
+            loadMonthlyData();
+        }
+
+        function loadMonthlyData() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = now.getMonth();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            monthlyData = {};
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                const raw = localStorage.getItem(STORAGE_PREFIX + dateStr);
+                if (raw) {
+                    try {
+                        monthlyData[dateStr] = computePercent(JSON.parse(raw));
+                    } catch(e){}
+                }
+            }
+            renderMonthlyCalendar();
+        }
+
+        function renderMonthlyCalendar() {
+            const calContainer = document.getElementById('monthly-calendar');
+            if (!calContainer) return;
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = now.getMonth();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const firstDay = new Date(year, month, 1).getDay();
+            const monthName = now.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+
+            const mNameEl = document.getElementById('month-name');
+            if (mNameEl) mNameEl.innerText = monthName;
+
+            let html = '<div class="grid grid-cols-7 gap-1.5">';
+            const daysLabel = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+            daysLabel.forEach(d => {
+                html += `<div class="text-[9px] font-bold text-slate-400 text-center py-1">${d}</div>`;
+            });
+            for (let i = 0; i < firstDay; i++) {
+                html += '<div></div>';
+            }
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                const pct = monthlyData[dateStr] || 0;
+                const isToday = dateStr === getTodayKey();
+                let bgClass = 'bg-slate-100 dark:bg-slate-700';
+                if (pct === 100) bgClass = 'bg-emerald-500 text-white';
+                else if (pct >= 70) bgClass = 'bg-teal-500 text-white';
+                else if (pct >= 40) bgClass = 'bg-teal-300 text-teal-800';
+                else if (pct > 0) bgClass = 'bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300';
+                const ringClass = isToday ? 'ring-2 ring-amber-400 ring-offset-1' : '';
+                html += `<div class="text-center py-1.5 rounded-lg text-[10px] font-semibold ${bgClass} ${ringClass} transition-all cursor-default" title="${dateStr}: ${pct}%">${d}</div>`;
+            }
+            html += '</div>';
+            calContainer.innerHTML = html;
+        }
+
+        // ======================================================================
+        // 9. ACCORDION & MODALS HELPER
+        // ======================================================================
+        window.toggleSection = function(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const chevron = document.getElementById('chevron-' + id);
+            const isOpen = el.classList.contains('open');
+            if (isOpen) {
+                el.classList.remove('open');
+                if (chevron) chevron.classList.remove('rotate');
+            } else {
+                el.classList.add('open');
+                if (chevron) chevron.classList.add('rotate');
+            }
+        };
+
+        window.openModal = function(id) {
+            const m = document.getElementById(id);
+            if (m) m.classList.remove('hidden');
+        };
+
+        window.closeModal = function(id) {
+            const m = document.getElementById(id);
+            if (m) m.classList.add('hidden');
+        };
+
+        window.showReport = function() {
+            const modal = document.getElementById('report-modal');
+            if (!modal) return;
+            const avgScore = Math.round(weeklyScores.reduce((a, b) => a + b, 0) / 7);
+            const scoreEl = document.getElementById('modal-score');
+            if (scoreEl) scoreEl.innerText = avgScore + '%';
+            
+            const msgEl = document.getElementById('modal-msg');
+            if (msgEl) {
+                if (avgScore >= 80) msgEl.innerText = '🌟 MasyaAllah! Konsistensi luar biasa!';
+                else if (avgScore >= 60) msgEl.innerText = '💪 Bagus! Terus tingkatkan istiqomah!';
+                else if (avgScore >= 40) msgEl.innerText = '🌱 Tetap semangat, amalan kecil yang konsisten dicintai Allah!';
+                else msgEl.innerText = '🤲 Mulai hari ini dengan niat tulus dan bismillah!';
+            }
+
+            modal.classList.remove('hidden');
+            const canvasEl = document.getElementById('weekly-chart');
+            if (canvasEl) {
+                const ctx = canvasEl.getContext('2d');
+                if (chart) chart.destroy();
+                const isDark = darkModeEnabled;
+                chart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['H-6', 'H-5', 'H-4', 'H-3', 'H-2', 'Kemarin', 'Hari Ini'],
+                        datasets: [{
+                            label: 'Konsistensi (%)',
+                            data: weeklyScores,
+                            backgroundColor: weeklyScores.map(v => v === 100 ? '#10b981' : v > 50 ? '#00877a' : '#cbd5e1'),
+                            borderRadius: 8,
+                            borderSkipped: false,
+                            barPercentage: 0.65,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: {
+                                max: 100,
+                                min: 0,
+                                ticks: { stepSize: 25, font: { size: 9 } },
+                                grid: { color: isDark ? '#334155' : '#f1f5f9' }
+                            },
+                            x: {
+                                ticks: { font: { size: 9 } },
+                                grid: { display: false }
+                            }
+                        }
+                    }
+                });
+            }
+        };
+
+        window.showMonthlyReport = function() {
+            if (monthlyData && Object.keys(monthlyData).length > 0) {
+                const scores = Object.values(monthlyData);
+                const avg = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+                const perfect = scores.filter(s => s === 100).length;
+                document.getElementById('monthly-avg').innerText = avg + '%';
+                document.getElementById('monthly-perfect').innerText = perfect + ' hari';
+                document.getElementById('monthly-total').innerText = scores.length + ' hari';
+            } else {
+                document.getElementById('monthly-avg').innerText = '0%';
+                document.getElementById('monthly-perfect').innerText = '0 hari';
+                document.getElementById('monthly-total').innerText = '0 hari';
+            }
+            window.openModal('monthly-report-modal');
+            renderMonthlyCalendar();
+        };
+
+        window.shareToWhatsApp = function() {
+            const pEl = document.getElementById('progress-text');
+            const percent = pEl ? pEl.innerText : '0%';
+            const text = 
+                `*📊 LAPORAN MOESLEM DAILY TRACKER*\n` +
+                `GarudaTel Super-App\n` +
+                `------------------------------------\n` +
+                `👤 Nama             : ${appUserName}\n` +
+                `✨ Capaian Hari Ini : ${percent}\n` +
+                `🔥 Konsistensi      : ${streakValue} Hari Berturut-turut\n` +
+                `------------------------------------\n` +
+                `_Mari istiqomah dalam ibadah, kesehatan & akhlak bersama GarudaTel!_`;
+
+            window.location.href = `whatsapp://send?text=${encodeURIComponent(text)}`;
+        };
+
+        // ======================================================================
+        // 10. BACKUP & RESET DATA
+        // ======================================================================
+        window.backupData = function() {
+            const allData = {};
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith(STORAGE_PREFIX)) {
+                    const dateKey = key.replace(STORAGE_PREFIX, '');
+                    allData[dateKey] = {
+                        data: JSON.parse(localStorage.getItem(key) || '{}'),
+                        journal: localStorage.getItem(JOURNAL_PREFIX + dateKey) || ''
+                    };
+                }
+            }
+            const jsonStr = JSON.stringify(allData, null, 2);
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `moeslem-tracker-${appUserId}-${getTodayKey()}.json`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+            window.closeModal('data-modal');
+            showToast('Backup berhasil diunduh 📥', 'success');
+        };
+
+        window.resetData = function() {
+            window.closeModal('data-modal');
+            window.openModal('reset-confirm-modal');
+        };
+
+        window.confirmResetData = function() {
+            window.closeModal('reset-confirm-modal');
+            const toRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (key.startsWith(STORAGE_PREFIX) || key.startsWith(JOURNAL_PREFIX))) {
+                    toRemove.push(key);
+                }
+            }
+            toRemove.forEach(k => localStorage.removeItem(k));
+            currentDailyData = {};
+            currentJournal = "";
+            renderUI();
+            updateStreakAndWeekly();
+            showToast('Semua data berhasil direset', 'info');
+        };
+
+        window.cancelResetData = function() {
+            window.closeModal('reset-confirm-modal');
+        };
+
+        // ======================================================================
+        // 11. DATE PICKER INISIALISASI
+        // ======================================================================
+        function initDatePicker() {
+            const vDate = document.getElementById('view-date');
+            const todayStr = getTodayKey();
+            if (!vDate) return;
+            vDate.value = todayStr;
+            vDate.max = todayStr;
+
+            vDate.addEventListener('change', function(e) {
+                const newDate = e.target.value;
+                if (newDate > todayStr) {
+                    vDate.value = currentViewDate;
+                    showToast('Tidak bisa memilih tanggal masa depan', 'warning');
+                    return;
+                }
+                currentViewDate = newDate;
+                loadDayData(currentViewDate);
+                renderUI();
+            });
+
+            const tBtn = document.getElementById('today-btn');
+            if (tBtn) {
+                tBtn.addEventListener('click', function() {
+                    vDate.value = todayStr;
+                    currentViewDate = todayStr;
+                    loadDayData(currentViewDate);
+                    renderUI();
+                    showToast('Menampilkan hari ini ✓', 'info', 1500);
+                });
+            }
+        }
+
+        // ======================================================================
+        // 12. INISIALISASI UTAMA SAAT HALAMAN DIMUAT (ROBUST ENTRY POINT)
+        // ======================================================================
+        function initMuslimTrack() {
+            applyDarkMode();
+
+            // Set Tanggal Hari Ini di Header
+            const curDateEl = document.getElementById('current-date');
+            if (curDateEl) {
+                curDateEl.innerText = new Date().toLocaleDateString('id-ID', {
+                    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+                });
+            }
+
+            // Atur Info Profil Pengguna
+            const uNameEl = document.getElementById('user-name');
+            const uBadgeEl = document.getElementById('user-status-badge');
+            const uAvatarEl = document.getElementById('user-avatar');
+            if (uNameEl) uNameEl.innerText = appUserName;
+            if (uBadgeEl) {
+                uBadgeEl.innerHTML = isGarudatelLoggedIn ?
+                    `<i class="fas fa-check-circle text-emerald-300 mr-1"></i>Akun GarudaTel (${appUserPhone})` :
+                    `<i class="fas fa-user-clock text-amber-300 mr-1"></i>Mode Tamu (Mandiri)`;
+            }
+            if (uAvatarEl) {
+                uAvatarEl.src = 'https://ui-avatars.com/api/?background=00877a&color=fff&bold=true&name=' + encodeURIComponent(appUserName);
+            }
+
+            // Tombol Simpan Jurnal
+            const saveBtn = document.getElementById('save-journal');
+            if (saveBtn) saveBtn.onclick = saveJournal;
+
+            // Inisialisasi Date Picker
+            initDatePicker();
+
+            // Muat Data Hari Ini & Render UI
+            loadDayData(currentViewDate);
+            renderUI();
+
+            // Hitung Streak & Skor
+            updateStreakAndWeekly();
+        }
+
+        // Eksekusi segera jika DOM siap, atau dengarkan DOMContentLoaded
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initMuslimTrack);
+        } else {
+            initMuslimTrack();
+        }
+    </script>
+</body>
+</html>

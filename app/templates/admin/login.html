@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Admin - Garudatel</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #3A827F;
+            --primary-hover: #2c6361;
+            --bg-color: #F1F5F9;
+            --card-bg: #FFFFFF;
+            --text-main: #1E293B;
+            --text-muted: #64748B;
+        }
+        
+        body {
+            margin: 0;
+            font-family: 'Nunito', sans-serif;
+            background-color: var(--bg-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+            background-image: radial-gradient(circle at top right, #e2e8f0 0%, transparent 50%), 
+                              radial-gradient(circle at bottom left, #e2e8f0 0%, transparent 50%);
+        }
+
+        .login-card {
+            background: var(--card-bg);
+            width: 100%;
+            max-width: 380px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            padding: 40px 30px;
+            box-sizing: border-box;
+            text-align: center;
+            /* Animasi masuk */
+            animation: slideUp 0.5s ease-out forwards;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        @keyframes slideUp {
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .login-header i {
+            font-size: 45px;
+            color: var(--primary);
+            margin-bottom: 15px;
+            background: #EAF4F4;
+            padding: 20px;
+            border-radius: 50%;
+        }
+
+        .login-header h2 {
+            margin: 15px 0 5px 0;
+            color: var(--text-main);
+            font-weight: 900;
+            font-size: 24px;
+        }
+
+        .login-header p {
+            color: var(--text-muted);
+            font-size: 13px;
+            margin-top: 0;
+            margin-bottom: 30px;
+            font-weight: 600;
+        }
+
+        .form-group {
+            position: relative;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .form-group i {
+            position: absolute;
+            top: 50%;
+            left: 15px;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            font-size: 14px;
+            transition: color 0.3s ease;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 14px 14px 14px 40px;
+            border: 2px solid #E2E8F0;
+            border-radius: 12px;
+            font-family: 'Nunito', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-main);
+            box-sizing: border-box;
+            transition: all 0.3s ease;
+            background-color: #F8FAFC;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            background-color: #FFFFFF;
+            box-shadow: 0 0 0 4px rgba(58, 130, 127, 0.1);
+        }
+
+        /* Ganti warna icon saat input aktif */
+        .form-control:focus + i, .form-group:focus-within i {
+            color: var(--primary);
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 14px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Nunito', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .btn-login:hover {
+            background: var(--primary-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(58, 130, 127, 0.2);
+        }
+
+        .btn-login:active {
+            transform: translateY(0);
+        }
+
+        .alert-danger {
+            background: #FEE2E2;
+            color: #991B1B;
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 12px;
+            font-weight: 800;
+            border: 1px solid #F87171;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+    </style>
+
+<!-- [FIX-NOTIF-LAYER] -->
+<style>
+    /* Memaksa semua jenis notifikasi pop-up berada di lapisan paling depan menembus modal/bottom sheet */
+    .swal2-container, 
+    .swal-overlay, 
+    .toast-container, 
+    #toast-container, 
+    .notyf {
+        z-index: 999999 !important;
+    }
+</style>
+<!-- [FIX-NOTIF-LAYER] END -->
+
+</head>
+<body>
+
+    <div class="login-card">
+        <div class="login-header">
+            <i class="fas fa-fingerprint"></i>
+            <h2>Portal Admin</h2>
+            <p>Otorisasi Sistem Garudatel</p>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert-{{ category }}">
+                        <i class="fas fa-exclamation-triangle"></i> {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <div class="form-group">
+                <input type="text" name="username" class="form-control" placeholder="Username" required autocomplete="off">
+                <i class="fas fa-user"></i>
+            </div>
+            <div class="form-group">
+                <input type="password" name="password" class="form-control" placeholder="Password" required>
+                <i class="fas fa-lock"></i>
+            </div>
+            <button type="submit" class="btn-login">Masuk <i class="fas fa-arrow-right"></i></button>
+        </form>
+    </div>
+
+</body>
+</html>

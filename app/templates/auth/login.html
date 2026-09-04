@@ -1,0 +1,85 @@
+
+
+{% extends "base.html" %}
+{% block content %}
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+    body { background: #f4f6f8; font-family: 'Nunito', sans-serif; margin: 0; }
+    .profile-layout { max-width: 480px; margin: 0 auto; min-height: 100vh; background: #f4f6f8; position: relative; overflow: hidden; }
+    
+    .profile-header { background: linear-gradient(135deg, #00897b 0%, #00695c 100%); color: white; padding: 40px 20px 70px 20px; border-bottom-left-radius: 40px; border-bottom-right-radius: 40px; text-align: center; position: relative; }
+    .btn-back { position: absolute; top: 25px; left: 20px; color: white; font-size: 20px; text-decoration: none; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.2); border-radius: 50%; backdrop-filter: blur(5px); }
+    
+    .avatar-box { width: 95px; height: 95px; background: white; border-radius: 50%; margin: 10px auto 15px auto; display: flex; align-items: center; justify-content: center; font-size: 45px; color: #00897b; box-shadow: 0 10px 25px rgba(0,0,0,0.15); border: 5px solid rgba(255,255,255,0.3); position: relative; }
+    .avatar-badge { position: absolute; bottom: 0; right: 0; background: #ffca28; color: #333; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; border: 3px solid white; font-weight: 900; }
+    
+    .profile-header h1 { margin: 0; font-size: 22px; font-weight: 900; letter-spacing: 0.5px; }
+    .profile-header p { margin: 5px 0 0 0; font-size: 13px; font-weight: 600; opacity: 0.9; }
+
+    .login-card { background: white; margin: -45px 20px 30px 20px; border-radius: 24px; padding: 35px 25px; box-shadow: 0 10px 35px rgba(0,0,0,0.06); position: relative; z-index: 2; }
+    
+    .input-grp { margin-bottom: 20px; }
+    .input-grp label { display: block; font-size: 12px; font-weight: 800; color: #777; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .input-box { display: flex; align-items: center; background: #f8f9fa; border: 2px solid #f0f2f5; border-radius: 16px; padding: 15px 20px; transition: 0.3s; }
+    .input-box:focus-within { border-color: #00897b; background: white; box-shadow: 0 4px 15px rgba(0,137,123,0.05); }
+    .input-box i { color: #00897b; margin-right: 15px; font-size: 18px; }
+    .input-box input { border: none; background: transparent; outline: none; width: 100%; font-size: 16px; font-weight: 800; color: #333; font-family: 'Nunito', sans-serif; }
+    .input-box input::placeholder { color: #bbb; font-weight: 700; }
+    
+    .btn-submit { width: 100%; background: #00897b; color: white; border: none; padding: 18px; border-radius: 16px; font-size: 16px; font-weight: 900; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 30px; box-shadow: 0 10px 25px rgba(0,137,123,0.25); transition: 0.2s; font-family: 'Nunito', sans-serif;}
+    .btn-submit:active { transform: scale(0.97); box-shadow: 0 5px 15px rgba(0,137,123,0.2); }
+    
+    .auth-links { display: flex; justify-content: space-between; margin-top: 25px; font-size: 14px; font-weight: 700; }
+    .auth-links a { color: #00897b; text-decoration: none; }
+    .auth-links a.reg { color: #ff8a65; }
+    
+    .info-footer { text-align: center; margin-top: 30px; color: #999; font-size: 12px; font-weight: 600; padding-bottom: 30px; }
+    .info-footer span { color: #00897b; font-weight: 800; }
+</style>
+
+<div class="profile-layout">
+    <div class="profile-header">
+        <a href="{{ url_for('user.dashboard') }}" class="btn-back"><i class="fas fa-arrow-left"></i></a>
+        <div class="avatar-box">
+            <i class="fas fa-user-alt"></i>
+            <div class="avatar-badge"><i class="fas fa-star"></i></div>
+        </div>
+        <h1>Profil Pengguna</h1>
+        <p>Silakan masuk untuk mengelola akun & transaksi</p>
+    </div>
+    
+    <div class="login-card">
+        <form action="/profil" method="POST">
+            <input type="hidden" name="action" value="login">
+            <div class="input-grp">
+                <label>Username / No. WA</label>
+                <div class="input-box">
+                    <i class="fab fa-whatsapp"></i>
+                    <input type="text" name="username" placeholder="Cth: 081234567890" autocomplete="off" required>
+                </div>
+            </div>
+            
+            <div class="input-grp">
+                <label>Kata Sandi</label>
+                <div class="input-box">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" name="password" placeholder="Masukkan Sandi Rahasia" required>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn-submit">
+                MASUK KE PROFIL <i class="fas fa-sign-in-alt"></i>
+            </button>
+            
+            <div class="auth-links">
+                <a href="/bantuan?kategori=Akun+dan+Profil">Lupa Sandi? Hubungi CS</a>
+                <a href="/profil?action=register" class="reg">Daftar Akun Baru</a>
+            </div>
+        </form>
+    </div>
+    
+    <div class="info-footer">
+        Aplikasi dikelola oleh <span>GARUDA TEL</span> &copy; 2026
+    </div>
+</div>
+{% endblock %}

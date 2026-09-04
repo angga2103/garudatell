@@ -1,0 +1,146 @@
+{% extends 'admin/layout.html' %}
+
+{% block title %}GarudaTel - Broadcast Center{% endblock %}
+
+{% set page_title = "Broadcast Center" %}
+
+{% block page_css %}
+<style>
+    .bc-stats { display: flex; gap: 15px; margin-bottom: 20px; }
+    .bc-stat-card { flex: 1; background: white; padding: 18px; border-radius: 12px; border: 1px solid #E2E8F0; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
+    .bc-stat-val { font-size: 22px; font-weight: 900; color: #1E293B; margin-top: 5px; }
+    .bc-stat-lbl { font-size: 11px; font-weight: 800; color: #64748B; text-transform: uppercase; }
+
+    .card-bc { background: white; border-radius: 12px; border: 1px solid #E2E8F0; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
+    .card-title { font-size: 15px; font-weight: 800; color: #1E293B; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; font-size: 11px; font-weight: 800; color: #64748B; margin-bottom: 5px; }
+    .form-ctrl { width: 100%; padding: 10px 12px; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 12px; font-family: inherit; box-sizing: border-box; outline: none; }
+    .form-ctrl:focus { border-color: #3A827F; }
+
+    .btn-send-bc { background: #10B981; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 13px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+    .btn-send-bc:hover { background: #059669; }
+
+    .bc-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .bc-table th { background: #F8FAFC; color: #334155; padding: 12px 10px; border-bottom: 2px solid #E2E8F0; text-align: left; font-weight: 800; }
+    .bc-table td { padding: 12px 10px; border-bottom: 1px solid #F1F5F9; vertical-align: middle; }
+
+    .badge-success { background: #D1FAE5; color: #065F46; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; }
+    .badge-failed { background: #FEE2E2; color: #DC2626; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+
+<div class="bc-stats">
+    <div class="bc-stat-card">
+        <i class="fas fa-bullhorn" style="font-size: 22px; color: #3A827F;"></i>
+        <div class="bc-stat-val">{{ total_broadcasts }}</div>
+        <div class="bc-stat-lbl">Riwayat Broadcast</div>
+    </div>
+    <div class="bc-stat-card">
+        <i class="fas fa-users" style="font-size: 22px; color: #0284C7;"></i>
+        <div class="bc-stat-val">{{ active_users_count }}</div>
+        <div class="bc-stat-lbl">Target Member Aktif</div>
+    </div>
+    <div class="bc-stat-card">
+        <i class="fas fa-check-double" style="font-size: 22px; color: #10B981;"></i>
+        <div class="bc-stat-val">{{ total_messages_sent }}</div>
+        <div class="bc-stat-lbl">Pesan Terkirim</div>
+    </div>
+</div>
+
+<!-- FORM BROADCAST -->
+<div class="card-bc">
+    <div class="card-title">
+        <i class="fas fa-paper-plane" style="color: #10B981;"></i>
+        Kirim Broadcast WhatsApp
+    </div>
+
+    <form method="POST" action="{{ url_for('admin.send_broadcast') }}" onsubmit="return confirm('Kirim broadcast ke seluruh penerima sekarang?');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+        <div class="form-group">
+            <label>Pilih Sasaran Penerima</label>
+            <select name="target_type" id="targetType" class="form-ctrl" onchange="toggleCustomBox(this.value)" style="font-weight: bold;">
+                <option value="all">📢 Semua Member Aktif ({{ active_users_count }} Pengguna)</option>
+                <option value="custom">🎯 Nomor Tertentu / Kustom</option>
+            </select>
+        </div>
+
+        <div class="form-group" id="customNumbersBox" style="display: none;">
+            <label>Daftar Nomor WhatsApp (Satu nomor per baris, contoh: 08123456789 atau 628123456789)</label>
+            <textarea name="custom_numbers" rows="4" placeholder="08123456789&#10;08987654321&#10;62811223344" class="form-ctrl" style="font-family: monospace;"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label>Isi Pesan Broadcast (Gunakan placeholder <code>{name}</code> untuk menyapa nama pelanggan)</label>
+            <textarea name="message" required rows="6" placeholder="Halo {name}, dapatkan diskon promo Pulsa & Kuota spesial hari ini di GarudaTel! Buka aplikasi sekarang: http://..." class="form-ctrl"></textarea>
+        </div>
+
+        <button type="submit" class="btn-send-bc">
+            <i class="fas fa-paper-plane"></i> Kirim Broadcast Sekarang
+        </button>
+    </form>
+</div>
+
+<!-- TABEL LOG BROADCAST -->
+<div class="card-bc">
+    <div class="card-title">
+        <i class="fas fa-history" style="color: #3A827F;"></i>
+        Riwayat Pengiriman Broadcast
+    </div>
+
+    <div style="overflow-x: auto;">
+        <table class="bc-table">
+            <thead>
+                <tr>
+                    <th>Waktu (WIB)</th>
+                    <th>Sasaran Target</th>
+                    <th>Total Target</th>
+                    <th>Hasil Pengiriman</th>
+                    <th>Cuplikan Pesan</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td style="font-weight: 700; color: #1E293B;">{{ log.created_at_wib }}</td>
+                    <td>
+                        {% if log.target_type == 'all' %}
+                            <span style="font-weight: 800; color: #0284C7;">Semua Member</span>
+                        {% else %}
+                            <span style="font-weight: 800; color: #D97706;">Kustom</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-weight: 800;">{{ log.recipient_count }} Nomor</td>
+                    <td>
+                        <span class="badge-success"><i class="fas fa-check"></i> {{ log.success_count }} Sukses</span>
+                        {% if log.failed_count > 0 %}
+                            <span class="badge-failed"><i class="fas fa-times"></i> {{ log.failed_count }} Gagal</span>
+                        {% endif %}
+                    </td>
+                    <td style="color: #475569; font-size: 11px; max-width: 350px;">
+                        {{ log.message }}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 25px; color: #64748B;">
+                        Belum ada riwayat pengiriman broadcast.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    function toggleCustomBox(val) {
+        document.getElementById('customNumbersBox').style.display = (val === 'custom') ? 'block' : 'none';
+    }
+</script>
+
+{% endblock %}

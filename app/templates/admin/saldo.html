@@ -1,0 +1,259 @@
+{% extends 'admin/layout.html' %}
+
+{% block title %}GarudaTel - Saldo & Deposit Digiflazz{% endblock %}
+
+{% set page_title = "Saldo & Deposit Digiflazz" %}
+
+{% block page_css %}
+<style>
+    .saldo-stats { display: flex; gap: 15px; margin-bottom: 20px; }
+    .saldo-stat-card { flex: 1; background: white; padding: 20px; border-radius: 14px; border: 1px solid #E2E8F0; text-align: left; box-shadow: 0 2px 5px rgba(0,0,0,0.03); position: relative; }
+    .saldo-stat-val { font-size: 24px; font-weight: 900; color: #1E293B; margin-top: 6px; }
+    .saldo-stat-lbl { font-size: 11px; font-weight: 800; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    .card-saldo { background: white; border-radius: 14px; border: 1px solid #E2E8F0; padding: 22px; margin-bottom: 22px; box-shadow: 0 2px 5px rgba(0,0,0,0.03); }
+    .card-title { font-size: 15px; font-weight: 800; color: #1E293B; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+    
+    .ticket-active-box {
+        background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
+        border: 2px solid #F59E0B;
+        border-radius: 14px;
+        padding: 22px;
+        margin-bottom: 22px;
+        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
+    }
+
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 11px; font-weight: 800; color: #64748B; margin-bottom: 5px; }
+    .form-ctrl { width: 100%; padding: 11px 14px; border: 1px solid #CBD5E1; border-radius: 10px; font-size: 13px; font-family: inherit; box-sizing: border-box; outline: none; transition: border-color 0.2s; }
+    .form-ctrl:focus { border-color: #3A827F; box-shadow: 0 0 0 3px rgba(58, 130, 127, 0.15); }
+
+    .quick-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    .chip-btn { background: #F1F5F9; border: 1px solid #E2E8F0; color: #334155; font-size: 11px; font-weight: 800; padding: 6px 12px; border-radius: 20px; cursor: pointer; transition: all 0.2s; }
+    .chip-btn:hover { background: #3A827F; color: white; border-color: #3A827F; }
+
+    .btn-submit-depo { background: #3A827F; color: white; border: none; padding: 13px 26px; border-radius: 10px; font-size: 13px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: background 0.2s; }
+    .btn-submit-depo:hover { background: #2D6664; }
+
+    .btn-cek-saldo { background: #0284C7; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-size: 12px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-cek-saldo:hover { background: #0369A1; }
+
+    .saldo-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .saldo-table th { background: #F8FAFC; color: #475569; padding: 12px 10px; border-bottom: 2px solid #E2E8F0; text-align: left; font-weight: 800; }
+    .saldo-table td { padding: 13px 10px; border-bottom: 1px solid #F1F5F9; vertical-align: middle; }
+
+    .badge-status { padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 900; letter-spacing: 0.5px; display: inline-block; }
+    .badge-pending { background: #FEF3C7; color: #D97706; }
+    .badge-success { background: #ECFDF5; color: #059669; }
+    .badge-cancelled { background: #F1F5F9; color: #64748B; }
+
+    .copy-tag { background: #E2E8F0; color: #334155; padding: 3px 8px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 800; margin-left: 6px; }
+    .copy-tag:hover { background: #CBD5E1; }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+
+<!-- RINGKASAN SALDO DIGIFLAZZ -->
+<div class="saldo-stats">
+    <div class="saldo-stat-card" style="border-left: 4px solid #3A827F;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+                <div class="saldo-stat-lbl">Saldo Digiflazz Saat Ini</div>
+                <div class="saldo-stat-val" style="color: #059669;">Rp {{ "{:,.0f}".format(digi_balance) }}</div>
+            </div>
+            <form method="POST" action="{{ url_for('admin.cek_saldo_digiflazz') }}" style="margin: 0;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <button type="submit" class="btn-cek-saldo" title="Perbarui saldo dari server Digiflazz">
+                    <i class="fas fa-sync-alt"></i> Cek Saldo
+                </button>
+            </form>
+        </div>
+        <div style="margin-top: 10px; font-size: 11px; color: #64748B; display: flex; align-items: center; gap: 6px;">
+            {% if is_connected %}
+                <span class="badge-status badge-success"><i class="fas fa-circle" style="font-size: 8px;"></i> TERHUBUNG</span>
+                <span>Digiflazz API v1 Online</span>
+            {% else %}
+                <span class="badge-status" style="background: #FEE2E2; color: #DC2626;"><i class="fas fa-exclamation-triangle"></i> GAGAL</span>
+                <span>{{ digi_status }}</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="saldo-stat-card" style="border-left: 4px solid #0284C7;">
+        <div class="saldo-stat-lbl">Kredensial Digiflazz</div>
+        <div style="margin-top: 8px; font-size: 12px; color: #334155; line-height: 1.6;">
+            <div><strong>Username:</strong> <code style="background: #F1F5F9; padding: 2px 6px; border-radius: 4px; font-weight: 700;">{{ digi_user or '-' }}</code></div>
+            <div><strong>Endpoint:</strong> <span style="color: #64748B; font-size: 11px;">{{ digi_url }}</span></div>
+        </div>
+    </div>
+
+    <div class="saldo-stat-card" style="border-left: 4px solid #F59E0B;">
+        <div class="saldo-stat-lbl">Petunjuk Deposit Provider</div>
+        <div style="margin-top: 6px; font-size: 11px; color: #64748B; line-height: 1.5;">
+            <div>• Minimal deposit: <strong>Rp 100.000</strong></div>
+            <div>• Transfer wajib <strong>persis hingga 3 digit kode unik</strong></div>
+            <div>• Jam operasional tiket: <strong>06.00 - 22.00 WIB</strong></div>
+        </div>
+    </div>
+</div>
+
+<!-- KARTU TIKET DEPOSIT AKTIF (JIKA ADA STATUS PENDING) -->
+{% if latest_ticket %}
+<div class="ticket-active-box">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="background: #F59E0B; color: white; padding: 4px 10px; border-radius: 6px; font-weight: 900; font-size: 11px;">
+                <i class="fas fa-ticket-alt"></i> TIKET DEPOSIT AKTIF #{{ latest_ticket.id }}
+            </span>
+            <span style="font-size: 12px; color: #78350F; font-weight: 700;">Dibuat: {{ latest_ticket.created_at_wib }}</span>
+        </div>
+        <form method="POST" action="{{ url_for('admin.batal_tiket_deposit', id=latest_ticket.id) }}" style="margin: 0;" onsubmit="return confirm('Apakah Anda yakin ingin membatalkan tiket deposit ini?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <button type="submit" style="background: white; border: 1px solid #D97706; color: #B45309; padding: 5px 12px; border-radius: 6px; font-size: 11px; font-weight: 800; cursor: pointer;">
+                <i class="fas fa-times"></i> Batalkan Tiket
+            </button>
+        </form>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; background: white; padding: 18px; border-radius: 10px; border: 1px solid #FDE68A;">
+        <div>
+            <div style="font-size: 11px; font-weight: 800; color: #92400E; text-transform: uppercase;">Nominal Wajib Ditransfer (Persis):</div>
+            <div style="font-size: 26px; font-weight: 900; color: #B45309; margin: 4px 0;">
+                Rp {{ "{:,.0f}".format(latest_ticket.amount_transfer) }}
+                <button type="button" class="copy-tag" onclick="navigator.clipboard.writeText('{{ latest_ticket.amount_transfer|int }}'); alert('Nominal transfer disalin: {{ latest_ticket.amount_transfer|int }}');">
+                    <i class="fas fa-copy"></i> Salin
+                </button>
+            </div>
+            <div style="font-size: 11px; color: #B45309; font-weight: 700;">
+                *Jangan bulatkan nominal transfer agar sistem Digiflazz memvalidasi secara otomatis.
+            </div>
+        </div>
+
+        <div>
+            <div style="font-size: 11px; font-weight: 800; color: #92400E; text-transform: uppercase;">Tujuan Transfer:</div>
+            <div style="font-size: 15px; font-weight: 900; color: #1E293B; margin-top: 4px;">
+                Bank: <span style="color: #0284C7;">{{ latest_ticket.bank }}</span>
+            </div>
+            <div style="font-size: 13px; color: #334155; margin-top: 2px;">
+                <strong>Rekening / Petunjuk:</strong> {{ latest_ticket.account_number or latest_ticket.notes }}
+            </div>
+            <div style="font-size: 12px; color: #64748B; margin-top: 2px;">
+                Pengirim terdaftar: <strong>{{ latest_ticket.owner_name }}</strong>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- FORM MINTA TIKET DEPOSIT BARU -->
+<div class="card-saldo">
+    <div class="card-title">
+        <span><i class="fas fa-plus-circle" style="color: #3A827F;"></i> Minta Tiket Deposit Digiflazz Baru</span>
+        <span style="font-size: 12px; color: #64748B; font-weight: 600;">Sistem tiket otomatis masuk saldo tanpa konfirmasi manual</span>
+    </div>
+
+    <form method="POST" action="{{ url_for('admin.minta_tiket_deposit') }}" onsubmit="return confirm('Konfirmasi: Buat tiket deposit ke Digiflazz sekarang?');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+            <div class="form-group">
+                <label>Nominal Deposit (Rp) <span style="color: #EF4444;">*</span></label>
+                <input type="number" id="depo_amount" name="amount" class="form-ctrl" min="100000" step="50000" placeholder="Min. 100.000" required>
+                <div class="quick-chips">
+                    <span class="chip-btn" onclick="setNominal(200000)">200 Rb</span>
+                    <span class="chip-btn" onclick="setNominal(500000)">500 Rb</span>
+                    <span class="chip-btn" onclick="setNominal(1000000)">1 Jt</span>
+                    <span class="chip-btn" onclick="setNominal(2500000)">2.5 Jt</span>
+                    <span class="chip-btn" onclick="setNominal(5000000)">5 Jt</span>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Pilihan Bank Tujuan <span style="color: #EF4444;">*</span></label>
+                <select name="bank" class="form-ctrl" required>
+                    <option value="BCA">BCA (Bank Central Asia)</option>
+                    <option value="MANDIRI">MANDIRI (Bank Mandiri)</option>
+                    <option value="BRI">BRI (Bank Rakyat Indonesia)</option>
+                    <option value="BNI">BNI (Bank Negara Indonesia)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Nama Pemilik Rekening Pengirim <span style="color: #EF4444;">*</span></label>
+                <input type="text" name="owner_name" class="form-ctrl" placeholder="Contoh: ANGGA DIAN" required>
+                <div style="font-size: 10px; color: #94A3B8; margin-top: 4px;">Harus sesuai nama di buku tabungan/rekening pengirim</div>
+            </div>
+        </div>
+
+        <div style="margin-top: 15px;">
+            <button type="submit" class="btn-submit-depo">
+                <i class="fas fa-ticket-alt"></i> Dapatkan Tiket Deposit
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- RIWAYAT TIKET DEPOSIT -->
+<div class="card-saldo" style="padding: 0; overflow: hidden;">
+    <div style="padding: 20px 22px 14px 22px; border-bottom: 1px solid #F1F5F9; display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 15px; font-weight: 800; color: #1E293B;"><i class="fas fa-history" style="color: #0284C7;"></i> Riwayat Tiket Deposit Digiflazz</span>
+        <span style="font-size: 11px; font-weight: 700; color: #64748B;">Menampilkan 20 tiket terakhir</span>
+    </div>
+
+    <div style="overflow-x: auto;">
+        <table class="saldo-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Waktu (WIB)</th>
+                    <th>Bank</th>
+                    <th>Nama Pengirim</th>
+                    <th>Nominal Diajukan</th>
+                    <th>Wajib Transfer</th>
+                    <th>Petunjuk / Rekening</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in tickets %}
+                <tr>
+                    <td style="font-weight: 800; color: #64748B;">#{{ t.id }}</td>
+                    <td style="color: #475569;">{{ t.created_at_wib }}</td>
+                    <td><strong style="color: #0284C7;">{{ t.bank }}</strong></td>
+                    <td style="font-weight: 700; color: #1E293B;">{{ t.owner_name }}</td>
+                    <td>Rp {{ "{:,.0f}".format(t.amount_requested) }}</td>
+                    <td style="font-weight: 900; color: #059669;">Rp {{ "{:,.0f}".format(t.amount_transfer) }}</td>
+                    <td style="max-width: 250px; font-size: 11px; color: #475569;">
+                        {{ t.account_number or t.notes or '-' }}
+                    </td>
+                    <td>
+                        {% if t.status == 'PENDING' %}
+                            <span class="badge-status badge-pending"><i class="fas fa-clock"></i> PENDING</span>
+                        {% elif t.status == 'SUCCESS' %}
+                            <span class="badge-status badge-success"><i class="fas fa-check-circle"></i> SUKSES</span>
+                        {% else %}
+                            <span class="badge-status badge-cancelled">{{ t.status }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" style="padding: 35px; text-align: center; color: #94A3B8;">
+                        <i class="fas fa-receipt" style="font-size: 26px; margin-bottom: 8px; color: #CBD5E1;"></i><br>
+                        Belum ada riwayat tiket deposit Digiflazz.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    function setNominal(val) {
+        document.getElementById('depo_amount').value = val;
+    }
+</script>
+
+{% endblock %}

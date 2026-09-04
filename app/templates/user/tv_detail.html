@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+{% block title %}Paket TV - {{ provider_name }}{% endblock %}
+
+{% block head %}
+<style>
+    .cat-header { background: var(--primary); padding: 20px 20px 60px 20px; color: white; border-bottom-left-radius: 24px; border-bottom-right-radius: 24px; }
+    .top-bar { display: flex; align-items: center; gap: 15px; font-size: 18px; font-weight: 800; margin-bottom: 25px; color: white; cursor: pointer; }
+    .cat-title-area { display: flex; justify-content: space-between; align-items: center; }
+    .cat-title-wrap { display: flex; align-items: center; gap: 15px; }
+    .cat-icon { width: 45px; height: 45px; background: rgba(255,255,255,0.2); border-radius: 14px; display: flex; justify-content: center; align-items: center; font-size: 22px; }
+    .cat-name h2 { margin: 0; font-size: 20px; font-weight: 800; text-transform: uppercase; }
+    .cat-name p { margin: 2px 0 0 0; font-size: 11px; opacity: 0.9; }
+
+    .input-wrapper { margin: -40px 15px 20px 15px; background: white; padding: 20px; border-radius: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #f0f4f8; }
+    .input-wrapper label { font-size: 13px; font-weight: 800; color: #4a5568; display: block; margin-bottom: 12px; }
+    .input-box { display: flex; background: #f8fafc; border-radius: 16px; padding: 8px; align-items: center; border: 1px solid #e2e8f0; transition: 0.3s; }
+    .input-box.error { border-color: #ff4757; background: #fff2f3; } 
+    .input-box input { flex: 1; background: transparent; border: none; padding: 10px 15px; font-size: 16px; font-weight: 800; outline: none; color: #2d3748; letter-spacing: 1px; }
+    .action-btn { width: 40px; height: 40px; background: #e6f7f5; color: var(--primary); border-radius: 12px; display: flex; justify-content: center; align-items: center; margin-left: 8px; cursor: pointer; }
+    
+    .operator-tabs { display: flex; gap: 10px; overflow-x: auto; padding: 0 15px; margin-bottom: 20px; scrollbar-width: none; scroll-behavior: smooth; }
+    .operator-tabs::-webkit-scrollbar { display: none; }
+    .tab-pill { padding: 8px 20px; border-radius: 20px; font-size: 13px; font-weight: 800; white-space: nowrap; background: white; color: #a0aec0; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 8px; cursor:pointer; }
+    .tab-pill.active { background: white; color: var(--text-dark); border-color: #e2e8f0; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+
+    .filter-bar { display: flex; gap: 10px; padding: 0 15px; margin-bottom: 20px; align-items: center; }
+    .search-box { flex: 1; display: flex; align-items: center; background: white; border-radius: 16px; padding: 10px 15px; border: 1px solid #e2e8f0; }
+    .search-box input { border: none; background: transparent; outline: none; width: 100%; font-weight: 700; font-size: 14px; }
+    .tool-btn { width: 45px; height: 45px; background: white; border-radius: 16px; display: flex; justify-content: center; align-items: center; border: 1px solid #e2e8f0; color: #a0aec0; cursor: pointer; }
+    .tool-btn.active { background: #e6f7f5; color: var(--primary); border-color: #b2dfdb; }
+
+    #toastNotification { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #ff4757; color: white; padding: 12px 25px; border-radius: 30px; font-weight: 800; font-size: 13px; z-index: 9999; display: none; align-items: center; gap: 10px; box-shadow: 0 8px 25px rgba(255,71,87,0.4); opacity: 0; transition: opacity 0.3s ease; }
+    .sort-container { position: relative; }
+    .sort-menu { position: absolute; top: 55px; right: 0; background: white; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 180px; z-index: 100; display: none; border: 1px solid #f0f4f8; }
+    .sort-menu.show { display: block; }
+    .sort-option { padding: 14px 20px; font-size: 13px; font-weight: 700; color: #4a5568; cursor: pointer; }
+    
+    .product-container { padding: 0 15px 30px 15px; }
+    .product-list { display: grid; gap: 15px; grid-template-columns: 1fr; transition: 0.3s; }
+    .product-list.grid-mode { grid-template-columns: repeat(2, 1fr); }
+    
+    .product-card { background: white; border-radius: 20px; padding: 15px; border: 1px solid #edf2f7; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.02); }
+    .grid-mode .product-card { flex-direction: column; align-items: flex-start; }
+    
+    .p-status-badge { background: var(--primary); color: white; padding: 4px 12px; border-radius: 8px; font-size: 10px; font-weight: 800; letter-spacing: 0.5px; }
+    .grid-mode .p-status-badge { margin-bottom: 10px; }
+    
+    .p-code { background: #f1f5f9; padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; color: #94a3b8; display: inline-block; margin-bottom: 6px; }
+    .p-name { font-size: 14px; font-weight: 800; margin: 0 0 4px 0; color: #2d3748; line-height: 1.3; }
+    .p-desc { font-size: 11px; color: #a0aec0; margin: 0 0 8px 0; font-weight: 600; }
+    .p-price { font-size: 18px; font-weight: 900; color: var(--primary); margin: 0; }
+</style>
+{% endblock %}
+
+{% block bottom_nav %}{% endblock %}
+
+{% block content %}
+<div id="toastNotification"><i class="fas fa-exclamation-triangle"></i> <span id="toastMsg">Notifikasi</span></div>
+
+<div class="cat-header">
+    <a href="/" class="top-bar" style="text-decoration: none;"><i class="fas fa-arrow-left"></i><span>Kembali</span></a>
+    <div class="cat-title-area">
+        <div class="cat-title-wrap">
+            <div class="cat-icon"><i class="fas fa-tv"></i></div>
+            <div class="cat-name">
+                <h2 id="pageTitle">{{ provider_name }}</h2>
+                <p>Sistem Proses Instan</p>
+            </div>
+        </div>
+        <div style="background: rgba(255,255,255,0.2); padding: 8px 12px; border-radius: 12px; font-size: 12px; font-weight: 800;">
+            <i class="fas fa-wallet"></i> Rp 0 <i class="fas fa-sync-alt" style="margin-left:5px;"></i>
+        </div>
+    </div>
+</div>
+
+<div class="input-wrapper">
+    <label>ID Pelanggan / Nomor SMC</label>
+    <div class="input-box" id="inputContainer">
+        <!-- Menggunakan type text agar bisa input nomor SMC -->
+        <input type="text" id="noHpInput" placeholder="Masukan ID Pelanggan...">
+        <div class="action-btn"><i class="fas fa-address-book"></i></div>
+        <div class="action-btn"><i class="fas fa-qrcode"></i></div>
+    </div>
+</div>
+
+<div class="operator-tabs" id="opTabs">
+    <div class="tab-pill active" data-paket="SEMUA"><i class="fas fa-tag"></i> SEMUA</div>
+    <div class="tab-pill" data-paket="BEIN"><i class="fas fa-tag"></i> BEIN SPORT</div>
+    <div class="tab-pill" data-paket="CLING"><i class="fas fa-tag"></i> CLING</div>
+    <div class="tab-pill" data-paket="JOWO"><i class="fas fa-tag"></i> JOWO</div>
+</div>
+
+<div class="filter-bar">
+    <div class="search-box"><i class="fas fa-search"></i><input type="text" id="searchInput" placeholder="Cari Paket..." onkeyup="filterProduk()"></div>
+    <div class="sort-container">
+        <div class="tool-btn" id="btnSort" onclick="toggleSortMenu()"><i class="fas fa-sort-amount-down"></i></div>
+        <div class="sort-menu" id="sortMenu">
+            <div class="sort-option" onclick="sortProduk('harga_asc')">Harga Terendah</div>
+            <div class="sort-option" onclick="sortProduk('harga_desc')">Harga Tertinggi</div>
+            <div class="sort-option" onclick="sortProduk('nama_asc')">Nama A - Z</div>
+            <div class="sort-option" onclick="sortProduk('nama_desc')">Nama Z - A</div>
+        </div>
+    </div>
+    <div class="tool-btn active" id="btnList" onclick="ubahView('list')"><i class="fas fa-list"></i></div>
+    <div class="tool-btn" id="btnGrid" onclick="ubahView('grid')"><i class="fas fa-th-large"></i></div>
+</div>
+
+<div class="product-container">
+    <div class="product-list" id="daftarProduk">
+
+        {% if products %}
+            {% for p in products %}
+            <div class="product-card item-produk" data-provider="{{ p.provider | upper }}">
+                <div>
+                    <span class="p-code">{{ p.kode_produk }}</span>
+                    <h4 class="p-name">{{ p.nama_produk }}</h4>
+                    <p class="p-desc">Otomatis</p>
+                    <p class="p-price">Rp {{ "{:,.0f}".format(p.harga) | replace(',', '.') }}</p>
+                </div>
+                <div class="p-status-badge">OPEN</div>
+            </div>
+            {% endfor %}
+        {% else %}
+
+        <!-- DUMMY DATA SESUAI SCREENSHOT PAKET TV -->
+        <div class="product-card item-produk" data-paket="BEIN">
+            <div>
+                <span class="p-code">pre31533793</span>
+                <h4 class="p-name">K-VISION & GOL Paket Indovision 30 Hari (IDV01)</h4>
+                <p class="p-desc">Diproses Otomatis</p>
+                <p class="p-price">Rp 73.150</p>
+            </div>
+            <div class="p-status-badge">OPEN</div>
+        </div>
+        <div class="product-card item-produk" data-paket="BEIN">
+            <div>
+                <span class="p-code">pre31533794</span>
+                <h4 class="p-name">K-VISION & GOL Paket Indovision 3 Bulan</h4>
+                <p class="p-desc">Diproses Otomatis</p>
+                <p class="p-price">Rp 203.700</p>
+            </div>
+            <div class="p-status-badge">OPEN</div>
+        </div>
+        <div class="product-card item-produk" data-paket="CLING">
+            <div>
+                <span class="p-code">pre31533795</span>
+                <h4 class="p-name">K-VISION & GOL Paket Indovision 6 Bulan</h4>
+                <p class="p-desc">Diproses Otomatis</p>
+                <p class="p-price">Rp 378.300</p>
+            </div>
+            <div class="p-status-badge">OPEN</div>
+        </div>
+        <div class="product-card item-produk" data-paket="CLING">
+            <div>
+                <span class="p-code">pre31533796</span>
+                <h4 class="p-name">K-VISION & GOL Paket Indovision 12 Bulan</h4>
+                <p class="p-desc">Diproses Otomatis</p>
+                <p class="p-price">Rp 698.400</p>
+            </div>
+            <div class="p-status-badge">OPEN</div>
+        </div>
+        {% endif %}
+</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function goBack() { window.location.href = '/'; }
+    
+    function showToast(msg) {
+        const toast = document.getElementById('toastNotification');
+        const inputContainer = document.getElementById('inputContainer');
+        document.getElementById('toastMsg').innerText = msg;
+        toast.style.display = 'flex'; inputContainer.classList.add('error');
+        setTimeout(() => toast.style.opacity = '1', 10);
+        setTimeout(() => { toast.style.opacity = '0'; inputContainer.classList.remove('error'); setTimeout(() => toast.style.display = 'none', 300); }, 3000);
+    }
+
+    const inputNo = document.getElementById('noHpInput');
+    inputNo.addEventListener('input', function(e) {
+        let val = this.value;
+        if (/[^a-zA-Z0-9]/.test(val)) { 
+            showToast("ID Pelanggan hanya boleh berisi huruf dan angka."); 
+        }
+        val = val.replace(/[^a-zA-Z0-9]/g, '');
+        this.value = val.toUpperCase();
+    });
+
+    let tabs = document.querySelectorAll('.tab-pill');
+    tabs.forEach(btn => {
+        btn.addEventListener('click', function() {
+            tabs.forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            let cat = this.getAttribute('data-paket');
+            filterByTab(cat);
+        });
+    });
+
+    function filterByTab(kategori) {
+        let cards = document.getElementsByClassName('item-produk');
+        for (let i = 0; i < cards.length; i++) {
+            if (kategori === 'SEMUA') {
+                cards[i].style.display = "flex";
+            } else {
+                let cardCat = cards[i].getAttribute('data-paket');
+                cards[i].style.display = (cardCat === kategori) ? "flex" : "none";
+            }
+        }
+    }
+
+    function filterProduk() {
+        let input = document.getElementById('searchInput').value.toLowerCase();
+        let cards = document.getElementsByClassName('item-produk');
+        for (let i = 0; i < cards.length; i++) {
+            let nama = cards[i].querySelector('.p-name').innerText.toLowerCase();
+            if (cards[i].style.display !== "none" || input.length > 0) {
+                cards[i].style.display = nama.includes(input) ? "flex" : "none";
+            }
+        }
+    }
+
+    function ubahView(mode) {
+        let wadah = document.getElementById('daftarProduk'), btnList = document.getElementById('btnList'), btnGrid = document.getElementById('btnGrid');
+        if (mode === 'grid') { wadah.classList.add('grid-mode'); btnGrid.classList.add('active'); btnList.classList.remove('active'); } 
+        else { wadah.classList.remove('grid-mode'); btnList.classList.add('active'); btnGrid.classList.remove('active'); }
+    }
+
+    function toggleSortMenu() { document.getElementById('sortMenu').classList.toggle('show'); }
+    window.onclick = function(e) { if (!e.target.closest('.sort-container')) { document.querySelectorAll('.sort-menu').forEach(m => m.classList.remove('show')); } }
+    
+    function sortProduk(k) {
+        let c = document.getElementById('daftarProduk'), a = Array.from(c.getElementsByClassName('item-produk'));
+        a.sort((x, y) => {
+            if (k.includes('harga')) {
+                let h1 = parseInt(x.querySelector('.p-price').innerText.replace(/[^0-9]/g, '')) || 0;
+                let h2 = parseInt(y.querySelector('.p-price').innerText.replace(/[^0-9]/g, '')) || 0;
+                return k === 'harga_asc' ? h1 - h2 : h2 - h1;
+            } else {
+                let n1 = x.querySelector('.p-name').innerText.toLowerCase();
+                let n2 = y.querySelector('.p-name').innerText.toLowerCase();
+                return k === 'nama_asc' ? n1.localeCompare(n2) : n2.localeCompare(n1);
+            }
+        });
+        c.innerHTML = ''; a.forEach(i => c.appendChild(i)); document.getElementById('sortMenu').classList.remove('show');
+    }
+
+    // MESIN PENYARING PRODUK OTOMATIS
+    function filterByProvider(provider) {
+        let cards = document.getElementsByClassName('item-produk');
+        let provUpper = provider ? provider.toUpperCase().trim() : "";
+        
+        for (let i = 0; i < cards.length; i++) {
+            let cardProv = cards[i].getAttribute('data-provider');
+            cardProv = cardProv ? cardProv.toUpperCase() : "";
+            
+            // Tampilkan semua jika tidak ada filter atau "SEMUA"
+            if (!provUpper || provUpper === 'SEMUA') {
+                cards[i].style.display = "flex";
+            } else {
+                // Tampilkan hanya jika nama provider cocok
+                if (cardProv.includes(provUpper) || provUpper.includes(cardProv)) {
+                    cards[i].style.display = "flex";
+                } else {
+                    cards[i].style.display = "none";
+                }
+            }
+        }
+    }
+
+    // Sensor deteksi klik pada Tab Provider (saat user klik manual)
+    document.addEventListener("DOMContentLoaded", function() {
+        let tabs = document.querySelectorAll('.tab-pill');
+        tabs.forEach(btn => {
+            btn.addEventListener('click', function() {
+                tabs.forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                
+                // Ambil nama provider dari atribut atau teks tombol
+                let prov = this.getAttribute('data-op') || this.getAttribute('data-paket') || this.innerText.replace(/[^a-zA-Z0-9 ]/g, '').trim();
+                filterByProvider(prov);
+            });
+        });
+    });
+
+</script>
+{% endblock %}

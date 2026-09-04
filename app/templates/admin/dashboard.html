@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Garudatel - Admin Panel</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root { --admin-dark: #1E293B; --admin-card: #FFFFFF; --admin-bg: #F1F5F9; --teal-main: #3A827F; --text-dark: #334155; --text-muted: #64748B; --border-color: #E2E8F0; }
+        body { background-color: var(--admin-bg); margin: 0; font-family: 'Nunito', sans-serif; }
+        .admin-container { width: 100%; max-width: 800px; margin: 0 auto; padding-bottom: 80px; }
+        .admin-header { background: var(--admin-dark); padding: 25px 20px; color: white; border-bottom-left-radius: 15px; border-bottom-right-radius: 15px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); display: flex; justify-content: space-between; align-items: center; }
+        .admin-title { font-size: 16px; font-weight: 800; display: flex; align-items: center; gap: 10px; }
+        .admin-badge { background: #DC2626; color: white; font-size: 9px; padding: 3px 8px; border-radius: 12px; font-weight: 800; }
+        .alert-box { padding: 12px 20px; margin: 15px 20px 0 20px; border-radius: 8px; font-size: 12px; font-weight: 800; }
+        .alert-success { background: #D1FAE5; color: #065F46; border: 1px solid #34D399; }
+        .alert-danger { background: #FEE2E2; color: #991B1B; border: 1px solid #F87171; }
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; padding: 20px; margin-top: -15px; }
+        .stat-card { background: var(--admin-card); padding: 15px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: center; }
+        .stat-card i { color: var(--teal-main); font-size: 20px; margin-bottom: 8px; }
+        .stat-val { font-size: 16px; font-weight: 900; color: var(--text-dark); }
+        .stat-label { font-size: 9px; color: var(--text-muted); font-weight: 800; text-transform: uppercase; margin-top: 3px;}
+        .section-header { margin: 25px 20px 15px 20px; font-size: 13px; font-weight: 800; color: var(--admin-dark); display: flex; align-items: center; gap: 8px; border-bottom: 2px solid var(--border-color); padding-bottom: 8px; }
+        .menu-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; padding: 0 20px; }
+        .menu-item { background: var(--admin-card); border: 1px solid var(--border-color); padding: 15px 5px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-decoration: none; color: var(--text-dark); box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .menu-item i { font-size: 20px; color: var(--teal-main); }
+        .menu-item span { font-size: 10px; font-weight: 800; text-align: center; }
+        .config-card { background: var(--admin-card); margin: 0 20px 15px 20px; border-radius: 12px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid var(--border-color); }
+        .config-title { font-size: 13px; font-weight: 800; color: var(--text-dark); margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 11px; font-weight: 800; color: var(--text-muted); margin-bottom: 6px; }
+        .form-control { width: 100%; padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 12px; box-sizing: border-box; background: #F8FAFC; color: var(--text-dark); font-weight: 600; outline: none; }
+        .form-control:focus { border-color: var(--teal-main); background: #FFF; }
+        
+        /* Modifikasi Layout Tombol agar Bersampingan */
+        .btn-group { display: flex; gap: 10px; margin-top: 10px; width: 100%; }
+        .btn-save { background: var(--teal-main); color: white; border: none; padding: 12px; border-radius: 8px; font-size: 12px; font-weight: 800; cursor: pointer; flex: 1; display: flex; justify-content: center; align-items: center; gap: 8px; text-decoration: none; }
+        .btn-test { background: #64748B; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 12px; font-weight: 800; cursor: pointer; text-decoration: none; display: flex; justify-content: center; align-items: center; gap: 8px; }
+        .btn-test:hover { background: #475569; }
+        .btn-sync { background: #F59E0B; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 12px; font-weight: 800; cursor: pointer; width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 10px; }
+        
+        .btn-float-home { position: fixed; bottom: 20px; right: 20px; width: 50px; height: 50px; background: var(--admin-dark); color: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); text-decoration: none; z-index: 100; }
+    </style>
+
+<!-- [FIX-NOTIF-LAYER] -->
+<style>
+    /* Memaksa semua jenis notifikasi pop-up berada di lapisan paling depan menembus modal/bottom sheet */
+    .swal2-container, 
+    .swal-overlay, 
+    .toast-container, 
+    #toast-container, 
+    .notyf {
+        z-index: 999999 !important;
+    }
+</style>
+<!-- [FIX-NOTIF-LAYER] END -->
+
+</head>
+<body>
+    <div class="admin-container">
+        
+        <div class="admin-header">
+            <div class="admin-title"><i class="fas fa-cogs"></i> Panel Admin <span class="admin-badge">SUPER ADMIN</span></div>
+            <a href="/" style="color:white;"><i class="fas fa-sign-out-alt"></i></a>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}{% for category, message in messages %}
+                <div class="alert-box alert-{{ category }}"><i class="fas fa-info-circle"></i> {{ message }}</div>
+            {% endfor %}{% endif %}
+        {% endwith %}
+
+        <div class="stats-grid">
+            <div class="stat-card"><i class="fas fa-users"></i><div class="stat-val">{{ "{:,}".format(total_users) }}</div><div class="stat-label">Total User</div></div>
+            <div class="stat-card"><i class="fas fa-wallet"></i><div class="stat-val">Rp {{ "{:,.0f}".format(total_balance) }}</div><div class="stat-label">Saldo Aktif</div></div>
+            <div class="stat-card"><i class="fas fa-exchange-alt"></i><div class="stat-val">{{ "{:,}".format(trx_today_count) }}</div><div class="stat-label">Trx Hari Ini</div></div>
+        </div>
+
+        <div class="section-header"><i class="fas fa-th-large"></i> Manajemen Sistem</div>
+        <div class="menu-grid">
+            <a href="{{ url_for('admin.users') }}" class="menu-item {% if request.endpoint == 'admin.users' %}active{% endif %}"><i class="fas fa-users-cog"></i><span>Data User</span></a>
+            <a href="{{ url_for('admin.transactions') }}" class="menu-item {% if request.endpoint == 'admin.transactions' %}active{% endif %}"><i class="fas fa-list-alt"></i><span>Transaksi</span></a>
+            <a href="{{ url_for('admin.produk') }}" class="menu-item"><i class="fas fa-box-open"></i><span>Produk</span></a>
+            <a href="{{ url_for('admin.margin') }}" class="menu-item"><i class="fas fa-percentage"></i><span>Margin</span></a>
+            <a href="{{ url_for('admin.broadcast') }}" class="menu-item {% if request.endpoint == 'admin.broadcast' %}active{% endif %}"><i class="fas fa-bullhorn"></i><span>Broadcast</span></a>
+            <a href="{{ url_for('admin.banner') }}" class="menu-item {% if request.endpoint == 'admin.banner' %}active{% endif %}"><i class="fas fa-images"></i><span>Banner</span></a>
+            <a href="{{ url_for('admin.saldo') }}" class="menu-item {% if request.endpoint == 'admin.saldo' %}active{% endif %}"><i class="fas fa-money-bill-wave"></i><span>Saldo Digiflazz</span></a>
+            <a href="{{ url_for('admin.notifications') }}" class="menu-item {% if request.endpoint == 'admin.notifications' %}active{% endif %}"><i class="fas fa-bell" style="color: #00877a;"></i><span>Notifikasi</span></a>
+            <a href="{{ url_for('admin.tickets') }}" class="menu-item {% if request.endpoint == 'admin.tickets' %}active{% endif %}"><i class="fas fa-headset" style="color: #0284c7;"></i><span>Tiket CS</span></a>
+            <a href="{{ url_for('admin.reports') }}" class="menu-item {% if request.endpoint == 'admin.reports' %}active{% endif %}"><i class="fas fa-chart-line"></i><span>Laporan</span></a>
+        </div>
+
+        <div class="section-header"><i class="fas fa-plug"></i> Konfigurasi API & Gateway</div>
+        
+        <div class="config-card">
+            <form action="{{ url_for('admin.save_config') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" name="form_type" value="digiflazz">
+                <div class="config-title"><i class="fas fa-server"></i> API Digiflazz</div>
+                <div class="form-group">
+                    <label>Username / Merchant ID (DIGI_USER)</label>
+                    <input type="text" name="digi_user" class="form-control" value="{{ digi_user }}" placeholder="Masukkan Username Digiflazz">
+                </div>
+                <div class="form-group">
+                    <label>API Key (DIGI_KEY)</label>
+                    <input type="password" name="digi_key" class="form-control" placeholder="{% if digi_key %}••••••••••••••••{% else %}Masukkan API Key{% endif %}">
+                </div>
+                <div class="form-group">
+                    <label>URL Endpoint (DIGI_URL)</label>
+                    <input type="text" name="digi_url" class="form-control" value="{{ digi_url }}" placeholder="https://api.digiflazz.com/v1">
+                </div>
+                <div class="btn-group">
+                    <button type="submit" class="btn-save"><i class="fas fa-save"></i> Simpan Digiflazz</button>
+                    <a href="{{ url_for('admin.test_connection', tipe='digiflazz') }}" class="btn-test"><i class="fas fa-satellite-dish"></i> Tes</a>
+                </div>
+            </form>
+            <form action="{{ url_for('admin.sync_digiflazz') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <button type="submit" class="btn-sync"><i class="fas fa-sync-alt"></i> Sinkronisasi Produk Digiflazz</button>
+            </form>
+        </div>
+        
+        <div class="config-card">
+            <form action="{{ url_for('admin.save_config') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" name="form_type" value="vipreseller">
+                <div class="config-title" style="color:#6366F1;"><i class="fas fa-bolt"></i> API VIP-Reseller</div>
+                
+                <div class="form-group">
+                    <label>API ID (VIP_API_ID)</label>
+                    <input type="text" name="vip_api_id" class="form-control" value="{{ vip_api_id | default('') }}" placeholder="Masukkan API ID">
+                </div>
+                
+                <div class="form-group">
+                    <label>API Key (VIP_API_KEY)</label>
+                    <input type="password" name="vip_api_key" class="form-control" placeholder="{% if vip_api_key %}••••••••••••••••{% else %}Masukkan API Key{% endif %}">
+                </div>
+                
+                <div style="background: #e0e7ff; padding: 12px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #6366f1;">
+                    <strong style="color: #4338ca; font-size: 13px;"><i class="fas fa-info-circle"></i> Info Integrasi Webhook:</strong><br>
+                    <span style="font-size: 12px; color: #4f46e5;">Whitelist IP: <b>178.248.73.218</b><br>
+                    Callback URL: <b>http://203.194.112.109:5000/api/callback/vipreseller</b></span>
+                </div>
+
+                <div class="btn-group">
+                    <button type="submit" class="btn-save" style="background:#6366F1;"><i class="fas fa-save"></i> Simpan VIP-Reseller</button>
+                    <a href="{{ url_for('admin.test_connection', tipe='vipreseller') }}" class="btn-test"><i class="fas fa-satellite-dish"></i> Tes</a>
+                </div>
+            </form>
+            <form action="{{ url_for('admin.sync_vipreseller') }}" method="POST" style="margin-top: 15px;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <button type="submit" class="btn-sync" style="background-color: #f59e0b; color: white;"><i class="fas fa-sync-alt"></i> Sinkronisasi Produk VIP-Reseller</button>
+            </form>
+        </div>
+
+        <!-- PENGALIHAN PAYMENT GATEWAY (SWITCHER) -->
+        <div class="config-card" style="border: 2px solid #3b8a81; background: #f0fdf4;">
+            <div class="config-title" style="color: #166534; display: flex; justify-content: space-between; align-items: center;">
+                <span><i class="fas fa-toggle-on"></i> Pengalihan Payment Gateway Aktif</span>
+                <span style="font-size: 11px; font-weight: 900; padding: 4px 10px; border-radius: 20px; background: {% if active_pg == 'pakasir' %}#059669{% else %}#0284c7{% endif %}; color: white; text-transform: uppercase;">
+                    AKTIF: {{ active_pg|upper }}
+                </span>
+            </div>
+            <p style="font-size: 12px; color: #374151; margin-top: -5px; margin-bottom: 15px;">
+                Tentukan penyedia layanan QRIS utama yang akan digunakan pelanggan saat checkout transaksi produk atau deposit saldo.
+            </p>
+
+            <form action="{{ url_for('admin.save_config') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" name="form_type" value="switch_gateway">
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                    <label style="display: flex; align-items: center; gap: 10px; padding: 12px 15px; background: white; border: 2px solid {% if active_pg != 'pakasir' %}#0284c7{% else %}#e2e8f0{% endif %}; border-radius: 10px; cursor: pointer;">
+                        <input type="radio" name="active_payment_gateway" value="paymentkita" {% if active_pg != 'pakasir' %}checked{% endif %} style="width: 18px; height: 18px;">
+                        <div>
+                            <div style="font-weight: 800; font-size: 13px; color: #0284c7;"><i class="fas fa-credit-card"></i> PaymentKita</div>
+                            <div style="font-size: 11px; color: #64748b;">Gateway QRIS & VA</div>
+                        </div>
+                    </label>
+
+                    <label style="display: flex; align-items: center; gap: 10px; padding: 12px 15px; background: white; border: 2px solid {% if active_pg == 'pakasir' %}#059669{% else %}#e2e8f0{% endif %}; border-radius: 10px; cursor: pointer;">
+                        <input type="radio" name="active_payment_gateway" value="pakasir" {% if active_pg == 'pakasir' %}checked{% endif %} style="width: 18px; height: 18px;">
+                        <div>
+                            <div style="font-weight: 800; font-size: 13px; color: #059669;"><i class="fas fa-wallet"></i> Pakasir</div>
+                            <div style="font-size: 11px; color: #64748b;">Gateway QRIS Dinamis</div>
+                        </div>
+                    </label>
+                </div>
+
+                <button type="submit" class="btn-save" style="background: #166534; width: 100%; justify-content: center;">
+                    <i class="fas fa-check-circle"></i> Terapkan Gateway Aktif
+                </button>
+            </form>
+        </div>
+
+        <div class="config-card">
+            <form action="{{ url_for('admin.save_config') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" name="form_type" value="paymentkita">
+                <div class="config-title" style="color:#0284C7; display: flex; justify-content: space-between; align-items: center;">
+                    <span><i class="fas fa-credit-card"></i> Payment Gateway - PaymentKita</span>
+                    {% if active_pg != 'pakasir' %}
+                        <span style="background: #e0f2fe; color: #0284c7; font-size: 10px; font-weight: 900; padding: 2px 8px; border-radius: 6px;">AKTIF UTAMA</span>
+                    {% else %}
+                        <span style="background: #f1f5f9; color: #64748b; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 6px;">STANDBY</span>
+                    {% endif %}
+                </div>
+                <div class="form-group">
+                    <label>Merchant ID (PAYMENTKITA_MERCHANT_ID)</label>
+                    <input type="text" name="pk_merchant" class="form-control" value="{{ pk_merchant }}" placeholder="Masukkan Merchant ID">
+                </div>
+                <div class="form-group">
+                    <label>Secret Key (PAYMENTKITA_SECRET)</label>
+                    <input type="password" name="pk_secret" class="form-control" placeholder="{% if pk_secret %}••••••••••••••••{% else %}Masukkan Secret Key{% endif %}">
+                </div>
+                <div style="background: #f8fafc; padding: 10px; border-radius: 8px; margin-bottom: 12px; font-size: 11px; color: #475569;">
+                    <i class="fas fa-link"></i> Webhook Callback URL:<br>
+                    <code style="color: #0284c7; font-weight: 800;">{{ request.host_url }}trx/callback/paymentkita</code>
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <label style="font-size: 11px; font-weight: 700; color: #475569; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                        <input type="checkbox" name="set_active" value="1" {% if active_pg != 'pakasir' %}checked{% endif %}>
+                        Simpan & jadikan sebagai payment gateway aktif
+                    </label>
+                </div>
+                <div class="btn-group">
+                    <button type="submit" class="btn-save" style="background:#0284C7;"><i class="fas fa-save"></i> Simpan PaymentKita</button>
+                    <a href="{{ url_for('admin.test_connection', tipe='paymentkita') }}" class="btn-test"><i class="fas fa-satellite-dish"></i> Tes</a>
+                </div>
+            </form>
+        </div>
+
+        <div class="config-card">
+            <form action="{{ url_for('admin.save_config') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" name="form_type" value="pakasir">
+                <div class="config-title" style="color:#059669; display: flex; justify-content: space-between; align-items: center;">
+                    <span><i class="fas fa-wallet"></i> Payment Gateway - Pakasir</span>
+                    {% if active_pg == 'pakasir' %}
+                        <span style="background: #dcfce7; color: #059669; font-size: 10px; font-weight: 900; padding: 2px 8px; border-radius: 6px;">AKTIF UTAMA</span>
+                    {% else %}
+                        <span style="background: #f1f5f9; color: #64748b; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 6px;">STANDBY</span>
+                    {% endif %}
+                </div>
+                <div class="form-group">
+                    <label>Project Name / Slug (PAKASIR_PROJECT)</label>
+                    <input type="text" name="pakasir_project" class="form-control" value="{{ pakasir_project }}" placeholder="Contoh: my-project-slug">
+                </div>
+                <div class="form-group">
+                    <label>API Key (PAKASIR_API_KEY)</label>
+                    <input type="password" name="pakasir_key" class="form-control" placeholder="{% if pakasir_key %}••••••••••••••••{% else %}Masukkan API Key Pakasir{% endif %}">
+                </div>
+                <div style="background: #f8fafc; padding: 10px; border-radius: 8px; margin-bottom: 12px; font-size: 11px; color: #475569;">
+                    <i class="fas fa-link"></i> Webhook Callback URL:<br>
+                    <code style="color: #059669; font-weight: 800;">{{ request.host_url }}trx/callback/pakasir</code>
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <label style="font-size: 11px; font-weight: 700; color: #475569; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                        <input type="checkbox" name="set_active" value="1" {% if active_pg == 'pakasir' %}checked{% endif %}>
+                        Simpan & jadikan sebagai payment gateway aktif
+                    </label>
+                </div>
+                <div class="btn-group">
+                    <button type="submit" class="btn-save" style="background:#059669;"><i class="fas fa-save"></i> Simpan Pakasir</button>
+                    <a href="{{ url_for('admin.test_connection', tipe='pakasir') }}" class="btn-test"><i class="fas fa-satellite-dish"></i> Tes</a>
+                </div>
+            </form>
+        </div>
+
+        <div class="section-header"><i class="fab fa-telegram-plane"></i> Konfigurasi Bot Telegram</div>
+        
+        <div class="config-card">
+            <form action="{{ url_for('admin.save_config') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" name="form_type" value="bot_cs">
+                <div class="config-title" style="color: #0284C7;"><i class="fas fa-headset"></i> Bot 1 : CS & Balas Inbox</div>
+                <div class="form-group">
+                    <label>Bot Token</label>
+                    <input type="password" name="bot_cs_token" class="form-control" placeholder="{% if bot_cs_token %}••••••••••••••••{% else %}Masukkan Bot Token{% endif %}">
+                </div>
+                <div class="form-group">
+                    <label>Chat ID (Penerima Pesan CS)</label>
+                    <input type="text" name="bot_cs_chat" class="form-control" value="{{ bot_cs_chat }}" placeholder="Masukkan Chat ID">
+                </div>
+                <div class="btn-group">
+                    <button type="submit" class="btn-save" style="background:#0284C7;"><i class="fas fa-save"></i> Simpan Bot CS</button>
+                    <a href="{{ url_for('admin.test_connection', tipe='bot_cs') }}" class="btn-test"><i class="fas fa-paper-plane"></i> Tes</a>
+                </div>
+            </form>
+        </div>
+        
+        <div class="config-card">
+            <form action="{{ url_for('admin.save_config') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" name="form_type" value="bot_notif">
+                <div class="config-title" style="color: #D97706;"><i class="fas fa-bell"></i> Bot 2 : Notifikasi (Trx Masuk & Backup)</div>
+                <div class="form-group">
+                    <label>Bot Token</label>
+                    <input type="password" name="bot_notif_token" class="form-control" placeholder="{% if bot_notif_token %}••••••••••••••••{% else %}Masukkan Bot Token{% endif %}">
+                </div>
+                <div class="form-group">
+                    <label>Chat ID / Grup ID (Penerima Notifikasi)</label>
+                    <input type="text" name="bot_notif_chat" class="form-control" value="{{ bot_notif_chat }}" placeholder="Masukkan Chat ID / Grup ID">
+                </div>
+                <div class="btn-group">
+                    <button type="submit" class="btn-save" style="background:#D97706;"><i class="fas fa-save"></i> Simpan Bot Notif</button>
+                    <a href="{{ url_for('admin.test_connection', tipe='bot_notif') }}" class="btn-test"><i class="fas fa-paper-plane"></i> Tes</a>
+                </div>
+            </form>
+        </div>
+        
+        <div class="config-card">
+            <form action="{{ url_for('admin.save_config') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" name="form_type" value="bot_admin">
+                <div class="config-title" style="color: #16A34A;"><i class="fas fa-terminal"></i> Bot 3 : Panel & Fitur Admin</div>
+                <div class="form-group">
+                    <label>Bot Token</label>
+                    <input type="password" name="bot_admin_token" class="form-control" placeholder="{% if bot_admin_token %}••••••••••••••••{% else %}Masukkan Bot Token{% endif %}">
+                </div>
+                <div class="form-group">
+                    <label>Chat ID Admin (Otorisasi Akses Bot)</label>
+                    <input type="text" name="bot_admin_chat" class="form-control" value="{{ bot_admin_chat }}" placeholder="Masukkan Chat ID Admin">
+                </div>
+                <div class="btn-group">
+                    <button type="submit" class="btn-save" style="background:#16A34A;"><i class="fas fa-save"></i> Simpan Bot Admin</button>
+                    <a href="{{ url_for('admin.test_connection', tipe='bot_admin') }}" class="btn-test"><i class="fas fa-paper-plane"></i> Tes</a>
+                </div>
+            </form>
+        </div>
+
+        
+        
+
+        
+        <!-- ================= BOT WHATSAPP CONFIG ================= -->
+        <div class="config-card">
+            <div id="custom-toast" style="display:none; padding: 10px 15px; margin-bottom: 15px; border-radius: 6px; font-size: 12px; font-weight: bold; text-align: center;"></div>
+            
+            <form id="form-wa-bot">
+                <div class="config-title" style="color: #25D366;"><i class="fab fa-whatsapp"></i> Konfigurasi Bot WhatsApp (OTP & Notif)</div>
+                
+                <div class="form-group">
+                    <label>Nomor HP Mesin Bot (Wajib Awalan 62)</label>
+                    <input type="number" id="wa_bot_number" name="wa_bot_number" class="form-control" placeholder="Contoh: 6281234567890">
+                </div>
+                
+                <div class="form-group">
+                    <label>Status Koneksi Mesin</label>
+                    <div style="margin-top: 5px;">
+                        <span id="wa-status-badge" style="background: #ef4444; color: white; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; display: inline-block;">
+                            <i class="fas fa-circle" style="font-size: 8px; margin-right: 4px;"></i> Disconnected
+                        </span>
+                    </div>
+                </div>
+                
+                <!-- Kotak Tampil Kode Pairing -->
+                <div id="pairing-area" style="display: none; background: #f0fdf4; border: 1px dashed #22c55e; border-radius: 8px; padding: 15px; text-align: center; margin-bottom: 15px;">
+                    <div style="font-size: 11px; color: #15803d; font-weight: bold; margin-bottom: 5px;"><i class="fas fa-key"></i> KODE PAIRING ANDA:</div>
+                    <div id="pairing-code" style="font-size: 28px; font-weight: 900; letter-spacing: 5px; color: #1f2937; margin-bottom: 5px;">----</div>
+                    <div style="font-size: 10px; color: #6b7280;">Buka WhatsApp Induk > Tautkan Perangkat > Tautkan dengan Nomor Telepon</div>
+                </div>
+                
+                <div class="btn-group">
+                    <button type="button" onclick="requestPairing()" id="btn-pairing" class="btn-save" style="background:#25D366; cursor:pointer; border:none;"><i class="fas fa-link"></i> Minta Kode Pairing</button>
+                    <button type="button" onclick="testBot()" class="btn-test" style="cursor:pointer; border:none;"><i class="fas fa-paper-plane"></i> Tes</button>
+                </div>
+            </form>
+        </div>
+
+        <script>
+            function showCustomNotification(message, type = 'success') {
+                const toast = document.getElementById('custom-toast');
+                toast.style.display = 'block';
+                toast.innerText = message;
+                if(type === 'success') {
+                    toast.style.background = '#dcfce7';
+                    toast.style.color = '#166534';
+                    toast.style.border = '1px solid #22c55e';
+                } else {
+                    toast.style.background = '#fee2e2';
+                    toast.style.color = '#991b1b';
+                    toast.style.border = '1px solid #ef4444';
+                }
+                setTimeout(() => { toast.style.display = 'none'; }, 4000);
+            }
+
+            function checkBotStatus() {
+                fetch('/admin/wa_status')
+                .then(res => res.json())
+                .then(data => {
+                    const badge = document.getElementById('wa-status-badge');
+                    if(data.connected) {
+                        badge.style.backgroundColor = '#22c55e';
+                        badge.innerHTML = '<i class="fas fa-circle" style="font-size: 8px; margin-right: 4px;"></i> Connected (Aktif)';
+                    } else {
+                        badge.style.backgroundColor = '#ef4444';
+                        badge.innerHTML = '<i class="fas fa-circle" style="font-size: 8px; margin-right: 4px;"></i> Disconnected';
+                    }
+                }).catch(e => console.log('Bot offline'));
+            }
+            setInterval(checkBotStatus, 3000); // Otomatis ngecek setiap 3 detik
+            window.onload = checkBotStatus;
+
+            function requestPairing() {
+                const noWa = document.getElementById('wa_bot_number').value;
+                if(!noWa || !noWa.startsWith('62')) {
+                    showCustomNotification('🚨 Harap masukkan nomor WhatsApp awalan 62', 'error'); return;
+                }
+                const btn = document.getElementById('btn-pairing');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menghubungkan...';
+                btn.disabled = true; btn.style.opacity = '0.7';
+                
+                fetch('/admin/wa_pairing', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
+                    body: JSON.stringify({ number: noWa })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if(data.status === 'success') {
+                        document.getElementById('pairing-area').style.display = 'block';
+                        document.getElementById('pairing-code').innerText = data.code;
+                        showCustomNotification('✅ Kode pairing dibuat!');
+                    } else {
+                        showCustomNotification('🚨 ' + data.message, 'error');
+                    }
+                }).catch(() => showCustomNotification('🚨 Error jaringan.', 'error'))
+                .finally(() => { btn.innerHTML = originalText; btn.disabled = false; btn.style.opacity = '1'; });
+            }
+
+            function testBot() {
+                const destNumber = prompt("📱 Masukkan Nomor WA Tujuan (Awalan 62) untuk tes pesan:");
+                if(!destNumber) return;
+                
+                showCustomNotification('⏳ Mengirim pesan...', 'success');
+                
+                fetch('/admin/wa_test_message', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
+                    body: JSON.stringify({ 
+                        number: destNumber, 
+                        message: '*[SYSTEM GARUDATEL]*\n\n✅ BINGO! Mesin WhatsApp Bot Anda telah sukses terhubung dan siap beroperasi.' 
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if(data.status === 'success') {
+                        showCustomNotification('✅ PESAN SUKSES TERKIRIM KE WHATSAPP!');
+                    } else {
+                        showCustomNotification('🚨 Gagal: ' + data.message, 'error');
+                    }
+                }).catch(() => showCustomNotification('🚨 Error jaringan server.', 'error'));
+            }
+        </script>
+        <!-- ================= END BOT WHATSAPP ================= -->
+
+        <!-- ================= OTP MANUAL CONFIG ================= -->
+        <div class="config-card">
+            <form id="form-manual-otp">
+                <div class="config-title" style="color: #F59E0B;"><i class="fas fa-life-ring"></i> Bantuan OTP Darurat (Manual)</div>
+                
+                <div class="form-group">
+                    <label>Nomor WA User (Target Registrasi/Lupa Password)</label>
+                    <input type="number" id="manual_otp_number" name="manual_otp_number" class="form-control" placeholder="Contoh: 6281234567890">
+                </div>
+                
+                <!-- Kotak Tampil OTP -->
+                <div id="manual-otp-area" style="display: none; background: #fffbeb; border: 1px dashed #f59e0b; border-radius: 8px; padding: 15px; text-align: center; margin-bottom: 15px;">
+                    <div style="font-size: 11px; color: #b45309; font-weight: bold; margin-bottom: 5px;"><i class="fas fa-ticket-alt"></i> OTP BERHASIL DICIPTAKAN:</div>
+                    <div id="manual-otp-code" style="font-size: 28px; font-weight: 900; letter-spacing: 5px; color: #1f2937; margin-bottom: 5px;">000000</div>
+                    <div style="font-size: 10px; color: #6b7280;">Berikan kode ini secara manual kepada User. Berlaku 15 Menit.</div>
+                </div>
+                
+                <div class="btn-group">
+                    <button type="button" onclick="generateManualOTP()" id="btn-manual-otp" class="btn-save" style="background:#F59E0B; cursor:pointer; border:none; width: 100%;"><i class="fas fa-magic"></i> Generate OTP Baru</button>
+                </div>
+            </form>
+        </div>
+
+        <script>
+            function generateManualOTP() {
+                let noWa = document.getElementById('manual_otp_number').value.trim();
+                if(!noWa) {
+                    alert('🚨 Harap masukkan nomor WhatsApp target'); return;
+                }
+                if(noWa.startsWith('0')) {
+                    noWa = '62' + noWa.substring(1);
+                }
+                if(!noWa.startsWith('62')) {
+                    alert('🚨 Format nomor tidak valid. Gunakan awalan 08... atau 628...'); return;
+                }
+                const btn = document.getElementById('btn-manual-otp');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menciptakan OTP...';
+                btn.disabled = true;
+                btn.style.opacity = '0.7';
+                
+                fetch('/admin/generate_otp_manual', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
+                    body: JSON.stringify({ number: noWa })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if(data.status === 'success') {
+                        document.getElementById('manual-otp-area').style.display = 'block';
+                        document.getElementById('manual-otp-code').innerText = data.otp;
+                        document.getElementById('manual_otp_number').value = '';
+                    } else {
+                        alert('🚨 Gagal: ' + data.message);
+                    }
+                })
+                .catch(e => alert('🚨 Error jaringan server.'))
+                .finally(() => {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                });
+            }
+        </script>
+        <!-- ================= END OTP MANUAL ================= -->
+
+
+
+
+        
+
+        
+
+        
+
+        
+        <div class="section-header"><i class="fas fa-shield-alt"></i> Keamanan Sistem</div>
+        <div class="config-card" style="border-left: 4px solid #6366F1;">
+            <form action="{{ url_for('admin.change_password') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="config-title" style="color: #6366F1;"><i class="fas fa-lock"></i> Ganti Password Admin</div>
+                <div class="form-group">
+                    <label>Password Baru</label>
+                    <input type="password" name="new_password" class="form-control" placeholder="Ketik password baru disini..." required>
+                </div>
+                <button type="submit" class="btn-save" style="background:#6366F1; width: 100%;"><i class="fas fa-key"></i> Update Password Sekarang</button>
+            </form>
+        </div>
+
+        <a href="/" class="btn-float-home"><i class="fas fa-home"></i></a>
+    </div>
+</body>
+</html>
+
+        

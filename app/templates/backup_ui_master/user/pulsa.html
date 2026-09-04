@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+{% block title %}Transaksi - {{ title|default('Produk') }}{% endblock %}
+
+{% block head %}
+<style>
+    /* HEADER KATEGORI */
+    .cat-header { background: var(--primary); padding: 20px 20px 60px 20px; color: white; border-bottom-left-radius: 24px; border-bottom-right-radius: 24px; }
+    .top-bar { display: flex; align-items: center; gap: 15px; font-size: 18px; font-weight: 800; margin-bottom: 25px; color: white; cursor: pointer; }
+    .cat-title-area { display: flex; justify-content: space-between; align-items: center; }
+    .cat-title-wrap { display: flex; align-items: center; gap: 15px; }
+    .cat-icon { width: 45px; height: 45px; background: rgba(255,255,255,0.2); border-radius: 14px; display: flex; justify-content: center; align-items: center; font-size: 22px; }
+    .cat-name h2 { margin: 0; font-size: 20px; font-weight: 800; text-transform: uppercase; }
+    .cat-name p { margin: 2px 0 0 0; font-size: 11px; opacity: 0.9; }
+
+    /* INPUT NOMOR & OPERATOR */
+    .input-wrapper { margin: -40px 15px 20px 15px; background: white; padding: 20px; border-radius: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #f0f4f8; }
+    .input-wrapper label { font-size: 13px; font-weight: 800; color: #4a5568; display: block; margin-bottom: 12px; }
+    .input-box { display: flex; background: #f8fafc; border-radius: 16px; padding: 8px; align-items: center; border: 1px solid #e2e8f0; transition: 0.3s; }
+    .input-box.error { border-color: #ff4757; background: #fff2f3; } /* Efek Merah saat Error */
+    
+    /* MENGGUNAKAN TYPE TEXT AGAR BISA MEMBACA SPASI & + DENGAN BAIK, INPUTMODE NUMERIC UNTUK KEYBOARD HP */
+    .input-box input { flex: 1; background: transparent; border: none; padding: 10px 15px; font-size: 18px; font-weight: 800; outline: none; color: #2d3748; letter-spacing: 1px; }
+    .action-btn { width: 40px; height: 40px; background: #e6f7f5; color: var(--primary); border-radius: 12px; display: flex; justify-content: center; align-items: center; margin-left: 8px; cursor: pointer; transition: 0.2s; }
+    
+    .operator-tabs { display: flex; gap: 10px; overflow-x: auto; padding: 0 15px; margin-bottom: 20px; scrollbar-width: none; scroll-behavior: smooth; }
+    .operator-tabs::-webkit-scrollbar { display: none; }
+    .tab-pill { padding: 8px 20px; border-radius: 20px; font-size: 13px; font-weight: 800; white-space: nowrap; background: white; color: #a0aec0; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 8px; transition: 0.3s; }
+    .tab-pill.active { background: var(--primary); color: white; border: none; box-shadow: 0 4px 10px rgba(0,135,121,0.2); transform: scale(1.05); }
+
+    /* TOOLBAR (SEARCH, SORT, VIEW) */
+    .filter-bar { display: flex; gap: 10px; padding: 0 15px; margin-bottom: 20px; align-items: center; }
+    .search-box { flex: 1; display: flex; align-items: center; background: white; border-radius: 16px; padding: 10px 15px; border: 1px solid #e2e8f0; }
+    .search-box input { border: none; background: transparent; outline: none; width: 100%; font-weight: 700; font-size: 14px; }
+    
+    .tool-btn { width: 45px; height: 45px; background: white; border-radius: 16px; display: flex; justify-content: center; align-items: center; border: 1px solid #e2e8f0; color: #a0aec0; cursor: pointer; }
+    .tool-btn.active { background: #e6f7f5; color: var(--primary); border-color: #b2dfdb; }
+
+    /* NOTIFIKASI TOAST CANTIK */
+    #toastNotification {
+        position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+        background: #ff4757; color: white; padding: 12px 25px; border-radius: 30px;
+        font-weight: 800; font-size: 13px; z-index: 9999; display: none; align-items: center; gap: 10px;
+        box-shadow: 0 8px 25px rgba(255,71,87,0.4); opacity: 0; transition: opacity 0.3s ease;
+    }
+
+    /* KARTU PRODUK & DROPDOWN (Sama seperti sebelumnya) */
+    .sort-container { position: relative; }
+    .sort-menu { position: absolute; top: 55px; right: 0; background: white; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 180px; z-index: 100; display: none; border: 1px solid #f0f4f8; }
+    .sort-menu.show { display: block; }
+    .sort-option { padding: 14px 20px; font-size: 13px; font-weight: 700; color: #4a5568; cursor: pointer; }
+    
+    .product-container { padding: 0 15px 30px 15px; }
+    .product-list { display: grid; gap: 15px; grid-template-columns: repeat(2, 1fr); }
+    .product-list.list-mode { grid-template-columns: 1fr; }
+    .product-list.list-mode .product-card { flex-direction: row; align-items: center; justify-content: space-between; text-align: left; padding: 15px; }
+    .product-list.list-mode .p-status-badge { position: static; margin-bottom: 0; }
+    .product-card { background: white; border-radius: 20px; padding: 18px 15px; border: 1px solid #edf2f7; display: flex; flex-direction: column; box-shadow: 0 4px 15px rgba(0,0,0,0.02); }
+    .p-status-badge { background: var(--primary); color: white; padding: 4px 12px; border-radius: 8px; font-size: 10px; font-weight: 800; margin-bottom: 10px; }
+    .p-code { background: #f1f5f9; padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; color: #94a3b8; display: inline-block; margin-bottom: 8px; }
+    .p-name { font-size: 15px; font-weight: 800; margin: 0 0 4px 0; color: #2d3748; }
+    .p-desc { font-size: 11px; color: #a0aec0; margin: 0 0 10px 0; font-weight: 600; }
+    .p-price { font-size: 18px; font-weight: 900; color: var(--primary); margin: 0; }
+</style>
+{% endblock %}
+
+{% block bottom_nav %}{% endblock %}
+
+{% block content %}
+<!-- TOAST NOTIFIKASI -->
+<div id="toastNotification">
+    <i class="fas fa-exclamation-triangle"></i> <span id="toastMsg">Notifikasi</span>
+</div>
+
+<div class="cat-header">
+    <!-- TOMBOL KEMBALI CERDAS (DEFAULT UNIVERSAL) -->
+    <div class="top-bar" onclick="goBack()">
+        <i class="fas fa-arrow-left"></i>
+        <span>Kembali</span>
+    </div>
+    <div class="cat-title-area">
+        <div class="cat-title-wrap">
+            <div class="cat-icon"><i class="fas fa-mobile-alt"></i></div>
+            <div class="cat-name">
+                <h2 id="pageTitle">{{ title|default('PRODUK') }}</h2>
+                <p>Sistem Proses Instan</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="input-wrapper">
+    <label>Nomor Tujuan Pengisian</label>
+    <div class="input-box" id="inputContainer">
+        <!-- INPUT MODE NUMERIC UNTUK KEYBOARD HP -->
+        <input type="text" inputmode="numeric" id="noHpInput" placeholder="Contoh: 081234567890">
+        <div class="action-btn"><i class="fas fa-address-book"></i></div>
+    </div>
+</div>
+
+<!-- SEMUA TAB PROVIDER -->
+<div class="operator-tabs" id="opTabs">
+    <div class="tab-pill" data-op="TELKOMSEL"><i class="fas fa-tag"></i> TSEL</div>
+    <div class="tab-pill" data-op="BYU"><i class="fas fa-tag"></i> BY.U</div>
+    <div class="tab-pill" data-op="XL"><i class="fas fa-tag"></i> XL</div>
+    <div class="tab-pill" data-op="AXIS"><i class="fas fa-tag"></i> AXIS</div>
+    <div class="tab-pill" data-op="INDOSAT"><i class="fas fa-tag"></i> INDOSAT</div>
+    <div class="tab-pill" data-op="TRI"><i class="fas fa-tag"></i> TRI</div>
+    <div class="tab-pill" data-op="SMARTFREN"><i class="fas fa-tag"></i> SMARTFREN</div>
+</div>
+
+<div class="filter-bar">
+    <div class="search-box">
+        <i class="fas fa-search"></i>
+        <input type="text" id="searchInput" placeholder="Cari..." onkeyup="filterProduk()">
+    </div>
+    <div class="sort-container">
+        <div class="tool-btn" id="btnSort" onclick="toggleSortMenu()"><i class="fas fa-sort-amount-down"></i></div>
+        <div class="sort-menu" id="sortMenu">
+            <div class="sort-option" onclick="sortProduk('harga_asc')">Harga Terendah</div>
+            <div class="sort-option" onclick="sortProduk('harga_desc')">Harga Tertinggi</div>
+            <div class="sort-option" onclick="sortProduk('nama_asc')">Nama A - Z</div>
+            <div class="sort-option" onclick="sortProduk('nama_desc')">Nama Z - A</div>
+        </div>
+    </div>
+    <div class="tool-btn" id="btnList" onclick="ubahView('list')"><i class="fas fa-list"></i></div>
+    <div class="tool-btn active" id="btnGrid" onclick="ubahView('grid')"><i class="fas fa-th-large"></i></div>
+</div>
+
+<div class="product-container">
+    <div class="product-list" id="daftarProduk">
+        <!-- Produk akan di-render di sini -->
+        <div class="product-card item-produk" data-provider="AXIS">
+            <div><div class="p-status-badge">OPEN</div><span class="p-code">AX5</span><h4 class="p-name">Axis 5.000</h4></div><p class="p-price">Rp 6.380</p>
+        </div>
+        <div class="product-card item-produk" data-provider="TELKOMSEL">
+            <div><div class="p-status-badge">OPEN</div><span class="p-code">TSEL10</span><h4 class="p-name">Telkomsel 10.000</h4></div><p class="p-price">Rp 10.500</p>
+        </div>
+        <div class="product-card item-produk" data-provider="BYU">
+            <div><div class="p-status-badge">OPEN</div><span class="p-code">BYU10</span><h4 class="p-name">By.U 10.000</h4></div><p class="p-price">Rp 10.200</p>
+        </div>
+        <div class="product-card item-produk" data-provider="XL">
+            <div><div class="p-status-badge">OPEN</div><span class="p-code">XL10</span><h4 class="p-name">XL 10.000</h4></div><p class="p-price">Rp 10.800</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // ==========================================
+    // 1. TOMBOL KEMBALI CERDAS (ANTI NOT FOUND)
+    // ==========================================
+    function goBack() {
+        if (document.referrer && document.referrer.includes(window.location.host)) {
+            window.history.back(); // Kembali ke halaman sebelumnya dengan mulus
+        } else {
+            window.location.href = '/dashboard'; // Default paksa ke dashboard jika diakses langsung
+        }
+    }
+
+    // ==========================================
+    // 2. LOGIKA TOAST NOTIFIKASI
+    // ==========================================
+    function showToast(msg) {
+        const toast = document.getElementById('toastNotification');
+        const inputContainer = document.getElementById('inputContainer');
+        
+        document.getElementById('toastMsg').innerText = msg;
+        toast.style.display = 'flex';
+        inputContainer.classList.add('error'); // Efek merah di kotak input
+        
+        setTimeout(() => toast.style.opacity = '1', 10);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            inputContainer.classList.remove('error');
+            setTimeout(() => toast.style.display = 'none', 300);
+        }, 3000); // Hilang otomatis dalam 3 detik
+    }
+
+    // ==========================================
+    // 3. SMART INPUT & PEMURNIAN FORMAT NOMOR
+    // ==========================================
+    const inputNo = document.getElementById('noHpInput');
+    
+    inputNo.addEventListener('input', function(e) {
+        let val = this.value;
+        
+        // Cek jika ada huruf atau simbol aneh (selain angka, spasi, +, -)
+        if (/[^0-9\+\-\s]/.test(val)) {
+            showToast("Oops! Masukkan hanya angka saja ya.");
+        }
+
+        // PEMURNIAN TAHAP 1: Hapus spasi, strip, dan huruf
+        val = val.replace(/[^0-9\+]/g, '');
+        
+        // PEMURNIAN TAHAP 2: Konversi +62 atau awalan 62 menjadi 0
+        if (val.startsWith('+62')) {
+            val = '0' + val.substring(3);
+        } else if (val.startsWith('62')) {
+            val = '0' + val.substring(2);
+        }
+        
+        // Kembalikan nilai bersih ke kolom input
+        this.value = val;
+
+        // PEMURNIAN TAHAP 3: Deteksi Provider jika sudah 4 digit atau lebih
+        if (val.length >= 4) {
+            deteksiProvider(val);
+        } else {
+            resetTabs();
+        }
+    });
+
+    // ==========================================
+    // 4. MESIN DETEKSI PREFIX (AKURASI TINGGI)
+    // ==========================================
+    function deteksiProvider(no) {
+        let p4 = no.substring(0, 4);
+        let p5 = no.substring(0, 5);
+        let p6 = no.substring(0, 6);
+        let provider = "";
+
+        // RULES 1: Pengecekan Khusus By.U (Karena mirip Telkomsel)
+        // By.U menggunakan blok 0851-54 s/d 0851-58 dan 0851-7
+        if (['085154', '085155', '085156', '085157', '085158'].includes(p6) || p5 === '08517') {
+            provider = "BYU";
+        } 
+        // RULES 2: Telkomsel Umum (Sisa dari 0851 masuk sini)
+        else if (['0811', '0812', '0813', '0821', '0822', '0823', '0852', '0853', '0851'].includes(p4)) {
+            provider = "TELKOMSEL";
+        } 
+        // RULES 3: Axis (Akurat)
+        else if (['0831', '0832', '0833', '0838'].includes(p4)) {
+            provider = "AXIS";
+        } 
+        // RULES 4: XL (Akurat)
+        else if (['0817', '0818', '0819', '0859', '0877', '0878'].includes(p4)) {
+            provider = "XL";
+        } 
+        // RULES 5: Indosat
+        else if (['0814', '0815', '0816', '0855', '0856', '0857', '0858'].includes(p4)) {
+            provider = "INDOSAT";
+        } 
+        // RULES 6: Tri
+        else if (['0895', '0896', '0897', '0898', '0899'].includes(p4)) {
+            provider = "TRI";
+        } 
+        // RULES 7: Smartfren
+        else if (['0881', '0882', '0883', '0884', '0885', '0886', '0887', '0888', '0889'].includes(p4)) {
+            provider = "SMARTFREN";
+        }
+
+        aktifkanTab(provider);
+    }
+
+    // ==========================================
+    // 5. ANIMASI TAB & PENYARINGAN PRODUK
+    // ==========================================
+    function aktifkanTab(provider) {
+        let tabs = document.querySelectorAll('.tab-pill');
+        tabs.forEach(t => t.classList.remove('active')); // Reset semua
+        
+        if(provider) {
+            let targetTab = document.querySelector(`.tab-pill[data-op="${provider}"]`);
+            if(targetTab) {
+                targetTab.classList.add('active');
+                // Geser otomatis tab ke tengah layar HP
+                targetTab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+            }
+        }
+    }
+
+    function resetTabs() {
+        document.querySelectorAll('.tab-pill').forEach(t => t.classList.remove('active'));
+    }
+
+    // FUNGSI STANDAR (SORT, VIEW, SEARCH)
+    function filterProduk() {
+        let input = document.getElementById('searchInput').value.toLowerCase();
+        let cards = document.getElementsByClassName('item-produk');
+        for (let i = 0; i < cards.length; i++) {
+            let nama = cards[i].querySelector('.p-name').innerText.toLowerCase();
+            cards[i].style.display = nama.includes(input) ? "" : "none";
+        }
+    }
+
+    function ubahView(mode) {
+        let wadah = document.getElementById('daftarProduk');
+        let btnList = document.getElementById('btnList');
+        let btnGrid = document.getElementById('btnGrid');
+        if (mode === 'list') { wadah.classList.add('list-mode'); btnList.classList.add('active'); btnGrid.classList.remove('active'); } 
+        else { wadah.classList.remove('list-mode'); btnGrid.classList.add('active'); btnList.classList.remove('active'); }
+    }
+
+    function toggleSortMenu() { document.getElementById('sortMenu').classList.toggle('show'); }
+    window.onclick = function(e) { if (!e.target.closest('.sort-container')) { document.querySelectorAll('.sort-menu').forEach(m => m.classList.remove('show')); } }
+    
+    function sortProduk(k) {
+        let c = document.getElementById('daftarProduk');
+        let a = Array.from(c.getElementsByClassName('item-produk'));
+        a.sort((x, y) => {
+            if (k.includes('harga')) {
+                let h1 = parseInt(x.querySelector('.p-price').innerText.replace(/[^0-9]/g, '')) || 0;
+                let h2 = parseInt(y.querySelector('.p-price').innerText.replace(/[^0-9]/g, '')) || 0;
+                return k === 'harga_asc' ? h1 - h2 : h2 - h1;
+            } else {
+                let n1 = x.querySelector('.p-name').innerText.toLowerCase();
+                let n2 = y.querySelector('.p-name').innerText.toLowerCase();
+                return k === 'nama_asc' ? n1.localeCompare(n2) : n2.localeCompare(n1);
+            }
+        });
+        c.innerHTML = ''; a.forEach(i => c.appendChild(i));
+        document.getElementById('sortMenu').classList.remove('show');
+    }
+</script>
+{% endblock %}

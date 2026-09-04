@@ -1,0 +1,142 @@
+{% extends "admin/layout.html" %}
+
+{% block page_css %}
+<link rel="stylesheet" href="{{ url_for('static',filename='css/system.css') }}">
+
+
+
+{% endblock %}
+
+{% set page_title="System Center" %}
+
+{% block admin_content %}
+
+<div class="section-header">
+<i class="fas fa-server"></i>
+System Center
+</div>
+
+<div class="system-grid">
+
+<div class="system-card">
+<i class="fas fa-microchip"></i>
+<div id="cpu-value" class="system-value">--</div>
+<div class="system-label">CPU</div>
+</div>
+
+<div class="system-card">
+<i class="fas fa-memory"></i>
+<div id="ram-value" class="system-value">--</div>
+<div class="system-label">RAM</div>
+</div>
+
+<div class="system-card">
+<i class="fas fa-hdd"></i>
+<div id="disk-value" class="system-value">--</div>
+<div class="system-label">DISK</div>
+</div>
+
+<div class="system-card">
+<i class="fas fa-clock"></i>
+<div id="uptime-value" class="system-value">--</div>
+<div class="system-label">UPTIME</div>
+</div>
+
+</div>
+
+<div class="config-card">
+
+<div class="config-title">
+<i class="fas fa-heartbeat"></i>
+Service Status
+</div>
+
+
+<table class="status-table">
+
+<tr>
+<td>Digiflazz</td>
+<td align="right" id="svc-digiflazz"></td>
+</tr>
+
+<tr>
+<td>Payment Gateway</td>
+<td align="right" id="svc-payment"></td>
+</tr>
+
+<tr>
+<td>Telegram Bot</td>
+<td align="right" id="svc-telegram"></td>
+</tr>
+
+<tr>
+<td>Database</td>
+<td align="right" id="svc-database"></td>
+</tr>
+
+<tr>
+<td>Scheduler</td>
+<td align="right" id="svc-scheduler"></td>
+</tr>
+
+<tr>
+<td>Plugins</td>
+<td align="right" id="svc-plugins"></td>
+</tr>
+
+</table>
+
+
+</div>
+
+<div class="config-card">
+
+<div class="config-title">
+<i class="fas fa-tools"></i>
+Quick Actions
+</div>
+
+<div class="action-grid">
+
+<div class="action-btn">
+Restart Flask
+</div>
+
+<div class="action-btn">
+Reload Config
+</div>
+
+<div class="action-btn">
+Restart Scheduler
+</div>
+
+<div class="action-btn">
+Backup Database
+</div>
+
+</div>
+
+</div>
+
+<script src="{{ url_for('static',filename='js/system.js') }}"></script>
+
+
+<div class="config-card">
+    <div class="config-title">
+        <i class="fas fa-plug"></i>
+        Provider Manager
+    </div>
+
+    <p style="margin-bottom:15px;color:#64748b">
+        Kelola Payment Gateway, PPOB, AI, Telegram Bot,
+        WhatsApp Gateway, dan provider lainnya.
+    </p>
+
+    <a href="/admin/providers" class="action-btn">
+        <i class="fas fa-arrow-right"></i>
+        Buka Provider Manager
+    </a>
+</div>
+
+
+{% endblock %}

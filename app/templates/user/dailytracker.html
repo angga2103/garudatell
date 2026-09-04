@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block title %}GarudaTel - Moeslim Daily Tracker{% endblock %}
+
+{% block head %}
+<style>
+    :root {
+        --teal-main: #00877a;
+        --teal-dark: #005f56;
+        --bg-gray: #f8fafc;
+    }
+
+    body {
+        background-color: var(--bg-gray);
+        font-family: 'Nunito', sans-serif;
+        overflow-x: hidden;
+    }
+
+    /* TRACKER HEADER RESPONSIVE */
+    .tracker-header {
+        background: linear-gradient(135deg, var(--teal-main) 0%, var(--teal-dark) 100%);
+        color: white;
+        padding: 12px 18px;
+        box-shadow: 0 4px 15px rgba(0, 135, 122, 0.2);
+        position: sticky;
+        top: 0;
+        z-index: 100;
+    }
+
+    .tracker-header-inner {
+        max-width: 600px;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .tracker-nav-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .tracker-nav-btn {
+        background: rgba(255, 255, 255, 0.18);
+        color: white;
+        width: 36px;
+        height: 36px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        font-size: 15px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .tracker-nav-btn:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: translateY(-1px);
+    }
+
+    .tracker-title-box h1 {
+        font-size: 16px;
+        font-weight: 900;
+        margin: 0;
+        letter-spacing: 0.3px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .tracker-title-box p {
+        font-size: 11px;
+        opacity: 0.9;
+        margin: 2px 0 0 0;
+    }
+
+    .tracker-badge {
+        background: rgba(255, 255, 255, 0.22);
+        padding: 2px 8px;
+        border-radius: 20px;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.3px;
+    }
+
+    .tracker-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    /* IFRAME APP CONTAINER */
+    .tracker-wrapper {
+        max-width: 600px;
+        margin: 0 auto;
+        height: calc(100vh - 60px - 72px);
+        height: calc(100dvh - 60px - 72px);
+        position: relative;
+        background: white;
+        box-shadow: 0 4px 25px rgba(0, 0, 0, 0.05);
+        display: flex;
+        flex-direction: column;
+    }
+
+    @media (min-width: 768px) {
+        .tracker-wrapper {
+            border-left: 1px solid #e2e8f0;
+            border-right: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e2e8f0;
+            border-bottom-left-radius: 18px;
+            border-bottom-right-radius: 18px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            height: calc(100vh - 60px - 85px);
+            height: calc(100dvh - 60px - 85px);
+        }
+    }
+
+    .tracker-iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+        display: block;
+        background: white;
+    }
+
+    /* LOADING SCREEN SKELETON */
+    .tracker-loading {
+        position: absolute;
+        inset: 0;
+        background: white;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+        transition: opacity 0.3s ease;
+    }
+
+    .tracker-loading i {
+        font-size: 38px;
+        color: var(--teal-main);
+        animation: spin 1s linear infinite;
+        margin-bottom: 14px;
+    }
+
+    .tracker-loading p {
+        font-size: 13px;
+        font-weight: 800;
+        color: #475569;
+        margin: 0;
+    }
+
+    .tracker-loading span {
+        font-size: 11px;
+        color: #94a3b8;
+        margin-top: 4px;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="tracker-header">
+    <div class="tracker-header-inner">
+        <div class="tracker-nav-left">
+            <a href="/" class="tracker-nav-btn" title="Kembali ke Dashboard">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <div class="tracker-title-box">
+                <h1>
+                    <span>Daily Tracker</span>
+                    <span class="tracker-badge"><i class="fas fa-heart text-rose-400"></i> Moeslem Pro</span>
+                </h1>
+                <p>Pemantau Ibadah, Kesehatan & Akhlak</p>
+            </div>
+        </div>
+        <div class="tracker-actions">
+            <button type="button" class="tracker-nav-btn" onclick="reloadTracker()" title="Muat Ulang Halaman">
+                <i class="fas fa-sync-alt" id="reloadIcon"></i>
+            </button>
+            <a href="{{ tracker_url }}" target="_blank" class="tracker-nav-btn" title="Buka di Tab Baru">
+                <i class="fas fa-external-link-alt"></i>
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="tracker-wrapper">
+    <div class="tracker-loading" id="trackerLoading">
+        <i class="fas fa-circle-notch"></i>
+        <p>Menghubungkan ke Daily Tracker...</p>
+        <span>Mohon tunggu sebentar</span>
+    </div>
+
+    <iframe 
+        id="trackerFrame"
+        src="{{ tracker_url }}" 
+        class="tracker-iframe"
+        allow="clipboard-write; camera; microphone; geolocation"
+        onload="onTrackerLoad()"
+    ></iframe>
+</div>
+
+<script>
+    function onTrackerLoad() {
+        const loader = document.getElementById('trackerLoading');
+        if (loader) {
+            loader.style.opacity = '0';
+            setTimeout(() => {
+                loader.style.display = 'none';
+            }, 300);
+        }
+    }
+
+    function reloadTracker() {
+        const icon = document.getElementById('reloadIcon');
+        if (icon) icon.classList.add('fa-spin');
+        
+        const loader = document.getElementById('trackerLoading');
+        if (loader) {
+            loader.style.display = 'flex';
+            loader.style.opacity = '1';
+        }
+
+        const iframe = document.getElementById('trackerFrame');
+        if (iframe) {
+            iframe.src = iframe.src;
+        }
+
+        setTimeout(() => {
+            if (icon) icon.classList.remove('fa-spin');
+        }, 1200);
+    }
+</script>
+{% endblock %}
+

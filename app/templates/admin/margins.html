@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block title %}Garudatel - Auto Margin{% endblock %}
+{% block head %}
+<style>
+    :root { --admin-dark: #222B36; --admin-card: #FFFFFF; --admin-bg: #F4F6F9; --teal-main: #438481; --text-dark: #334155; --border-color: #E2E8F0; }
+    body { background-color: var(--admin-bg); margin: 0; font-family: 'Nunito', sans-serif; }
+    .admin-container { width: 100%; max-width: 800px; margin: 0 auto; padding-bottom: 80px; }
+    .admin-header { background: var(--admin-dark); padding: 20px; color: white; border-bottom-left-radius: 15px; border-bottom-right-radius: 15px; display: flex; justify-content: space-between; align-items: center; }
+    .config-card { background: var(--admin-card); margin: 20px; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); border: 1px solid var(--border-color); }
+    .form-group { margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #F8FAFC; padding-bottom: 10px; }
+    .form-group label { font-size: 13px; font-weight: 800; color: var(--text-dark); }
+    .input-wrapper { display: flex; align-items: center; background: #F8FAFC; border: 1px solid var(--border-color); border-radius: 8px; padding: 0 15px; }
+    .input-wrapper span { font-weight: bold; color: var(--text-dark); font-size: 13px; }
+    .input-wrapper input { border: none; background: transparent; padding: 12px 10px; font-weight: bold; color: var(--teal-main); outline: none; width: 100px; text-align: right; }
+    .btn-save { background: var(--teal-main); color: white; border: none; padding: 12px; border-radius: 8px; width: 100%; cursor: pointer; font-weight: bold; font-size: 14px; margin-top: 10px; }
+    .info-box { background: #FFFBEB; border: 1px solid #FEF3C7; color: #92400E; padding: 12px; border-radius: 8px; font-size: 12px; font-weight: bold; margin-bottom: 20px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="admin-container">
+    <div class="admin-header">
+        <div style="font-size: 18px; font-weight: bold;"><i class="fas fa-percentage"></i> Auto Tier Margin</div>
+        <a href="{{ url_for('admin.dashboard') }}" style="color:white; font-size: 18px;"><i class="fas fa-arrow-left"></i></a>
+    </div>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}{% for category, message in messages %}
+            <div style="padding:12px; margin:20px; border-radius:8px; background:#D1FAE5; color:#065F46; font-weight:bold; font-size:12px; border:1px solid #A7F3D0;">{{ message }}</div>
+        {% endfor %}{% endif %}
+    {% endwith %}
+
+    <div class="config-card">
+        <div class="info-box"><i class="fas fa-info-circle"></i> Saat disimpan, sistem akan otomatis menyesuaikan ulang semua harga produk yang tidak menggunakan "Manual Margin".</div>
+        <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            {% for cat in categories %}
+            <div class="form-group">
+                <label>{{ cat }} {% if cat == 'Umum' %}(Default){% endif %}</label>
+                <div class="input-wrapper">
+                    <span>+ Rp</span>
+                    <input type="number" name="margin_{{ cat }}" value="{{ rules.get(cat, 500) }}">
+                </div>
+            </div>
+            {% endfor %}
+            <button type="submit" class="btn-save"><i class="fas fa-sync"></i> Simpan & Sesuaikan Harga</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

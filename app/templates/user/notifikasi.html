@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% block title %}Pusat Notifikasi - GarudaTel{% endblock %}
+
+{% block head %}
+<style>
+    .notif-header {
+        background: linear-gradient(135deg, #00877a 0%, #00695c 100%);
+        border-bottom-left-radius: 28px;
+        border-bottom-right-radius: 28px;
+        padding: 20px 20px 30px 20px;
+        margin: -15px -15px 20px -15px;
+        color: white;
+        box-shadow: 0 4px 15px rgba(0,135,122,0.15);
+    }
+    .header-nav-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+    .btn-header-back {
+        color: white;
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: 0.15s;
+    }
+    .btn-header-back:hover { opacity: 0.85; }
+    
+    .btn-read-all {
+        background: rgba(255,255,255,0.2);
+        color: white;
+        border: none;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: 0.15s;
+    }
+    .btn-read-all:hover { background: rgba(255,255,255,0.3); }
+
+    .notif-card {
+        background: white;
+        border-radius: 18px;
+        padding: 16px;
+        margin-bottom: 14px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+        border: 1.5px solid #f1f5f9;
+        display: flex;
+        gap: 14px;
+        transition: transform 0.15s, border-color 0.15s;
+        position: relative;
+    }
+    .notif-card.unread {
+        border-color: #99f6e4;
+        background: #f0fdfa;
+    }
+    .notif-card.unread::before {
+        content: '';
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #00877a;
+    }
+    
+    .notif-icon-box {
+        width: 44px;
+        height: 44px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        flex-shrink: 0;
+    }
+    .ic-info { background: #e0f2fe; color: #0284c7; }
+    .ic-promo { background: #fef3c7; color: #d97706; }
+    .ic-warning { background: #fee2e2; color: #dc2626; }
+    .ic-system { background: #ede9fe; color: #7c3aed; }
+
+    .notif-content { flex: 1; }
+    .notif-title { font-size: 13px; font-weight: 800; color: #1e293b; margin-bottom: 4px; }
+    .notif-msg { font-size: 12px; color: #475569; line-height: 1.45; white-space: pre-wrap; }
+    .notif-time { font-size: 10px; font-weight: 700; color: #94a3b8; margin-top: 8px; display: flex; align-items: center; gap: 4px; }
+    
+    .notif-link-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 10px;
+        padding: 6px 12px;
+        background: #00877a;
+        color: white;
+        text-decoration: none;
+        border-radius: 8px;
+        font-size: 11px;
+        font-weight: 700;
+        transition: 0.15s;
+    }
+    .notif-link-btn:hover { background: #00695c; }
+    
+    .empty-notif {
+        text-align: center;
+        padding: 50px 20px;
+        color: #94a3b8;
+    }
+    .empty-notif i { font-size: 48px; margin-bottom: 12px; color: #cbd5e1; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="notif-header">
+    <div class="header-nav-row">
+        <a href="/" class="btn-header-back">
+            <i class="fas fa-arrow-left"></i>
+            <span>Kembali</span>
+        </a>
+        {% if unread_count > 0 %}
+        <button onclick="tandaiSemuaDibaca()" class="btn-read-all" id="btn-read-all">
+            <i class="fas fa-check-double"></i>
+            <span>Tandai Dibaca</span>
+        </button>
+        {% endif %}
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+        <div>
+            <h2 style="font-size: 20px; font-weight: 800; margin: 0;">Pusat Notifikasi</h2>
+            <p style="font-size: 12px; opacity: 0.9; margin: 3px 0 0 0;">Pengumuman resmi & info promo terkini</p>
+        </div>
+        <a href="/bantuan" style="background: rgba(255,255,255,0.2); color: white; padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; text-decoration: none; display: flex; align-items: center; gap: 5px;">
+            <i class="fas fa-headset"></i> CS Bantuan
+        </a>
+    </div>
+</div>
+
+<div class="notif-list" id="notif-list">
+    {% for n in notifications %}
+    {% set is_unread = n.id not in read_ids %}
+    <div class="notif-card {% if is_unread %}unread{% endif %}" id="notif-card-{{ n.id }}">
+        <div class="notif-icon-box {% if n.type == 'promo' %}ic-promo{% elif n.type == 'warning' %}ic-warning{% elif n.type == 'system' %}ic-system{% else %}ic-info{% endif %}">
+            {% if n.type == 'promo' %}
+                <i class="fas fa-gift"></i>
+            {% elif n.type == 'warning' %}
+                <i class="fas fa-exclamation-triangle"></i>
+            {% elif n.type == 'system' %}
+                <i class="fas fa-tools"></i>
+            {% else %}
+                <i class="fas fa-bullhorn"></i>
+            {% endif %}
+        </div>
+        <div class="notif-content">
+            <div class="notif-title">{{ n.title }}</div>
+            <div class="notif-msg">{{ n.message }}</div>
+            
+            {% if n.link %}
+            <a href="{{ n.link }}" class="notif-link-btn">
+                <span>Buka Tautan</span>
+                <i class="fas fa-arrow-right" style="font-size: 9px;"></i>
+            </a>
+            {% endif %}
+
+            <div class="notif-time">
+                <i class="far fa-clock"></i>
+                <span>{{ n.time_ago }} ({{ n.created_at_wib }})</span>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="empty-notif">
+        <i class="fas fa-bell-slash"></i>
+        <h4 style="color: #475569; font-weight: 700; margin-bottom: 4px;">Belum Ada Notifikasi</h4>
+        <p style="font-size: 12px;">Pemberitahuan, promo, dan update sistem dari admin akan ditampilkan di sini.</p>
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+    async function tandaiSemuaDibaca() {
+        try {
+            const resp = await fetch('/api/notifikasi/read-all', { method: 'POST' });
+            const data = await resp.json();
+            if (data.success) {
+                document.querySelectorAll('.notif-card.unread').forEach(el => el.classList.remove('unread'));
+                const btn = document.getElementById('btn-read-all');
+                if (btn) btn.style.display = 'none';
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+</script>
+{% endblock %}
+

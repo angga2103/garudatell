@@ -1,0 +1,160 @@
+{% extends 'admin/layout.html' %}
+
+{% block title %}GarudaTel - Laporan & Rekapitulasi{% endblock %}
+
+{% set page_title = "Laporan & Rekapitulasi" %}
+
+{% block page_css %}
+<style>
+    .filter-pills { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+    .filter-pill { padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 800; text-decoration: none; border: 1px solid #CBD5E1; color: #475569; background: white; transition: 0.2s; }
+    .filter-pill:hover { background: #F1F5F9; }
+    .filter-pill.active { background: #3A827F; color: white; border-color: #3A827F; }
+
+    .rep-stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
+    .rep-stat-card { background: white; padding: 18px; border-radius: 12px; border: 1px solid #E2E8F0; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
+    .rep-stat-val { font-size: 20px; font-weight: 900; color: #1E293B; margin-top: 5px; }
+    .rep-stat-lbl { font-size: 11px; font-weight: 800; color: #64748B; text-transform: uppercase; }
+
+    .rep-content-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 25px; }
+    .card-rep { background: white; border-radius: 12px; border: 1px solid #E2E8F0; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
+    .card-title { font-size: 15px; font-weight: 800; color: #1E293B; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+
+    .rep-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .rep-table th { background: #F8FAFC; color: #334155; padding: 10px; border-bottom: 2px solid #E2E8F0; text-align: left; font-weight: 800; }
+    .rep-table td { padding: 10px; border-bottom: 1px solid #F1F5F9; vertical-align: middle; }
+
+    @media (max-width: 768px) {
+        .rep-stats-grid { grid-template-columns: repeat(2, 1fr); }
+        .rep-content-grid { grid-template-columns: 1fr; }
+    }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+
+<!-- FILTER PILLS -->
+<div class="filter-pills">
+    <a href="{{ url_for('admin.reports', range='today') }}" class="filter-pill {% if time_range == 'today' %}active{% endif %}">
+        <i class="fas fa-calendar-day"></i> Hari Ini
+    </a>
+    <a href="{{ url_for('admin.reports', range='7days') }}" class="filter-pill {% if time_range == '7days' %}active{% endif %}">
+        <i class="fas fa-calendar-week"></i> 7 Hari Terakhir
+    </a>
+    <a href="{{ url_for('admin.reports', range='30days') }}" class="filter-pill {% if time_range == '30days' %}active{% endif %}">
+        <i class="fas fa-calendar-alt"></i> 30 Hari Terakhir
+    </a>
+    <a href="{{ url_for('admin.reports', range='this_month') }}" class="filter-pill {% if time_range == 'this_month' %}active{% endif %}">
+        <i class="fas fa-calendar"></i> Bulan Ini
+    </a>
+    <a href="{{ url_for('admin.reports', range='all') }}" class="filter-pill {% if time_range == 'all' %}active{% endif %}">
+        <i class="fas fa-globe"></i> Semua Waktu
+    </a>
+</div>
+
+<!-- STATS CARDS -->
+<div class="rep-stats-grid">
+    <div class="rep-stat-card">
+        <i class="fas fa-wallet" style="font-size: 20px; color: #3A827F;"></i>
+        <div class="rep-stat-val">Rp {{ "{:,.0f}".format(total_omset) }}</div>
+        <div class="rep-stat-lbl">Total Omset Sukses</div>
+    </div>
+    <div class="rep-stat-card">
+        <i class="fas fa-receipt" style="font-size: 20px; color: #0284C7;"></i>
+        <div class="rep-stat-val">{{ total_trx }}</div>
+        <div class="rep-stat-lbl">Total Transaksi</div>
+    </div>
+    <div class="rep-stat-card">
+        <i class="fas fa-check-circle" style="font-size: 20px; color: #10B981;"></i>
+        <div class="rep-stat-val">{{ success_trx }}</div>
+        <div class="rep-stat-lbl">Transaksi Berhasil</div>
+    </div>
+    <div class="rep-stat-card">
+        <i class="fas fa-chart-pie" style="font-size: 20px; color: #F59E0B;"></i>
+        <div class="rep-stat-val">{{ success_rate }}%</div>
+        <div class="rep-stat-lbl">Tingkat Keberhasilan</div>
+    </div>
+</div>
+
+<!-- BREAKDOWN STATUS & TOP PRODUK -->
+<div class="rep-content-grid">
+    <!-- TOP 5 PRODUK TERLARIS -->
+    <div class="card-rep">
+        <div class="card-title">
+            <i class="fas fa-trophy" style="color: #F59E0B;"></i>
+            Top 5 Produk Terlaris
+        </div>
+
+        <table class="rep-table">
+            <thead>
+                <tr>
+                    <th>Nama Produk</th>
+                    <th style="text-align: center;">Terjual</th>
+                    <th style="text-align: right;">Total Omset</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in top_products %}
+                <tr>
+                    <td>
+                        <div style="font-weight: 800; color: #1E293B;">{{ p.name }}</div>
+                    </td>
+                    <td style="text-align: center; font-weight: 800;">
+                        {{ p.sales }}x
+                    </td>
+                    <td style="text-align: right; font-weight: 800; color: #059669;">
+                        Rp {{ "{:,.0f}".format(p.revenue) }}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="3" style="text-align: center; padding: 20px; color: #64748B;">
+                        Belum ada transaksi sukses pada rentang waktu ini.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- METODE PEMBAYARAN -->
+    <div class="card-rep">
+        <div class="card-title">
+            <i class="fas fa-credit-card" style="color: #0284C7;"></i>
+            Distribusi Metode Pembayaran
+        </div>
+
+        <table class="rep-table">
+            <thead>
+                <tr>
+                    <th>Metode</th>
+                    <th style="text-align: center;">Frekuensi</th>
+                    <th style="text-align: right;">Total Volume</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in payment_methods %}
+                <tr>
+                    <td>
+                        <span style="font-weight: 800; text-transform: uppercase;">{{ m.method }}</span>
+                    </td>
+                    <td style="text-align: center; font-weight: 800;">
+                        {{ m.count }} Trx
+                    </td>
+                    <td style="text-align: right; font-weight: 800; color: #059669;">
+                        Rp {{ "{:,.0f}".format(m.volume) }}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="3" style="text-align: center; padding: 20px; color: #64748B;">
+                        Belum ada data pembayaran.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

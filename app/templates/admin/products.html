@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+{% block title %}Garudatel - Manajemen Produk{% endblock %}
+
+{% block head %}
+<style>
+    :root { 
+        --admin-dark: #222B36; --admin-card: #FFFFFF; --admin-bg: #F4F6F9; 
+        --teal-main: #438481; --text-dark: #334155; --text-muted: #64748B; --border-color: #E2E8F0; 
+    }
+    body { background-color: var(--admin-bg); margin: 0; font-family: 'Nunito', sans-serif; }
+    .admin-container { width: 100%; max-width: 800px; margin: 0 auto; padding-bottom: 80px; }
+    .admin-header { background: var(--admin-dark); padding: 20px; color: white; border-bottom-left-radius: 15px; border-bottom-right-radius: 15px; display: flex; justify-content: space-between; align-items: center; }
+    
+    .content-card { background: var(--admin-card); margin: 20px; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); border: 1px solid var(--border-color); }
+    
+    /* Search Form */
+    .search-bar { display: flex; gap: 10px; margin-bottom: 20px; }
+    .search-bar input { flex: 1; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 13px; outline: none; }
+    .search-bar input:focus { border-color: var(--teal-main); }
+    .search-bar button { background: var(--teal-main); color: white; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+    
+    /* Table Styling */
+    .table-responsive { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 650px; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border-color); font-size: 12px; }
+    th { background-color: #F8FAFC; color: var(--text-dark); font-weight: 800; white-space: nowrap; }
+    td { color: var(--text-muted); font-weight: 600; }
+    
+    .status-badge { padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: bold; }
+    .status-active { background: #D1FAE5; color: #065F46; border: 1px solid #A7F3D0; }
+    .status-inactive { background: #FEE2E2; color: #991B1B; border: 1px solid #FECACA; }
+    
+    .btn-edit { background: #F59E0B; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 11px; cursor: pointer; font-weight: bold; }
+    
+    /* Pagination */
+    .pagination { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; font-size: 12px; font-weight: bold; color: var(--text-muted); }
+    .page-links a { color: var(--teal-main); text-decoration: none; padding: 5px 10px; border: 1px solid var(--border-color); border-radius: 5px; margin: 0 2px; }
+    .page-links strong { padding: 5px 10px; background: var(--teal-main); color: white; border-radius: 5px; margin: 0 2px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <div class="admin-header">
+        <div style="font-size: 18px; font-weight: bold;"><i class="fas fa-box-open"></i> Manajemen Produk</div>
+        <a href="{{ url_for('admin.dashboard') }}" style="color:white; font-size: 18px;"><i class="fas fa-arrow-left"></i></a>
+    </div>
+
+    <div class="content-card">
+        <form class="search-bar" method="GET" action="{{ url_for('admin.products') }}">
+            <input type="text" name="search" placeholder="Cari Kode SKU atau Nama Produk..." value="{{ search }}">
+            <button type="submit"><i class="fas fa-search"></i> Cari</button>
+        </form>
+        
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>SKU</th>
+                        <th>Nama Produk</th>
+                        <th>Kategori / Brand</th>
+                        <th>Harga Modal</th>
+                        <th>Harga Jual</th>
+                        <th>Status</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in pagination.items %}
+                    <tr>
+                        <td style="font-weight: 800; color: var(--teal-main);">{{ product.sku_code }}</td>
+                        <td>{{ product.name }}</td>
+                        <td>{{ product.category }} - {{ product.brand }}</td>
+                        <td>Rp {{ "{:,.0f}".format(product.base_price).replace(',', '.') }}</td>
+                        <td style="color: #059669; font-weight: 800;">Rp {{ "{:,.0f}".format(product.sell_price).replace(',', '.') }}</td>
+                        <td>
+                            {% if product.is_active %}
+                                <span class="status-badge status-active">NORMAL</span>
+                            {% else %}
+                                <span class="status-badge status-inactive">GANGGUAN</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button class="btn-edit" onclick="openModal('{{ product.id }}', '{{ product.name }}', '{{ product.base_price }}', '{{ product.sell_price }}', '{{ product.is_manual_margin }}')"><i class="fas fa-pen"></i> Edit</button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 20px;">Belum ada data produk atau pencarian tidak ditemukan.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="pagination">
+            <div>Total: {{ pagination.total }} Produk</div>
+            <div class="page-links">
+                {% if pagination.has_prev %}
+                    <a href="{{ url_for('admin.products', page=pagination.prev_num, search=search) }}">&laquo; Prev</a>
+                {% endif %}
+                
+                <strong>Hal {{ pagination.page }}</strong>
+                
+                {% if pagination.has_next %}
+                    <a href="{{ url_for('admin.products', page=pagination.next_num, search=search) }}">Next &raquo;</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+<div id="marginModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:999; justify-content:center; align-items:center;">
+    <div style="background:white; padding:20px; border-radius:15px; width:90%; max-width:350px;">
+        <h3 style="margin-top:0; color:#334155; font-size:16px;">Set Harga: <span id="modalProdName" style="color:#438481;"></span></h3>
+        <p style="font-size:12px; color:#64748B; margin-bottom:15px;">Harga Modal: <strong id="modalBasePrice"></strong></p>
+        
+        <form action="{{ url_for('admin.update_product_margin') }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <input type="hidden" name="product_id" id="modalProdId">
+            <label style="font-size:12px; font-weight:bold; color:#334155;">Tipe Margin:</label>
+            <select name="margin_type" id="modalMarginType" onchange="toggleInput()" style="width:100%; padding:10px; border-radius:8px; border:1px solid #E2E8F0; margin-top:5px; margin-bottom:15px;">
+                <option value="auto">Auto (Ikuti Rumus Kategori)</option>
+                <option value="manual">Manual (Kunci Harga)</option>
+            </select>
+            
+            <div id="manualInputContainer" style="display:none;">
+                <label style="font-size:12px; font-weight:bold; color:#334155;">Harga Jual Manual:</label>
+                <input type="number" name="sell_price" id="modalSellPrice" style="width:100%; padding:10px; border-radius:8px; border:1px solid #E2E8F0; margin-top:5px; margin-bottom:15px; box-sizing:border-box;">
+            </div>
+            
+            <div style="display:flex; gap:10px;">
+                <button type="button" onclick="closeModal()" style="flex:1; padding:10px; border:none; border-radius:8px; background:#E2E8F0; color:#334155; font-weight:bold; cursor:pointer;">Batal</button>
+                <button type="submit" style="flex:1; padding:10px; border:none; border-radius:8px; background:#438481; color:white; font-weight:bold; cursor:pointer;">Simpan</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openModal(id, name, basePrice, sellPrice, isManual) {
+        document.getElementById('marginModal').style.display = 'flex';
+        document.getElementById('modalProdId').value = id;
+        document.getElementById('modalProdName').innerText = name;
+        document.getElementById('modalBasePrice').innerText = 'Rp ' + parseFloat(basePrice).toLocaleString('id-ID');
+        document.getElementById('modalSellPrice').value = parseFloat(sellPrice);
+        
+        let typeSelect = document.getElementById('modalMarginType');
+        typeSelect.value = (isManual === 'True') ? 'manual' : 'auto';
+        toggleInput();
+    }
+    
+    function closeModal() {
+        document.getElementById('marginModal').style.display = 'none';
+    }
+    
+    function toggleInput() {
+        let val = document.getElementById('modalMarginType').value;
+        document.getElementById('manualInputContainer').style.display = (val === 'manual') ? 'block' : 'none';
+    }
+</script>

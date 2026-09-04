@@ -1,0 +1,944 @@
+{% extends "base.html" %}
+
+{% block title %}GarudaTel - Deposit Saldo{% endblock %}
+
+{% block head %}
+<style>
+    :root {
+        --teal-main: #00877a;
+        --teal-dark: #005f56;
+        --teal-darker: #00463f;
+        --teal-light: #e6f3f2;
+        --gold-accent: #f59e0b;
+        --gold-light: #fef3c7;
+        --bg-gray: #f8fafc;
+        --text-dark: #1e293b;
+        --text-muted: #64748b;
+        --border-color: #e2e8f0;
+    }
+
+    body {
+        background-color: var(--bg-gray);
+        color: var(--text-dark);
+        font-family: 'Nunito', sans-serif;
+    }
+
+    /* TOP HEADER RESPONSIVE */
+    .deposit-header {
+        background: linear-gradient(135deg, var(--teal-main) 0%, var(--teal-dark) 100%);
+        padding: 24px 20px 52px 20px;
+        color: white;
+        border-bottom-left-radius: 28px;
+        border-bottom-right-radius: 28px;
+        position: relative;
+        box-shadow: 0 6px 20px rgba(0, 135, 122, 0.25);
+    }
+
+    .header-inner {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .header-nav {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 14px;
+    }
+
+    .back-btn {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        font-size: 16px;
+        transition: 0.2s ease;
+    }
+
+    .back-btn:hover {
+        background: rgba(255, 255, 255, 0.3);
+    }
+
+    .header-title-box h1 {
+        font-size: 22px;
+        font-weight: 900;
+        margin: 0;
+        letter-spacing: 0.3px;
+    }
+
+    .header-title-box p {
+        font-size: 13px;
+        opacity: 0.9;
+        margin: 4px 0 0 0;
+    }
+
+    .wallet-pill {
+        background: rgba(255, 255, 255, 0.2);
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 800;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        backdrop-filter: blur(5px);
+    }
+
+    /* MAIN CONTAINER RESPONSIVE */
+    .deposit-container {
+        max-width: 600px;
+        margin: -36px auto 100px auto;
+        padding: 0 16px;
+        position: relative;
+        z-index: 10;
+    }
+
+    .deposit-card {
+        background: white;
+        border-radius: 24px;
+        padding: 26px 22px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+        border: 1px solid rgba(226, 232, 240, 0.8);
+        margin-bottom: 22px;
+    }
+
+    .section-title {
+        font-size: 13px;
+        font-weight: 900;
+        color: var(--text-dark);
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .section-title i {
+        color: var(--teal-main);
+        font-size: 15px;
+    }
+
+    /* NOMINAL GRID PRESETS */
+    .nominal-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-bottom: 16px;
+    }
+
+    .nominal-chip {
+        background: #f8fafc;
+        border: 1.5px solid var(--border-color);
+        padding: 12px 8px;
+        border-radius: 12px;
+        text-align: center;
+        cursor: pointer;
+        font-weight: 800;
+        font-size: 13px;
+        color: #334155;
+        transition: all 0.2s ease;
+    }
+
+    .nominal-chip:hover {
+        border-color: var(--teal-main);
+        background: var(--teal-light);
+        color: var(--teal-main);
+    }
+
+    .nominal-chip.active {
+        background: var(--teal-light);
+        border-color: var(--teal-main);
+        color: var(--teal-main);
+        box-shadow: 0 0 0 1px var(--teal-main);
+    }
+
+    .nominal-chip .chip-label {
+        font-size: 10px;
+        color: var(--text-muted);
+        display: block;
+        margin-top: 2px;
+        font-weight: 600;
+    }
+
+    .custom-nominal-box {
+        position: relative;
+        margin-bottom: 20px;
+    }
+
+    .custom-nominal-box span.prefix {
+        position: absolute;
+        left: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-weight: 900;
+        color: var(--teal-main);
+        font-size: 16px;
+    }
+
+    .custom-nominal-box input {
+        width: 100%;
+        padding: 14px 16px 14px 48px;
+        border: 1.5px solid var(--border-color);
+        border-radius: 14px;
+        font-size: 17px;
+        font-weight: 800;
+        color: var(--text-dark);
+        background: #f8fafc;
+        box-sizing: border-box;
+        font-family: 'Nunito', sans-serif;
+        transition: all 0.2s;
+    }
+
+    .custom-nominal-box input:focus {
+        border-color: var(--teal-main);
+        background: white;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(0, 135, 122, 0.15);
+    }
+
+    /* METHOD SELECTOR TABS */
+    .method-tabs {
+        display: flex;
+        background: #f1f5f9;
+        padding: 4px;
+        border-radius: 14px;
+        margin-bottom: 18px;
+        gap: 4px;
+    }
+
+    .tab-btn {
+        flex: 1;
+        padding: 11px 8px;
+        text-align: center;
+        border-radius: 11px;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+        border: none;
+        background: transparent;
+        color: var(--text-muted);
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        font-family: 'Nunito', sans-serif;
+    }
+
+    .tab-btn.active {
+        background: white;
+        color: var(--teal-main);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    /* TAB CONTENT PANELS */
+    .tab-content {
+        display: none;
+    }
+
+    .tab-content.active {
+        display: block;
+        animation: fadeIn 0.25s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(4px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* QRIS METHOD STYLING */
+    .qris-badge-info {
+        background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+        border: 1px solid #a7f3d0;
+        border-radius: 14px;
+        padding: 14px;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .qris-icon-wrap {
+        width: 44px;
+        height: 44px;
+        background: white;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--teal-main);
+        font-size: 20px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+        flex-shrink: 0;
+    }
+
+    .qris-features-list {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 14px 18px;
+        margin-bottom: 20px;
+        font-size: 12px;
+        color: #475569;
+    }
+
+    .qris-features-list li {
+        margin-bottom: 8px;
+        line-height: 1.5;
+    }
+
+    .qris-features-list li:last-child {
+        margin-bottom: 0;
+    }
+
+    /* MANUAL EWALLET STYLING */
+    .ewallet-selector {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-bottom: 16px;
+    }
+
+    .ewallet-item {
+        border: 1.5px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 12px 6px;
+        text-align: center;
+        cursor: pointer;
+        background: #f8fafc;
+        transition: all 0.2s;
+    }
+
+    .ewallet-item:hover {
+        border-color: var(--teal-main);
+    }
+
+    .ewallet-item.active {
+        border-color: var(--teal-main);
+        background: white;
+        box-shadow: 0 2px 10px rgba(0, 135, 122, 0.12);
+    }
+
+    .ewallet-logo {
+        font-size: 20px;
+        font-weight: 900;
+        margin-bottom: 4px;
+        display: block;
+    }
+
+    .ewallet-name {
+        font-size: 12px;
+        font-weight: 800;
+        color: var(--text-dark);
+    }
+
+    .color-dana { color: #108ee9; }
+    .color-shopee { color: #ee4d2d; }
+    .color-gopay { color: #00a5cf; }
+
+    /* SUMMARY BOX */
+    .transfer-summary-box {
+        background: #fffbeb;
+        border: 1.5px solid #fef3c7;
+        border-radius: 16px;
+        padding: 16px;
+        margin-bottom: 18px;
+    }
+
+    .summary-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 6px 0;
+        font-size: 13px;
+        color: #78350f;
+    }
+
+    .summary-row.total-row {
+        border-top: 1.5px dashed #fcd34d;
+        margin-top: 8px;
+        padding-top: 10px;
+        color: #92400e;
+    }
+
+    .total-amount-display {
+        font-size: 22px;
+        font-weight: 900;
+        color: #b45309;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .copy-btn {
+        background: white;
+        color: #b45309;
+        border: 1px solid #fde68a;
+        padding: 4px 10px;
+        border-radius: 8px;
+        font-size: 11px;
+        font-weight: 800;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .copy-btn:hover {
+        background: #fef3c7;
+    }
+
+    .dest-card {
+        background: #f8fafc;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 14px 16px;
+        margin-bottom: 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .dest-info-num {
+        font-size: 18px;
+        font-weight: 900;
+        color: #0f172a;
+        letter-spacing: 0.5px;
+    }
+
+    .btn-main-action {
+        width: 100%;
+        background: var(--teal-main);
+        color: white;
+        border: none;
+        padding: 15px;
+        border-radius: 14px;
+        font-size: 14px;
+        font-weight: 800;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        font-family: 'Nunito', sans-serif;
+    }
+
+    .btn-main-action:hover {
+        background: var(--teal-dark);
+        transform: translateY(-1px);
+    }
+
+    .btn-whatsapp-action {
+        width: 100%;
+        background: #10b981;
+        color: white;
+        border: none;
+        padding: 15px;
+        border-radius: 14px;
+        font-size: 14px;
+        font-weight: 800;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        font-family: 'Nunito', sans-serif;
+        text-decoration: none;
+    }
+
+    .btn-whatsapp-action:hover {
+        background: #059669;
+        transform: translateY(-1px);
+    }
+
+    /* RECENT DEPOSITS */
+    .history-card {
+        background: white;
+        border-radius: 24px;
+        padding: 22px;
+        border: 1px solid var(--border-color);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+    }
+
+    .deposit-history-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 0;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .deposit-history-item:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+
+    .history-badge {
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 10px;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+
+    .badge-success { background: #d1fae5; color: #065f46; }
+    .badge-pending { background: #fef3c7; color: #92400e; }
+    .badge-unpaid { background: #fee2e2; color: #991b1b; }
+
+    /* TABLET & DESKTOP ENHANCEMENTS */
+    @media (min-width: 768px) {
+        .deposit-header {
+            padding: 32px 20px 60px 20px;
+        }
+        .header-title-box h1 {
+            font-size: 26px;
+        }
+        .header-title-box p {
+            font-size: 14px;
+        }
+        .deposit-card {
+            padding: 30px 26px;
+        }
+        .nominal-chip {
+            padding: 14px 10px;
+            font-size: 14px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="deposit-header">
+    <div class="header-inner">
+        <div class="header-nav">
+            <a href="/" class="back-btn" title="Kembali ke Dashboard">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <div class="wallet-pill">
+                <i class="fas fa-wallet" style="color: #fbbf24;"></i>
+                <span>Saldo: Rp {{ "{:,.0f}".format(current_user.balance or 0).replace(',', '.') }}</span>
+            </div>
+        </div>
+        <div class="header-title-box">
+            <h1>Isi Saldo Akun</h1>
+            <p>Deposit instan via Barcode QRIS atau Transfer Manual E-Wallet</p>
+        </div>
+    </div>
+</div>
+
+<div class="deposit-container">
+    <!-- KARTU FORM DEPOSIT -->
+    <div class="deposit-card">
+        <!-- 1. PILIH NOMINAL -->
+        <div class="section-title">
+            <i class="fas fa-money-bill-wave"></i>
+            1. Tentukan Nominal Deposit
+        </div>
+
+        <div class="nominal-grid">
+            <div class="nominal-chip" onclick="selectNominal(10000)">
+                Rp 10.000
+                <span class="chip-label">Sepuluh Ribu</span>
+            </div>
+            <div class="nominal-chip" onclick="selectNominal(20000)">
+                Rp 20.000
+                <span class="chip-label">Dua Puluh Ribu</span>
+            </div>
+            <div class="nominal-chip active" onclick="selectNominal(50000)">
+                Rp 50.000
+                <span class="chip-label">Lima Puluh Ribu</span>
+            </div>
+            <div class="nominal-chip" onclick="selectNominal(100000)">
+                Rp 100.000
+                <span class="chip-label">Seratus Ribu</span>
+            </div>
+            <div class="nominal-chip" onclick="selectNominal(200000)">
+                Rp 200.000
+                <span class="chip-label">Dua Ratus Ribu</span>
+            </div>
+            <div class="nominal-chip" onclick="selectNominal(500000)">
+                Rp 500.000
+                <span class="chip-label">Lima Ratus Ribu</span>
+            </div>
+        </div>
+
+        <div class="custom-nominal-box">
+            <span class="prefix">Rp</span>
+            <input type="number" id="inputNominal" min="10000" step="1000" value="50000" placeholder="Nominal lainnya (Min. 10.000)" oninput="onCustomNominalInput()">
+            <small style="color: #64748b; font-size: 11px; margin-top: 4px; display: block;">Minimal pengisian saldo adalah Rp 10.000.</small>
+        </div>
+
+        <!-- 2. PILIH METODE PEMBAYARAN -->
+        <div class="section-title" style="margin-top: 24px;">
+            <i class="fas fa-credit-card"></i>
+            2. Pilih Metode Pembayaran
+        </div>
+
+        <div class="method-tabs">
+            <button type="button" class="tab-btn active" id="tabQrisBtn" onclick="switchTab('qris')">
+                <i class="fas fa-qrcode" style="font-size: 14px;"></i>
+                Barcode QRIS (Otomatis)
+            </button>
+            <button type="button" class="tab-btn" id="tabManualBtn" onclick="switchTab('manual')">
+                <i class="fas fa-hand-holding-usd" style="font-size: 14px;"></i>
+                Transfer Manual E-Wallet
+            </button>
+        </div>
+
+        <!-- TAB 1: QRIS OTOMATIS -->
+        <div id="qrisContent" class="tab-content active">
+            <div class="qris-badge-info">
+                <div class="qris-icon-wrap">
+                    <i class="fas fa-bolt" style="color: #059669;"></i>
+                </div>
+                <div>
+                    <div style="font-weight: 800; font-size: 13px; color: #065f46; display: flex; align-items: center; gap: 6px;">
+                        <span>{{ gateway_name }}</span>
+                        <span style="background: #10b981; color: white; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 900;">24 JAM NONSTOP</span>
+                    </div>
+                    <div style="font-size: 11px; color: #047857; margin-top: 2px;">
+                        Didukung seluruh E-Wallet (GoPay, OVO, DANA, ShopeePay) & M-Banking (BCA, Mandiri, BRI, BNI).
+                    </div>
+                </div>
+            </div>
+
+            <ul class="qris-features-list">
+                <li><i class="fas fa-check-circle" style="color: #10b981;"></i> Saldo masuk otomatis seketika setelah pembayaran sukses (tanpa konfirmasi manual).</li>
+                <li><i class="fas fa-check-circle" style="color: #10b981;"></i> Pindai Barcode QRIS dinamis di layar invoice Anda.</li>
+            </ul>
+
+            <button type="button" class="btn-main-action" id="btnProsesQris" onclick="submitQrisDeposit()">
+                <i class="fas fa-barcode"></i> Lanjutkan & Tampilkan Barcode QRIS
+            </button>
+        </div>
+
+        <!-- TAB 2: TRANSFER MANUAL E-WALLET -->
+        <div id="manualContent" class="tab-content">
+            <div style="font-size: 12px; font-weight: 800; color: #475569; margin-bottom: 8px;">Pilih Akun E-Wallet Tujuan:</div>
+            
+            <div class="ewallet-selector">
+                <div class="ewallet-item active" id="ew_dana" onclick="selectEwallet('DANA')">
+                    <span class="ewallet-logo color-dana"><i class="fas fa-wallet"></i></span>
+                    <span class="ewallet-name">DANA</span>
+                </div>
+                <div class="ewallet-item" id="ew_shopee" onclick="selectEwallet('SHOPEEPAY')">
+                    <span class="ewallet-logo color-shopee"><i class="fas fa-shopping-bag"></i></span>
+                    <span class="ewallet-name">SHOPEEPAY</span>
+                </div>
+                <div class="ewallet-item" id="ew_gopay" onclick="selectEwallet('GOPAY')">
+                    <span class="ewallet-logo color-gopay"><i class="fas fa-motorcycle"></i></span>
+                    <span class="ewallet-name">GOPAY</span>
+                </div>
+            </div>
+
+            <!-- REKENING TUJUAN -->
+            <div class="dest-card">
+                <div>
+                    <span style="font-size: 11px; color: #64748b; font-weight: 700; display: block;" id="destNameLabel">Nomor E-Wallet DANA</span>
+                    <div class="dest-info-num">081775700114</div>
+                    <span style="font-size: 11px; color: #059669; font-weight: 800;">a.n GarudaTel / Kasir</span>
+                </div>
+                <button type="button" class="copy-btn" onclick="copyText('081775700114', 'Nomor e-wallet 081775700114 berhasil disalin!')">
+                    <i class="fas fa-copy"></i> Salin Nomor
+                </button>
+            </div>
+
+            <!-- KOTAK PERHITUNGAN KODE UNIK -->
+            <div class="transfer-summary-box">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: #92400e;">
+                        <i class="fas fa-calculator"></i> Rincian Pembayaran
+                    </span>
+                    <button type="button" onclick="regenerateUniqueCode()" style="background: none; border: none; font-size: 11px; font-weight: 800; color: #b45309; cursor: pointer;">
+                        <i class="fas fa-sync-alt"></i> Acak Ulang
+                    </button>
+                </div>
+
+                <div class="summary-row">
+                    <span>Nominal Saldo (100% Masuk Akun):</span>
+                    <span style="font-weight: 800;" id="sumNominalText">Rp 50.000</span>
+                </div>
+
+                <div class="summary-row">
+                    <span>
+                        Kode Unik Verifikasi:
+                        <span style="background: #fde68a; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 900; margin-left: 4px;">01-99</span>
+                    </span>
+                    <span style="font-weight: 800; color: #d97706;" id="sumUniqueCodeText">+ Rp 57</span>
+                </div>
+
+                <div class="summary-row total-row">
+                    <div>
+                        <div style="font-size: 11px; font-weight: 800; text-transform: uppercase;">TOTAL HARUS DITRANSFER:</div>
+                        <div style="font-size: 10px; color: #b45309;">*Transfer tepat hingga 2 digit terakhir</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div class="total-amount-display" id="sumTotalDisplay">Rp 50.057</div>
+                        <button type="button" class="copy-btn" style="margin-top: 4px;" onclick="copyTotalTransfer()">
+                            <i class="fas fa-copy"></i> Salin Nominal Total
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div style="background: #fef2f2; border: 1px solid #fecaca; padding: 10px 14px; border-radius: 12px; margin-bottom: 18px; font-size: 11px; color: #991b1b; display: flex; gap: 8px; align-items: flex-start;">
+                <i class="fas fa-exclamation-triangle" style="margin-top: 2px; font-size: 13px;"></i>
+                <span><strong>PENTING:</strong> Pastikan nominal transfer sama persis dengan total di atas (jangan dibulatkan) agar proses verifikasi saldo Anda cepat dan akurat.</span>
+            </div>
+
+            <!-- AREA STATUS PROSES & TOMBOL WHATSAPP LANGSUNG -->
+            <div id="waActionArea">
+                <button type="button" class="btn-whatsapp-action" id="btnSubmitManual" onclick="submitManualDeposit()">
+                    <i class="fab fa-whatsapp" style="font-size: 18px;"></i> Ajukan & Masuk WhatsApp (081775700114)
+                </button>
+            </div>
+            
+            <div id="waSuccessBox" style="display: none; background: #ecfdf5; border: 1.5px solid #a7f3d0; border-radius: 14px; padding: 16px; margin-top: 14px; text-align: center;">
+                <i class="fas fa-check-circle" style="color: #10b981; font-size: 28px; margin-bottom: 8px;"></i>
+                <div style="font-weight: 800; font-size: 13px; color: #065f46;">Pengajuan Deposit Berhasil Dicatat!</div>
+                <div style="font-size: 12px; color: #047857; margin: 4px 0 12px 0;">Aplikasi WhatsApp sedang dibuka di perangkat Anda.</div>
+                <a id="btnDirectWa" href="#" class="btn-whatsapp-action" style="padding: 10px 16px; font-size: 13px; display: inline-flex; width: auto; margin: 0 auto;">
+                    <i class="fab fa-whatsapp"></i> Buka WhatsApp Ulang
+                </a>
+                <div style="margin-top: 10px;">
+                    <a id="btnFallbackWa" href="#" target="_blank" style="font-size: 11px; color: #047857; text-decoration: underline; font-weight: 700;">
+                        Atau buka via WhatsApp Web di Browser jika aplikasi tidak terpasang
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIWAYAT DEPOSIT TERAKHIR -->
+    <div class="history-card">
+        <div class="section-title">
+            <i class="fas fa-history"></i>
+            Riwayat Deposit Terakhir
+        </div>
+
+        {% if recent_deposits %}
+            {% for d in recent_deposits %}
+            <div class="deposit-history-item">
+                <div>
+                    <div style="font-weight: 800; font-size: 13px; color: #1e293b;">
+                        {{ d.product_name }}
+                    </div>
+                    <div style="font-size: 11px; color: #64748b; margin-top: 2px;">
+                        {{ d.ref_id }} &bull; {{ d.created_at_wib }}
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-weight: 900; font-size: 14px; color: #00877a;">
+                        Rp {{ "{:,.0f}".format(d.amount).replace(',', '.') }}
+                    </div>
+                    <div style="margin-top: 4px;">
+                        {% if d.status == 'SUCCESS' %}
+                            <span class="history-badge badge-success">BERHASIL</span>
+                        {% elif d.status == 'PENDING' %}
+                            <span class="history-badge badge-pending">MENUNGGU</span>
+                        {% else %}
+                            <a href="/trx/invoice/{{ d.ref_id }}" class="history-badge badge-unpaid" style="text-decoration: none;">
+                                BAYAR <i class="fas fa-arrow-right" style="font-size: 8px;"></i>
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div style="text-align: center; padding: 25px 10px; color: #94a3b8; font-size: 12px;">
+                <i class="fas fa-wallet" style="font-size: 28px; margin-bottom: 8px; color: #cbd5e1;"></i><br>
+                Belum ada riwayat deposit. Silakan lakukan pengisian saldo pertama Anda!
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    let currentNominal = 50000;
+    let currentUniqueCode = Math.floor(Math.random() * 99) + 1; // 1 s/d 99
+    let selectedEwallet = 'DANA';
+
+    function formatRupiah(number) {
+        return 'Rp ' + Math.round(number).toLocaleString('id-ID');
+    }
+
+    function updateSummary() {
+        const nominal = currentNominal;
+        const code = currentUniqueCode;
+        const total = nominal + code;
+
+        document.getElementById('sumNominalText').innerText = formatRupiah(nominal);
+        document.getElementById('sumUniqueCodeText').innerText = '+ Rp ' + (code < 10 ? '0' + code : code);
+        document.getElementById('sumTotalDisplay').innerText = formatRupiah(total);
+    }
+
+    function selectNominal(amt) {
+        currentNominal = parseInt(amt);
+        document.getElementById('inputNominal').value = currentNominal;
+        
+        // Update chip active
+        document.querySelectorAll('.nominal-chip').forEach(c => {
+            if (c.innerText.includes(amt.toLocaleString('id-ID'))) {
+                c.classList.add('active');
+            } else {
+                c.classList.remove('active');
+            }
+        });
+
+        updateSummary();
+    }
+
+    function onCustomNominalInput() {
+        const val = parseInt(document.getElementById('inputNominal').value || 0);
+        currentNominal = val > 0 ? val : 0;
+        
+        document.querySelectorAll('.nominal-chip').forEach(c => c.classList.remove('active'));
+        updateSummary();
+    }
+
+    function switchTab(tab) {
+        const qrisBtn = document.getElementById('tabQrisBtn');
+        const manualBtn = document.getElementById('tabManualBtn');
+        const qrisContent = document.getElementById('qrisContent');
+        const manualContent = document.getElementById('manualContent');
+
+        if (tab === 'qris') {
+            qrisBtn.classList.add('active');
+            manualBtn.classList.remove('active');
+            qrisContent.classList.add('active');
+            manualContent.classList.remove('active');
+        } else {
+            manualBtn.classList.add('active');
+            qrisBtn.classList.remove('active');
+            manualContent.classList.add('active');
+            qrisContent.classList.remove('active');
+            updateSummary();
+        }
+    }
+
+    function selectEwallet(type) {
+        selectedEwallet = type;
+        document.querySelectorAll('.ewallet-item').forEach(el => el.classList.remove('active'));
+        
+        if (type === 'DANA') document.getElementById('ew_dana').classList.add('active');
+        else if (type === 'SHOPEEPAY') document.getElementById('ew_shopee').classList.add('active');
+        else if (type === 'GOPAY') document.getElementById('ew_gopay').classList.add('active');
+
+        document.getElementById('destNameLabel').innerText = 'Nomor E-Wallet ' + type;
+    }
+
+    function regenerateUniqueCode() {
+        currentUniqueCode = Math.floor(Math.random() * 99) + 1;
+        updateSummary();
+    }
+
+    function copyText(text, successMsg) {
+        navigator.clipboard.writeText(text).then(() => {
+            alert(successMsg || 'Berhasil disalin ke clipboard!');
+        }).catch(() => {
+            prompt('Salin teks secara manual:', text);
+        });
+    }
+
+    function copyTotalTransfer() {
+        const total = currentNominal + currentUniqueCode;
+        copyText(total.toString(), 'Nominal total Rp ' + total.toLocaleString('id-ID') + ' berhasil disalin!');
+    }
+
+    // PROSES DEPOSIT QRIS OTOMATIS
+    function submitQrisDeposit() {
+        if (currentNominal < 10000) {
+            alert('Minimal deposit adalah Rp 10.000');
+            return;
+        }
+
+        const btn = document.getElementById('btnProsesQris');
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyiapkan Barcode QRIS...';
+        btn.disabled = true;
+
+        fetch('/trx/topup_deposit', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ amount: currentNominal })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success' && data.ref_id) {
+                // Alihkan langsung ke invoice QRIS yang aktif
+                window.location.href = '/trx/invoice/' + data.ref_id;
+            } else {
+                alert(data.message || 'Gagal menyiapkan deposit QRIS');
+                btn.innerHTML = '<i class="fas fa-barcode"></i> Lanjutkan & Tampilkan Barcode QRIS';
+                btn.disabled = false;
+            }
+        })
+        .catch(err => {
+            alert('Terjadi kesalahan koneksi server: ' + err);
+            btn.innerHTML = '<i class="fas fa-barcode"></i> Lanjutkan & Tampilkan Barcode QRIS';
+            btn.disabled = false;
+        });
+    }
+
+    // PROSES DEPOSIT MANUAL E-WALLET DENGAN KODE UNIK (MENGGUNAKAN SKEMA LANGSUNG whatsapp://)
+    function submitManualDeposit() {
+        if (currentNominal < 10000) {
+            alert('Minimal deposit adalah Rp 10.000');
+            return;
+        }
+
+        const btn = document.getElementById('btnSubmitManual');
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mencatat Pengajuan...';
+        btn.disabled = true;
+
+        fetch('/deposit/manual', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                nominal: currentNominal,
+                unique_code: currentUniqueCode,
+                ewallet_type: selectedEwallet
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Tampilkan kotak sukses dan tombol direct
+                document.getElementById('waActionArea').style.display = 'none';
+                const successBox = document.getElementById('waSuccessBox');
+                successBox.style.display = 'block';
+                document.getElementById('btnDirectWa').href = data.wa_url;
+                document.getElementById('btnFallbackWa').href = data.wa_web_url;
+
+                // Langsung luncurkan protokol whatsapp:// tanpa membuka tab/halaman browser baru
+                window.location.href = data.wa_url;
+            } else {
+                alert(data.message || 'Gagal mengajukan deposit manual.');
+                btn.innerHTML = '<i class="fab fa-whatsapp"></i> Ajukan & Masuk WhatsApp (081775700114)';
+                btn.disabled = false;
+            }
+        })
+        .catch(err => {
+            alert('Terjadi kesalahan jaringan: ' + err);
+            btn.innerHTML = '<i class="fab fa-whatsapp"></i> Ajukan & Masuk WhatsApp (081775700114)';
+            btn.disabled = false;
+        });
+    }
+
+    // Inisialisasi tampilan awal
+    updateSummary();
+</script>
+{% endblock %}

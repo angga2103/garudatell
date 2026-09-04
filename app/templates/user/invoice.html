@@ -1,0 +1,322 @@
+{% extends "base.html" %}
+{% block title %}Invoice - {{ trx.ref_id }}{% endblock %}
+
+{% block head %}
+<style>
+    body { background: #f8fafc; font-family: 'Nunito', sans-serif; }
+    
+    /* HEADER RESPONSIVE */
+    .inv-header { 
+        background: linear-gradient(135deg, #00877a 0%, #005f56 100%); 
+        padding: 24px 20px 80px 20px; 
+        color: white; 
+        border-bottom-left-radius: 28px; 
+        border-bottom-right-radius: 28px; 
+        position: relative; 
+        box-shadow: 0 6px 20px rgba(0, 135, 122, 0.25);
+    }
+    .inv-header-inner {
+        max-width: 580px;
+        margin: 0 auto;
+    }
+    .inv-back { 
+        display: inline-flex; 
+        align-items: center; 
+        gap: 8px; 
+        font-size: 14px; 
+        font-weight: 800; 
+        margin-bottom: 16px; 
+        cursor: pointer; 
+        background: rgba(255,255,255,0.2); 
+        padding: 6px 14px; 
+        border-radius: 20px; 
+        transition: 0.2s;
+    }
+    .inv-back:hover { background: rgba(255,255,255,0.3); }
+    .inv-status-wrapper { text-align: center; }
+    .inv-icon { width: 70px; height: 70px; background: rgba(255,255,255,0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-size: 32px; backdrop-filter: blur(5px); }
+    .inv-status-text { font-size: 18px; font-weight: 900; margin-bottom: 4px; }
+    .inv-ref { font-size: 13px; opacity: 0.9; font-weight: 700; letter-spacing: 0.3px; }
+    
+    /* MAIN CARD RESPONSIVE */
+    .inv-card-wrapper { 
+        max-width: 580px; 
+        margin: -55px auto 40px auto; 
+        padding: 0 16px; 
+        position: relative; 
+        z-index: 10; 
+    }
+    .inv-card { 
+        background: white; 
+        border-radius: 24px; 
+        padding: 26px 22px; 
+        box-shadow: 0 10px 30px rgba(0,0,0,0.06); 
+        border: 1px solid #e2e8f0;
+    }
+    
+    /* QRIS DISPLAY */
+    .qris-container { text-align: center; padding: 10px 0 20px 0; border-bottom: 2px dashed #e2e8f0; margin-bottom: 20px; }
+    .qris-title { font-size: 15px; font-weight: 900; color: #1e293b; margin-bottom: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .qris-img-wrapper { 
+        background: #f8fafc; 
+        padding: 16px; 
+        border-radius: 20px; 
+        display: inline-block; 
+        border: 2px solid #e2e8f0; 
+        box-shadow: 0 4px 15px rgba(0,0,0,0.04);
+    }
+    .qris-img-wrapper img { max-width: 260px; width: 100%; height: auto; display: block; border-radius: 12px; margin: 0 auto; }
+    .qris-hint { font-size: 12px; color: #64748b; margin-top: 14px; font-weight: 700; }
+    .qris-loading { padding: 40px; text-align: center; }
+    .qris-loading i { font-size: 32px; color: #00877a; animation: spin 1s linear infinite; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    
+    /* DETAIL ROWS */
+    .detail-section { margin-bottom: 22px; }
+    .detail-title { font-size: 13px; font-weight: 900; color: #475569; margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px; }
+    .detail-row { display: flex; justify-content: space-between; padding: 11px 0; border-bottom: 1px solid #f1f5f9; align-items: center; }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-label { font-size: 13px; color: #64748b; font-weight: 600; }
+    .detail-value { font-size: 14px; color: #0f172a; font-weight: 800; text-align: right; }
+    
+    /* PRICE HIGHLIGHT */
+    .price-row { 
+        background: #f0fdfa; 
+        border: 1.5px solid #ccfbf1; 
+        padding: 16px 18px; 
+        border-radius: 16px; 
+        margin-top: 10px; 
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center; 
+    }
+    .price-label { font-size: 13px; font-weight: 800; color: #00877a; text-transform: uppercase; }
+    .price-value { font-size: 22px; font-weight: 900; color: #00877a; }
+    
+    /* ACTION BUTTONS */
+    .action-btns { display: flex; gap: 10px; margin-top: 24px; }
+    .btn-secondary { flex: 1; padding: 14px; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 14px; font-weight: 800; color: #475569; cursor: pointer; text-align: center; text-decoration: none; font-size: 13px; transition: 0.2s; }
+    .btn-secondary:hover { background: #f1f5f9; }
+    .btn-primary { flex: 1; padding: 14px; background: #00877a; border: none; border-radius: 14px; font-weight: 800; color: white; cursor: pointer; text-align: center; text-decoration: none; font-size: 13px; transition: 0.2s; }
+    .btn-primary:hover { background: #005f56; }
+    
+    /* STATUS BADGES */
+    .status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; }
+    .status-pending { background: #fef3c7; color: #92400e; }
+    .status-success { background: #d1fae5; color: #065f46; }
+    .status-failed { background: #fee2e2; color: #991b1b; }
+    .status-processing { background: #dbeafe; color: #1e40af; }
+    
+    /* COUNTDOWN TIMER */
+    .timer-box { background: #fffbeb; padding: 12px; border-radius: 14px; text-align: center; margin: 16px 0 0 0; border: 1px solid #fef3c7; }
+    .timer-text { font-size: 11px; color: #92400e; font-weight: 800; margin-bottom: 4px; text-transform: uppercase; }
+    .timer-countdown { font-size: 22px; font-weight: 900; color: #b45309; letter-spacing: 1px; }
+</style>
+{% endblock %}
+
+{% block bottom_nav %}{% endblock %}
+
+{% block content %}
+<div class="inv-header">
+    <div class="inv-header-inner">
+        <a href="/" class="inv-back" style="text-decoration: none;">
+            <i class="fas fa-arrow-left"></i>
+            <span>Kembali</span>
+        </a>
+        
+        <div class="inv-status-wrapper">
+            <div class="inv-icon">
+                {% if trx.payment_status == 'UNPAID' %}
+                    <i class="fas fa-qrcode"></i>
+                {% elif trx.status == 'SUCCESS' %}
+                    <i class="fas fa-check-circle"></i>
+                {% elif trx.status in ['PENDING', 'PROCESSING', 'PROSES'] %}
+                    <i class="fas fa-clock"></i>
+                {% else %}
+                    <i class="fas fa-times-circle"></i>
+                {% endif %}
+            </div>
+            <div class="inv-status-text">
+                {% if trx.payment_status == 'UNPAID' %}
+                    Menunggu Pembayaran
+                {% elif trx.status == 'SUCCESS' %}
+                    Transaksi Berhasil
+                {% elif trx.status in ['PENDING', 'PROCESSING', 'PROSES'] %}
+                    Sedang Diproses
+                {% else %}
+                    Transaksi Gagal
+                {% endif %}
+            </div>
+            <div class="inv-ref">Invoice #{{ trx.ref_id }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="inv-card-wrapper">
+    <div class="inv-card">
+        
+        <!-- QRIS DISPLAY (Muncul jika UNPAID dan metode bayar QRIS / qris) -->
+        {% if trx.payment_status == 'UNPAID' and trx.payment_method and trx.payment_method|upper == 'QRIS' %}
+        <div class="qris-container">
+            <div class="qris-title">
+                <i class="fas fa-qrcode" style="color: #00877a;"></i> Pindai Barcode QRIS untuk Bayar
+            </div>
+            
+            <div class="qris-img-wrapper" id="qrisWrapper">
+                <div class="qris-loading" id="qrisLoading">
+                    <i class="fas fa-spinner"></i>
+                    <p style="margin-top: 10px; font-size: 13px; color: #64748b; font-weight: 700;">Menyiapkan Barcode QRIS...</p>
+                </div>
+                <img id="qrisImage" style="display: none;" alt="QRIS Code">
+            </div>
+            
+            <div class="qris-hint">
+                <i class="fas fa-mobile-alt" style="color: #00877a;"></i> Buka BCA / Mandiri / BRI / GoPay / ShopeePay / OVO &rarr; Scan kode di atas
+            </div>
+            
+            <!-- COUNTDOWN TIMER -->
+            <div class="timer-box" id="timerBox">
+                <div class="timer-text"><i class="fas fa-hourglass-half"></i> Sisa Waktu Pembayaran</div>
+                <div class="timer-countdown" id="countdown">15:00</div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- DETAIL TRANSAKSI -->
+        <div class="detail-section">
+            <div class="detail-title"><i class="fas fa-receipt" style="color: #00877a;"></i> Detail Transaksi</div>
+            
+            <div class="detail-row">
+                <span class="detail-label">Produk</span>
+                <span class="detail-value">{{ trx.product_name }}</span>
+            </div>
+            
+            <div class="detail-row">
+                <span class="detail-label">Tujuan</span>
+                <span class="detail-value">{{ trx.target_number }}</span>
+            </div>
+            
+            <div class="detail-row">
+                <span class="detail-label">Waktu</span>
+                <span class="detail-value">{{ trx.created_at_wib if trx.created_at_wib else 'Baru Saja' }}</span>
+            </div>
+            
+            <div class="detail-row">
+                <span class="detail-label">Metode Bayar</span>
+                <span class="detail-value" style="text-transform: uppercase;">{{ trx.payment_method }}</span>
+            </div>
+            
+            <div class="detail-row">
+                <span class="detail-label">Status</span>
+                <span class="detail-value">
+                    {% if trx.status == 'SUCCESS' %}
+                        <span class="status-badge status-success">Sukses</span>
+                    {% elif trx.status in ['PENDING', 'UNPAID'] %}
+                        <span class="status-badge status-pending">Menunggu</span>
+                    {% elif trx.status in ['PROCESSING', 'PROSES'] %}
+                        <span class="status-badge status-processing">Proses</span>
+                    {% else %}
+                        <span class="status-badge status-failed">Gagal</span>
+                    {% endif %}
+                </span>
+            </div>
+            
+            {% if trx.sn %}
+            <div class="detail-row">
+                <span class="detail-label">Keterangan / SN</span>
+                <span class="detail-value" style="font-size: 12px; word-break: break-all; color: #475569;">{{ trx.sn }}</span>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- TOTAL PEMBAYARAN -->
+        <div class="price-row">
+            <div class="price-label">Total Pembayaran</div>
+            <div class="price-value">Rp {{ "{:,.0f}".format(trx.amount).replace(',', '.') }}</div>
+        </div>
+        
+        <!-- TOMBOL AKSI -->
+        <div class="action-btns">
+            {% if trx.payment_status == 'UNPAID' %}
+                <a href="/riwayat" class="btn-secondary">Batalkan</a>
+                <button class="btn-primary" onclick="checkPaymentStatus()"><i class="fas fa-sync-alt"></i> Cek Status</button>
+            {% else %}
+                <a href="/" class="btn-secondary">Kembali</a>
+                <a href="/riwayat" class="btn-primary">Lihat Riwayat</a>
+            {% endif %}
+        </div>
+        
+    </div>
+</div>
+
+<script>
+// Load QRIS Image
+{% if trx.payment_status == 'UNPAID' and trx.payment_method and trx.payment_method|upper == 'QRIS' %}
+window.addEventListener('DOMContentLoaded', function() {
+    fetch('/trx/generate_qris/{{ trx.ref_id }}')
+        .then(response => response.json())
+        .then(data => {
+            const loading = document.getElementById('qrisLoading');
+            const img = document.getElementById('qrisImage');
+            
+            if (data.status === 'success' && (data.qr_url || data.qr_string)) {
+                img.src = data.qr_url || ('https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=' + encodeURIComponent(data.qr_string));
+                img.onload = function() {
+                    loading.style.display = 'none';
+                    img.style.display = 'block';
+                };
+                img.onerror = function() {
+                    loading.innerHTML = '<p style="color: #ef4444; font-weight: 800;">Gagal memuat gambar QRIS</p>';
+                };
+            } else {
+                loading.innerHTML = '<p style="color: #ef4444; font-weight: 800;">' + (data.message || 'Gagal generate QRIS') + '</p>';
+            }
+        })
+        .catch(error => {
+            document.getElementById('qrisLoading').innerHTML = '<p style="color: #ef4444; font-weight: 800;">Error: ' + error.message + '</p>';
+        });
+});
+
+// Countdown Timer (15 menit)
+let timeLeft = 15 * 60;
+const countdownEl = document.getElementById('countdown');
+
+function updateCountdown() {
+    const minutes = Math.floor(timeLeft / 60);
+    const seconds = timeLeft % 60;
+    countdownEl.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    
+    if (timeLeft <= 0) {
+        clearInterval(countdownInterval);
+        countdownEl.textContent = 'EXPIRED';
+        const tb = document.getElementById('timerBox');
+        if (tb) {
+            tb.style.background = '#fee2e2';
+            tb.style.borderColor = '#fecaca';
+        }
+    }
+    timeLeft--;
+}
+
+const countdownInterval = setInterval(updateCountdown, 1000);
+updateCountdown();
+
+// Cek Status Pembayaran
+function checkPaymentStatus() {
+    fetch('/trx/check_status/{{ trx.ref_id }}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.payment_status === 'PAID') {
+                alert('Pembayaran berhasil diterima! Saldo / transaksi telah diperbarui.');
+                window.location.reload();
+            } else {
+                alert('Pembayaran belum diterima sistem. Jika sudah bayar, tunggu beberapa saat lalu cek kembali.');
+            }
+        })
+        .catch(error => {
+            alert('Gagal mengecek status: ' + error.message);
+        });
+}
+{% endif %}
+</script>
+{% endblock %}

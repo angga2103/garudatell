@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>{% block title %}Aplikasi PPOB Premium{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #008779; /* Warna Hijau Teal Sesuai Gambar */
+            --primary-dark: #006b5f;
+            --bg: #f5f8fa;
+            --text-dark: #1a1a1a;
+            --text-muted: #888888;
+            --card-bg: #ffffff;
+            --radius-lg: 24px;
+        }
+        * { box-sizing: border-box; font-family: 'Nunito', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { margin: 0; padding: 0; background: var(--bg); color: var(--text-dark); padding-bottom: 80px; }
+        a { text-decoration: none; color: inherit; }
+        
+        /* HEADER TEAL BACKGROUND (Melengkung di bawah) */
+        .header-bg {
+            background: var(--primary);
+            width: 100%;
+            padding: 20px 20px 60px 20px;
+            border-bottom-left-radius: 30px;
+            border-bottom-right-radius: 30px;
+            color: white;
+            position: relative;
+        }
+
+        /* WADAH KONTEN UTAMA (Tengah) */
+        .app-container {
+            width: 100%;
+            max-width: 500px; /* Ukuran App Mobile */
+            margin: 0 auto;
+            position: relative;
+        }
+        @media (min-width: 768px) { .app-container { max-width: 768px; } }
+        @media (min-width: 1024px) { .app-container { max-width: 1024px; } }
+
+        /* BOTTOM NAVIGATION BAR */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: white;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.06);
+            display: flex;
+            justify-content: space-around;
+            padding: 8px 0 14px 0;
+            z-index: 1000;
+            border-top: 1px solid #f1f5f9;
+        }
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: #94a3b8;
+            font-size: 11px;
+            font-weight: 700;
+            gap: 4px;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+        .nav-item.active { 
+            color: #00877a; 
+        }
+        .nav-item i { font-size: 20px; }
+        
+        /* TOMBOL TENGAH MENGAMBANG (Daily Tracker) */
+        .nav-fab {
+            width: 52px; height: 52px;
+            background: white;
+            border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 4px 14px rgba(0, 135, 122, 0.2);
+            transform: translateY(-20px);
+            font-size: 22px; 
+            color: #00877a;
+            border: 2px solid #e2e8f0;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            text-decoration: none;
+        }
+        .nav-fab:hover {
+            transform: translateY(-24px) scale(1.06);
+            box-shadow: 0 6px 20px rgba(0, 135, 122, 0.35);
+            color: #005f56;
+        }
+        .nav-fab.active {
+            background: linear-gradient(135deg, #00877a 0%, #005f56 100%);
+            color: white;
+            border-color: #00877a;
+            box-shadow: 0 6px 22px rgba(0, 135, 122, 0.45);
+            transform: translateY(-22px) scale(1.05);
+        }
+        
+        .card { background: var(--card-bg); border-radius: var(--radius-lg); padding: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
+    </style>
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <div class="app-container">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- NAVBAR BAWAH (Hanya muncul jika tidak disembunyikan via blok) -->
+    {% block bottom_nav %}
+    <div class="bottom-nav">
+        <a href="/" class="nav-item {% if request.path == '/' or request.path == '/dashboard' %}active{% endif %}">
+            <i class="fas fa-home"></i>
+            <span>Home</span>
+        </a>
+        <a href="/riwayat" class="nav-item {% if request.path.startswith('/riwayat') %}active{% endif %}">
+            <i class="fas fa-history"></i>
+            <span>Riwayat</span>
+        </a>
+        <a href="/muslimtrack" class="nav-fab {% if request.path in ['/muslimtrack', '/scan', '/dailytracker', '/tracker'] %}active{% endif %}" title="Moeslim Daily Tracker">
+            <i class="fas fa-calendar-check"></i>
+        </a>
+        <a href="/informasi" class="nav-item {% if request.path.startswith('/informasi') %}active{% endif %}">
+            <i class="fas fa-exclamation-circle"></i>
+            <span>Mutasi</span>
+        </a>
+        <a href="/profil" class="nav-item {% if request.path.startswith('/profil') %}active{% endif %}">
+            <i class="fas fa-user"></i>
+            <span>Profil</span>
+        </a>
+    </div>
+    {% endblock %}
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

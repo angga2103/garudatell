@@ -1,0 +1,122 @@
+{% extends 'admin/layout.html' %}
+
+{% block title %}GarudaTel - Pengaturan Poin Member{% endblock %}
+
+{% set page_title = "Pengaturan Poin Member" %}
+
+{% block admin_content %}
+<div class="section-header" style="display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        <i class="fas fa-coins" style="color: #f59e0b;"></i>
+        Manajemen & Skema Poin Member
+    </div>
+    <a href="/poin" target="_blank" style="font-size: 12px; background: #e0f2fe; color: #0284c7; padding: 6px 14px; border-radius: 8px; text-decoration: none; font-weight: 800; display: inline-flex; align-items: center; gap: 6px;">
+        <i class="fas fa-external-link-alt"></i> Pratinjau Halaman Member
+    </a>
+</div>
+
+<!-- STATISTIK POIN -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <i class="fas fa-wallet stat-icon" style="color: #f59e0b;"></i>
+        <div class="stat-value">{{ "{:,}".format(total_points_circulating).replace(',', '.') }} Pts</div>
+        <div class="stat-label">TOTAL POIN BEREDAR</div>
+    </div>
+    <div class="stat-card">
+        <i class="fas fa-hand-holding-usd stat-icon" style="color: #10b981;"></i>
+        <div class="stat-value">Rp {{ "{:,.0f}".format(total_balance_disbursed).replace(',', '.') }}</div>
+        <div class="stat-label">SALDO DICAIRKAN DARI POIN</div>
+    </div>
+    <div class="stat-card">
+        <i class="fas fa-calendar-alt stat-icon" style="color: #6366f1;"></i>
+        <div class="stat-value">1 - 7 Jan</div>
+        <div class="stat-label">JADWAL KLAIM TAHUNAN</div>
+    </div>
+</div>
+
+<!-- FORM KONFIGURASI POIN -->
+<div class="config-card">
+    <div class="config-title">
+        <i class="fas fa-sliders-h"></i>
+        Parameter & Ketentuan Klaim
+    </div>
+
+    <form method="POST" action="/admin/point_settings">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-bottom: 20px;">
+            <!-- KURS KONVERSI -->
+            <div class="form-group">
+                <label style="display: block; font-size: 12px; font-weight: 800; color: #334155; margin-bottom: 6px;">
+                    <i class="fas fa-exchange-alt" style="color: #00877a;"></i> Nilai Konversi (Rupiah per 1 Poin)
+                </label>
+                <div style="display: flex; align-items: center; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 0 12px;">
+                    <span style="font-weight: 800; color: #64748b; font-size: 13px;">1 Poin = Rp</span>
+                    <input type="number" name="point_rate" value="{{ settings.point_rate }}" min="0.1" step="any" required
+                           style="flex: 1; border: none; background: transparent; padding: 10px; font-size: 14px; font-weight: 800; color: #00877a; outline: none; font-family: 'Nunito';">
+                </div>
+                <small style="color: #64748b; font-size: 11px; margin-top: 4px; display: block;">Contoh: Jika diisi 1, maka 500 Poin = Rp 500 Saldo.</small>
+            </div>
+
+            <!-- REWARD PER TRANSAKSI -->
+            <div class="form-group">
+                <label style="display: block; font-size: 12px; font-weight: 800; color: #334155; margin-bottom: 6px;">
+                    <i class="fas fa-shopping-cart" style="color: #0284c7;"></i> Reward Poin per Transaksi Sukses
+                </label>
+                <div style="display: flex; align-items: center; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 0 12px;">
+                    <input type="number" name="point_reward_per_trx" value="{{ settings.point_reward_per_trx }}" min="0" required
+                           style="flex: 1; border: none; background: transparent; padding: 10px; font-size: 14px; font-weight: 800; color: #0284c7; outline: none; font-family: 'Nunito';">
+                    <span style="font-weight: 800; color: #64748b; font-size: 13px;">Poin / Transaksi</span>
+                </div>
+                <small style="color: #64748b; font-size: 11px; margin-top: 4px; display: block;">Poin yang otomatis dihadiahkan ke member saat transaksi berhasil.</small>
+            </div>
+
+            <!-- TANGGAL KLAIM JANUARI -->
+            <div class="form-group">
+                <label style="display: block; font-size: 12px; font-weight: 800; color: #334155; margin-bottom: 6px;">
+                    <i class="fas fa-calendar-day" style="color: #6366f1;"></i> Rentang Tanggal Klaim di Bulan Januari
+                </label>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <input type="number" name="point_claim_start_day" value="{{ settings.point_claim_start_day }}" min="1" max="31" required
+                           style="flex: 1; padding: 10px; border: 1.5px solid #cbd5e1; border-radius: 10px; font-weight: 800; font-family: 'Nunito';">
+                    <span style="font-weight: 800; color: #64748b;">s/d</span>
+                    <input type="number" name="point_claim_end_day" value="{{ settings.point_claim_end_day }}" min="1" max="31" required
+                           style="flex: 1; padding: 10px; border: 1.5px solid #cbd5e1; border-radius: 10px; font-weight: 800; font-family: 'Nunito';">
+                    <span style="font-weight: 800; color: #64748b; font-size: 12px;">Januari</span>
+                </div>
+                <small style="color: #64748b; font-size: 11px; margin-top: 4px; display: block;">Standar: Tanggal 1 s/d 7 (1 minggu pertama tahun baru).</small>
+            </div>
+
+            <!-- TESTING MODE (BUKA PAKSA KLAIM) -->
+            <div class="form-group" style="background: #fefce8; padding: 12px; border-radius: 12px; border: 1.5px solid #fde047;">
+                <label style="display: block; font-size: 12px; font-weight: 800; color: #854d0e; margin-bottom: 6px;">
+                    <i class="fas fa-tools" style="color: #d97706;"></i> Mode Uji Coba (Buka Paksa Klaim)
+                </label>
+                <select name="point_claim_force_open" style="width: 100%; padding: 10px; border: 1px solid #fde047; border-radius: 10px; font-family: 'Nunito'; font-weight: 800; color: #854d0e; background: white;">
+                    <option value="0" {% if settings.point_claim_force_open == '0' %}selected{% endif %}>NORMAL (Hanya Buka 1 - 7 Januari)</option>
+                    <option value="1" {% if settings.point_claim_force_open == '1' %}selected{% endif %}>BUKA PAKSA SEKARANG (Untuk Pengujian Admin)</option>
+                </select>
+                <small style="color: #a16207; font-size: 11px; margin-top: 4px; display: block;">Aktifkan pilihan kedua jika Anda ingin menguji alur klaim langsung di luar bulan Januari.</small>
+            </div>
+        </div>
+
+        <!-- EDITOR TEKS ATURAN & SKEMA DINAMIS -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <label style="font-size: 13px; font-weight: 800; color: #1e293b; margin: 0;">
+                    <i class="fas fa-file-alt" style="color: #00877a;"></i> Teks Aturan & Skema Poin Member (Tampil di /poin)
+                </label>
+                <span style="font-size: 11px; color: #64748b;">Mendukung format poin (1., 2.), bullet (-), dan cetak tebal (**teks**)</span>
+            </div>
+            <textarea name="point_rules_content" rows="12" required
+                      style="width: 100%; padding: 14px; border: 1.5px solid #cbd5e1; border-radius: 12px; font-family: 'Nunito', sans-serif; font-size: 13px; line-height: 1.6; color: #1e293b; box-sizing: border-box; resize: vertical;">{{ settings.point_rules_content }}</textarea>
+            <small style="color: #64748b; font-size: 11px; margin-top: 4px; display: block;">Teks di atas akan langsung ditampilkan secara rapi dan dinamis pada halaman member (/poin).</small>
+        </div>
+
+        <button type="submit" style="background: #00877a; color: white; border: none; padding: 14px 24px; border-radius: 12px; font-weight: 800; font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: 0.2s;">
+            <i class="fas fa-save"></i> Simpan Pengaturan Poin
+        </button>
+    </form>
+</div>
+{% endblock %}
+

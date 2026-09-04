@@ -1,0 +1,1031 @@
+{% extends "base.html" %}
+{% block title %}Transaksi - {{ title }}{% endblock %}
+
+{% block head %}
+<style>
+    /* HEADER KATEGORI */
+    .cat-header { 
+        background: linear-gradient(135deg, #00877a 0%, #00695c 100%); 
+        padding: 20px 20px 60px 20px; 
+        color: white; 
+        border-bottom-left-radius: 28px; 
+        border-bottom-right-radius: 28px; 
+    }
+    .top-bar { 
+        display: flex; 
+        align-items: center; 
+        gap: 12px; 
+        font-size: 16px; 
+        font-weight: 800; 
+        margin-bottom: 20px; 
+        color: white; 
+        cursor: pointer; 
+        width: fit-content;
+        text-decoration: none;
+    }
+    .top-bar:hover { opacity: 0.85; }
+    .cat-title-area { 
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center; 
+    }
+    .cat-title-wrap { display: flex; align-items: center; gap: 14px; }
+    .cat-icon { 
+        width: 46px; 
+        height: 46px; 
+        background: rgba(255,255,255,0.22); 
+        border-radius: 14px; 
+        display: flex; 
+        justify-content: center; 
+        align-items: center; 
+        font-size: 22px; 
+    }
+    .cat-name h2 { margin: 0; font-size: 20px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+    .cat-name p { margin: 2px 0 0 0; font-size: 11px; opacity: 0.9; }
+
+    .wallet-badge {
+        background: rgba(255,255,255,0.22);
+        padding: 8px 14px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: 0.2s;
+    }
+    .wallet-badge:hover { background: rgba(255,255,255,0.3); }
+
+    /* INPUT IDENTITAS PEMAIN (PINTAR DUAL / SINGLE INPUT) */
+    .input-wrapper { 
+        margin: -40px 15px 16px 15px; 
+        background: white; 
+        padding: 18px 20px; 
+        border-radius: 20px; 
+        box-shadow: 0 8px 25px rgba(0,0,0,0.06); 
+        border: 1px solid #f0f4f8; 
+    }
+    .input-label-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+    .input-wrapper label { 
+        font-size: 13px; 
+        font-weight: 800; 
+        color: #334155; 
+        margin: 0;
+    }
+    .game-badge-active {
+        font-size: 11px;
+        font-weight: 800;
+        padding: 2px 8px;
+        border-radius: 6px;
+        background: #e0f2fe;
+        color: #0284c7;
+        text-transform: uppercase;
+    }
+    
+    .dual-input-row { display: flex; gap: 10px; }
+    .input-box { 
+        display: flex; 
+        background: #f8fafc; 
+        border-radius: 14px; 
+        padding: 6px 10px; 
+        align-items: center; 
+        border: 1.5px solid #e2e8f0; 
+        transition: 0.2s ease; 
+    }
+    .input-box:focus-within { border-color: #00877a; background: white; box-shadow: 0 0 0 3px rgba(0,135,122,0.12); }
+    .input-box.error { border-color: #ef4444; background: #fff5f5; } 
+    .input-box input { 
+        flex: 1; 
+        background: transparent; 
+        border: none; 
+        padding: 8px 10px; 
+        font-size: 15px; 
+        font-weight: 800; 
+        outline: none; 
+        color: #1e293b; 
+        letter-spacing: 0.5px; 
+        width: 100%;
+    }
+    .help-hint { font-size: 11px; color: #94a3b8; font-weight: 600; margin-top: 6px; }
+
+    /* DROPDOWN SELECTOR SELURUH 99 GAME */
+    .game-select-container {
+        margin: 0 15px 12px 15px;
+    }
+    .game-select-box {
+        width: 100%;
+        background: white;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 14px;
+        padding: 10px 14px;
+        font-size: 13px;
+        font-weight: 800;
+        color: #334155;
+        outline: none;
+        cursor: pointer;
+        transition: 0.2s;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+    }
+    .game-select-box:focus { border-color: #00877a; box-shadow: 0 0 0 3px rgba(0,135,122,0.15); }
+
+    /* SLIDER TABS GAMES (INTERAKTIF & BISA DIGESER) */
+    .slider-wrapper {
+        position: relative;
+        margin: 0 15px 16px 15px;
+        display: flex;
+        align-items: center;
+    }
+    .slider-arrow-btn {
+        width: 32px;
+        height: 32px;
+        background: white;
+        border: 1px solid #cbd5e1;
+        border-radius: 50%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        color: #475569;
+        cursor: pointer;
+        box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+        position: absolute;
+        z-index: 5;
+        transition: 0.2s;
+    }
+    .slider-arrow-btn:hover { background: #00877a; color: white; border-color: #00877a; }
+    .slider-arrow-btn.prev { left: -6px; }
+    .slider-arrow-btn.next { right: -6px; }
+
+    .operator-tabs { 
+        display: flex; 
+        gap: 8px; 
+        overflow-x: auto; 
+        padding: 4px 28px; 
+        scrollbar-width: none; 
+        scroll-behavior: smooth; 
+        cursor: grab;
+        user-select: none;
+        -webkit-overflow-scrolling: touch;
+        width: 100%;
+    }
+    .operator-tabs:active { cursor: grabbing; }
+    .operator-tabs::-webkit-scrollbar { display: none; }
+
+    .tab-pill { 
+        padding: 8px 16px; 
+        border-radius: 20px; 
+        font-size: 12px; 
+        font-weight: 800; 
+        white-space: nowrap; 
+        background: white; 
+        color: #64748b; 
+        border: 1px solid #e2e8f0; 
+        display: flex; 
+        align-items: center; 
+        gap: 6px; 
+        cursor: pointer; 
+        transition: 0.2s ease; 
+        text-decoration: none;
+        flex-shrink: 0;
+    }
+    .tab-pill:hover { border-color: #cbd5e1; color: #334155; }
+    .tab-pill.active { 
+        background: #00877a; 
+        color: white; 
+        border-color: #00877a; 
+        box-shadow: 0 4px 12px rgba(0,135,122,0.25); 
+    }
+
+    /* TOOLBAR (SEARCH, SORT, VIEW) */
+    .filter-bar { display: flex; gap: 8px; padding: 0 15px; margin-bottom: 16px; align-items: center; }
+    .search-box { 
+        flex: 1; 
+        display: flex; 
+        align-items: center; 
+        background: white; 
+        border-radius: 12px; 
+        padding: 8px 12px; 
+        border: 1px solid #e2e8f0; 
+        gap: 8px;
+    }
+    .search-box input { border: none; background: transparent; outline: none; width: 100%; font-weight: 700; font-size: 13px; color: #1e293b; }
+    .search-box i { color: #94a3b8; }
+    .tool-btn { 
+        width: 40px; 
+        height: 40px; 
+        background: white; 
+        border-radius: 12px; 
+        display: flex; 
+        justify-content: center; 
+        align-items: center; 
+        border: 1px solid #e2e8f0; 
+        color: #64748b; 
+        cursor: pointer; 
+        transition: 0.2s; 
+    }
+    .tool-btn:hover { background: #f8fafc; color: #1e293b; }
+    .tool-btn.active { background: #e6f7f5; color: #00877a; border-color: #00877a; }
+
+    /* TOAST NOTIFIKASI */
+    #toastNotification { 
+        position: fixed; 
+        top: 20px; 
+        left: 50%; 
+        transform: translateX(-50%); 
+        background: #1e293b; 
+        color: white; 
+        padding: 12px 22px; 
+        border-radius: 30px; 
+        font-weight: 800; 
+        font-size: 13px; 
+        z-index: 99999; 
+        display: none; 
+        align-items: center; 
+        gap: 10px; 
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2); 
+        opacity: 0; 
+        transition: opacity 0.3s ease; 
+    }
+
+    /* DROPDOWN SORT */
+    .sort-container { position: relative; }
+    .sort-menu { 
+        position: absolute; 
+        top: 48px; 
+        right: 0; 
+        background: white; 
+        border-radius: 14px; 
+        box-shadow: 0 12px 30px rgba(0,0,0,0.12); 
+        width: 170px; 
+        z-index: 100; 
+        display: none; 
+        border: 1px solid #e2e8f0; 
+        overflow: hidden;
+    }
+    .sort-menu.show { display: block; }
+    .sort-option { 
+        padding: 10px 16px; 
+        font-size: 12px; 
+        font-weight: 700; 
+        color: #334155; 
+        cursor: pointer; 
+        transition: 0.15s; 
+    }
+    .sort-option:hover { background: #f1f5f9; color: #00877a; }
+    
+    /* KARTU PRODUK */
+    .product-container { padding: 0 15px 40px 15px; }
+    .product-list { display: grid; gap: 12px; grid-template-columns: 1fr; transition: 0.3s; }
+    .product-list.grid-mode { grid-template-columns: repeat(2, 1fr); }
+    
+    .product-card { 
+        background: white; 
+        border-radius: 16px; 
+        padding: 14px; 
+        border: 1px solid #e2e8f0; 
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center; 
+        box-shadow: 0 2px 8px rgba(0,0,0,0.02); 
+        cursor: pointer; 
+        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease; 
+        position: relative;
+    }
+    .product-card:hover { 
+        transform: translateY(-2px); 
+        box-shadow: 0 6px 18px rgba(0,135,122,0.1); 
+        border-color: #00877a; 
+    }
+    .grid-mode .product-card { 
+        flex-direction: column; 
+        align-items: flex-start; 
+        gap: 8px;
+    }
+    
+    .p-header-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 6px;
+    }
+    .p-code { 
+        background: #f1f5f9; 
+        padding: 3px 6px; 
+        border-radius: 5px; 
+        font-size: 10px; 
+        font-weight: 800; 
+        color: #64748b; 
+    }
+    .p-provider-badge {
+        background: #e0f2fe;
+        color: #0369a1;
+        padding: 3px 6px;
+        border-radius: 5px;
+        font-size: 10px;
+        font-weight: 800;
+    }
+    .p-name { 
+        font-size: 13px; 
+        font-weight: 800; 
+        margin: 0 0 6px 0; 
+        color: #1e293b; 
+        line-height: 1.35; 
+    }
+    .p-desc { font-size: 11px; color: #94a3b8; margin: 0 0 8px 0; font-weight: 600; }
+    .p-price { 
+        font-size: 16px; 
+        font-weight: 900; 
+        color: #00877a; 
+        margin: 0; 
+    }
+
+    .p-action-col {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 8px;
+    }
+    .grid-mode .p-action-col {
+        width: 100%;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 6px;
+        padding-top: 8px;
+        border-top: 1px dashed #f1f5f9;
+    }
+
+    .btn-card-beli {
+        background: #00877a;
+        color: white;
+        border: none;
+        padding: 6px 14px;
+        border-radius: 8px;
+        font-weight: 800;
+        font-size: 11px;
+        cursor: pointer;
+        transition: 0.15s;
+    }
+    .btn-card-beli:hover { background: #00695c; }
+
+    .p-status-badge { 
+        background: #dcfce7; 
+        color: #15803d; 
+        padding: 3px 8px; 
+        border-radius: 6px; 
+        font-size: 10px; 
+        font-weight: 800; 
+        letter-spacing: 0.3px; 
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 50px 20px;
+        color: #94a3b8;
+    }
+    .empty-state i { font-size: 40px; margin-bottom: 12px; color: #cbd5e1; }
+    .empty-state h4 { font-weight: 800; font-size: 15px; color: #475569; margin: 0 0 6px 0; }
+    .empty-state p { font-size: 12px; margin: 0; }
+
+    /* BOTTOM SHEET CHECKOUT */
+    .sheet-overlay { 
+        position: fixed; 
+        top: 0; left: 0; right: 0; bottom: 0; 
+        background: rgba(0,0,0,0.6); 
+        z-index: 9999; 
+        display: none; 
+        opacity: 0; 
+        transition: opacity 0.2s; 
+    }
+    .bottom-sheet { 
+        position: fixed; 
+        bottom: -100%; 
+        left: 0; right: 0; 
+        background: #f8fafc; 
+        border-radius: 24px 24px 0 0; 
+        z-index: 10000; 
+        transition: bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+        display: flex; 
+        flex-direction: column; 
+        max-height: 90vh; 
+        box-shadow: 0 -10px 40px rgba(0,0,0,0.2);
+    }
+    .bottom-sheet.show { bottom: 0; }
+    .sheet-overlay.show { display: block; opacity: 1; }
+
+    .sheet-header { 
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center; 
+        padding: 16px 20px; 
+        background: #00877a; 
+        color: white; 
+        border-radius: 24px 24px 0 0; 
+    }
+    .sheet-body { padding: 20px; overflow-y: auto; }
+
+    .sheet-card-header { 
+        background: white; 
+        border-radius: 16px; 
+        padding: 18px 16px; 
+        margin-bottom: 14px; 
+        text-align: center; 
+        box-shadow: 0 2px 10px rgba(0,0,0,0.03); 
+        border: 1px solid #e2e8f0;
+    }
+    .sheet-title { font-weight: 800; font-size: 15px; margin-bottom: 6px; color: #1e293b; }
+    .sheet-price { font-weight: 900; font-size: 22px; color: #00877a; }
+
+    .detail-box { 
+        background: white; 
+        border-radius: 14px; 
+        padding: 14px 16px; 
+        margin-bottom: 14px; 
+        box-shadow: 0 2px 8px rgba(0,0,0,0.03); 
+        border: 1px solid #e2e8f0;
+    }
+    .detail-row { 
+        display: flex; 
+        justify-content: space-between; 
+        margin-bottom: 10px; 
+        font-size: 12px; 
+        font-weight: 600; 
+        color: #64748b; 
+    }
+    .detail-row:last-child { margin-bottom: 0; }
+    .detail-row span:last-child { color: #1e293b; font-weight: 800; }
+
+    .payment-options { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+    .pay-option { 
+        display: flex; 
+        align-items: center; 
+        padding: 12px 16px; 
+        border: 1.5px solid #cbd5e1; 
+        border-radius: 12px; 
+        cursor: pointer; 
+        background: white; 
+        transition: 0.15s;
+    }
+    .pay-option.selected { border-color: #00877a; background: #e6f7f5; }
+    .pay-option input { margin-right: 12px; transform: scale(1.2); }
+    .pay-option div { font-weight: 800; color: #1e293b; font-size: 13px; }
+
+    .sheet-footer { display: flex; gap: 10px; }
+    .btn-batal { 
+        flex: 1; 
+        padding: 13px; 
+        border: 1px solid #cbd5e1; 
+        background: white; 
+        border-radius: 12px; 
+        font-weight: 800; 
+        font-size: 13px;
+        color: #64748b; 
+        cursor: pointer; 
+    }
+    .btn-bayar { 
+        flex: 2; 
+        padding: 13px; 
+        border: none; 
+        background: #00877a; 
+        border-radius: 12px; 
+        font-weight: 800; 
+        font-size: 13px;
+        color: white; 
+        cursor: pointer; 
+        transition: 0.2s; 
+    }
+    .btn-bayar:disabled { background: #94a3b8; cursor: not-allowed; }
+</style>
+{% endblock %}
+
+{% block bottom_nav %}{% endblock %}
+
+{% block content %}
+<!-- TOAST NOTIFIKASI -->
+<div id="toastNotification">
+    <i class="fas fa-info-circle"></i> <span id="toastMsg">Notifikasi</span>
+</div>
+
+<!-- HEADER KATEGORI -->
+<div class="cat-header">
+    <a href="/" class="top-bar">
+        <i class="fas fa-arrow-left"></i><span>Kembali</span>
+    </a>
+    <div class="cat-title-area">
+        <div class="cat-title-wrap">
+            <div class="cat-icon"><i class="fas fa-gamepad"></i></div>
+            <div class="cat-name">
+                <h2 id="pageTitle">{{ title }}</h2>
+                <p>Mobile Legends, Free Fire, PUBG, Valorant, Steam, dll</p>
+            </div>
+        </div>
+        {% if current_user.is_authenticated %}
+        <div class="wallet-badge" onclick="window.location.href='/deposit'" title="Tambah Saldo">
+            <i class="fas fa-wallet"></i> Rp {{ "{:,.0f}".format(current_user.balance)|replace(',', '.') }} <i class="fas fa-plus-circle" style="font-size: 10px;"></i>
+        </div>
+        {% else %}
+        <div class="wallet-badge" onclick="window.location.href='/login'" title="Login Member">
+            <i class="fas fa-sign-in-alt"></i> Masuk
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- INPUT IDENTITAS PEMAIN (OTOMATIS 2 KOLOM USER ID + ZONE ID JIKA BUTUH) -->
+<div class="input-wrapper">
+    <div class="input-label-row">
+        <label id="inputMainLabel">
+            <span id="labelSingle" {% if is_dual_input %}style="display:none;"{% endif %}>User ID / Player ID Game</span>
+            <span id="labelDual" {% if not is_dual_input %}style="display:none;"{% endif %}>User ID & Zone ID Game</span>
+        </label>
+        <span class="game-badge-active" id="activeGameBadge">{{ active_brand or active_game or 'GAME' }}</span>
+    </div>
+    
+    <div class="dual-input-row" id="gameInputContainer">
+        <div class="input-box" id="boxUserId" style="{% if is_dual_input %}flex: 2;{% else %}flex: 1;{% endif %}">
+            <input 
+                type="text" 
+                id="userIdInput" 
+                placeholder="{% if is_dual_input %}User ID (cth: 12345678){% else %}Masukkan Player ID Game{% endif %}" 
+                autocomplete="off"
+            >
+        </div>
+        <div class="input-box" id="zoneInputCol" style="flex: 1; {% if not is_dual_input %}display: none;{% endif %}">
+            <input 
+                type="text" 
+                id="zoneIdInput" 
+                placeholder="Zone ID (cth: 2123)" 
+                autocomplete="off"
+            >
+        </div>
+    </div>
+    <div class="help-hint" id="helpHintText">
+        {% if is_dual_input %}
+            <i class="fas fa-info-circle"></i> Masukkan User ID dan Zone ID di dalam kurung pada profil game Anda (cth: 12345678 zone: 2123).
+        {% else %}
+            <i class="fas fa-info-circle"></i> Masukkan Player ID akun game Anda dengan teliti.
+        {% endif %}
+    </div>
+</div>
+
+<!-- DROPDOWN SELECTOR SELURUH 99 GAME -->
+<div class="game-select-container">
+    <select class="game-select-box" id="gameBrandSelect" onchange="switchGameBrand(this.value)">
+        <option value="">-- Pilih Dari Seluruh 99 Game Tersedia --</option>
+        {% for b in all_brands %}
+        <option value="{{ b }}" {% if active_brand == b %}selected{% endif %}>{{ b }}</option>
+        {% endfor %}
+    </select>
+</div>
+
+<!-- SLIDER TABS GAMES (INTERAKTIF BISA DIGESER / SLIDER) -->
+<div class="slider-wrapper">
+    <button type="button" class="slider-arrow-btn prev" onclick="slideTabs(-1)" title="Geser Kiri">
+        <i class="fas fa-chevron-left"></i>
+    </button>
+    
+    <div class="operator-tabs" id="opTabs">
+        <a href="/kategori/games?game=ML" class="tab-pill {% if active_game == 'ML' and not active_brand %}active{% endif %}">
+            <i class="fas fa-shield-alt"></i> Mobile Legends
+        </a>
+        <a href="/kategori/games?game=FF" class="tab-pill {% if active_game == 'FF' and not active_brand %}active{% endif %}">
+            <i class="fas fa-fire"></i> Free Fire
+        </a>
+        <a href="/kategori/games?game=PUBG" class="tab-pill {% if active_game == 'PUBG' and not active_brand %}active{% endif %}">
+            <i class="fas fa-crosshairs"></i> PUBG Mobile
+        </a>
+        <a href="/kategori/games?game=VALORANT" class="tab-pill {% if active_game == 'VALORANT' and not active_brand %}active{% endif %}">
+            <i class="fas fa-bullseye"></i> Valorant
+        </a>
+        <a href="/kategori/games?game=HOK" class="tab-pill {% if active_game == 'HOK' and not active_brand %}active{% endif %}">
+            <i class="fas fa-crown"></i> Honor of Kings
+        </a>
+        <a href="/kategori/games?game=STEAM" class="tab-pill {% if active_game == 'STEAM' and not active_brand %}active{% endif %}">
+            <i class="fab fa-steam"></i> Steam Wallet
+        </a>
+        <a href="/kategori/games?game=GENSHIN" class="tab-pill {% if active_game == 'GENSHIN' and not active_brand %}active{% endif %}">
+            <i class="fas fa-magic"></i> Genshin / Honkai
+        </a>
+        <a href="/kategori/games?game=ROBLOX" class="tab-pill {% if active_game == 'ROBLOX' and not active_brand %}active{% endif %}">
+            <i class="fas fa-cube"></i> Roblox / Garena
+        </a>
+        <a href="/kategori/games?game=CODM" class="tab-pill {% if active_game == 'CODM' and not active_brand %}active{% endif %}">
+            <i class="fas fa-skull"></i> Call of Duty
+        </a>
+        <a href="/kategori/games?game=AOV" class="tab-pill {% if active_game == 'AOV' and not active_brand %}active{% endif %}">
+            <i class="fas fa-fist-raised"></i> Arena of Valor
+        </a>
+        <a href="/kategori/games?game=POINTBLANK" class="tab-pill {% if active_game == 'POINTBLANK' and not active_brand %}active{% endif %}">
+            <i class="fas fa-crosshairs"></i> Point Blank
+        </a>
+        <a href="/kategori/games?game=RAGNAROK" class="tab-pill {% if active_game == 'RAGNAROK' and not active_brand %}active{% endif %}">
+            <i class="fas fa-dragon"></i> Ragnarok X
+        </a>
+        <a href="/kategori/games?game=BLOODSTRIKE" class="tab-pill {% if active_game == 'BLOODSTRIKE' and not active_brand %}active{% endif %}">
+            <i class="fas fa-tint"></i> Blood Strike
+        </a>
+        <a href="/kategori/games?game=METALSLUG" class="tab-pill {% if active_game == 'METALSLUG' and not active_brand %}active{% endif %}">
+            <i class="fas fa-fighter-jet"></i> Metal Slug
+        </a>
+        <a href="/kategori/games?game=UNDAWN" class="tab-pill {% if active_game == 'UNDAWN' and not active_brand %}active{% endif %}">
+            <i class="fas fa-biohazard"></i> Undawn
+        </a>
+        <a href="/kategori/games?game=ALL" class="tab-pill {% if active_game == 'ALL' and not active_brand %}active{% endif %}">
+            <i class="fas fa-layer-group"></i> Semua Game
+        </a>
+    </div>
+
+    <button type="button" class="slider-arrow-btn next" onclick="slideTabs(1)" title="Geser Kanan">
+        <i class="fas fa-chevron-right"></i>
+    </button>
+</div>
+
+<!-- TOOLBAR (SEARCH, SORT, VIEW) -->
+<div class="filter-bar">
+    <div class="search-box">
+        <i class="fas fa-search"></i>
+        <input type="text" id="searchInput" placeholder="Cari nominal (contoh: 86 diamonds, 100 uc, pass)..." onkeyup="filterProduk()">
+    </div>
+    <div class="sort-container">
+        <div class="tool-btn" id="btnSort" onclick="toggleSortMenu()" title="Urutkan"><i class="fas fa-sort-amount-down"></i></div>
+        <div class="sort-menu" id="sortMenu">
+            <div class="sort-option" onclick="sortProduk('harga_asc')"><i class="fas fa-arrow-down-short-wide"></i> Harga Terendah</div>
+            <div class="sort-option" onclick="sortProduk('harga_desc')"><i class="fas fa-arrow-up-wide-short"></i> Harga Tertinggi</div>
+            <div class="sort-option" onclick="sortProduk('nama_asc')"><i class="fas fa-arrow-down-a-z"></i> Nama A - Z</div>
+            <div class="sort-option" onclick="sortProduk('nama_desc')"><i class="fas fa-arrow-up-z-a"></i> Nama Z - A</div>
+        </div>
+    </div>
+    <div class="tool-btn active" id="btnList" onclick="ubahView('list')" title="Tampilan Daftar"><i class="fas fa-list"></i></div>
+    <div class="tool-btn" id="btnGrid" onclick="ubahView('grid')" title="Tampilan Grid"><i class="fas fa-th-large"></i></div>
+</div>
+
+<!-- DAFTAR KARTU PRODUK -->
+<div class="product-container">
+    <div class="product-list" id="daftarProduk">
+        {% if products %}
+            {% for p in products %}
+            <div class="product-card item-produk" 
+                 data-provider="{{ p.provider | upper }}"
+                 data-sku="{{ p.kode_produk }}"
+                 data-nama="{{ p.nama_produk }}"
+                 data-harga="{{ '{:,.0f}'.format(p.harga)|replace(',', '.') }}"
+                 data-rawprice="{{ p.harga }}"
+                 data-active="{{ 'true' if p.is_active else 'false' }}"
+                 onclick="beliProdukModal(this)">
+                
+                <div style="flex: 1;">
+                    <div class="p-header-row">
+                        <span class="p-code">{{ p.kode_produk }}</span>
+                        <span class="p-provider-badge">{{ p.provider }}</span>
+                        {% if p.is_active %}
+                            <span class="p-status-badge">Tersedia</span>
+                        {% else %}
+                            <span class="p-status-badge gangguan">Gangguan</span>
+                        {% endif %}
+                    </div>
+                    <h3 class="p-name">{{ p.nama_produk }}</h3>
+                    <p class="p-desc">⚡ Masuk Otomatis 24 Jam</p>
+                    <h4 class="p-price">Rp {{ "{:,.0f}".format(p.harga)|replace(',', '.') }}</h4>
+                </div>
+                
+                <div class="p-action-col">
+                    <button class="btn-card-beli" type="button">BELI</button>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <i class="fas fa-box-open"></i>
+                <h4>Paket Game Tidak Ditemukan</h4>
+                <p>Silakan pilih game lain pada tab slider atau menu dropdown.</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- NOTIFIKASI HASIL PENCARIAN KOSONG -->
+    <div class="empty-state" id="emptySearch" style="display: none;">
+        <i class="fas fa-search"></i>
+        <h4>Nominal Tidak Ditemukan</h4>
+        <p>Coba kata kunci lain atau periksa tab game.</p>
+    </div>
+</div>
+
+<!-- ================= BOTTOM SHEET CHECKOUT ================= -->
+<div class="sheet-overlay" id="sheetOverlay" onclick="closeModal()"></div>
+<div class="bottom-sheet" id="checkoutModal">
+    <div class="sheet-header">
+        <div style="font-weight: 800; font-size: 15px;"><i class="fas fa-gamepad"></i> Konfirmasi Top Up Game</div>
+        <i class="fas fa-times" onclick="closeModal()" style="cursor:pointer; font-size: 18px;"></i>
+    </div>
+    <div class="sheet-body">
+        
+        <div class="sheet-card-header">
+            <div class="sheet-title" id="mProdName">Nama Paket Game</div>
+            <div class="sheet-price" id="mProdPrice">Rp 0</div>
+        </div>
+
+        <div class="detail-box">
+            <div class="detail-row">
+                <span>Kategori</span>
+                <span>Voucher & Top Up Game</span>
+            </div>
+            <div class="detail-row">
+                <span>Status Server</span>
+                <span style="color: #10b981;"><i class="fas fa-check-circle"></i> Siap Proses (Otomatis)</span>
+            </div>
+            <div class="detail-row">
+                <span>Target ID Pemain</span>
+                <span id="mTargetNo" style="color: #ef4444; font-size: 13px;">Belum diisi</span>
+            </div>
+        </div>
+
+        <div style="font-size: 12px; font-weight: 800; color: #475569; margin-bottom: 8px;">Pilih Metode Pembayaran:</div>
+        <div class="payment-options">
+            <label class="pay-option selected" id="optSaldo">
+                <input type="radio" name="payMethod" value="saldo" checked onchange="selectPay('saldo')">
+                <div><i class="fas fa-wallet" style="color: #00877a; margin-right: 6px;"></i> Saldo Akun (Rp {{ "{:,.0f}".format(current_user.balance)|replace(',', '.') if current_user.is_authenticated else '0' }})</div>
+            </label>
+            <label class="pay-option" id="optQris">
+                <input type="radio" name="payMethod" value="qris" onchange="selectPay('qris')">
+                <div><i class="fas fa-qrcode" style="color: #0284c7; margin-right: 6px;"></i> QRIS (Scan Otomatis 24 Jam)</div>
+            </label>
+        </div>
+
+        <div class="sheet-footer">
+            <button class="btn-batal" onclick="closeModal()">Batal</button>
+            <button class="btn-bayar" id="btnProsesBayar" onclick="prosesBayarModal()">Bayar Sekarang</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 1. KEMBALI KE HALAMAN UTAMA USER
+    function goBack() { 
+        window.location.href = '/'; 
+    }
+
+    // 2. TOAST
+    function showToast(msg) {
+        const toast = document.getElementById('toastNotification');
+        const text = document.getElementById('toastMsg');
+        text.innerText = msg;
+        toast.style.display = 'flex';
+        setTimeout(() => { toast.style.opacity = '1'; }, 10);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => { toast.style.display = 'none'; }, 300);
+        }, 2500);
+    }
+
+    // 3. SLIDER TABS GESTURE & ARROWS (BISA DIGESER / SLIDER)
+    const tabsSlider = document.getElementById('opTabs');
+    function slideTabs(direction) {
+        const scrollAmount = 220;
+        tabsSlider.scrollBy({ left: direction * scrollAmount, behavior: 'smooth' });
+    }
+
+    // Drag-to-scroll dengan Mouse / Touch
+    let isDown = false;
+    let startX;
+    let scrollLeftVal;
+
+    tabsSlider.addEventListener('mousedown', (e) => {
+        isDown = true;
+        startX = e.pageX - tabsSlider.offsetLeft;
+        scrollLeftVal = tabsSlider.scrollLeft;
+    });
+    tabsSlider.addEventListener('mouseleave', () => { isDown = false; });
+    tabsSlider.addEventListener('mouseup', () => { isDown = false; });
+    tabsSlider.addEventListener('mousemove', (e) => {
+        if (!isDown) return;
+        e.preventDefault();
+        const x = e.pageX - tabsSlider.offsetLeft;
+        const walk = (x - startX) * 1.5;
+        tabsSlider.scrollLeft = scrollLeftVal - walk;
+    });
+
+    // Otomatis scroll tab aktif ke tengah saat dimuat
+    window.addEventListener('DOMContentLoaded', () => {
+        const activeTab = tabsSlider.querySelector('.tab-pill.active');
+        if (activeTab) {
+            activeTab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        }
+    });
+
+    // 4. SWITCH GAME DROPDOWN
+    function switchGameBrand(brandName) {
+        if (!brandName) return;
+        window.location.href = '/kategori/games?brand=' + encodeURIComponent(brandName);
+    }
+
+    // 5. CEK APAKAH GAME MEMBUTUHKAN DUAL INPUT (USER ID + ZONE ID)
+    const ZONE_GAMES = [
+        'mobile legends', 'ml', 'genshin', 'honkai', 'ragnarok', 
+        'revelation', 'dragonheir', 'magic chess', 'lifeafter', 
+        'tower of fantasy', 'dragon raja', 'saint seiya', 'lords mobile'
+    ];
+
+    function checkNeedsZone(gameName) {
+        if (!gameName) return false;
+        const lower = gameName.toLowerCase();
+        return ZONE_GAMES.some(g => lower.includes(g));
+    }
+
+    function isZoneInputActive() {
+        const zoneCol = document.getElementById('zoneInputCol');
+        return zoneCol && zoneCol.style.display !== 'none';
+    }
+
+    function getFinalTargetNumber() {
+        const uidInput = document.getElementById('userIdInput');
+        const zidInput = document.getElementById('zoneIdInput');
+        const uid = uidInput ? uidInput.value.trim() : '';
+        const zid = zidInput ? zidInput.value.trim() : '';
+
+        if (isZoneInputActive()) {
+            if (!uid) return { valid: false, msg: 'Masukkan User ID Game Anda!', focus: uidInput };
+            if (!zid) return { valid: false, msg: 'Masukkan Zone ID / Server Game Anda (4-5 digit)!', focus: zidInput };
+            return { valid: true, target: uid + '(' + zid + ')' };
+        } else {
+            if (!uid || uid.length < 3) return { valid: false, msg: 'Masukkan Player ID akun game Anda dengan benar!', focus: uidInput };
+            return { valid: true, target: uid };
+        }
+    }
+
+    // 6. FILTER PRODUK
+    function filterProduk() {
+        const query = document.getElementById('searchInput').value.toLowerCase().trim();
+        const items = document.querySelectorAll('.item-produk');
+        let visibleCount = 0;
+
+        items.forEach(item => {
+            const nama = item.getAttribute('data-nama').toLowerCase();
+            const harga = item.getAttribute('data-harga').replace('.', '').toLowerCase();
+
+            let matchSearch = !query || nama.includes(query) || harga.includes(query);
+
+            if (matchSearch) {
+                item.style.display = 'flex';
+                visibleCount++;
+            } else {
+                item.style.display = 'none';
+            }
+        });
+
+        document.getElementById('emptySearch').style.display = (visibleCount === 0) ? 'block' : 'none';
+    }
+
+    // 7. SORT
+    function toggleSortMenu() {
+        document.getElementById('sortMenu').classList.toggle('show');
+    }
+
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.sort-container')) {
+            document.getElementById('sortMenu').classList.remove('show');
+        }
+    });
+
+    function sortProduk(tipe) {
+        document.getElementById('sortMenu').classList.remove('show');
+        const list = document.getElementById('daftarProduk');
+        const items = Array.from(list.getElementsByClassName('item-produk'));
+
+        items.sort((a, b) => {
+            let pA = parseFloat(a.getAttribute('data-rawprice') || 0);
+            let pB = parseFloat(b.getAttribute('data-rawprice') || 0);
+            let nA = a.getAttribute('data-nama').toLowerCase();
+            let nB = b.getAttribute('data-nama').toLowerCase();
+
+            if (tipe === 'harga_asc') return pA - pB;
+            if (tipe === 'harga_desc') return pB - pA;
+            if (tipe === 'nama_asc') return nA.localeCompare(nB);
+            if (tipe === 'nama_desc') return nB.localeCompare(nA);
+            return 0;
+        });
+
+        items.forEach(item => list.appendChild(item));
+        showToast('Urutan produk diperbarui!');
+    }
+
+    // 8. VIEW TOGGLE (LIST / GRID)
+    function ubahView(mode) {
+        const list = document.getElementById('daftarProduk');
+        const bList = document.getElementById('btnList');
+        const bGrid = document.getElementById('btnGrid');
+
+        if (mode === 'grid') {
+            list.classList.add('grid-mode');
+            bGrid.classList.add('active');
+            bList.classList.remove('active');
+        } else {
+            list.classList.remove('grid-mode');
+            bList.classList.add('active');
+            bGrid.classList.remove('active');
+        }
+    }
+
+    // 9. MODAL CHECKOUT
+    let selectedSku = null;
+    let selectedPrice = 0;
+    let selectedMetode = 'saldo';
+    let validatedTarget = '';
+
+    function beliProdukModal(card) {
+        const isActive = card.getAttribute('data-active');
+        if (isActive === 'false') {
+            showToast('Maaf, produk ini sedang gangguan server.');
+            return;
+        }
+
+        const check = getFinalTargetNumber();
+        if (!check.valid) {
+            showToast(check.msg);
+            if (check.focus) check.focus.focus();
+            return;
+        }
+        validatedTarget = check.target;
+
+        selectedSku = card.getAttribute('data-sku');
+        const nama = card.getAttribute('data-nama');
+        const harga = card.getAttribute('data-harga');
+        selectedPrice = parseFloat(card.getAttribute('data-rawprice') || 0);
+
+        document.getElementById('mProdName').innerText = nama;
+        document.getElementById('mProdPrice').innerText = 'Rp ' + harga;
+        document.getElementById('mTargetNo').innerText = validatedTarget;
+
+        document.getElementById('sheetOverlay').classList.add('show');
+        document.getElementById('checkoutModal').classList.add('show');
+    }
+
+    function closeModal() {
+        document.getElementById('sheetOverlay').classList.remove('show');
+        document.getElementById('checkoutModal').classList.remove('show');
+    }
+
+    function selectPay(metode) {
+        selectedMetode = metode;
+        const optSaldo = document.getElementById('optSaldo');
+        const optQris = document.getElementById('optQris');
+
+        if (metode === 'saldo') {
+            optSaldo.classList.add('selected');
+            optQris.classList.remove('selected');
+        } else {
+            optQris.classList.add('selected');
+            optSaldo.classList.remove('selected');
+        }
+    }
+
+    // 10. PROSES CHECKOUT AJAX
+    function prosesBayarModal() {
+        if (!selectedSku || !validatedTarget) {
+            showToast('Informasi pesanan belum lengkap!');
+            return;
+        }
+
+        const btn = document.getElementById('btnProsesBayar');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memproses...';
+
+        fetch('/trx/checkout', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                sku_code: selectedSku,
+                target_number: validatedTarget,
+                payment_method: selectedMetode.toUpperCase()
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                if (data.redirect_url) {
+                    window.location.href = data.redirect_url;
+                } else if (data.ref_id) {
+                    window.location.href = '/trx/invoice/' + data.ref_id;
+                } else {
+                    window.location.href = '/riwayat';
+                }
+            } else {
+                showToast(data.message || 'Transaksi gagal diproses.');
+                btn.disabled = false;
+                btn.innerHTML = 'Bayar Sekarang';
+            }
+        })
+        .catch(err => {
+            showToast('Kesalahan jaringan: ' + err.message);
+            btn.disabled = false;
+            btn.innerHTML = 'Bayar Sekarang';
+        });
+    }
+</script>
+{% endblock %}

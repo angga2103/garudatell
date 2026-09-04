@@ -1,0 +1,44 @@
+# =====================================================================
+# GARUDATEL V2 - SYSTEMD SERVICE FILE
+# =====================================================================
+# File: garudatel.service
+# Deskripsi: Service untuk auto-start dan auto-restart Gunicorn
+# Install: sudo cp garudatel.service /etc/systemd/system/
+# Enable: sudo systemctl enable garudatel
+# Start: sudo systemctl start garudatel
+# Status: sudo systemctl status garudatel
+# =====================================================================
+
+[Unit]
+Description=Garudatel V2 PPOB Platform (Gunicorn)
+After=network.target
+
+[Service]
+Type=notify
+User=root
+Group=root
+WorkingDirectory=/root/garudatel_v2
+Environment="PATH=/root/garudatel_v2/venv/bin"
+ExecStart=/root/garudatel_v2/venv/bin/gunicorn \
+    --workers 4 \
+    --bind 0.0.0.0:5000 \
+    --timeout 120 \
+    --log-level info \
+    --access-logfile /root/garudatel_v2/logs/access.log \
+    --error-logfile /root/garudatel_v2/logs/error.log \
+    wsgi:app
+
+# Restart policy
+Restart=always
+RestartSec=10
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,288 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="background-color: #008f89; border-bottom-left-radius: 25px; border-bottom-right-radius: 25px; padding: 30px 20px 40px 20px; margin: -15px -15px 20px -15px; text-align: center; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+    <h5 style="margin: 0; font-weight: bold; font-size: 1.25rem;">Profil & Akses</h5>
+</div>
+
+<div style="padding: 0 10px; padding-bottom: 80px; margin-top: -30px;">
+    
+    <!-- Notifikasi Sistem -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div style="background: {% if category == 'danger' %}#FEE2E2; color: #991B1B;{% else %}#D1FAE5; color: #065F46;{% endif %} padding: 10px 15px; border-radius: 10px; margin-bottom: 15px; font-size: 0.85rem; font-weight: bold; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    {% if current_user.is_authenticated %}
+    <!-- ================= TAMPILAN SUDAH LOGIN ================= -->
+    <div style="background: white; border-radius: 15px; padding: 25px 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); text-align: center;">
+        <div style="width: 80px; height: 80px; background: #E5E7EB; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px auto; border: 3px solid #008f89;">
+            <i class="fas fa-user-tie" style="font-size: 2.5rem; color: #008f89;"></i>
+        </div>
+        <h4 style="margin: 0; font-weight: 900; color: #1F2937;">{{ current_user.username | default(current_user.name, True) }}</h4>
+        <p style="color: #6B7280; font-size: 0.9rem; margin-top: 5px; font-weight: 600;">
+            <i class="fab fa-whatsapp" style="color: #25D366;"></i> {{ current_user.phone | default(current_user.whatsapp, True) | default('Nomor WA Tidak Tersedia', True) }}
+        </p>
+        
+        <hr style="margin: 20px 0; border-top: 1px dashed #E5E7EB;">
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; text-align: left; margin-bottom: 15px;">
+            <div>
+                <div style="font-size: 0.75rem; color: #6B7280; font-weight: bold;">Status Akun</div>
+                <div style="font-weight: 800; color: #10B981;">Aktif / Terverifikasi</div>
+            </div>
+            <i class="fas fa-check-circle" style="font-size: 1.5rem; color: #10B981;"></i>
+        </div>
+        
+        <!-- TOMBOL GANTI PASSWORD & PIN -->
+        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+            <button type="button" onclick="toggleForm('form-password')" style="flex: 1; padding: 12px; border: 1px solid #E5E7EB; background: white; border-radius: 10px; font-weight: 800; font-size: 0.85rem; cursor: pointer; color: #374151; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                <i class="fas fa-lock" style="color: #F59E0B;"></i> Ganti Password
+            </button>
+            <button type="button" onclick="toggleForm('form-pin')" style="flex: 1; padding: 12px; border: 1px solid #E5E7EB; background: white; border-radius: 10px; font-weight: 800; font-size: 0.85rem; cursor: pointer; color: #374151; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                <i class="fas fa-key" style="color: #10B981;"></i> Ganti PIN
+            </button>
+        </div>
+
+        <!-- FORM GANTI PASSWORD (TERSEMBUNYI) -->
+        <div id="form-password" style="display: none; background: #FFFBEB; padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #FDE68A;">
+            <h6 style="margin-top: 0; margin-bottom: 15px; font-weight: 800; font-size: 0.95rem; color: #92400E; text-align:center;">Form Ganti Password</h6>
+            <form action="/update_security" method="POST">
+                <input type="hidden" name="action" value="change_password">
+                <input type="password" name="old_password" required placeholder="Password Lama" style="width: 100%; padding: 12px; border: 1px solid #FCD34D; border-radius: 8px; margin-bottom: 12px; font-size: 0.85rem; outline:none; background:white;">
+                <input type="password" name="new_password" required placeholder="Password Baru" style="width: 100%; padding: 12px; border: 1px solid #FCD34D; border-radius: 8px; margin-bottom: 15px; font-size: 0.85rem; outline:none; background:white;">
+                <button type="submit" style="width: 100%; padding: 12px; border: none; background: #F59E0B; color: white; border-radius: 8px; font-weight: 800; font-size: 0.9rem; cursor: pointer;">Simpan Password</button>
+            </form>
+        </div>
+
+        <!-- FORM GANTI PIN (TERSEMBUNYI) -->
+        <div id="form-pin" style="display: none; background: #ECFDF5; padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #A7F3D0;">
+            <h6 style="margin-top: 0; margin-bottom: 15px; font-weight: 800; font-size: 0.95rem; color: #065F46; text-align:center;">Set / Ganti PIN Transaksi</h6>
+            <form action="/update_security" method="POST">
+                <input type="hidden" name="action" value="change_pin">
+                {% if current_user.pin_hash %}
+                <input type="password" name="old_pin" required placeholder="PIN Lama (6 Digit)" pattern="[0-9]*" inputmode="numeric" maxlength="6" style="width: 100%; padding: 12px; border: 1px solid #6EE7B7; border-radius: 8px; margin-bottom: 12px; font-size: 1rem; text-align: center; letter-spacing: 10px; font-weight: 800; outline:none; background:white;">
+                {% endif %}
+                <input type="password" name="new_pin" required placeholder="PIN Baru (6 Digit)" pattern="[0-9]*" inputmode="numeric" maxlength="6" style="width: 100%; padding: 12px; border: 1px solid #6EE7B7; border-radius: 8px; margin-bottom: 15px; font-size: 1rem; text-align: center; letter-spacing: 10px; font-weight: 800; outline:none; background:white;">
+                <button type="submit" style="width: 100%; padding: 12px; border: none; background: #10B981; color: white; border-radius: 8px; font-weight: 800; font-size: 0.9rem; cursor: pointer;">Simpan PIN</button>
+            </form>
+        </div>
+
+        <script>
+        function toggleForm(id) {
+            let el = document.getElementById(id);
+            if (el.style.display === 'none') {
+                document.getElementById('form-password').style.display = 'none';
+                document.getElementById('form-pin').style.display = 'none';
+                el.style.display = 'block';
+            } else {
+                el.style.display = 'none';
+            }
+        }
+        </script>
+
+        <form action="/profil" method="POST">
+            <input type="hidden" name="action" value="logout">
+            <button type="submit" style="width: 100%; padding: 12px; border: none; background: #FEE2E2; color: #DC2626; border-radius: 10px; font-weight: 800; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <i class="fas fa-sign-out-alt"></i> Keluar (Logout)
+            </button>
+        </form>
+    </div>
+
+    {% else %}
+    <!-- ================= TAMPILAN GUEST (LOGIN & REGISTER) ================= -->
+    <div style="background: white; border-radius: 15px; padding: 25px 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.08);">
+        
+        <!-- Toggle Switcher -->
+        <div style="display: flex; background: #F3F4F6; border-radius: 12px; padding: 5px; margin-bottom: 25px;">
+            <div id="btn-login" onclick="switchForm('login')" style="flex: 1; text-align: center; padding: 10px; border-radius: 8px; font-weight: 800; font-size: 0.9rem; cursor: pointer; background: white; color: #008f89; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: 0.3s;">Masuk</div>
+            <div id="btn-register" onclick="switchForm('register')" style="flex: 1; text-align: center; padding: 10px; border-radius: 8px; font-weight: 800; font-size: 0.9rem; cursor: pointer; color: #6B7280; transition: 0.3s;">Daftar Baru</div>
+        </div>
+
+        <!-- FORM LOGIN -->
+        <div id="form-login">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h5 style="margin: 0; font-weight: 800; color: #1F2937;">Selamat Datang Kembali!</h5>
+                <p style="color: #6B7280; font-size: 0.85rem; margin-top: 5px;">Silakan masuk untuk melanjutkan transaksi.</p>
+            </div>
+            <form action="/profil" method="POST">
+                <input type="hidden" name="action" value="login">
+                
+                <div style="margin-bottom: 15px;">
+                    <div style="position: relative;">
+                        <i class="fas fa-user" style="position: absolute; left: 15px; top: 14px; color: #9CA3AF;"></i>
+                        <input type="text" name="username" required placeholder="Username / No. WA" style="width: 100%; padding: 12px 15px 12px 40px; border: 1px solid #E5E7EB; border-radius: 10px; outline: none; font-size: 0.9rem; background: #F9FAFB;">
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 10px;">
+                    <div style="position: relative;">
+                        <i class="fas fa-lock" style="position: absolute; left: 15px; top: 14px; color: #9CA3AF;"></i>
+                        <input type="password" name="password" required placeholder="Password" style="width: 100%; padding: 12px 15px 12px 40px; border: 1px solid #E5E7EB; border-radius: 10px; outline: none; font-size: 0.9rem; background: #F9FAFB;">
+                    </div>
+                </div>
+                
+                <div style="text-align: right; margin-bottom: 20px;">
+                    <a href="/bantuan?kategori=Akun+dan+Profil" style="font-size: 0.8rem; color: #0EA5E9; text-decoration: none; font-weight: 700;">
+                        <i class="fas fa-question-circle"></i> Lupa Password? Hubungi CS
+                    </a>
+                </div>
+                
+                <button type="submit" style="width: 100%; padding: 14px; border: none; background: #008f89; color: white; border-radius: 10px; font-weight: 800; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <i class="fas fa-sign-in-alt"></i> Masuk Sekarang
+                </button>
+            </form>
+        </div>
+
+        <!-- FORM REGISTER -->
+        <div id="form-register" style="display: none;">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h5 style="margin: 0; font-weight: 800; color: #1F2937;">Daftar Akun Baru</h5>
+                <p style="color: #6B7280; font-size: 0.85rem; margin-top: 5px;">Nikmati kemudahan transaksi dalam genggaman.</p>
+            </div>
+            
+    <!-- FORM REGISTER OTP (SUNTIKAN) -->
+    <div id="register-step-1">
+        <div style="margin-bottom: 15px;">
+            <div style="position: relative;">
+                <i class="fas fa-user" style="position: absolute; left: 15px; top: 14px; color: #9CA3AF;"></i>
+                <input type="text" id="reg_new_username" required placeholder="Buat Username" style="width: 100%; padding: 12px 15px 12px 40px; border: 1px solid #E5E7EB; border-radius: 10px; outline: none; font-size: 0.9rem; background: #F9FAFB;">
+            </div>
+        </div>
+        <div style="margin-bottom: 15px;">
+            <div style="position: relative;">
+                <i class="fab fa-whatsapp" style="position: absolute; left: 15px; top: 14px; color: #9CA3AF;"></i>
+                <input type="number" id="reg_new_whatsapp" required placeholder="Nomor WhatsApp Aktif" style="width: 100%; padding: 12px 15px 12px 40px; border: 1px solid #E5E7EB; border-radius: 10px; outline: none; font-size: 0.9rem; background: #F9FAFB;">
+            </div>
+            <div style="font-size: 0.7rem; color: #EF4444; margin-top: 5px; font-weight: 600;"><i class="fas fa-exclamation-circle"></i> Wajib aktif untuk verifikasi OTP.</div>
+        </div>
+        <div style="margin-bottom: 25px;">
+            <div style="position: relative;">
+                <i class="fas fa-key" style="position: absolute; left: 15px; top: 14px; color: #9CA3AF;"></i>
+                <input type="password" id="reg_new_password" required placeholder="Buat Password" style="width: 100%; padding: 12px 15px 12px 40px; border: 1px solid #E5E7EB; border-radius: 10px; outline: none; font-size: 0.9rem; background: #F9FAFB;">
+            </div>
+        </div>
+        <button type="button" id="btn-req-otp" onclick="requestOTP()" style="width: 100%; padding: 14px; border: none; background: #10B981; color: white; border-radius: 10px; font-weight: 800; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <i class="fas fa-user-plus"></i> Daftar & Verifikasi WA
+        </button>
+    </div>
+
+    <div id="register-step-2" style="display: none;">
+        <div style="text-align: center; margin-bottom: 15px;">
+            <p style="font-size: 0.85rem; color: #6B7280;">Masukkan 6 digit OTP yang dikirim ke <span id="display-wa" style="font-weight:800; color:#10B981;"></span></p>
+        </div>
+        <div style="margin-bottom: 25px;">
+            <input type="number" id="reg_otp_code" placeholder="------" style="width: 100%; padding: 15px; border: 2px dashed #10B981; border-radius: 10px; outline: none; font-size: 1.8rem; font-weight: 900; text-align: center; color: #10B981; background: #F0FDF4; letter-spacing: 8px;">
+        </div>
+        <button type="button" id="btn-verif-otp" onclick="verifyOTP()" style="width: 100%; padding: 14px; border: none; background: #10B981; color: white; border-radius: 10px; font-weight: 800; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <i class="fas fa-check-circle"></i> Verifikasi & Masuk
+        </button>
+        <div style="text-align: center; margin-top: 15px;">
+            <a href="/bantuan?kategori=Akun+dan+Profil" style="font-size: 0.8rem; color: #d97706; text-decoration: none; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;">
+                <i class="fas fa-life-ring"></i> Tidak menerima kode? Bantuan OTP Darurat / Hubungi CS
+            </a>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+    function requestOTP() {
+        let user = document.getElementById('reg_new_username').value;
+        let wa = document.getElementById('reg_new_whatsapp').value;
+        let psw = document.getElementById('reg_new_password').value;
+        if(!user || !wa || !psw){ Swal.fire('Oops','Isi semua kolom!','warning'); return; }
+        
+        let btn = document.getElementById('btn-req-otp');
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengirim OTP...'; btn.disabled = true;
+        
+        let formData = new FormData();
+        formData.append('action', 'request_otp_baru');
+        formData.append('new_username', user);
+        formData.append('new_whatsapp', wa);
+        formData.append('new_password', psw);
+        
+        fetch('/profil', { method: 'POST', body: formData })
+        .then(res => res.json())
+        .then(data => {
+            if(data.status === 'success'){
+                document.getElementById('register-step-1').style.display = 'none';
+                document.getElementById('register-step-2').style.display = 'block';
+                document.getElementById('display-wa').innerText = wa;
+                Swal.fire({title:'Terkirim!', text:data.message, icon:'success', timer:2000, showConfirmButton:false});
+            } else { Swal.fire('Gagal', data.message, 'error'); btn.innerHTML = '<i class="fas fa-user-plus"></i> Coba Lagi'; btn.disabled = false; }
+        }).catch(err => { Swal.fire('Error', 'Sistem sibuk', 'error'); btn.innerHTML = '<i class="fas fa-user-plus"></i> Coba Lagi'; btn.disabled = false; });
+    }
+
+    function verifyOTP() {
+        let wa = document.getElementById('reg_new_whatsapp').value;
+        let otp = document.getElementById('reg_otp_code').value;
+        if(otp.length < 4){ Swal.fire('Oops','Masukkan OTP yang valid','warning'); return; }
+        
+        let btn = document.getElementById('btn-verif-otp');
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memverifikasi...'; btn.disabled = true;
+        
+        let formData = new FormData();
+        formData.append('action', 'verify_otp_baru');
+        formData.append('new_whatsapp', wa);
+        formData.append('otp', otp);
+        
+        fetch('/profil', { method: 'POST', body: formData })
+        .then(res => res.json())
+        .then(data => {
+            if(data.status === 'success'){
+                Swal.fire({title:'Berhasil!', text:data.message, icon:'success', timer:2000, showConfirmButton:false});
+                setTimeout(()=>{ window.location.reload(); }, 1500);
+            } else { Swal.fire('Gagal', data.message, 'error'); btn.innerHTML = '<i class="fas fa-check-circle"></i> Verifikasi & Masuk'; btn.disabled = false; }
+        }).catch(err => { Swal.fire('Error', 'Sistem sibuk', 'error'); btn.innerHTML = '<i class="fas fa-check-circle"></i> Verifikasi & Masuk'; btn.disabled = false; });
+    }
+    </script>
+
+        </div>
+    </div>
+    
+    <!-- Script Animasi Tab -->
+    <script>
+        function switchForm(type) {
+            const loginForm = document.getElementById('form-login');
+            const registerForm = document.getElementById('form-register');
+            const btnLogin = document.getElementById('btn-login');
+            const btnRegister = document.getElementById('btn-register');
+            
+            if (type === 'login') {
+                loginForm.style.display = 'block';
+                registerForm.style.display = 'none';
+                btnLogin.style.background = 'white';
+                btnLogin.style.color = '#008f89';
+                btnLogin.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+                btnRegister.style.background = 'transparent';
+                btnRegister.style.color = '#6B7280';
+                btnRegister.style.boxShadow = 'none';
+            } else {
+                loginForm.style.display = 'none';
+                registerForm.style.display = 'block';
+                btnRegister.style.background = 'white';
+                btnRegister.style.color = '#008f89';
+                btnRegister.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+                btnLogin.style.background = 'transparent';
+                btnLogin.style.color = '#6B7280';
+                btnLogin.style.boxShadow = 'none';
+            }
+        }
+
+        // Auto switch ke tab register jika diarahkan dari tombol daftar
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.get('action') === 'register' || urlParams.get('tab') === 'register') {
+                    switchForm('register');
+                }
+            } catch (e) {}
+        });
+    </script>
+    {% endif %}
+</div>
+{% endblock %}

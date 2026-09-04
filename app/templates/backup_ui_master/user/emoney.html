@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% block title %}Transaksi - E-Wallet{% endblock %}
+
+{% block head %}
+<style>
+    /* HEADER E-MONEY */
+    .emoney-header { background: var(--primary); padding: 20px 20px 60px 20px; color: white; border-bottom-left-radius: 30px; border-bottom-right-radius: 30px; }
+    .top-bar { display: flex; align-items: center; gap: 15px; font-size: 18px; font-weight: 800; cursor: pointer; }
+    
+    .header-content { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 25px; }
+    .saldo-title { font-size: 12px; opacity: 0.9; margin-bottom: 5px; }
+    .saldo-amount { font-size: 28px; font-weight: 800; display: flex; align-items: center; gap: 5px; }
+    .saldo-amount span { font-size: 16px; margin-top: 5px; }
+    .btn-topup { background: white; color: var(--primary); border: none; padding: 10px 18px; border-radius: 20px; font-weight: 800; font-size: 12px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+
+    /* SEARCH BAR MELAYANG */
+    .search-floating { margin: -30px 15px 15px 15px; background: white; padding: 15px 20px; border-radius: 20px; display: flex; align-items: center; gap: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #f0f4f8; position: relative; z-index: 10; }
+    .search-floating i { color: #a0aec0; font-size: 18px; }
+    .search-floating input { flex: 1; border: none; outline: none; font-size: 14px; font-weight: 700; color: #2d3748; }
+
+    /* INFO MARQUEE */
+    .info-bar { margin: 0 15px 20px 15px; background: white; padding: 8px 12px; border-radius: 12px; display: flex; align-items: center; gap: 10px; border: 1px solid #e0f2f1; }
+    .info-badge { background: var(--primary); color: white; padding: 4px 10px; border-radius: 8px; font-size: 10px; font-weight: 800; letter-spacing: 0.5px; }
+    .info-text { flex: 1; overflow: hidden; white-space: nowrap; }
+    .info-text marquee { font-size: 12px; color: var(--primary); font-weight: 700; padding-top: 3px; }
+
+    /* TOGGLE BUTTONS (TopUp vs Bebas Nominal) */
+    .toggle-container { margin: 0 15px 20px 15px; background: #f8fafc; border-radius: 20px; display: flex; padding: 5px; }
+    .toggle-btn { flex: 1; text-align: center; padding: 12px; font-size: 13px; font-weight: 800; border-radius: 16px; cursor: pointer; color: #a0aec0; transition: 0.3s; }
+    .toggle-btn.active { background: var(--primary); color: white; box-shadow: 0 4px 10px rgba(0,135,121,0.2); }
+
+    /* KOTAK LAYANAN POPULER */
+    .provider-container { margin: 0 15px 20px 15px; background: white; border-radius: 24px; padding: 20px 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.02); }
+    .pc-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .pc-header h3 { margin: 0; font-size: 15px; font-weight: 800; color: #2d3748; }
+    .pc-badge { background: #f1f5f9; color: #64748b; padding: 5px 12px; border-radius: 12px; font-size: 11px; font-weight: 800; }
+
+    /* GRID PROVIDER ICON */
+    .provider-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px 10px; }
+    @media (min-width: 768px) { .provider-grid { grid-template-columns: repeat(6, 1fr); } }
+    
+    .provider-item { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; transition: 0.2s; text-decoration: none; }
+    .provider-item:hover { transform: translateY(-3px); }
+    
+    /* Bentuk Squircle Icon sesuai referensi */
+    .p-icon-box { width: 55px; height: 55px; background: #f8fafc; border-radius: 18px; display: flex; justify-content: center; align-items: center; font-size: 24px; color: var(--primary); border: 1px solid #eef2f6; position: relative; overflow: hidden; }
+    
+    /* Warna gradien khusus untuk logo dummy e-wallet agar mirip aslinya */
+    .dana .p-icon-box { color: #118ee0; }
+    .ovo .p-icon-box { color: #4c3494; }
+    .gopay .p-icon-box { color: #00a5cf; }
+    .shopee .p-icon-box { color: #ee4d2d; }
+    .linkaja .p-icon-box { color: #df1921; }
+    
+    .provider-item span { font-size: 11px; font-weight: 800; color: #4a5568; text-align: center; }
+
+    /* BANNER PROMO BAWAH */
+    .promo-banner { margin: 0 15px 30px 15px; background: linear-gradient(135deg, #009688, #00796b); border-radius: 20px; padding: 20px; color: white; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 15px rgba(0, 135, 121, 0.3); }
+    .promo-banner h4 { margin: 0 0 5px 0; font-size: 16px; font-weight: 800; }
+    .promo-banner p { margin: 0; font-size: 11px; opacity: 0.9; }
+    .promo-banner i { font-size: 40px; opacity: 0.2; }
+</style>
+{% endblock %}
+
+{% block bottom_nav %}{% endblock %}
+
+{% block content %}
+<div class="emoney-header">
+    <div class="top-bar" onclick="goBack()">
+        <i class="fas fa-arrow-left"></i>
+        <span>Kembali</span>
+    </div>
+    <div class="header-content">
+        <div>
+            <div class="saldo-title">Saldo Akun Anda</div>
+            <div class="saldo-amount"><span>Rp</span> {{ current_user.saldo if current_user else '0' }}</div>
+        </div>
+        <button class="btn-topup">TOP UP <i class="fas fa-plus" style="font-size: 10px; margin-left: 2px;"></i></button>
+    </div>
+</div>
+
+<div class="search-floating">
+    <i class="fas fa-search"></i>
+    <input type="text" id="searchProvider" placeholder="Cari layanan e-wallet..." onkeyup="filterProvider()">
+</div>
+
+<div class="info-bar">
+    <div class="info-badge">INFO</div>
+    <div class="info-text">
+        <marquee scrollamount="4">Transaksi pukul 23:20 - 00:15 WIB karena maintenance sistem jaringan bank dan provider.</marquee>
+    </div>
+</div>
+
+<div class="toggle-container">
+    <div class="toggle-btn active">TopUp E-Wallet</div>
+    <div class="toggle-btn">Bebas Nominal</div>
+</div>
+
+<div class="provider-container">
+    <div class="pc-header">
+        <h3>Layanan Populer</h3>
+        <span class="pc-badge">12 Item</span>
+    </div>
+    
+    <div class="provider-grid" id="providerList">
+        <a href="#" class="provider-item dana">
+            <div class="p-icon-box"><i class="fas fa-wallet"></i></div>
+            <span class="p-name">Dana</span>
+        </a>
+        <a href="#" class="provider-item ovo">
+            <div class="p-icon-box"><i class="fas fa-dot-circle"></i></div>
+            <span class="p-name">OVO</span>
+        </a>
+        <a href="#" class="provider-item gopay">
+            <div class="p-icon-box"><i class="fas fa-wallet"></i></div>
+            <span class="p-name">Gopay</span>
+        </a>
+        <a href="#" class="provider-item shopee">
+            <div class="p-icon-box"><i class="fas fa-shopping-bag"></i></div>
+            <span class="p-name">ShopeePay</span>
+        </a>
+        <a href="#" class="provider-item linkaja">
+            <div class="p-icon-box"><i class="fas fa-link"></i></div>
+            <span class="p-name">LinkAja</span>
+        </a>
+        <a href="#" class="provider-item">
+            <div class="p-icon-box"><i class="fas fa-car"></i></div>
+            <span class="p-name">Maxim</span>
+        </a>
+        <a href="#" class="provider-item">
+            <div class="p-icon-box"><i class="fas fa-motorcycle"></i></div>
+            <span class="p-name">Grab</span>
+        </a>
+        <a href="#" class="provider-item">
+            <div class="p-icon-box"><i class="fas fa-motorcycle"></i></div>
+            <span class="p-name">Gojek Driver</span>
+        </a>
+        <a href="#" class="provider-item">
+            <div class="p-icon-box"><i class="fas fa-info-circle"></i></div>
+            <span class="p-name">Isaku</span>
+        </a>
+        <a href="#" class="provider-item">
+            <div class="p-icon-box"><i class="fas fa-a"></i></div>
+            <span class="p-name">Astrapay</span>
+        </a>
+        <a href="#" class="provider-item">
+            <div class="p-icon-box"><i class="fas fa-money-check-alt"></i></div>
+            <span class="p-name">Kaspro</span>
+        </a>
+        <a href="#" class="provider-item">
+            <div class="p-icon-box"><i class="fas fa-wallet"></i></div>
+            <span class="p-name">Doku</span>
+        </a>
+    </div>
+</div>
+
+<div class="promo-banner">
+    <div>
+        <h4>Promo Akhir Pekan!</h4>
+        <p>Cashback hingga 5% tiap transaksi</p>
+    </div>
+    <i class="fas fa-gift"></i>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // 1. TOMBOL KEMBALI PINTAR
+    function goBack() {
+        if (document.referrer && document.referrer.includes(window.location.host)) {
+            window.history.back();
+        } else {
+            window.location.href = '/dashboard';
+        }
+    }
+
+    // 2. FUNGSI PENCARIAN PROVIDER
+    function filterProvider() {
+        let input = document.getElementById('searchProvider').value.toLowerCase();
+        let items = document.getElementsByClassName('provider-item');
+        let count = 0;
+        
+        for (let i = 0; i < items.length; i++) {
+            let nama = items[i].querySelector('.p-name').innerText.toLowerCase();
+            if (nama.includes(input)) {
+                items[i].style.display = "";
+                count++;
+            } else {
+                items[i].style.display = "none";
+            }
+        }
+        
+        // Update badge jumlah item
+        document.querySelector('.pc-badge').innerText = count + " Item";
+    }
+
+    // 3. LOGIKA TOGGLE BUTTON
+    let toggles = document.querySelectorAll('.toggle-btn');
+    toggles.forEach(btn => {
+        btn.addEventListener('click', function() {
+            toggles.forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+        });
+    });
+</script>
+{% endblock %}

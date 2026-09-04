@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <title>Daftar Produk - Admin Panel</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body { background: #F1F5F9; margin: 0; font-family: 'Nunito', sans-serif; }
+        .container { max-width: 900px; margin: auto; padding: 20px; }
+        .header { background: #1E293B; color: white; padding: 20px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .header h3 { margin: 0; }
+        
+        .alert-success { background: #D1FAE5; color: #065F46; padding: 10px; border-radius: 8px; font-size: 12px; font-weight: bold; margin-bottom: 15px; border: 1px solid #34D399; }
+        
+        /* Style untuk Kotak Pencarian */
+        .search-box { position: relative; margin-bottom: 15px; }
+        .search-box i { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #64748B; }
+        .search-box input { width: 100%; padding: 12px 15px 12px 40px; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 13px; font-family: 'Nunito', sans-serif; box-sizing: border-box; outline: none; transition: border-color 0.3s; }
+        .search-box input:focus { border-color: #3A827F; }
+
+        .table-wrapper { background: white; border-radius: 12px; overflow-x: auto; box-shadow: 0 2px 4px rgba(0,0,0,0.05); padding: 15px; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #E2E8F0; }
+        th { background: #F8FAFC; color: #334155; font-weight: 800; white-space: nowrap; }
+        .badge-auto { background: #D1FAE5; color: #065F46; padding: 3px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; margin-left: 5px; }
+        .badge-manual { background: #FEF08A; color: #92400E; padding: 3px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; margin-left: 5px; }
+        .btn-icon { border: none; background: none; cursor: pointer; font-size: 14px; padding: 4px; margin-left: 5px; transition: transform 0.2s; }
+        .btn-icon:hover { transform: scale(1.2); }
+        .btn-edit { color: #3A827F; }
+        .btn-reset { color: #EF4444; }
+    </style>
+
+<!-- [FIX-NOTIF-LAYER] -->
+<style>
+    /* Memaksa semua jenis notifikasi pop-up berada di lapisan paling depan menembus modal/bottom sheet */
+    .swal2-container, 
+    .swal-overlay, 
+    .toast-container, 
+    #toast-container, 
+    .notyf {
+        z-index: 999999 !important;
+    }
+</style>
+<!-- [FIX-NOTIF-LAYER] END -->
+
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h3><i class="fas fa-box-open"></i> Daftar Produk PPOB</h3>
+            <a href="{{ url_for('admin.dashboard') }}" style="color: white; text-decoration: none; font-size: 20px;"><i class="fas fa-arrow-left"></i></a>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}{% for category, message in messages %}
+                <div class="alert-{{ category }}"><i class="fas fa-check-circle"></i> {{ message }}</div>
+            {% endfor %}{% endif %}
+        {% endwith %}
+
+        <div class="filter-card" style="background: white; padding: 15px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid #E2E8F0;">
+            <form method="GET" action="{{ url_for('admin.produk') }}" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <input type="text" name="q" value="{{ search_q }}" placeholder="Cari nama produk, kode SKU, atau brand..." style="flex: 2; min-width: 200px; padding: 10px 15px; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 12px; font-family: inherit; outline: none;">
+                <select name="category" style="flex: 1; min-width: 150px; padding: 10px; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 12px; font-weight: bold; background: white; outline: none;">
+                    <option value="">-- Semua Kategori --</option>
+                    {% for c in categories %}
+                    <option value="{{ c }}" {% if category_filter == c %}selected{% endif %}>{{ c }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" style="background: #3A827F; color: white; border: none; padding: 10px 18px; border-radius: 8px; font-weight: bold; cursor: pointer;"><i class="fas fa-search"></i> Filter</button>
+                {% if search_q or category_filter %}
+                <a href="{{ url_for('admin.produk') }}" style="background: #E2E8F0; color: #475569; padding: 10px 14px; border-radius: 8px; font-weight: bold; text-decoration: none;"><i class="fas fa-times"></i> Reset</a>
+                {% endif %}
+            </form>
+            <div style="font-size: 11px; color: #64748B; margin-top: 10px; font-weight: 700;">
+                Menampilkan <b>{{ pagination.total }}</b> produk (dari total <b>{{ total_products_count }}</b> produk di database)
+            </div>
+        </div>
+
+        <div class="table-wrapper">
+            <table id="productTable">
+                <thead>
+                    <tr>
+                        <th>Kode</th>
+                        <th>Produk</th>
+                        <th>Hrg Modal</th>
+                        <th>Hrg Jual (Edit)</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in products %}
+                    <tr>
+                        <td><strong>{{ p.sku_code }}</strong></td>
+                        <td>
+                            <div>{{ p.name }}</div>
+                            <div style="font-size: 10px; color: #64748B;">{{ p.category }} | {{ p.brand }}</div>
+                        </td>
+                        <td>Rp {{ "{:,.0f}".format(p.base_price) }}</td>
+                        <td style="min-width: 140px;">
+                            Rp {{ "{:,.0f}".format(p.sell_price) }}
+                            
+                            {% if p.is_manual_margin %}
+                                <span class="badge-manual">MANUAL</span>
+                            {% else %}
+                                <span class="badge-auto">AUTO</span>
+                            {% endif %}
+                            
+                            <button type="button" 
+                                    data-id="{{ p.id }}" 
+                                    data-name="{{ p.name }}" 
+                                    data-price="{{ p.sell_price }}" 
+                                    onclick="editMarginBtn(this)" 
+                                    class="btn-icon btn-edit" 
+                                    title="Edit Harga Jual">
+                                <i class="fas fa-pencil-alt"></i>
+                            </button>
+
+                            {% if p.is_manual_margin %}
+                            <form action="{{ url_for('admin.reset_margin', id=p.id) }}" method="POST" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                <button type="submit" class="btn-icon btn-reset" title="Kembalikan ke Auto Tier" onclick="return confirm('Kembalikan harga ke mode Auto Tier?');">
+                                    <i class="fas fa-sync-alt"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if p.is_active %}<span style="color:#059669; font-weight:800;">Aktif</span>{% else %}<span style="color:#DC2626; font-weight:800;">Gangguan</span>{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <!-- PAGINATION BAR -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px; padding-top: 15px; border-top: 1px solid #E2E8F0; flex-wrap: wrap; gap: 10px;">
+                <div style="font-size: 12px; color: #64748B; font-weight: 700;">
+                    Halaman <b>{{ pagination.page }}</b> dari <b>{{ pagination.pages or 1 }}</b> (50 produk per halaman)
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <a href="{{ url_for('admin.produk', page=pagination.prev_num, q=search_q, category=category_filter) }}" 
+                       style="background: #F1F5F9; color: #334155; border: 1px solid #CBD5E1; padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 800; text-decoration: none; {% if not pagination.has_prev %}opacity: 0.5; pointer-events: none;{% endif %}">
+                       <i class="fas fa-chevron-left"></i> Sebelumnya
+                    </a>
+                    <a href="{{ url_for('admin.produk', page=pagination.next_num, q=search_q, category=category_filter) }}" 
+                       style="background: #F1F5F9; color: #334155; border: 1px solid #CBD5E1; padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 800; text-decoration: none; {% if not pagination.has_next %}opacity: 0.5; pointer-events: none;{% endif %}">
+                       Berikutnya <i class="fas fa-chevron-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <form id="editMarginForm" method="POST" style="display:none;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <input type="number" name="sell_price" id="newSellPrice">
+    </form>
+
+    <script>
+        // FUNGSI PENCARIAN REAL-TIME
+        function searchTable() {
+            let input = document.getElementById("searchInput");
+            let filter = input.value.toUpperCase();
+            let table = document.getElementById("productTable");
+            let tr = table.getElementsByTagName("tr");
+
+            // Looping semua baris tabel, sembunyikan yang tidak cocok dengan kata pencarian
+            for (let i = 1; i < tr.length; i++) { // Mulai dari 1 untuk melewati <thead>
+                let tdCode = tr[i].getElementsByTagName("td")[0]; // Kolom Kode
+                let tdName = tr[i].getElementsByTagName("td")[1]; // Kolom Nama Produk
+                
+                if (tdCode || tdName) {
+                    let txtValueCode = tdCode.textContent || tdCode.innerText;
+                    let txtValueName = tdName.textContent || tdName.innerText;
+                    
+                    if (txtValueCode.toUpperCase().indexOf(filter) > -1 || txtValueName.toUpperCase().indexOf(filter) > -1) {
+                        tr[i].style.display = "";
+                    } else {
+                        tr[i].style.display = "none";
+                    }
+                }       
+            }
+        }
+
+        // FUNGSI EDIT MARGIN MANUAL
+        function editMarginBtn(btn) {
+            let id = btn.getAttribute('data-id');
+            let name = btn.getAttribute('data-name');
+            let currentPrice = btn.getAttribute('data-price');
+            let newPrice = prompt("Ubah Harga Jual untuk produk:\n" + name + "\n\n(Hanya masukkan angka tanpa titik)", currentPrice);
+            if (newPrice != null && newPrice != "") {
+                if(!isNaN(newPrice)) {
+                    let form = document.getElementById('editMarginForm');
+                    form.action = "/admin/edit_margin/" + id;
+                    document.getElementById('newSellPrice').value = newPrice;
+                    form.submit();
+                } else {
+                    alert("Error: Harap masukkan format angka saja!");
+                }
+            }
+        }
+    </script>
+</body>
+</html>

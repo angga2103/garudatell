@@ -1,0 +1,350 @@
+{% extends "base.html" %}
+{% block title %}Pusat Bantuan & CS - GarudaTel{% endblock %}
+
+{% block head %}
+<style>
+    .bantuan-page-wrapper {
+        max-width: 650px;
+        margin: 0 auto;
+        padding-bottom: 30px;
+    }
+    .bantuan-header {
+        background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+        border-bottom-left-radius: 28px;
+        border-bottom-right-radius: 28px;
+        padding: 22px 20px 30px 20px;
+        margin: -15px -15px 22px -15px;
+        color: white;
+        box-shadow: 0 4px 15px rgba(2,132,199,0.2);
+    }
+    .header-nav-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 14px;
+    }
+    .btn-header-back {
+        color: white;
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: 0.15s;
+    }
+    .btn-header-back:hover { opacity: 0.85; }
+
+    .card-cs-info {
+        background: rgba(255,255,255,0.15);
+        backdrop-filter: blur(5px);
+        border: 1px solid rgba(255,255,255,0.25);
+        border-radius: 16px;
+        padding: 12px 14px;
+        margin-top: 14px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 11px;
+    }
+    .card-cs-info i { font-size: 22px; color: #bae6fd; }
+
+    .ticket-card {
+        background: white;
+        border-radius: 20px;
+        padding: 22px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+        border: 1px solid #e2e8f0;
+    }
+    .form-label {
+        font-size: 12px;
+        font-weight: 800;
+        color: #334155;
+        margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .form-control-custom {
+        width: 100%;
+        padding: 12px 14px;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 12px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #1e293b;
+        background: #f8fafc;
+        box-sizing: border-box;
+        outline: none;
+        font-family: inherit;
+        transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    }
+    .form-control-custom:focus {
+        border-color: #0284c7;
+        background: #ffffff;
+        box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.14);
+    }
+    .form-group-item { margin-bottom: 18px; }
+
+    .form-grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+    }
+    @media (max-width: 600px) {
+        .form-grid-2 {
+            grid-template-columns: 1fr;
+            gap: 0;
+        }
+    }
+
+    .trx-preview-box {
+        background: #f0fdfa;
+        border: 1.5px dashed #00877a;
+        border-radius: 14px;
+        padding: 12px 14px;
+        margin-top: 8px;
+        display: none;
+    }
+    .trx-preview-box.show { display: block; }
+    .trx-preview-title { font-size: 11px; font-weight: 800; color: #00877a; margin-bottom: 4px; }
+    .trx-preview-detail { font-size: 12px; color: #334155; line-height: 1.45; }
+
+    .btn-submit-ticket {
+        width: 100%;
+        padding: 14px;
+        background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+        color: white;
+        border: none;
+        border-radius: 14px;
+        font-size: 14px;
+        font-weight: 800;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        box-shadow: 0 4px 15px rgba(2,132,199,0.35);
+        transition: transform 0.15s, opacity 0.15s;
+    }
+    .btn-submit-ticket:hover { opacity: 0.95; }
+    .btn-submit-ticket:active { transform: scale(0.98); }
+
+    .wa-direct-box {
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 18px;
+        padding: 18px;
+        text-align: center;
+        margin-bottom: 25px;
+    }
+    .btn-wa-direct {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: #22c55e;
+        color: white;
+        text-decoration: none;
+        padding: 11px 22px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 800;
+        margin-top: 10px;
+        box-shadow: 0 4px 12px rgba(34,197,94,0.3);
+        transition: 0.15s;
+    }
+    .btn-wa-direct:hover { background: #16a34a; color: white; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bantuan-page-wrapper">
+    <div class="bantuan-header">
+        <div class="header-nav-row">
+            <a href="/" class="btn-header-back">
+                <i class="fas fa-arrow-left"></i>
+                <span>Kembali ke Home</span>
+            </a>
+            <span style="font-size: 11px; font-weight: 800; background: rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 20px;">
+                <i class="fas fa-headset mr-1"></i> CS 24 Jam
+            </span>
+        </div>
+
+        <div>
+            <h2 style="font-size: 20px; font-weight: 800; margin: 0;">Pusat Bantuan & Tiket CS</h2>
+            <p style="font-size: 12px; opacity: 0.95; margin: 3px 0 0 0;">Ada kendala transaksi atau pertanyaan? CS kami siap membantu.</p>
+        </div>
+
+        <div class="card-cs-info">
+            <i class="fab fa-telegram-plane"></i>
+            <div>
+                <b>Terhubung Langsung ke Bot CS</b>
+                <div style="opacity: 0.9; margin-top: 2px;">Tiket keluhan akan otomatis terkirim langsung ke panel Telegram CS kami untuk penanganan cepat.</div>
+            </div>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}{% for category, message in messages %}
+            <div style="padding: 14px 16px; border-radius: 14px; margin-bottom: 16px; font-size: 12px; font-weight: 700; background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0;">
+                {{ message }}
+            </div>
+        {% endfor %}{% endif %}
+    {% endwith %}
+
+    <!-- FORM TIKET BANTUAN -->
+    <div class="ticket-card">
+        <h3 style="font-size: 15px; font-weight: 800; color: #1e293b; margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px;">
+            <i class="fas fa-ticket-alt" style="color: #0284c7;"></i>
+            <span>Kirim Tiket Keluhan Baru</span>
+        </h3>
+
+        <form action="{{ url_for('user.kirim_tiket') }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+            <!-- 1. Pemilih Transaksi Bermasalah -->
+            <div class="form-group-item">
+                <label class="form-label">
+                    <i class="fas fa-receipt" style="color: #00877a;"></i>
+                    <span>Pilih Transaksi yang Bermasalah</span>
+                </label>
+                <select name="transaction_ref" id="select-transaction" class="form-control-custom" onchange="onTransactionChange()">
+                    <option value="NONE">-- Tidak Ada / Pertanyaan Umum --</option>
+                    {% for t in recent_trxs %}
+                    <option value="{{ t.ref_id }}" 
+                            data-product="{{ t.product_name or 'Produk' }}" 
+                            data-target="{{ t.target_number or '-' }}" 
+                            data-status="{{ t.status }}" 
+                            data-price="{{ '{:,.0f}'.format(t.amount or 0) }}"
+                            data-date="{{ t.created_at.strftime('%d/%m/%Y %H:%M') if t.created_at else '-' }}"
+                            {% if selected_ref == t.ref_id %}selected{% endif %}>
+                        [{{ t.status }}] {{ t.product_name or 'Produk' }} - {{ t.target_number }} (Ref: {{ t.ref_id }})
+                    </option>
+                    {% endfor %}
+                </select>
+
+                <!-- Box Preview Transaksi Terpilih -->
+                <div id="trx-preview-box" class="trx-preview-box {% if selected_trx %}show{% endif %}">
+                    <div class="trx-preview-title">
+                        <i class="fas fa-info-circle"></i> Ringkasan Transaksi Terpilih:
+                    </div>
+                    <div class="trx-preview-detail" id="trx-preview-detail">
+                        {% if selected_trx %}
+                        <b>Ref ID:</b> <code>{{ selected_trx.ref_id }}</code> | <b>Status:</b> <b style="color: {% if selected_trx.status == 'SUCCESS' %}#16a34a{% elif selected_trx.status == 'FAILED' %}#dc2626{% else %}#d97706{% endif %};">{{ selected_trx.status }}</b><br>
+                        <b>Produk:</b> {{ selected_trx.product_name or '-' }} | <b>Tujuan:</b> {{ selected_trx.target_number }}<br>
+                        <b>Harga:</b> Rp {{ "{:,.0f}".format(selected_trx.amount or 0) }}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Kategori Masalah -->
+            <div class="form-group-item">
+                <label class="form-label">
+                    <i class="fas fa-list-ul" style="color: #0284c7;"></i>
+                    <span>Kategori Kendala <span style="color:#ef4444;">*</span></span>
+                </label>
+                <select name="category" class="form-control-custom" required>
+                    <option value="Transaksi Pending / Belum Masuk">Transaksi Pending / Belum Masuk</option>
+                    <option value="Status Sukses Tapi Pulsa/Item Belum Masuk">Status Sukses Tapi Pulsa/Item Belum Masuk</option>
+                    <option value="Saldo Terpotong Tapi Transaksi Gagal">Saldo Terpotong Tapi Transaksi Gagal</option>
+                    <option value="Salah Masukkan Nomor Tujuan / ID Game">Salah Masukkan Nomor Tujuan / ID Game</option>
+                    <option value="Kendala Isi Saldo / Deposit">Kendala Isi Saldo / Deposit</option>
+                    <option value="Pertanyaan Layanan / Akun">Pertanyaan Layanan / Akun</option>
+                    <option value="Lainnya">Lainnya</option>
+                </select>
+            </div>
+
+            <!-- 3. Nama & WhatsApp Pelapor (Grid Responsif 2 Kolom) -->
+            <div class="form-grid-2">
+                <div class="form-group-item">
+                    <label class="form-label">
+                        <i class="fas fa-user" style="color: #64748b;"></i>
+                        <span>Nama Lengkap <span style="color:#ef4444;">*</span></span>
+                    </label>
+                    <input type="text" name="user_name" class="form-control-custom" 
+                           value="{{ current_user.name if current_user and current_user.is_authenticated else '' }}" 
+                           placeholder="Masukkan nama Anda..." required>
+                </div>
+
+                <div class="form-group-item">
+                    <label class="form-label">
+                        <i class="fab fa-whatsapp" style="color: #22c55e;"></i>
+                        <span>Nomor WhatsApp Aktif <span style="color:#ef4444;">*</span></span>
+                    </label>
+                    <input type="tel" name="user_phone" class="form-control-custom" 
+                           value="{{ current_user.phone if current_user and current_user.is_authenticated else '' }}" 
+                           placeholder="Contoh: 081234567890" required>
+                    <div style="font-size: 10px; color: #64748b; margin-top: 4px;">Digunakan CS untuk menghubungi Anda.</div>
+                </div>
+            </div>
+
+            <!-- 4. Detail Keluhan / Pesan -->
+            <div class="form-group-item">
+                <label class="form-label">
+                    <i class="fas fa-comment-alt" style="color: #0284c7;"></i>
+                    <span>Jelaskan Masalah / Pertanyaan Anda <span style="color:#ef4444;">*</span></span>
+                </label>
+                <textarea name="message" class="form-control-custom" rows="4" 
+                          placeholder="Jelaskan kendala Anda secara rinci, misalnya: 'Saya transaksi pulsa tadi jam 10 pagi, saldo sudah kepotong tapi pulsa belum masuk ke nomor tujuan...'" 
+                          style="resize: vertical; min-height: 110px;" required></textarea>
+            </div>
+
+            <button type="submit" class="btn-submit-ticket">
+                <i class="fab fa-telegram-plane" style="font-size: 16px;"></i>
+                <span>Kirim Tiket ke CS Telegram</span>
+            </button>
+        </form>
+    </div>
+
+    <!-- OPSI CHAT WA LANGSUNG -->
+    <div class="wa-direct-box">
+        <i class="fab fa-whatsapp" style="font-size: 36px; color: #22c55e;"></i>
+        <h4 style="margin: 8px 0 4px 0; font-size: 14px; font-weight: 800; color: #15803d;">Butuh Bantuan Mendesak?</h4>
+        <p style="font-size: 12px; color: #475569; margin: 0;">Anda juga dapat langsung berkonsultasi dengan Customer Service kami melalui WhatsApp resmi.</p>
+        <a href="whatsapp://send?phone=6281775700114&text=Halo%20CS%20GarudaTel,%20saya%20butuh%20bantuan%20terkait%20layanan%20GarudaTel:" class="btn-wa-direct">
+            <i class="fab fa-whatsapp" style="font-size: 15px;"></i>
+            <span>Chat WhatsApp CS</span>
+        </a>
+    </div>
+</div>
+
+<script>
+    function onTransactionChange() {
+        const sel = document.getElementById('select-transaction');
+        const box = document.getElementById('trx-preview-box');
+        const detail = document.getElementById('trx-preview-detail');
+        const val = sel.value;
+
+        if (val === 'NONE') {
+            box.classList.remove('show');
+        } else {
+            const opt = sel.options[sel.selectedIndex];
+            const prod = opt.getAttribute('data-product');
+            const target = opt.getAttribute('data-target');
+            const status = opt.getAttribute('data-status');
+            const price = opt.getAttribute('data-price');
+            const date = opt.getAttribute('data-date');
+
+            let color = '#d97706';
+            if (status === 'SUCCESS') color = '#16a34a';
+            else if (status === 'FAILED') color = '#dc2626';
+
+            detail.innerHTML = `
+                <b>Ref ID:</b> <code>${val}</code> | <b>Status:</b> <b style="color: ${color};">${status}</b><br>
+                <b>Produk:</b> ${prod} | <b>Tujuan:</b> <code>${target}</code><br>
+                <b>Harga:</b> Rp ${price} | <b>Waktu:</b> ${date}
+            `;
+            box.classList.add('show');
+        }
+    }
+
+    // Panggil saat pertama kali load jika ada pre-selected ref
+    document.addEventListener('DOMContentLoaded', () => {
+        if (document.getElementById('select-transaction').value !== 'NONE') {
+            onTransactionChange();
+        }
+    });
+</script>
+{% endblock %}
