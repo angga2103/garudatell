@@ -2,6 +2,7 @@ import requests
 import hashlib
 import hmac
 import os
+from datetime import datetime, timedelta, timezone
 from app.extensions import db
 from app.models.product import Product
 from app.models.margin import MarginTier
@@ -9,6 +10,32 @@ from app.models.margin import MarginTier
 def clean_str(val):
     if not val: return ''
     return str(val).replace("'", "").replace('"', '').strip(" \t\n\r")
+
+# =====================================================================
+# JADWAL CUT OFF & MAINTENANCE HARIAN PLN (23:30 - 01:00 WIB)
+# =====================================================================
+def is_pln_cutoff_time(check_time=None):
+    """
+    Mengecek apakah waktu saat ini (atau check_time) masuk jadwal Cut Off harian PLN (23:30 - 01:00 WIB).
+    Biller PLN pusat tidak melayani pembelian token maupun cek/bayar tagihan pada rentang waktu ini.
+    """
+    if check_time is None:
+        now_wib = datetime.now(timezone.utc) + timedelta(hours=7)
+    else:
+        now_wib = check_time
+
+    hour = now_wib.hour
+    minute = now_wib.minute
+
+    # 23:30 s/d 23:59 WIB ATAU 00:00 s/d 00:59 WIB
+    if (hour == 23 and minute >= 30) or (hour == 0):
+        return True
+    return False
+
+def get_pln_cutoff_message():
+    """Pesan resmi peringatan Cut Off PLN untuk user."""
+    return "Jadwal Cut Off & Maintenance Harian PLN (23:30 - 01:00 WIB). Transaksi pembelian token dan pembayaran tagihan PLN tidak dapat diproses pada waktu ini. Mohon coba kembali setelah pukul 01:00 WIB."
+
 
 # =====================================================================
 # 10. RESPONSE CODE MAPPING (https://developer.digiflazz.com/api/buyer/response-code/)

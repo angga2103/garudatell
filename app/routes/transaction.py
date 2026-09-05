@@ -48,10 +48,19 @@ def inquiry_bill():
         if not product:
             return jsonify({'status': 'error', 'message': 'Produk tagihan tidak ditemukan di database'}), 404
 
+        # Pengecekan Jadwal Cut Off Harian PLN (23:30 - 01:00 WIB)
+        is_pln = 'PLN' in (product.category or '').upper() or 'PLN' in (product.name or '').upper() or 'PLN' in (product.brand or '').upper() or 'LISTRIK' in (product.name or '').upper()
+        from app.services.digiflazz import inquiry_pasca, is_pln_cutoff_time, get_pln_cutoff_message
+        if is_pln and is_pln_cutoff_time():
+            return jsonify({
+                'status': 'error',
+                'is_cutoff': True,
+                'message': get_pln_cutoff_message()
+            }), 400
+
         # Generate ref_id unik khusus inquiry pascabayar
         ref_id = f"GT-PASCA-{int(time.time()*1000)}{random.randint(10, 99)}"
 
-        from app.services.digiflazz import inquiry_pasca
         ok, res_data, msg = inquiry_pasca(sku_input, customer_no, ref_id)
 
         if not ok or not res_data:
@@ -252,6 +261,25 @@ def checkout():
             name_lower = (product.name or '').lower()
             if 'pascabayar' in cat_lower or 'tagihan' in cat_lower:
                 is_prepaid_flow = False
+
+        # Pengecekan Jadwal Cut Off Harian PLN (23:30 - 01:00 WIB)
+        # Menolak seluruh order Token Listrik Prabayar & Tagihan Pascabayar PLN saat cut off
+        is_pln = False
+        target_prod = db_product or (product if 'product' in locals() else None)
+        if target_prod:
+            is_pln = 'PLN' in (target_prod.category or '').upper() or 'PLN' in (target_prod.name or '').upper() or 'PLN' in (target_prod.brand or '').upper() or 'LISTRIK' in (target_prod.name or '').upper()
+        elif 'PLN' in sku_upper:
+            is_pln = True
+
+        if is_pln:
+            from app.services.digiflazz import is_pln_cutoff_time, get_pln_cutoff_message
+            if is_pln_cutoff_time():
+                return jsonify({
+                    'status': 'error',
+                    'error': True,
+                    'is_cutoff': True,
+                    'message': get_pln_cutoff_message()
+                }), 400
 
         # 4. GENERATE / GUNAKAN REF_ID
         if is_pasca_bill and inquiry_ref_id:

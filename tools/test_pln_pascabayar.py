@@ -97,8 +97,9 @@ class TestPLNPascabayar(unittest.TestCase):
         })
         self.assertEqual(res2.status_code, 400)
 
+    @patch('app.services.digiflazz.is_pln_cutoff_time', return_value=False)
     @patch('app.services.digiflazz.inquiry_pasca')
-    def test_04_inquiry_bill_success_calculation(self, mock_inq):
+    def test_04_inquiry_bill_success_calculation(self, mock_inq, mock_cutoff):
         self.login_client()
         mock_inq.return_value = (True, {
             'rc': '00',
@@ -137,8 +138,9 @@ class TestPLNPascabayar(unittest.TestCase):
         self.assertEqual(data['total_bayar'], 154200.0)
         self.assertTrue(data['ref_id'].startswith('GT-PASCA-'))
 
+    @patch('app.services.digiflazz.is_pln_cutoff_time', return_value=False)
     @patch('app.services.digiflazz.inquiry_pasca')
-    def test_05_inquiry_bill_digiflazz_rejection(self, mock_inq):
+    def test_05_inquiry_bill_digiflazz_rejection(self, mock_inq, mock_cutoff):
         self.login_client()
         mock_inq.return_value = (False, {'rc': '48'}, "RC 48: Tagihan sudah lunas")
 
@@ -162,8 +164,9 @@ class TestPLNPascabayar(unittest.TestCase):
         data = res.get_json()
         self.assertIn('Harap lakukan Cek Tagihan terlebih dahulu', data['message'])
 
+    @patch('app.services.digiflazz.is_pln_cutoff_time', return_value=False)
     @patch('app.services.digiflazz.pay_pasca')
-    def test_07_checkout_pasca_saldo_success(self, mock_pay):
+    def test_07_checkout_pasca_saldo_success(self, mock_pay, mock_cutoff):
         self.login_client()
         mock_pay.return_value = (True, {
             'rc': '00',
@@ -195,8 +198,9 @@ class TestPLNPascabayar(unittest.TestCase):
         self.assertEqual(trx.sn, 'PLN999888777666')
         self.assertFalse(trx.is_prepaid)
 
+    @patch('app.services.digiflazz.is_pln_cutoff_time', return_value=False)
     @patch('app.services.digiflazz.pay_pasca')
-    def test_08_checkout_pasca_saldo_refund_on_failure(self, mock_pay):
+    def test_08_checkout_pasca_saldo_refund_on_failure(self, mock_pay, mock_cutoff):
         self.login_client()
         mock_pay.return_value = (False, {
             'rc': '52',
@@ -225,7 +229,8 @@ class TestPLNPascabayar(unittest.TestCase):
         self.assertIsNotNone(trx)
         self.assertEqual(trx.status, 'FAILED')
 
-    def test_09_checkout_pasca_qris_creation(self):
+    @patch('app.services.digiflazz.is_pln_cutoff_time', return_value=False)
+    def test_09_checkout_pasca_qris_creation(self, mock_cutoff):
         self.login_client()
         test_ref = "GT-PASCA-TEST003"
         bill_amount = 154200.0
@@ -247,6 +252,72 @@ class TestPLNPascabayar(unittest.TestCase):
         self.assertEqual(trx.payment_method, 'QRIS')
         self.assertEqual(trx.payment_status, 'UNPAID')
         self.assertFalse(trx.is_prepaid)
+
+    @patch('app.services.digiflazz.is_pln_cutoff_time', return_value=True)
+    def test_10_pln_cutoff_blocks_inquiry_and_checkout(self, mock_cutoff):
+        self.login_client()
+
+        # 1. Halaman PLN menampilkan banner cut off
+        res_page = self.client.get('/kategori/pln')
+        self.assertEqual(res_page.status_code, 200)
+        html = res_page.get_data(as_text=True)
+        self.assertIn('cutoff-alert-banner', html)
+        self.assertIn('JADWAL CUT OFF & MAINTENANCE PLN', html)
+
+        # 2. Inquiry tagihan ditolak dengan 400 is_cutoff=True
+        res_inq = self.client.post('/trx/inquiry_bill', json={
+            'sku_code': 'post685486',
+            'customer_no': '530000000001'
+        })
+        self.assertEqual(res_inq.status_code, 400)
+        data_inq = res_inq.get_json()
+        self.assertTrue(data_inq.get('is_cutoff'))
+        self.assertIn('Cut Off & Maintenance Harian PLN', data_inq.get('message', ''))
+
+        # 3. Checkout token/tagihan ditolak dengan 400 is_cutoff=True
+        res_checkout = self.client.post('/trx/checkout', json={
+            'sku_code': 'post685486',
+            'target_number': '530000000001',
+            'payment_method': 'saldo',
+            'inquiry_ref_id': 'GT-PASCA-TESTCUTOFF',
+            'amount': 50000.0
+        })
+        self.assertEqual(res_checkout.status_code, 400)
+        data_checkout = res_checkout.get_json()
+        self.assertTrue(data_checkout.get('is_cutoff'))
+        self.assertIn('Cut Off & Maintenance Harian PLN', data_checkout.get('message', ''))
+
+    def test_11_pln_cutoff_time_logic(self):
+        from datetime import datetime
+        from app.services.digiflazz import is_pln_cutoff_time
+
+        # 23:29 -> Normal (Bukan Cut Off)
+        t1 = datetime(2026, 9, 6, 23, 29)
+        self.assertFalse(is_pln_cutoff_time(t1))
+
+        # 23:30 -> Cut Off Dimulai
+        t2 = datetime(2026, 9, 6, 23, 30)
+        self.assertTrue(is_pln_cutoff_time(t2))
+
+        # 23:59 -> Masih Cut Off
+        t3 = datetime(2026, 9, 6, 23, 59)
+        self.assertTrue(is_pln_cutoff_time(t3))
+
+        # 00:00 -> Masih Cut Off
+        t4 = datetime(2026, 9, 6, 0, 0)
+        self.assertTrue(is_pln_cutoff_time(t4))
+
+        # 00:45 -> Masih Cut Off
+        t5 = datetime(2026, 9, 6, 0, 45)
+        self.assertTrue(is_pln_cutoff_time(t5))
+
+        # 01:00 -> Kembali Normal
+        t6 = datetime(2026, 9, 6, 1, 0)
+        self.assertFalse(is_pln_cutoff_time(t6))
+
+        # 14:00 Siang -> Normal
+        t7 = datetime(2026, 9, 6, 14, 0)
+        self.assertFalse(is_pln_cutoff_time(t7))
 
 if __name__ == '__main__':
     unittest.main()

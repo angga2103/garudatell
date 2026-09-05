@@ -283,6 +283,21 @@ Seluruh fase perbaikan dari Fase 1 hingga Fase 5 telah selesai 100% dan lulus ve
 
 ---
 
+## ⚡ ATURAN KHUSUS PRODUK PLN (CUT OFF & MAINTENANCE HARIAN)
+
+Biller pusat PLN memiliki jadwal pemeliharaan harian (cut off) resmi pada pukul **23:30 - 01:00 WIB**:
+1. **Frontend (/kategori/pln)**:
+   - Menampilkan banner peringatan status Cut Off di bagian atas.
+   - Tombol "CEK TAGIHAN" dan "BELI TOKEN" diblokir dengan pop-up toast peringatan jika diklik pada rentang waktu tersebut.
+2. **Backend Proteksi**:
+   - Fungsi pembantu di `app/services/digiflazz.py`: `is_pln_cutoff_time()` & `get_pln_cutoff_message()`.
+   - Rute `/trx/inquiry_bill`, `/trx/checkout`, dan `/inquiry/pln` menolak request untuk semua produk PLN (`is_pln`) pada jam cut off dengan status code `400` dan payload `{'status': 'error', 'is_cutoff': True, 'message': ...}`.
+   - Mencegah saldo user terpotong atau transaksi berstatus gagal/stuck di provider pada rentang waktu cut off.
+3. **Automated Testing**:
+   - Pengujian terisolasi tersedia di `tools/test_pln_pascabayar.py` (11 unit tests mencakup inquiry, kalkulasi admin fee, refund saldo gagal, QRIS, dan cutoff logic).
+
+---
+
 ## 📞 KONTAK & REFERENSI
 
 ### API Documentation:

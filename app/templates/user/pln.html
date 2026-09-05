@@ -352,8 +352,46 @@
         color: #94a3b8;
     }
     .empty-state i { font-size: 40px; margin-bottom: 12px; color: #cbd5e1; }
-    .empty-state h4 { font-weight: 800; font-size: 15px; color: #475569; margin: 0 0 6px 0; }
-    .empty-state p { font-size: 12px; margin: 0; }
+    /* BANNER CUT OFF PLN */
+    .cutoff-alert-banner {
+        margin: -35px 15px 15px 15px;
+        background: #fffbeb;
+        border: 1.5px solid #fde68a;
+        border-radius: 16px;
+        padding: 14px 16px;
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        box-shadow: 0 4px 15px rgba(217, 119, 6, 0.1);
+        position: relative;
+        z-index: 5;
+    }
+    .cutoff-alert-icon {
+        width: 38px;
+        height: 38px;
+        background: #fef3c7;
+        color: #d97706;
+        border-radius: 10px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 18px;
+        flex-shrink: 0;
+    }
+    .cutoff-alert-content h4 {
+        margin: 0 0 4px 0;
+        font-size: 12px;
+        font-weight: 800;
+        color: #92400e;
+        letter-spacing: 0.3px;
+    }
+    .cutoff-alert-content p {
+        margin: 0;
+        font-size: 11px;
+        color: #b45309;
+        line-height: 1.45;
+        font-weight: 600;
+    }
 </style>
 {% endblock %}
 
@@ -389,7 +427,17 @@
     </div>
 </div>
 
-<div class="input-wrapper">
+{% if is_cutoff %}
+<div class="cutoff-alert-banner">
+    <div class="cutoff-alert-icon"><i class="fas fa-clock"></i></div>
+    <div class="cutoff-alert-content">
+        <h4>JADWAL CUT OFF & MAINTENANCE PLN (23:30 - 01:00 WIB)</h4>
+        <p>Biller pusat PLN saat ini sedang dalam jadwal pemeliharaan harian (cut off). Pembelian token prabayar dan pembayaran tagihan pascabayar dihentikan sementara hingga pukul 01:00 WIB untuk menghindari transaksi tertunda/gagal.</p>
+    </div>
+</div>
+{% endif %}
+
+<div class="input-wrapper" {% if is_cutoff %}style="margin-top: 10px;"{% endif %}>
     <div class="input-label-row">
         <label>ID Pelanggan / Nomor Meteran PLN</label>
         <span class="detected-badge" id="detectedBadge"></span>
@@ -744,6 +792,10 @@
 <!-- ================= END BOTTOM SHEET ================= -->
 
 <script>
+    // 0. JADWAL CUT OFF PLN CHECK
+    const isCutoffActive = {{ 'true' if is_cutoff else 'false' }};
+    const cutoffMessage = "Layanan PLN sedang CUT OFF / MAINTENANCE harian (23:30 - 01:00 WIB). Transaksi dapat dilakukan kembali setelah pukul 01:00 WIB.";
+
     // 1. KEMBALI KE HALAMAN UTAMA USER
     function goBack() { 
         window.location.href = '/'; 
@@ -907,6 +959,10 @@
     let currentSkuModal = '';
 
     function beliProdukModal(el) {
+        if (isCutoffActive) {
+            showToast(cutoffMessage);
+            return;
+        }
         let sku = el.getAttribute('data-sku');
         let nama = el.getAttribute('data-nama');
         let harga = el.getAttribute('data-harga');
@@ -960,6 +1016,11 @@
     }
 
     function prosesBayarModal() {
+        if (isCutoffActive) {
+            showToast(cutoffMessage);
+            closeModal();
+            return;
+        }
         let btn = document.getElementById('btnProsesBayar');
         let elInput = document.getElementById('noMeterInput');
         let noTujuan = elInput ? elInput.value.trim() : '';
@@ -1012,7 +1073,10 @@
                 btn.innerText = 'Bayar Sekarang';
                 btn.disabled = false;
 
-                if (data.insufficient_balance && data.suggest_qris) {
+                if (data.is_cutoff) {
+                    showToast(data.message || cutoffMessage);
+                    closeModal();
+                } else if (data.insufficient_balance && data.suggest_qris) {
                     showToast(data.message || 'Saldo tidak cukup. Alihkan ke QRIS.');
                     selectPay('qris');
                     document.querySelector('input[name="payMethod"][value="qris"]').checked = true;
@@ -1039,6 +1103,10 @@
     }
 
     function cekTagihanPascaModal(el) {
+        if (isCutoffActive) {
+            showToast(cutoffMessage);
+            return;
+        }
         let sku = el.getAttribute('data-sku');
         let nama = el.getAttribute('data-nama');
         let elInput = document.getElementById('noMeterInput');
@@ -1110,7 +1178,11 @@
                     document.getElementById('pascaModal').classList.add('show');
                 }, 10);
             } else {
-                showToast(data.message || 'Tagihan tidak ditemukan atau sudah lunas');
+                if (data.is_cutoff) {
+                    showToast(data.message || cutoffMessage);
+                } else {
+                    showToast(data.message || 'Tagihan tidak ditemukan atau sudah lunas');
+                }
             }
         })
         .catch(err => {
@@ -1137,6 +1209,11 @@
     }
 
     function eksekusiBayarPasca() {
+        if (isCutoffActive) {
+            showToast(cutoffMessage);
+            closePascaModal();
+            return;
+        }
         if (!currentPascaData) {
             showToast("Data tagihan belum dicek atau tidak valid!");
             closePascaModal();
@@ -1186,7 +1263,10 @@
                 btn.innerHTML = '<i class="fas fa-check-circle"></i> Bayar Tagihan Sekarang (' + formatRupiah(currentPascaData.total_bayar) + ')';
                 btn.disabled = false;
 
-                if (data.insufficient_balance && data.suggest_qris) {
+                if (data.is_cutoff) {
+                    showToast(data.message || cutoffMessage);
+                    closePascaModal();
+                } else if (data.insufficient_balance && data.suggest_qris) {
                     showToast(data.message || 'Saldo tidak cukup. Silakan gunakan QRIS.');
                     selectPascaPay('qris');
                     document.querySelector('input[name="pascaPayMethod"][value="qris"]').checked = true;

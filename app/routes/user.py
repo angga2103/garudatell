@@ -370,7 +370,8 @@ def lihat_kategori(nama_kategori):
                 'brand': brand_clean,
                 'is_active': prod.is_active
             })
-        return render_template('user/pln.html', products=produk_final, title='TOKEN PLN')
+        from app.services.digiflazz import is_pln_cutoff_time
+        return render_template('user/pln.html', products=produk_final, title='TOKEN PLN', is_cutoff=is_pln_cutoff_time())
         
     elif kat in ['telpsms', 'telp-sms', 'telp & sms']:
         keywords = ['telp', 'sms']
@@ -1338,7 +1339,15 @@ def inquiry_pln_route():
     if not customer_no:
         return jsonify({'status': 'error', 'message': 'ID Pelanggan / Nomor Meter PLN wajib diisi'}), 400
 
-    from app.services.digiflazz import inquiry_pln
+    from app.services.digiflazz import inquiry_pln, is_pln_cutoff_time, get_pln_cutoff_message
+    if is_pln_cutoff_time():
+        return jsonify({
+            'status': 'error',
+            'success': False,
+            'is_cutoff': True,
+            'message': get_pln_cutoff_message()
+        }), 400
+
     ok, res_data, msg = inquiry_pln(customer_no)
     if ok:
         return jsonify({
