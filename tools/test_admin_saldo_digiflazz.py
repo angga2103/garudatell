@@ -15,6 +15,7 @@ def test_admin_saldo_digiflazz():
     print("=" * 65)
 
     app = create_app()
+    app.config['WTF_CSRF_ENABLED'] = False
     client = app.test_client()
 
     with client.session_transaction() as sess:
@@ -41,13 +42,13 @@ def test_admin_saldo_digiflazz():
         print("  [OK] Endpoint /admin/saldo/cek berhasil memperbarui saldo.")
 
     # 3. Test POST /admin/saldo/tiket (Minta Tiket Deposit Baru)
-    print("\n[3/4] Menguji Pengajuan Tiket Deposit Digiflazz (/admin/saldo/tiket)...")
+    print("\n[3/5] Menguji Pengajuan Tiket Deposit Digiflazz (/admin/saldo/tiket)...")
     mock_digi_response = {
         "rc": "00",
         "amount": 500412,
         "notes": "Silahkan transfer Rp. 500.412 ke BCA 1234567890 a.n PT DIGIFLAZZ",
         "bank": "BCA",
-        "account_number": "1234567890",
+        "account_no": "1234567890",
         "account_name": "PT DIGIFLAZZ INTERKONEKSI INDONESIA"
     }
 
@@ -72,12 +73,13 @@ def test_admin_saldo_digiflazz():
         assert ticket.amount_transfer == 500412.0
         assert ticket.bank == 'BCA'
         assert ticket.owner_name == 'ANGGA DIAN'
+        assert ticket.account_number == '1234567890'
         assert ticket.status == 'PENDING'
         ticket_id = ticket.id
-        print(f"  [OK] Tiket #{ticket_id} tersimpan rapi di basis data DigiDepositTicket.")
+        print(f"  [OK] Tiket #{ticket_id} tersimpan rapi dengan nomor rekening account_no: {ticket.account_number}.")
 
     # 4. Test Pembatalan Tiket Aktif
-    print(f"\n[4/4] Menguji Pembatalan Tiket Aktif #{ticket_id}...")
+    print(f"\n[4/5] Menguji Pembatalan Tiket Aktif #{ticket_id}...")
     res_batal = client.post(f'/admin/saldo/tiket/batal/{ticket_id}', follow_redirects=True)
     assert res_batal.status_code == 200
     assert "telah dibatalkan" in res_batal.text
@@ -86,6 +88,24 @@ def test_admin_saldo_digiflazz():
         ticket_check = DigiDepositTicket.query.get(ticket_id)
         assert ticket_check.status == 'CANCELLED'
         print("  [OK] Tiket deposit berhasil dibatalkan statusnya.")
+
+    # 5. Test Penanganan Respon Error RC dari Digiflazz pada /admin/test_connection/digiflazz
+    print("\n[5/5] Menguji Penanganan Error Response Code Digiflazz (RC 42 & RC 45)...")
+    with patch('requests.post') as mock_post:
+        # Simulasi respons error RC 42 dari Digiflazz
+        mock_post.return_value.status_code = 400
+        mock_post.return_value.json.return_value = {
+            "data": {
+                "rc": "42",
+                "deposit": 0,
+                "message": "Gagal memproses API Buyer"
+            }
+        }
+        res_err = client.get('/admin/test_connection/digiflazz', follow_redirects=True)
+        assert res_err.status_code == 200
+        assert "RC 42" in res_err.text
+        assert "Gagal memproses API Buyer" in res_err.text
+        print("  [OK] Penolakan RC 42 terdeteksi secara akurat tanpa menampilkan saldo palsu Rp 0.")
 
     print("\n" + "=" * 65)
     print("  >>> SELURUH FITUR SALDO & DEPOSIT DIGIFLAZZ LULUS 100%! <<<")

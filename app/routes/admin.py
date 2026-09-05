@@ -101,6 +101,7 @@ def save_config():
         set_key(ENV_FILE, 'DIGI_USER', clean_str(request.form.get('digi_user')))
         set_key(ENV_FILE, 'DIGI_URL', clean_str(request.form.get('digi_url')))
         if request.form.get('digi_key'): set_key(ENV_FILE, 'DIGI_KEY', clean_str(request.form.get('digi_key')))
+        load_dotenv(ENV_FILE, override=True)
     elif form_type == 'paymentkita':
         set_key(ENV_FILE, 'PAYMENTKITA_MERCHANT_ID', clean_str(request.form.get('pk_merchant')))
         if request.form.get('pk_secret'): set_key(ENV_FILE, 'PAYMENTKITA_SECRET', clean_str(request.form.get('pk_secret')))
@@ -143,18 +144,37 @@ def test_connection(tipe):
             flash('Kredensial Digiflazz belum diisi!', 'danger')
             return redirect(url_for('admin.dashboard'))
         
+        is_dev_key = key.lower().startswith('dev-')
         sign = hashlib.md5(f"{user}{key}depo".encode()).hexdigest()
         try:
-            res = requests.post(url, json={"cmd": "deposit", "username": user, "sign": sign}, timeout=10).json()
-            if 'data' in res and isinstance(res['data'], dict):
-                # Pengecekan saldo murni mengikuti bukti dari terminal
-                if 'deposit' in res['data']:
-                    saldo = res['data']['deposit']
-                    flash(f"✅ Koneksi Digiflazz Sukses! Saldo Anda: Rp {saldo:,.0f}", 'success')
+            r = requests.post(url, json={"cmd": "deposit", "username": user, "sign": sign}, headers={'Content-Type': 'application/json'}, timeout=12)
+            res = r.json()
+            data = res.get('data', {}) if isinstance(res, dict) else {}
+            rc = data.get('rc')
+            
+            # Periksa Response Code dari Digiflazz
+            if rc and rc != '00':
+                err_msg = data.get('message', 'Ditolak server Digiflazz')
+                hint = ""
+                if rc == '45':
+                    hint = " (Pastikan IP VPS Anda sudah didaftarkan pada Whitelist IP di Panel Digiflazz)"
+                elif rc == '42':
+                    hint = " (Username API Buyer tidak cocok atau tidak terdaftar)"
+                elif rc == '41':
+                    hint = " (Signature atau API Key tidak valid)"
+                flash(f"❌ Digiflazz Menolak (RC {rc}): {err_msg}{hint}", 'danger')
+            elif r.status_code != 200:
+                err_msg = data.get('message', f'HTTP Error {r.status_code}')
+                flash(f"❌ Digiflazz Gagal: {err_msg}", 'danger')
+            elif 'deposit' in data:
+                saldo = float(data['deposit'])
+                if is_dev_key:
+                    flash(f"⚠️ Terhubung dalam Mode DEVELOPMENT (Sandbox). Saldo: Rp {saldo:,.0f}. Catatan: API Key dev selalu bernilai Rp 0 dan tiket deposit tidak tercatat di akun riil Digiflazz. Gunakan Production Key untuk transaksi nyata.", 'warning')
                 else:
-                    flash(f"❌ Digiflazz Menolak: {res['data'].get('message', 'Signature salah')}", 'danger')
+                    flash(f"✅ Koneksi Digiflazz Sukses! Saldo Anda: Rp {saldo:,.0f}", 'success')
             else:
-                flash(f"❌ Gagal: Respons server tidak dikenali", 'danger')
+                err_msg = data.get('message', 'Format respon tidak dikenali')
+                flash(f"❌ Respons tidak sesuai: {err_msg}", 'danger')
         except Exception as e:
             flash(f"❌ Error Sistem: {str(e)}", 'danger')
 
@@ -846,6 +866,7 @@ def saldo():
     if not session.get('admin_logged_in'):
         return redirect(url_for('admin.login'))
 
+    load_dotenv(ENV_FILE, override=True)
     # Cek Saldo dari Cache atau Real-Time API Digiflazz (TTL 60 detik)
     cached_data = cache.get('digi_balance_info')
     if cached_data is not None:
@@ -860,7 +881,9 @@ def saldo():
     latest_ticket = DigiDepositTicket.query.filter_by(status='PENDING').order_by(DigiDepositTicket.id.desc()).first()
     
     digi_user = os.getenv('DIGI_USER', '')
+    digi_key = os.getenv('DIGI_KEY', '')
     digi_url = os.getenv('DIGI_URL', 'https://api.digiflazz.com/v1')
+    is_dev_key = digi_key.lower().startswith('dev-')
 
     return render_template('admin/saldo.html',
                            digi_balance=digi_balance,
@@ -868,6 +891,7 @@ def saldo():
                            is_connected=is_connected,
                            digi_user=digi_user,
                            digi_url=digi_url,
+                           is_dev_key=is_dev_key,
                            tickets=tickets,
                            latest_ticket=latest_ticket)
 
@@ -876,12 +900,17 @@ def cek_saldo_digiflazz():
     if not session.get('admin_logged_in'):
         return redirect(url_for('admin.login'))
 
+    load_dotenv(ENV_FILE, override=True)
     # Invalidasi cache lama dan perbarui dengan saldo terbaru
     cache.delete('digi_balance_info')
     is_connected, digi_balance, digi_msg = check_balance()
     if is_connected:
         cache.set('digi_balance_info', (is_connected, digi_balance, digi_msg), timeout=60)
-        flash(f"Saldo Digiflazz saat ini: Rp {digi_balance:,.0f}", 'success')
+        digi_key = os.getenv('DIGI_KEY', '')
+        if digi_key.lower().startswith('dev-'):
+            flash(f"⚠️ Saldo Digiflazz saat ini: Rp {digi_balance:,.0f} (Mode DEVELOPMENT / Sandbox). Gunakan Production Key untuk melihat saldo riil.", 'warning')
+        else:
+            flash(f"Saldo Digiflazz saat ini: Rp {digi_balance:,.0f}", 'success')
     else:
         flash(f"Gagal cek saldo Digiflazz: {digi_msg}", 'danger')
 
@@ -892,12 +921,13 @@ def minta_tiket_deposit():
     if not session.get('admin_logged_in'):
         return redirect(url_for('admin.login'))
 
+    load_dotenv(ENV_FILE, override=True)
     try:
         amount = int(request.form.get('amount', 0))
     except (ValueError, TypeError):
         amount = 0
 
-    bank = request.form.get('bank', 'BCA').upper().strip()
+    bank = request.form.get('bank', 'BCA').strip()
     owner_name = request.form.get('owner_name', '').strip()
 
     if amount < 100000:
@@ -912,15 +942,16 @@ def minta_tiket_deposit():
 
     if success:
         amount_transfer = float(data.get('amount', amount))
-        acc_no = data.get('account_number', '') or data.get('notes', '')
+        acc_no = data.get('account_no', '') or data.get('account_number', '') or data.get('notes', '')
         acc_name = data.get('account_name', 'PT DIGIFLAZZ INTERKONEKSI INDONESIA')
         notes = data.get('notes', '')
+        bank_res = data.get('bank', bank)
 
         # Simpan ke tabel DigiDepositTicket
         ticket = DigiDepositTicket(
             amount_requested=float(amount),
             amount_transfer=amount_transfer,
-            bank=bank,
+            bank=bank_res,
             owner_name=owner_name,
             account_number=acc_no,
             account_name=acc_name,
@@ -931,7 +962,11 @@ def minta_tiket_deposit():
         db.session.add(ticket)
         db.session.commit()
 
-        flash(f"✅ Tiket Deposit Berhasil Dibuat! Harap transfer TEPAT Rp {amount_transfer:,.0f} ke rekening {bank} agar saldo masuk otomatis.", 'success')
+        digi_key = os.getenv('DIGI_KEY', '')
+        if digi_key.lower().startswith('dev-'):
+            flash(f"⚠️ Tiket Deposit (SIMULASI DEV) Dibuat! Harap dicatat: Mode Development tidak mencatat tiket pada dashboard member riil Digiflazz.", 'warning')
+        else:
+            flash(f"✅ Tiket Deposit Berhasil Dibuat! Harap transfer TEPAT Rp {amount_transfer:,.0f} ke rekening {bank_res} ({acc_no}) agar saldo masuk otomatis.", 'success')
     else:
         flash(f"🚨 Gagal membuat tiket deposit: {message}", 'danger')
 

@@ -87,6 +87,8 @@ def create_transaction(sku, tujuan, ref_id):
         return {"data": {"status": "Gagal", "message": str(e)}}
 
 def check_balance():
+    from dotenv import load_dotenv
+    load_dotenv(override=False)
     username = clean_str(os.getenv('DIGI_USER'))
     key = clean_str(os.getenv('DIGI_KEY'))
     base_url = clean_str(os.getenv('DIGI_URL', 'https://api.digiflazz.com/v1'))
@@ -105,7 +107,18 @@ def check_balance():
     try:
         res = requests.post(url, json=payload, headers={'Content-Type': 'application/json'}, timeout=15)
         res_json = res.json()
-        data = res_json.get('data', {})
+        data = res_json.get('data', {}) if isinstance(res_json, dict) else {}
+        rc = data.get('rc')
+
+        # Sesuai dokumentasi resmi Digiflazz: jika respon mengandung rc error (misal RC 41, 42, 45, dll)
+        if rc and rc != '00':
+            msg = data.get('message', f"Digiflazz error (RC: {rc})")
+            return False, 0.0, f"RC {rc}: {msg}"
+
+        if res.status_code != 200:
+            msg = data.get('message', f"HTTP Error {res.status_code}")
+            return False, 0.0, f"Server menolak: {msg}"
+
         if 'deposit' in data:
             return True, float(data['deposit']), "Berhasil mengambil saldo Digiflazz"
         else:
@@ -114,7 +127,19 @@ def check_balance():
     except Exception as e:
         return False, 0.0, f"Gagal menghubungi server Digiflazz: {str(e)}"
 
+def format_bank_name(bank):
+    """Format nama bank sesuai dokumentasi resmi Digiflazz (Flip/ShopeePay untuk Perorangan, BCA/MANDIRI/BRI/BNI untuk Perusahaan)."""
+    b = str(bank).strip()
+    if b.lower() == 'shopeepay':
+        return 'ShopeePay'
+    elif b.lower() == 'flip':
+        return 'Flip'
+    else:
+        return b.upper()
+
 def request_deposit(amount, bank, owner_name):
+    from dotenv import load_dotenv
+    load_dotenv(override=False)
     username = clean_str(os.getenv('DIGI_USER'))
     key = clean_str(os.getenv('DIGI_KEY'))
     base_url = clean_str(os.getenv('DIGI_URL', 'https://api.digiflazz.com/v1'))
@@ -128,11 +153,13 @@ def request_deposit(amount, bank, owner_name):
     except (ValueError, TypeError):
         return False, {}, "Nominal deposit tidak valid"
 
+    bank_formatted = format_bank_name(bank)
     sign = hashlib.md5(f"{username}{key}deposit".encode()).hexdigest()
     payload = {
         "username": username,
         "amount": amount_int,
-        "Bank": str(bank).upper(),
+        "Bank": bank_formatted,
+        "bank": bank_formatted,
         "owner_name": str(owner_name).strip(),
         "sign": sign
     }
@@ -140,13 +167,18 @@ def request_deposit(amount, bank, owner_name):
     try:
         res = requests.post(url, json=payload, headers={'Content-Type': 'application/json'}, timeout=20)
         res_json = res.json()
-        data = res_json.get('data', {})
+        data = res_json.get('data', {}) if isinstance(res_json, dict) else {}
         rc = data.get('rc')
-        if rc == '00' or ('amount' in data and data.get('amount', 0) > 0):
+
+        # Sesuai dokumentasi resmi Digiflazz: hanya rc == '00' yang sukses
+        if rc == '00':
+            # Sinkronisasi parameter rekening sesuai dokumentasi resmi (account_no)
+            if 'account_no' in data and 'account_number' not in data:
+                data['account_number'] = data['account_no']
             return True, data, "Tiket deposit berhasil dibuat!"
         else:
-            msg = data.get('message', f"Digiflazz error (RC: {rc})")
-            return False, data, msg
+            msg = data.get('message', f"Digiflazz menolak permintaan tiket (RC: {rc})")
+            return False, data, f"RC {rc}: {msg}" if rc else msg
     except Exception as e:
         return False, {}, f"Gagal menghubungi server Digiflazz: {str(e)}"
 

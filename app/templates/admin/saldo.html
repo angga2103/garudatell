@@ -54,6 +54,23 @@
 
 {% block admin_content %}
 
+{% if is_dev_key %}
+<!-- PERINGATAN API KEY DEVELOPMENT -->
+<div style="background: #FFFBEB; border: 1px solid #FDE68A; border-left: 5px solid #F59E0B; padding: 14px 18px; border-radius: 10px; margin-bottom: 20px; color: #92400E;">
+    <div style="font-weight: 800; font-size: 14px; display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+        <i class="fas fa-exclamation-triangle" style="color: #D97706; font-size: 16px;"></i> TERDETEKSI MENGGUNAKAN API KEY DEVELOPMENT (SANDBOX)
+    </div>
+    <div style="font-size: 12px; line-height: 1.6; color: #78350F;">
+        Kredensial API Key Anda diawali dengan <code>dev-</code>. Pada mode ini:
+        <ul style="margin: 4px 0 6px 18px; padding: 0;">
+            <li>Sistem Digiflazz <strong>selalu mengembalikan Saldo Rp 0</strong> (akun sandbox tidak memiliki uang riil).</li>
+            <li>Tarik tiket deposit <strong>hanya bersifat simulasi dummy</strong> dan <strong>TIDAK TERCATAT</strong> di riwayat mutasi/deposit website member Digiflazz riil!</li>
+        </ul>
+        <strong>Solusi:</strong> Jika ingin melihat saldo nyata dan tiket deposit masuk ke rekening riil Digiflazz, ganti API Key Anda dengan <strong>Production Key</strong> di menu Pengaturan Dashboard dan pastikan IP VPS Anda telah dimasukkan ke dalam <strong>Whitelist Production IP</strong> pada panel Digiflazz.
+    </div>
+</div>
+{% endif %}
+
 <!-- RINGKASAN SALDO DIGIFLAZZ -->
 <div class="saldo-stats">
     <div class="saldo-stat-card" style="border-left: 4px solid #3A827F;">
@@ -84,6 +101,7 @@
         <div class="saldo-stat-lbl">Kredensial Digiflazz</div>
         <div style="margin-top: 8px; font-size: 12px; color: #334155; line-height: 1.6;">
             <div><strong>Username:</strong> <code style="background: #F1F5F9; padding: 2px 6px; border-radius: 4px; font-weight: 700;">{{ digi_user or '-' }}</code></div>
+            <div><strong>Mode:</strong> <span style="font-weight: 800; color: {% if is_dev_key %}#D97706{% else %}#059669{% endif %};">{% if is_dev_key %}DEVELOPMENT (Sandbox){% else %}PRODUCTION (Live){% endif %}</span></div>
             <div><strong>Endpoint:</strong> <span style="color: #64748B; font-size: 11px;">{{ digi_url }}</span></div>
         </div>
     </div>
@@ -91,7 +109,7 @@
     <div class="saldo-stat-card" style="border-left: 4px solid #F59E0B;">
         <div class="saldo-stat-lbl">Petunjuk Deposit Provider</div>
         <div style="margin-top: 6px; font-size: 11px; color: #64748B; line-height: 1.5;">
-            <div>• Minimal deposit: <strong>Rp 100.000</strong></div>
+            <div>• Minimal deposit: <strong>Rp 200.000</strong> (atau Rp 100.000 via Flip/ShopeePay)</div>
             <div>• Transfer wajib <strong>persis hingga 3 digit kode unik</strong></div>
             <div>• Jam operasional tiket: <strong>06.00 - 22.00 WIB</strong></div>
         </div>
@@ -133,11 +151,16 @@
         <div>
             <div style="font-size: 11px; font-weight: 800; color: #92400E; text-transform: uppercase;">Tujuan Transfer:</div>
             <div style="font-size: 15px; font-weight: 900; color: #1E293B; margin-top: 4px;">
-                Bank: <span style="color: #0284C7;">{{ latest_ticket.bank }}</span>
+                Bank / Metode: <span style="color: #0284C7;">{{ latest_ticket.bank }}</span>
             </div>
             <div style="font-size: 13px; color: #334155; margin-top: 2px;">
-                <strong>Rekening / Petunjuk:</strong> {{ latest_ticket.account_number or latest_ticket.notes }}
+                <strong>Rekening Tujuan:</strong> <span style="font-family: monospace; font-weight: 700; color: #0F172A;">{{ latest_ticket.account_number or latest_ticket.notes }}</span>
             </div>
+            {% if latest_ticket.notes and latest_ticket.notes != latest_ticket.account_number %}
+            <div style="font-size: 12px; color: #B45309; margin-top: 2px;">
+                <strong>Berita/Notes:</strong> <code>{{ latest_ticket.notes }}</code>
+            </div>
+            {% endif %}
             <div style="font-size: 12px; color: #64748B; margin-top: 2px;">
                 Pengirim terdaftar: <strong>{{ latest_ticket.owner_name }}</strong>
             </div>
@@ -170,13 +193,22 @@
             </div>
 
             <div class="form-group">
-                <label>Pilihan Bank Tujuan <span style="color: #EF4444;">*</span></label>
+                <label>Pilihan Bank / Metode <span style="color: #EF4444;">*</span></label>
                 <select name="bank" class="form-ctrl" required>
-                    <option value="BCA">BCA (Bank Central Asia)</option>
-                    <option value="MANDIRI">MANDIRI (Bank Mandiri)</option>
-                    <option value="BRI">BRI (Bank Rakyat Indonesia)</option>
-                    <option value="BNI">BNI (Bank Negara Indonesia)</option>
+                    <optgroup label="Akun Perorangan (Flip & ShopeePay)">
+                        <option value="Flip">Flip (Transfer Antar Bank via Flip)</option>
+                        <option value="ShopeePay">ShopeePay (Kirim Uang via ShopeePay)</option>
+                    </optgroup>
+                    <optgroup label="Akun Perusahaan (Transfer Bank Langsung)">
+                        <option value="BCA">BCA (Bank Central Asia)</option>
+                        <option value="MANDIRI">MANDIRI (Bank Mandiri)</option>
+                        <option value="BRI">BRI (Bank Rakyat Indonesia)</option>
+                        <option value="BNI">BNI (Bank Negara Indonesia)</option>
+                    </optgroup>
                 </select>
+                <div style="font-size: 10px; color: #64748B; margin-top: 4px;">
+                    ℹ️ <em>Akun Perorangan wajib memilih Flip/ShopeePay. Akun Perusahaan menggunakan transfer bank langsung.</em>
+                </div>
             </div>
 
             <div class="form-group">
