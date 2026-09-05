@@ -459,6 +459,42 @@
         transition: 0.2s; 
     }
     .btn-bayar:disabled { background: #94a3b8; cursor: not-allowed; }
+
+    /* STYLING BEBAS NOMINAL */
+    .nominal-preset-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+    }
+    .btn-chip {
+        background: white;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 8px 4px;
+        font-size: 12px;
+        font-weight: 800;
+        color: #334155;
+        cursor: pointer;
+        text-align: center;
+        transition: all 0.2s ease;
+    }
+    .btn-chip:hover {
+        border-color: #00877a;
+        color: #00877a;
+        background: #f0fdfa;
+    }
+    .btn-chip.active {
+        background: #00877a;
+        border-color: #00877a;
+        color: white;
+        box-shadow: 0 2px 6px rgba(0,135,122,0.25);
+    }
+    .product-card[data-type="BEBAS"] {
+        border-color: #bae6fd;
+    }
+    .product-card[data-type="BEBAS"]:hover {
+        border-color: #0284c7;
+    }
 </style>
 {% endblock %}
 
@@ -566,16 +602,26 @@
                     <h3 class="p-name">{{ p.nama_produk }}</h3>
                     <p class="p-desc">
                         {% if p.is_bebas %}
-                            <i class="fas fa-sliders-h" style="color: #0284c7;"></i> Pascabayar / Bebas Nominal
+                            <i class="fas fa-sliders-h" style="color: #0284c7;"></i> Bebas Nominal (Input Sendiri)
                         {% else %}
                             <i class="fas fa-bolt" style="color: #f59e0b;"></i> Proses Otomatis 24 Jam
                         {% endif %}
                     </p>
-                    <h4 class="p-price">Rp {{ "{:,.0f}".format(p.harga)|replace(',', '.') }}</h4>
+                    <h4 class="p-price">
+                        {% if p.is_bebas %}
+                            <span style="font-size: 11px; font-weight: normal; color: #64748b;">Biaya Admin: </span>Rp {{ "{:,.0f}".format(p.harga)|replace(',', '.') }}
+                        {% else %}
+                            Rp {{ "{:,.0f}".format(p.harga)|replace(',', '.') }}
+                        {% endif %}
+                    </h4>
                 </div>
                 
                 <div class="p-action-col">
-                    <button class="btn-card-beli" type="button">BELI</button>
+                    {% if p.is_bebas %}
+                        <button class="btn-card-beli" type="button" style="background: #0284c7;">PILIH</button>
+                    {% else %}
+                        <button class="btn-card-beli" type="button">BELI</button>
+                    {% endif %}
                 </div>
             </div>
             {% endfor %}
@@ -608,6 +654,52 @@
         <div class="sheet-card-header">
             <div class="sheet-title" id="mProdName">Nama Produk</div>
             <div class="sheet-price" id="mProdPrice">Rp 0</div>
+        </div>
+
+        <!-- CONTAINER KHUSUS BEBAS NOMINAL -->
+        <div id="bebasNominalBox" style="display: none; background: #f0fdfa; border: 1.5px solid #99f6e4; border-radius: 14px; padding: 14px; margin-bottom: 15px;">
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; color: #0f766e; margin-bottom: 6px;">
+                <i class="fas fa-keyboard"></i> Masukkan Jumlah Top Up (Bebas Nominal):
+            </label>
+            <div style="position: relative; display: flex; align-items: center;">
+                <span style="position: absolute; left: 14px; font-weight: 800; color: #0f766e; font-size: 15px;">Rp</span>
+                <input type="text" id="inputBebasNominal" inputmode="numeric" placeholder="Contoh: 25.000" 
+                       style="width: 100%; padding: 12px 14px 12px 44px; border: 1.5px solid #5eead4; border-radius: 10px; font-size: 16px; font-weight: 800; color: #134e4a; background: white; outline: none; transition: 0.2s;"
+                       oninput="onInputCustomNominal(this)">
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #0f766e; margin-top: 5px; font-weight: 600;">
+                <span>* Minimal Rp 10.000</span>
+                <span>Kelipatan Rp 1.000</span>
+            </div>
+
+            <!-- CHIPS PRESET CEPAT -->
+            <div style="font-size: 11px; font-weight: 800; color: #475569; margin-top: 10px; margin-bottom: 6px;">
+                <i class="fas fa-bolt" style="color: #f59e0b;"></i> Pilih Cepat Nominal:
+            </div>
+            <div class="nominal-preset-grid">
+                <button type="button" class="btn-chip" onclick="setPresetNominal(10000)">10.000</button>
+                <button type="button" class="btn-chip" onclick="setPresetNominal(20000)">20.000</button>
+                <button type="button" class="btn-chip" onclick="setPresetNominal(25000)">25.000</button>
+                <button type="button" class="btn-chip" onclick="setPresetNominal(50000)">50.000</button>
+                <button type="button" class="btn-chip" onclick="setPresetNominal(100000)">100.000</button>
+                <button type="button" class="btn-chip" onclick="setPresetNominal(200000)">200.000</button>
+            </div>
+
+            <!-- RINCIAN BIAYA TRANSPARAN -->
+            <div class="rincian-biaya-box" style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed #99f6e4; font-size: 12px;">
+                <div style="display: flex; justify-content: space-between; color: #475569; margin-bottom: 4px;">
+                    <span>Nominal Saldo:</span>
+                    <span id="txtRincianNominal" style="font-weight: 700; color: #0f766e;">Rp 0</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; color: #475569; margin-bottom: 4px;">
+                    <span>Biaya Layanan (Admin):</span>
+                    <span id="txtRincianAdmin" style="font-weight: 700; color: #0f766e;">Rp 0</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; color: #00877a; font-weight: 800; font-size: 13px; margin-top: 6px; padding-top: 6px; border-top: 1px solid #ccfbf1;">
+                    <span>Total Pembayaran:</span>
+                    <span id="txtRincianTotal" style="font-size: 14px;">Rp 0</span>
+                </div>
+            </div>
         </div>
 
         <div class="detail-box">
@@ -805,6 +897,51 @@
     let selectedSku = null;
     let selectedPrice = 0;
     let selectedMetode = 'saldo';
+    let isBebasSelected = false;
+    let selectedAdminFee = 0;
+
+    function formatNumberThousand(num) {
+        return (num || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    }
+
+    function updateRincianBebas(nominal) {
+        const total = nominal > 0 ? (nominal + selectedAdminFee) : selectedAdminFee;
+        selectedPrice = total;
+        document.getElementById('txtRincianNominal').innerText = 'Rp ' + formatNumberThousand(nominal);
+        document.getElementById('txtRincianAdmin').innerText = 'Rp ' + formatNumberThousand(selectedAdminFee);
+        document.getElementById('txtRincianTotal').innerText = 'Rp ' + formatNumberThousand(total);
+        if (nominal > 0) {
+            document.getElementById('mProdPrice').innerText = 'Rp ' + formatNumberThousand(total);
+        } else {
+            document.getElementById('mProdPrice').innerText = 'Biaya Admin: Rp ' + formatNumberThousand(selectedAdminFee);
+        }
+    }
+
+    function onInputCustomNominal(input) {
+        let val = input.value.replace(/[^0-9]/g, '');
+        let num = parseInt(val) || 0;
+        if (val.length > 0) {
+            input.value = formatNumberThousand(num);
+        } else {
+            input.value = '';
+        }
+        document.querySelectorAll('.btn-chip').forEach(c => {
+            const chipVal = parseInt(c.innerText.replace(/[^0-9]/g, ''));
+            c.classList.toggle('active', chipVal === num);
+        });
+        updateRincianBebas(num);
+    }
+
+    function setPresetNominal(nominal) {
+        const input = document.getElementById('inputBebasNominal');
+        input.value = formatNumberThousand(nominal);
+        document.querySelectorAll('.btn-chip').forEach(c => {
+            const chipVal = parseInt(c.innerText.replace(/[^0-9]/g, ''));
+            c.classList.toggle('active', chipVal === nominal);
+        });
+        updateRincianBebas(nominal);
+        input.focus();
+    }
 
     function beliProdukModal(card) {
         const isActive = card.getAttribute('data-active');
@@ -824,11 +961,30 @@
         selectedSku = card.getAttribute('data-sku');
         const nama = card.getAttribute('data-nama');
         const harga = card.getAttribute('data-harga');
-        selectedPrice = parseFloat(card.getAttribute('data-rawprice') || 0);
+        const rawPrice = parseFloat(card.getAttribute('data-rawprice') || 0);
+        const cardType = card.getAttribute('data-type');
+        isBebasSelected = (cardType === 'BEBAS');
 
         document.getElementById('mProdName').innerText = nama;
-        document.getElementById('mProdPrice').innerText = 'Rp ' + harga;
         document.getElementById('mTargetNo').innerText = noHp;
+
+        const bebasBox = document.getElementById('bebasNominalBox');
+        const inputNominal = document.getElementById('inputBebasNominal');
+
+        if (isBebasSelected) {
+            selectedAdminFee = rawPrice;
+            bebasBox.style.display = 'block';
+            inputNominal.value = '';
+            document.querySelectorAll('.btn-chip').forEach(c => c.classList.remove('active'));
+            updateRincianBebas(0);
+            document.getElementById('mProdPrice').innerText = 'Biaya Admin: Rp ' + harga;
+            setTimeout(() => { inputNominal.focus(); }, 300);
+        } else {
+            selectedAdminFee = 0;
+            selectedPrice = rawPrice;
+            bebasBox.style.display = 'none';
+            document.getElementById('mProdPrice').innerText = 'Rp ' + harga;
+        }
 
         document.getElementById('sheetOverlay').classList.add('show');
         document.getElementById('checkoutModal').classList.add('show');
@@ -861,20 +1017,37 @@
             return;
         }
 
+        let customNominal = 0;
+        if (isBebasSelected) {
+            const inputNominal = document.getElementById('inputBebasNominal');
+            customNominal = parseInt(inputNominal.value.replace(/[^0-9]/g, '')) || 0;
+            if (!customNominal || customNominal < 10000) {
+                showToast('Masukkan nominal top up yang valid (minimal Rp 10.000)!');
+                inputNominal.focus();
+                return;
+            }
+        }
+
         const btn = document.getElementById('btnProsesBayar');
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memproses...';
+
+        const payload = {
+            sku_code: selectedSku,
+            target_number: noHp,
+            payment_method: selectedMetode.toUpperCase()
+        };
+        if (isBebasSelected) {
+            payload.nominal = customNominal;
+            payload.amount = customNominal;
+        }
 
         fetch('/trx/checkout', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                sku_code: selectedSku,
-                target_number: noHp,
-                payment_method: selectedMetode.toUpperCase()
-            })
+            body: JSON.stringify(payload)
         })
         .then(res => res.json())
         .then(data => {

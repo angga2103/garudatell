@@ -299,11 +299,12 @@ def request_deposit(amount, bank, owner_name):
 # =====================================================================
 # 5. CEK TAGIHAN PASCABAYAR (https://developer.digiflazz.com/api/buyer/cek-tagihan/)
 # =====================================================================
-def inquiry_pasca(sku, customer_no, ref_id, testing=None):
+def inquiry_pasca(sku, customer_no, ref_id, testing=None, amount=None):
     """
     Melakukan pengecekan tagihan pascabayar (Inquiry).
     commands: 'inq-pasca'
     Signature: md5(username + key + ref_id)
+    Untuk produk E-Money Bebas Nominal, Digiflazz mewajibkan parameter 'amount' (Int).
     """
     from dotenv import load_dotenv
     load_dotenv(override=False)
@@ -324,6 +325,11 @@ def inquiry_pasca(sku, customer_no, ref_id, testing=None):
         "ref_id": str(ref_id).strip(),
         "sign": sign
     }
+    if amount is not None:
+        try:
+            payload["amount"] = int(amount)
+        except (ValueError, TypeError):
+            pass
     if testing is not None:
         payload["testing"] = bool(testing)
 

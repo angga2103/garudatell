@@ -58,31 +58,57 @@ def checkout():
             'OVO': 'post685483',
             'LINKAJA': 'post706873'
         }
+        bebas_sku_list = ['post685480', 'post685481', 'post685482', 'post685483', 'post685485', 'post706873']
+
+        # Cek produk di database terlebih dahulu
+        db_product = Product.query.filter_by(sku_code=sku_input).first()
 
         bebas_brand_match = None
         for b_name in bebas_sku_map.keys():
-            if b_name in sku_upper:
+            if sku_upper == b_name or f"{b_name}_BEBAS" in sku_upper or f"BEBAS_{b_name}" in sku_upper:
                 bebas_brand_match = b_name
                 break
 
-        if 'BEBAS' in sku_upper or 'EMONEY' in sku_upper or bebas_brand_match:
+        # Kriteria Deteksi Bebas Nominal Akurat:
+        # 1. SKU terdaftar di daftar SKU Bebas Nominal (post685480 s/d post706873)
+        # 2. Atau nama produk di database memuat 'BEBAS' dan termasuk kategori pascabayar / e-money
+        # 3. Atau brand match terdeteksi dengan nominal/amount > 0 atau ada kata 'BEBAS'
+        # 4. Atau sku memuat 'BEBAS' (kecuali produk data XL 'Bebas Puas')
+        if sku_input in bebas_sku_list:
             is_bebas_nominal = True
+        elif db_product and 'BEBAS' in (db_product.name or '').upper() and ('PASCABAYAR' in (db_product.category or '').upper() or 'E-MONEY' in (db_product.brand or '').upper() or 'WALLET' in (db_product.category or '').upper()):
+            is_bebas_nominal = True
+        elif bebas_brand_match and (float(amt_raw or 0) > 0 or 'BEBAS' in sku_upper):
+            is_bebas_nominal = True
+        elif 'BEBAS' in sku_upper and not ('BEBAS PUAS' in sku_upper or 'XL' in sku_upper):
+            is_bebas_nominal = True
+
+        nominal = 0.0
+        if is_bebas_nominal:
             try:
-                amount = float(amt_raw)
+                nominal = float(amt_raw)
             except (ValueError, TypeError):
                 return jsonify({'status': 'error', 'error': True, 'message': 'Nominal bebas nominal tidak valid.'}), 400
 
-            if amount <= 0:
-                return jsonify({'status': 'error', 'error': True, 'message': 'Nominal harus lebih besar dari Rp 0.'}), 400
+            if nominal < 10000:
+                return jsonify({'status': 'error', 'error': True, 'message': 'Minimal top up bebas nominal adalah Rp 10.000.'}), 400
 
-            brand_clean = bebas_brand_match or 'DANA'
-            sku_code = bebas_sku_map.get(brand_clean, 'post685481')
-            product_name = f"{brand_clean} Bebas Rp {int(amount):,}"
+            if not db_product:
+                brand_clean = bebas_brand_match or 'DANA'
+                sku_code = bebas_sku_map.get(brand_clean, 'post685481')
+                db_product = Product.query.filter_by(sku_code=sku_code).first()
+            else:
+                sku_code = db_product.sku_code
+
+            admin_fee = float(db_product.sell_price) if db_product else 1700.0
+            amount = nominal + admin_fee
+            prod_name_label = db_product.name if db_product else (bebas_brand_match or 'E-Money Bebas')
+            product_name = f"{prod_name_label} Rp {int(nominal):,}"
             is_prepaid_flow = False
 
         else:
-            # Cari produk di katalog database
-            product = Product.query.filter_by(sku_code=sku_input).first()
+            # Cari produk di katalog database jika belum di-query
+            product = db_product or Product.query.filter_by(sku_code=sku_input).first()
             if not product:
                 return jsonify({'status': 'error', 'error': True, 'message': 'Produk tidak ditemukan'}), 404
             if not product.is_active:
@@ -203,7 +229,7 @@ def checkout():
             # B. BEBAS NOMINAL DIGIFLAZZ (INQUIRY + PAYMENT)
             elif is_bebas_nominal:
                 from app.services.digiflazz import inquiry_pasca, pay_pasca
-                ok_inq, res_inq_data, msg_inq = inquiry_pasca(sku_code, target_number, ref_id)
+                ok_inq, res_inq_data, msg_inq = inquiry_pasca(sku_code, target_number, ref_id, amount=nominal)
                 if ok_inq:
                     ok_pay, res_pay_data, msg_pay = pay_pasca(sku_code, target_number, ref_id)
                     if ok_pay:
@@ -396,22 +422,41 @@ def check_status(ref_id):
                 return jsonify({'status': 'success', 'payment_status': 'PAID'})
                 
             # --- PELATUK DIGIFLAZZ ---
-            product = Product.query.filter_by(name=trx.product_name).first()
-            if product:
-                digi_res = create_transaction(product.sku_code, trx.target_number, trx.ref_id)
-                digi_status = digi_res.get('data', {}).get('status', '').lower()
-                
-                if 'sukses' in digi_status or 'success' in digi_status:
-                    trx.status = 'SUCCESS'
-                elif 'gagal' in digi_status or 'failed' in digi_status:
-                    trx.status = 'FAILED'
+            bebas_sku_list = ['post685480', 'post685481', 'post685482', 'post685483', 'post685485', 'post706873']
+            if not trx.is_prepaid or trx.sku_code in bebas_sku_list:
+                from app.services.digiflazz import inquiry_pasca, pay_pasca
+                prod = Product.query.filter_by(sku_code=trx.sku_code).first()
+                admin_fee = float(prod.sell_price) if prod else 1700.0
+                nominal = max(0, trx.amount - admin_fee) if trx.amount > admin_fee else trx.amount
+                ok_inq, res_inq, msg_inq = inquiry_pasca(trx.sku_code, trx.target_number, trx.ref_id, amount=nominal)
+                if ok_inq:
+                    ok_pay, res_pay, msg_pay = pay_pasca(trx.sku_code, trx.target_number, trx.ref_id)
+                    if ok_pay:
+                        trx.status = 'SUCCESS'
+                        trx.sn = res_pay.get('sn', '')
+                    else:
+                        trx.status = 'FAILED'
+                        trx.note = msg_pay
                 else:
-                    trx.status = 'PROCESSING'
-                    
-                trx.note = digi_res.get('data', {}).get('message', 'Sedang diproses server Digiflazz')
+                    trx.status = 'FAILED'
+                    trx.note = msg_inq
             else:
-                trx.status = 'FAILED'
-                trx.note = 'Produk tidak ditemukan di database'
+                product = Product.query.filter((Product.sku_code == trx.sku_code) | (Product.name == trx.product_name)).first()
+                if product:
+                    digi_res = create_transaction(product.sku_code, trx.target_number, trx.ref_id)
+                    digi_status = digi_res.get('data', {}).get('status', '').lower()
+                    
+                    if 'sukses' in digi_status or 'success' in digi_status:
+                        trx.status = 'SUCCESS'
+                    elif 'gagal' in digi_status or 'failed' in digi_status:
+                        trx.status = 'FAILED'
+                    else:
+                        trx.status = 'PROCESSING'
+                        
+                    trx.note = digi_res.get('data', {}).get('message', 'Sedang diproses server Digiflazz')
+                else:
+                    trx.status = 'FAILED'
+                    trx.note = 'Produk tidak ditemukan di database'
                 
             db.session.commit()
             return jsonify({'status': 'success', 'payment_status': 'PAID'})
@@ -450,20 +495,32 @@ def trx_detail(ref_id):
                         trx.sn = v_data.get('note', 'Gagal di server VIP')
                     db.session.commit()
             else:
-                # Alur Digiflazz Lama
-                from app.services.digiflazz import create_transaction
-                product = Product.query.filter_by(name=trx.product_name).first()
-                if product:
-                    res = create_transaction(product.sku_code, trx.target_number, trx.ref_id)
-                    data = res.get('data', {})
-                    d_status = data.get('status', '').lower()
+                bebas_sku_list = ['post685480', 'post685481', 'post685482', 'post685483', 'post685485', 'post706873']
+                if not trx.is_prepaid or trx.sku_code in bebas_sku_list:
+                    from app.services.digiflazz import check_transaction_status
+                    ok, data, msg = check_transaction_status(trx.sku_code, trx.target_number, trx.ref_id, is_pasca=True)
+                    d_status = str(data.get('status', '')).lower()
                     if 'sukses' in d_status or 'success' in d_status:
                         trx.status = 'SUCCESS'
                         trx.sn = data.get('sn', '')
                     elif 'gagal' in d_status or 'failed' in d_status:
                         trx.status = 'FAILED'
-                        trx.sn = data.get('sn', '')
+                        trx.sn = data.get('message', msg)
                     db.session.commit()
+                else:
+                    from app.services.digiflazz import create_transaction
+                    product = Product.query.filter((Product.sku_code == trx.sku_code) | (Product.name == trx.product_name)).first()
+                    if product:
+                        res = create_transaction(product.sku_code, trx.target_number, trx.ref_id)
+                        data = res.get('data', {})
+                        d_status = data.get('status', '').lower()
+                        if 'sukses' in d_status or 'success' in d_status:
+                            trx.status = 'SUCCESS'
+                            trx.sn = data.get('sn', '')
+                        elif 'gagal' in d_status or 'failed' in d_status:
+                            trx.status = 'FAILED'
+                            trx.sn = data.get('sn', '')
+                        db.session.commit()
         except Exception as e:
             print("[ERROR CEK STATUS]:", e)
             pass 
