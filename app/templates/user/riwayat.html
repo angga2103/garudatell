@@ -221,11 +221,13 @@
         color: white;
     }
     .btn-action-wa:hover { background: #128c7e; }
-    .btn-action-pay {
-        background: #0284c7;
+    .btn-action-pay:hover { background: #0369a1; }
+    .btn-action-check {
+        background: #f59e0b;
         color: white;
     }
-    .btn-action-pay:hover { background: #0369a1; }
+    .btn-action-check:hover { background: #d97706; }
+    .btn-action-check:disabled { opacity: 0.7; cursor: not-allowed; }
     .btn-action-cs {
         background: #f0f9ff;
         color: #0284c7;
@@ -343,6 +345,7 @@
             {% for t in transactions %}
             {% set s = (t.status or 'PENDING')|upper %}
             <div class="trx-card" 
+                 id="trx-card-{{ t.ref_id }}"
                  data-status="{{ s }}"
                  data-ref="{{ t.ref_id|upper }}"
                  data-target="{{ (t.target_number or t.target or '')|upper }}"
@@ -405,6 +408,12 @@
                                 onclick="bagikanStruk('{{ t.ref_id }}', '{{ (t.product_name or 'Produk')|escape }}', '{{ (t.target_number or t.target or '-')|escape }}', '{{ '{:,.0f}'.format(t.amount or t.price or 0).replace(',', '.') }}', '{{ (t.sn or '-')|escape }}', '{{ t.created_at_wib }}', 'SUKSES')" 
                                 title="Kirim Struk ke WhatsApp">
                             <i class="fab fa-whatsapp"></i> Struk WA
+                        </button>
+                        {% elif s in ['PROCESSING', 'PROSES'] %}
+                        <button type="button" class="btn-action-sm btn-action-check" 
+                                onclick="cekStatusTrx('{{ t.ref_id }}', this)" 
+                                title="Cek Status Terkini ke Provider">
+                            <i class="fas fa-sync-alt"></i> Cek Status
                         </button>
                         {% elif s in ['UNPAID', 'PENDING'] %}
                         <a href="/trx/invoice/{{ t.ref_id }}" class="btn-action-sm btn-action-pay" title="Bayar Sekarang via QRIS">
@@ -521,5 +530,118 @@
         const encoded = encodeURIComponent(text);
         window.location.href = `whatsapp://send?text=${encoded}`;
     }
+
+    function cekStatusTrx(refId, btn) {
+        if (!refId) return;
+        let originalHtml = '';
+        if (btn) {
+            originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cek...';
+            btn.disabled = true;
+        }
+
+        fetch('/trx/detail/' + refId)
+            .then(res => res.json())
+            .then(data => {
+                if (btn) {
+                    btn.innerHTML = originalHtml;
+                    btn.disabled = false;
+                }
+                if (data.status === 'success') {
+                    const card = document.getElementById('trx-card-' + refId) || document.querySelector(`.trx-card[data-ref="${refId.toUpperCase()}"]`);
+                    const statusUpper = (data.trx_status || '').toUpperCase();
+                    
+                    if (['SUCCESS', 'SUKSES'].includes(statusUpper)) {
+                        showToast('✅ Transaksi Berhasil! Status telah diperbarui.');
+                        if (card) {
+                            card.setAttribute('data-status', 'SUCCESS');
+                            // Update badge
+                            const badge = card.querySelector('.badge-status');
+                            if (badge) {
+                                badge.className = 'badge-status sukses';
+                                badge.innerText = 'Sukses';
+                            }
+                            // Update or add SN box if sn exists
+                            if (data.sn && data.sn !== 'Sedang diproses server...') {
+                                card.setAttribute('data-sn', data.sn.toUpperCase());
+                                let snBox = card.querySelector('.sn-box');
+                                if (snBox) {
+                                    snBox.innerHTML = `<span>SN: ${data.sn}</span> <i class="far fa-copy"></i>`;
+                                } else {
+                                    const metaRow = card.querySelector('.trx-meta-row');
+                                    if (metaRow) {
+                                        const newSn = document.createElement('div');
+                                        newSn.className = 'sn-box';
+                                        newSn.setAttribute('onclick', `copyText('${data.sn}')`);
+                                        newSn.setAttribute('title', 'Klik untuk salin SN');
+                                        newSn.innerHTML = `<span>SN: ${data.sn}</span> <i class="far fa-copy"></i>`;
+                                        metaRow.appendChild(newSn);
+                                    }
+                                }
+                            }
+                            // Replace Cek Status button with Struk WA button
+                            if (btn && btn.parentNode) {
+                                const targetNum = card.getAttribute('data-target') || '-';
+                                const prodName = data.product_name || card.getAttribute('data-product') || 'Produk';
+                                const priceText = card.querySelector('.trx-price') ? card.querySelector('.trx-price').innerText.replace('Rp ', '') : '0';
+                                const snText = data.sn || '-';
+                                const dateText = data.date || '-';
+                                btn.outerHTML = `<button type="button" class="btn-action-sm btn-action-wa" 
+                                    onclick="bagikanStruk('${refId}', '${prodName}', '${targetNum}', '${priceText}', '${snText}', '${dateText}', 'SUKSES')" 
+                                    title="Kirim Struk ke WhatsApp">
+                                    <i class="fab fa-whatsapp"></i> Struk WA
+                                </button>`;
+                            }
+                        }
+                    } else if (['FAILED', 'GAGAL', 'CANCELLED'].includes(statusUpper)) {
+                        showToast('❌ Transaksi Dinyatakan Gagal.');
+                        if (card) {
+                            card.setAttribute('data-status', 'FAILED');
+                            const badge = card.querySelector('.badge-status');
+                            if (badge) {
+                                badge.className = 'badge-status gagal';
+                                badge.innerText = 'Gagal';
+                            }
+                            if (btn) btn.remove();
+                        }
+                    } else {
+                        showToast('⏳ Masih diproses operator. Silakan cek berkala.');
+                    }
+                } else {
+                    showToast(data.message || 'Gagal memeriksa status');
+                }
+            })
+            .catch(err => {
+                if (btn) {
+                    btn.innerHTML = originalHtml;
+                    btn.disabled = false;
+                }
+                showToast('Terjadi kesalahan jaringan.');
+            });
+    }
+
+    // Auto-polling untuk transaksi yang berstatus PROSES / PROCESSING saat halaman terbuka
+    document.addEventListener('DOMContentLoaded', () => {
+        const processingCards = document.querySelectorAll('.trx-card[data-status="PROCESSING"], .trx-card[data-status="PROSES"]');
+        if (processingCards.length > 0) {
+            let pollCount = 0;
+            const maxPolls = 6;
+            const pollInterval = setInterval(() => {
+                pollCount++;
+                const stillProcessing = document.querySelectorAll('.trx-card[data-status="PROCESSING"], .trx-card[data-status="PROSES"]');
+                if (stillProcessing.length === 0 || pollCount >= maxPolls) {
+                    clearInterval(pollInterval);
+                    return;
+                }
+                stillProcessing.forEach(card => {
+                    const ref = card.getAttribute('data-ref');
+                    if (ref) {
+                        const checkBtn = card.querySelector('.btn-action-check');
+                        cekStatusTrx(ref, checkBtn);
+                    }
+                });
+            }, 6000);
+        }
+    });
 </script>
 {% endblock %}

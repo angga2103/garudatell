@@ -479,7 +479,21 @@ def riwayat():
                 ed = datetime.strptime(end_date + ' 23:59:59', '%Y-%m-%d %H:%M:%S')
                 query = query.filter(Transaction.created_at <= ed)
             except: pass
-            
+
+        # AUTO-SYNC: Cek status terkini transaksi aktif yang masih PROCESSING ke provider (Digiflazz/VIP)
+        try:
+            from app.routes.transaction import sync_single_transaction
+            pending_trxs = Transaction.query.filter(
+                Transaction.user_id == current_user.id,
+                Transaction.status.in_(['PROCESSING', 'PENDING', 'PROSES']),
+                Transaction.payment_status == 'PAID'
+            ).order_by(Transaction.created_at.desc()).limit(3).all()
+
+            for pt in pending_trxs:
+                sync_single_transaction(pt)
+        except Exception as sync_err:
+            print(f"[AUTO-SYNC RIWAYAT WARNING]: {sync_err}")
+
         transactions = query.order_by(Transaction.created_at.desc()).all()
         
         count_sukses = sum(1 for t in transactions if getattr(t, 'status', '') == 'SUCCESS')

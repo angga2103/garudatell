@@ -65,7 +65,8 @@ def dashboard():
         'bot_admin_token': clean_str(os.getenv('BOT_ADMIN_TOKEN')),
         'bot_admin_chat': clean_str(os.getenv('BOT_ADMIN_CHAT_ID')),
         'vip_api_id': clean_str(os.getenv('VIP_API_ID')),
-        'vip_api_key': clean_str(os.getenv('VIP_API_KEY'))
+        'vip_api_key': clean_str(os.getenv('VIP_API_KEY')),
+        'digi_webhook_secret': clean_str(os.getenv('DIGI_WEBHOOK_SECRET'))
     }
 
     # Metrik Riil dari Database
@@ -87,9 +88,11 @@ def dashboard():
     f_proto = request.headers.get('X-Forwarded-Proto') or request.scheme
     f_host = request.headers.get('X-Forwarded-Host') or request.host
     vip_callback_url = f"{f_proto}://{f_host}/api/callback/vipreseller"
+    digi_callback_url = f"{f_proto}://{f_host}/api/callback/digiflazz"
 
     env_data['server_public_ip'] = server_public_ip
     env_data['vip_callback_url'] = vip_callback_url
+    env_data['digi_callback_url'] = digi_callback_url
 
     return render_template('admin/dashboard.html',
                            total_users=total_users,
@@ -116,7 +119,11 @@ def save_config():
         set_key(ENV_FILE, 'DIGI_USER', clean_str(request.form.get('digi_user')))
         set_key(ENV_FILE, 'DIGI_URL', clean_str(request.form.get('digi_url')))
         if request.form.get('digi_key'): set_key(ENV_FILE, 'DIGI_KEY', clean_str(request.form.get('digi_key')))
+        if request.form.get('digi_webhook_secret') is not None:
+            set_key(ENV_FILE, 'DIGI_WEBHOOK_SECRET', clean_str(request.form.get('digi_webhook_secret')))
         load_dotenv(ENV_FILE, override=True)
+        flash('✅ Pengaturan Digiflazz & Webhook berhasil disimpan!', 'success')
+        return redirect(url_for('admin.dashboard'))
     elif form_type == 'paymentkita':
         set_key(ENV_FILE, 'PAYMENTKITA_MERCHANT_ID', clean_str(request.form.get('pk_merchant')))
         if request.form.get('pk_secret'): set_key(ENV_FILE, 'PAYMENTKITA_SECRET', clean_str(request.form.get('pk_secret')))

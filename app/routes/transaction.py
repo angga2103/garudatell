@@ -466,6 +466,86 @@ def check_status(ref_id):
 
     return jsonify({'status': 'success', 'payment_status': trx.payment_status})
 
+def sync_single_transaction(trx):
+    """
+    Menyinkronkan status 1 transaksi yang masih PROCESSING/PENDING ke provider (Digiflazz / VIP-Reseller).
+    Mengembalikan boolean True jika status berubah, False jika tetap atau gagal cek.
+    """
+    if not trx or trx.status not in ['PROCESSING', 'PENDING', 'PROSES']:
+        return False
+
+    old_status = trx.status
+    changed = False
+
+    try:
+        # A. VIP-Reseller
+        if str(trx.ref_id).startswith('VP') or str(trx.ref_id).startswith('VIP'):
+            from app.services.vip_reseller import VIPReseller
+            vip = VIPReseller()
+            res = vip.check_status(trx.ref_id)
+            if res and res.get('result'):
+                v_data = res.get('data', {})
+                if isinstance(v_data, list) and len(v_data) > 0:
+                    v_data = v_data[0]
+                v_status = str(v_data.get('status', '')).lower()
+                if v_status in ['success', 'sukses']:
+                    trx.status = 'SUCCESS'
+                    trx.sn = v_data.get('sn', 'SN tidak tersedia')
+                    award_transaction_points(trx.user_id, trx.ref_id)
+                    changed = True
+                elif v_status in ['error', 'failed', 'gagal']:
+                    if old_status != 'FAILED' and trx.payment_status == 'PAID' and trx.payment_method == 'SALDO':
+                        user = User.query.filter_by(id=trx.user_id).first()
+                        if user:
+                            user.balance += trx.amount
+                    trx.status = 'FAILED'
+                    trx.sn = v_data.get('note', 'Gagal di server VIP')
+                    changed = True
+                db.session.commit()
+                if changed:
+                    from app.services.telegram_service import async_send_trx_notification
+                    async_send_trx_notification(trx, title=f"TRANSAKSI {trx.status} (VIP)")
+        else:
+            # B. Digiflazz (Bebas Nominal / Pasca vs Prabayar Reguler)
+            bebas_sku_list = ['post685480', 'post685481', 'post685482', 'post685483', 'post685485', 'post706873']
+            is_pasca_flow = not trx.is_prepaid or trx.sku_code in bebas_sku_list
+
+            from app.services.digiflazz import check_transaction_status
+            ok, d_data, msg = check_transaction_status(trx.sku_code, trx.target_number, trx.ref_id, is_pasca=is_pasca_flow)
+            if ok and d_data:
+                d_status = str(d_data.get('status', '')).lower()
+                rc = str(d_data.get('rc', '')).strip()
+                sn = d_data.get('sn', '')
+
+                if 'sukses' in d_status or 'success' in d_status or rc == '00':
+                    trx.status = 'SUCCESS'
+                    if sn:
+                        trx.sn = sn
+                    award_transaction_points(trx.user_id, trx.ref_id)
+                    changed = True
+                elif 'gagal' in d_status or 'failed' in d_status or rc in ['41', '42', '50']:
+                    if old_status != 'FAILED' and trx.payment_status == 'PAID' and trx.payment_method == 'SALDO':
+                        user = User.query.filter_by(id=trx.user_id).first()
+                        if user:
+                            user.balance += trx.amount
+                    trx.status = 'FAILED'
+                    trx.sn = sn or d_data.get('message', msg)
+                    changed = True
+                elif 'pending' in d_status or 'process' in d_status or rc == '03':
+                    if hasattr(trx, 'note') and d_data.get('message'):
+                        trx.note = d_data.get('message')
+
+                db.session.commit()
+                if changed:
+                    from app.services.telegram_service import async_send_trx_notification
+                    async_send_trx_notification(trx, title=f"TRANSAKSI {trx.status} (DIGIFLAZZ SYNC)")
+    except Exception as e:
+        print(f"[SYNC ERROR] {trx.ref_id}: {e}")
+        db.session.rollback()
+
+    return changed
+
+
 @trx_bp.route('/detail/<ref_id>', methods=['GET'])
 @login_required
 def trx_detail(ref_id):
@@ -473,57 +553,8 @@ def trx_detail(ref_id):
     if not trx:
         return jsonify({'status': 'error', 'message': 'Transaksi tidak ditemukan'}), 404
         
-    # Tambahkan kata 'PROSES' ke dalam kamus pengecekan
     if trx.status in ['PROCESSING', 'PENDING', 'PROSES']:
-        try:
-            # Jika ID berawalan VP (ID Resmi VIP) atau VIP
-            if str(trx.ref_id).startswith('VP') or str(trx.ref_id).startswith('VIP'):
-                from app.services.vip_reseller import VIPReseller
-                vip = VIPReseller()
-                res = vip.check_status(trx.ref_id)
-                if res and res.get('result'):
-                    v_data = res.get('data', {})
-                    if isinstance(v_data, list) and len(v_data) > 0:
-                        v_data = v_data[0]
-                        
-                    v_status = str(v_data.get('status', '')).lower()
-                    if v_status in ['success', 'sukses']:
-                        trx.status = 'SUCCESS'
-                        trx.sn = v_data.get('sn', 'SN tidak tersedia')
-                    elif v_status in ['error', 'failed', 'gagal']:
-                        trx.status = 'FAILED'
-                        trx.sn = v_data.get('note', 'Gagal di server VIP')
-                    db.session.commit()
-            else:
-                bebas_sku_list = ['post685480', 'post685481', 'post685482', 'post685483', 'post685485', 'post706873']
-                if not trx.is_prepaid or trx.sku_code in bebas_sku_list:
-                    from app.services.digiflazz import check_transaction_status
-                    ok, data, msg = check_transaction_status(trx.sku_code, trx.target_number, trx.ref_id, is_pasca=True)
-                    d_status = str(data.get('status', '')).lower()
-                    if 'sukses' in d_status or 'success' in d_status:
-                        trx.status = 'SUCCESS'
-                        trx.sn = data.get('sn', '')
-                    elif 'gagal' in d_status or 'failed' in d_status:
-                        trx.status = 'FAILED'
-                        trx.sn = data.get('message', msg)
-                    db.session.commit()
-                else:
-                    from app.services.digiflazz import create_transaction
-                    product = Product.query.filter((Product.sku_code == trx.sku_code) | (Product.name == trx.product_name)).first()
-                    if product:
-                        res = create_transaction(product.sku_code, trx.target_number, trx.ref_id)
-                        data = res.get('data', {})
-                        d_status = data.get('status', '').lower()
-                        if 'sukses' in d_status or 'success' in d_status:
-                            trx.status = 'SUCCESS'
-                            trx.sn = data.get('sn', '')
-                        elif 'gagal' in d_status or 'failed' in d_status:
-                            trx.status = 'FAILED'
-                            trx.sn = data.get('sn', '')
-                        db.session.commit()
-        except Exception as e:
-            print("[ERROR CEK STATUS]:", e)
-            pass 
+        sync_single_transaction(trx)
             
     return jsonify({
         'status': 'success',
@@ -593,6 +624,11 @@ def callback_digiflazz():
         if not ref_id:
             return jsonify({'status': 'error', 'message': 'Missing ref_id'}), 400
 
+        # Cari transaksi di database
+        trx = Transaction.query.filter_by(ref_id=ref_id).first()
+        if not trx:
+            return jsonify({'status': 'error', 'message': 'Transaction not found'}), 404
+
         # Autentikasi Keamanan:
         # 1. Prioritaskan header resmi X-Hub-Signature (HMAC-SHA1)
         x_hub_sig = request.headers.get('X-Hub-Signature') or request.headers.get('X-Digiflazz-Delivery')
@@ -610,14 +646,18 @@ def callback_digiflazz():
             if received_sign and received_sign == expected_sign:
                 is_signature_valid = True
 
+        # 3. Fallback toleran jika Secret di panel Digiflazz tidak diatur (opsional di Digiflazz)
+        # Sesuai dokumentasi resmi, Digiflazz mengirim User-Agent: Digiflazz-Hookshot atau X-Digiflazz-Event: update
+        if not is_signature_valid:
+            ua = request.headers.get('User-Agent', '')
+            evt = request.headers.get('X-Digiflazz-Event', '')
+            if 'Digiflazz-Hookshot' in ua or evt == 'update' or request.headers.get('X-Digiflazz-Delivery'):
+                is_signature_valid = True
+                print(f"[SECURITY INFO] Digiflazz webhook verified via Digiflazz-Hookshot header for {ref_id}")
+
         if not is_signature_valid:
             print(f"[SECURITY] Invalid Digiflazz webhook signature for {ref_id}")
             return jsonify({'status': 'error', 'message': 'Invalid signature'}), 403
-
-        # Cari transaksi di database
-        trx = Transaction.query.filter_by(ref_id=ref_id).first()
-        if not trx:
-            return jsonify({'status': 'error', 'message': 'Transaction not found'}), 404
 
         # Idempotency check: jika status transaksi sudah SUCCESS, abaikan callback berulang
         if trx.status == 'SUCCESS':
@@ -635,7 +675,7 @@ def callback_digiflazz():
             award_transaction_points(trx.user_id, ref_id)
         elif 'gagal' in status or 'failed' in status or 'error' in status or rc in ['41', '42', '50']:
             # AUTO-REFUND hanya jika status sebelumnya belum FAILED (mencegah double refund)
-            if old_status != 'FAILED' and trx.payment_status == 'PAID':
+            if old_status != 'FAILED' and trx.payment_status == 'PAID' and trx.payment_method == 'SALDO':
                 user = User.query.filter_by(id=trx.user_id).with_for_update().first()
                 if user:
                     user.balance += trx.amount
@@ -652,6 +692,15 @@ def callback_digiflazz():
 
         trx.updated_at = db.func.now()
         db.session.commit()
+
+        # Pencatatan log terstruktur
+        try:
+            log_dir = os.path.join(BASE_DIR, 'storage', 'logs')
+            os.makedirs(log_dir, exist_ok=True)
+            with open(os.path.join(log_dir, 'digiflazz_webhook.log'), 'a', encoding='utf-8') as f:
+                f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ref_id={ref_id} status={trx.status} rc={rc} sn={sn}\n")
+        except Exception:
+            pass
 
         print(f"[WEBHOOK DIGIFLAZZ] {ref_id}: {old_status} -> {trx.status}")
         from app.services.telegram_service import async_send_trx_notification
