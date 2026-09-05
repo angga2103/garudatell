@@ -15,6 +15,105 @@ BASE_DIR = os.path.abspath(os.path.dirname(os.path.dirname(os.path.dirname(__fil
 
 trx_bp = Blueprint('trx_bp', __name__)  # Prefix akan diatur di __init__.py
 
+@trx_bp.route('/inquiry_bill', methods=['POST'])
+@trx_bp.route('/api/inquiry_bill', methods=['POST'])
+@trx_bp.route('/inquiry_pasca', methods=['POST'])
+@csrf.exempt
+def inquiry_bill():
+    """
+    Endpoint Cek Tagihan Pascabayar (PLN, dll) ke Digiflazz sebelum pembayaran.
+    Menghasilkan ref_id unik yang WAJIB digunakan kembali saat eksekusi pay-pasca.
+    """
+    if not current_user.is_authenticated:
+        return jsonify({
+            'status': 'error',
+            'error': True,
+            'message': 'Silakan login terlebih dahulu untuk cek tagihan',
+            'requires_login': True
+        }), 401
+
+    try:
+        req_data = request.get_json(silent=True) or request.form.to_dict() or {}
+        sku_input = str(req_data.get('sku_code') or req_data.get('sku') or '').strip()
+        customer_no = str(req_data.get('customer_no') or req_data.get('target_number') or req_data.get('id_pelanggan') or req_data.get('nomor') or '').strip()
+
+        if not sku_input or not customer_no:
+            return jsonify({'status': 'error', 'message': 'SKU Produk dan ID Pelanggan / Nomor Meter wajib diisi'}), 400
+
+        if len(customer_no) < 8:
+            return jsonify({'status': 'error', 'message': 'ID Pelanggan / Nomor Meter minimal 8 digit'}), 400
+
+        # Cari produk di katalog
+        product = Product.query.filter_by(sku_code=sku_input).first()
+        if not product:
+            return jsonify({'status': 'error', 'message': 'Produk tagihan tidak ditemukan di database'}), 404
+
+        # Generate ref_id unik khusus inquiry pascabayar
+        ref_id = f"GT-PASCA-{int(time.time()*1000)}{random.randint(10, 99)}"
+
+        from app.services.digiflazz import inquiry_pasca
+        ok, res_data, msg = inquiry_pasca(sku_input, customer_no, ref_id)
+
+        if not ok or not res_data:
+            return jsonify({
+                'status': 'error',
+                'message': msg or 'Gagal mengecek tagihan ke server PLN',
+                'data': res_data or {}
+            }), 400
+
+        # Ekstrak data respons Digiflazz
+        desc = res_data.get('desc') or {}
+        tarif = desc.get('tarif', '-')
+        daya = desc.get('daya', '-')
+        lembar_tagihan = desc.get('lembar_tagihan', 1)
+        tagihan_obj = desc.get('tagihan') or {}
+        details = tagihan_obj.get('detail') or []
+
+        tagihan_pokok = 0.0
+        denda_total = 0.0
+        periode_list = []
+        if details and isinstance(details, list):
+            for d in details:
+                tagihan_pokok += float(d.get('nilai_tagihan', 0))
+                denda_total += float(d.get('denda', 0))
+                if d.get('periode'):
+                    periode_list.append(str(d.get('periode')))
+
+        # Fallback jika detail tidak memuat nilai_tagihan
+        digi_admin = float(res_data.get('admin', 0))
+        digi_price = float(res_data.get('price', 0))
+        if tagihan_pokok == 0 and digi_price > 0:
+            tagihan_pokok = max(0.0, digi_price - digi_admin)
+
+        # Biaya admin / margin sistem GarudaTel
+        admin_fee_garudatel = float(product.sell_price) if product.sell_price else 4200.0
+        total_bayar = tagihan_pokok + denda_total + admin_fee_garudatel
+
+        periode_str = ", ".join(periode_list) if periode_list else "-"
+
+        return jsonify({
+            'status': 'success',
+            'ref_id': ref_id,
+            'sku_code': sku_input,
+            'product_name': product.name,
+            'customer_no': customer_no,
+            'customer_name': res_data.get('customer_name', '-'),
+            'tarif': tarif,
+            'daya': daya,
+            'lembar_tagihan': lembar_tagihan,
+            'periode': periode_str,
+            'tagihan_pokok': tagihan_pokok,
+            'denda': denda_total,
+            'admin_fee': admin_fee_garudatel,
+            'total_bayar': total_bayar,
+            'message': 'Tagihan berhasil ditemukan',
+            'data': res_data
+        }), 200
+
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': f'Sistem Error saat cek tagihan: {str(e)}'}), 500
+
+
 @trx_bp.route('/checkout', methods=['POST'])
 @csrf.exempt
 @limiter.limit("20 per minute")
@@ -36,12 +135,14 @@ def checkout():
         target_number = str(req_data.get('target_number') or req_data.get('tujuan') or req_data.get('nomor') or '').strip()
         payment_method = str(req_data.get('payment_method') or req_data.get('metode') or 'saldo').lower().strip()
         amt_raw = req_data.get('amount') or req_data.get('nominal') or 0
+        inquiry_ref_id = str(req_data.get('inquiry_ref_id') or req_data.get('ref_id') or '').strip()
 
         if not sku_input or not target_number:
             return jsonify({'status': 'error', 'error': True, 'message': 'Data SKU atau Nomor Tujuan tidak lengkap'}), 400
 
         # 3. IDENTIFIKASI PRODUK & PROVIDER
         is_bebas_nominal = False
+        is_pasca_bill = False
         is_vip = False
         is_prepaid_flow = True
         product_name = ""
@@ -70,10 +171,6 @@ def checkout():
                 break
 
         # Kriteria Deteksi Bebas Nominal Akurat:
-        # 1. SKU terdaftar di daftar SKU Bebas Nominal (post685480 s/d post706873)
-        # 2. Atau nama produk di database memuat 'BEBAS' dan termasuk kategori pascabayar / e-money
-        # 3. Atau brand match terdeteksi dengan nominal/amount > 0 atau ada kata 'BEBAS'
-        # 4. Atau sku memuat 'BEBAS' (kecuali produk data XL 'Bebas Puas')
         if sku_input in bebas_sku_list:
             is_bebas_nominal = True
         elif db_product and 'BEBAS' in (db_product.name or '').upper() and ('PASCABAYAR' in (db_product.category or '').upper() or 'E-MONEY' in (db_product.brand or '').upper() or 'WALLET' in (db_product.category or '').upper()):
@@ -82,6 +179,13 @@ def checkout():
             is_bebas_nominal = True
         elif 'BEBAS' in sku_upper and not ('BEBAS PUAS' in sku_upper or 'XL' in sku_upper):
             is_bebas_nominal = True
+
+        # Kriteria Deteksi Tagihan Pascabayar (PLN Pascabayar, NonTaglis, dll)
+        if not is_bebas_nominal:
+            if inquiry_ref_id and (inquiry_ref_id.startswith('GT-PASCA-') or inquiry_ref_id.startswith('PLN-PASCA-')):
+                is_pasca_bill = True
+            elif db_product and ('PASCABAYAR' in (db_product.category or '').upper() or 'NONTAGLIS' in (db_product.name or '').upper() or 'PASCA' in (db_product.name or '').upper()):
+                is_pasca_bill = True
 
         nominal = 0.0
         if is_bebas_nominal:
@@ -106,6 +210,28 @@ def checkout():
             product_name = f"{prod_name_label} Rp {int(nominal):,}"
             is_prepaid_flow = False
 
+        elif is_pasca_bill:
+            # Wajib melakukan Cek Tagihan terlebih dahulu untuk mendapatkan inquiry_ref_id dan total bayar
+            if not inquiry_ref_id:
+                return jsonify({
+                    'status': 'error',
+                    'error': True,
+                    'message': 'Harap lakukan Cek Tagihan terlebih dahulu sebelum melakukan pembayaran tagihan pascabayar.'
+                }), 400
+
+            try:
+                amount = float(amt_raw)
+            except (ValueError, TypeError):
+                return jsonify({'status': 'error', 'error': True, 'message': 'Nominal tagihan tidak valid.'}), 400
+
+            if amount <= 0:
+                return jsonify({'status': 'error', 'error': True, 'message': 'Total tagihan harus lebih dari Rp 0.'}), 400
+
+            product = db_product or Product.query.filter_by(sku_code=sku_input).first()
+            product_name = product.name if product else f"Tagihan Listrik {sku_input}"
+            sku_code = product.sku_code if product else sku_input
+            is_prepaid_flow = False
+
         else:
             # Cari produk di katalog database jika belum di-query
             product = db_product or Product.query.filter_by(sku_code=sku_input).first()
@@ -127,8 +253,10 @@ def checkout():
             if 'pascabayar' in cat_lower or 'tagihan' in cat_lower:
                 is_prepaid_flow = False
 
-        # 4. GENERATE REF_ID
-        if is_vip:
+        # 4. GENERATE / GUNAKAN REF_ID
+        if is_pasca_bill and inquiry_ref_id:
+            ref_id = inquiry_ref_id
+        elif is_vip:
             ref_id = f"VIP-{int(time.time()*1000)}{random.randint(10,99)}"
         else:
             ref_id = f"GT-{int(time.time()*1000)}{random.randint(10,99)}"
@@ -256,7 +384,44 @@ def checkout():
                     async_send_trx_notification(new_trx, title="TRANSAKSI GAGAL (PASCA)")
                     return jsonify({'status': 'error', 'error': True, 'success': False, 'message': 'Gagal (Inq): ' + msg_inq}), 200
 
-            # C. REGULER DIGIFLAZZ (PREPAID / PASCA)
+            # C. TAGIHAN PASCABAYAR DIGIFLAZZ (PLN, DLL) DENGAN REF_ID INQUIRY
+            elif is_pasca_bill:
+                from app.services.digiflazz import pay_pasca
+                ok_pay, res_pay_data, msg_pay = pay_pasca(sku_code, target_number, ref_id)
+                if ok_pay:
+                    rc_pay = str(res_pay_data.get('rc', '')).strip()
+                    if rc_pay == '00':
+                        new_trx.status = 'SUCCESS'
+                        new_trx.sn = res_pay_data.get('sn', '')
+                        award_transaction_points(new_trx.user_id, new_trx.ref_id)
+                    else:
+                        new_trx.status = 'PROCESSING'
+                    db.session.commit()
+                    from app.services.telegram_service import async_send_trx_notification
+                    async_send_trx_notification(new_trx, title="TAGIHAN PLN DIPROSES (PASCA)")
+                    return jsonify({
+                        'status': 'success',
+                        'success': True,
+                        'error': False,
+                        'message': 'Pembayaran tagihan berhasil diproses!',
+                        'redirect': '/riwayat'
+                    }), 200
+                else:
+                    # Gagal di server Digiflazz -> Auto-refund saldo user
+                    user_locked.balance += amount
+                    new_trx.status = 'FAILED'
+                    new_trx.sn = msg_pay
+                    db.session.commit()
+                    from app.services.telegram_service import async_send_trx_notification
+                    async_send_trx_notification(new_trx, title="TAGIHAN PLN GAGAL (REFUND)")
+                    return jsonify({
+                        'status': 'error',
+                        'error': True,
+                        'success': False,
+                        'message': 'Pembayaran tagihan gagal: ' + msg_pay
+                    }), 200
+
+            # D. REGULER DIGIFLAZZ (PREPAID TOPUP)
             else:
                 from app.services.digiflazz import create_transaction
                 try:
@@ -767,21 +932,39 @@ def process_paid_order(trx):
             trx.status = 'SUCCESS'
             print(f"[DEPOSIT] User {user.id} balance +Rp {trx.amount}")
             
-    # 2. Jika transaksi produk reguler, trigger Digiflazz
+    # 2. Jika transaksi produk pascabayar / prabayar, trigger Digiflazz
     elif trx.status in ['UNPAID', 'PENDING', 'PROCESSING']:
-        from app.services.digiflazz import create_transaction
         try:
-            product = Product.query.filter_by(sku_code=trx.sku_code).first()
-            if product:
-                digi_res = create_transaction(product.sku_code, trx.target_number, trx.ref_id)
-                digi_status = digi_res.get('data', {}).get('status', '').lower()
-                
-                if 'sukses' in digi_status or 'success' in digi_status:
-                    trx.status = 'SUCCESS'
-                    trx.sn = digi_res.get('data', {}).get('sn', '')
-                    award_transaction_points(trx.user_id, trx.ref_id)
+            bebas_sku_list = ['post685480', 'post685481', 'post685482', 'post685483', 'post685485', 'post706873']
+            is_pasca_flow = not trx.is_prepaid or trx.sku_code in bebas_sku_list
+
+            if is_pasca_flow:
+                from app.services.digiflazz import pay_pasca
+                ok_pay, res_pay, msg_pay = pay_pasca(trx.sku_code, trx.target_number, trx.ref_id)
+                if ok_pay:
+                    rc_pay = str(res_pay.get('rc', '')).strip()
+                    if rc_pay == '00':
+                        trx.status = 'SUCCESS'
+                        trx.sn = res_pay.get('sn', '')
+                        award_transaction_points(trx.user_id, trx.ref_id)
+                    else:
+                        trx.status = 'PROCESSING'
                 else:
-                    trx.status = 'PROCESSING'
+                    trx.status = 'FAILED'
+                    trx.sn = msg_pay
+            else:
+                from app.services.digiflazz import create_transaction
+                product = Product.query.filter_by(sku_code=trx.sku_code).first()
+                if product:
+                    digi_res = create_transaction(product.sku_code, trx.target_number, trx.ref_id)
+                    digi_status = digi_res.get('data', {}).get('status', '').lower()
+                    
+                    if 'sukses' in digi_status or 'success' in digi_status:
+                        trx.status = 'SUCCESS'
+                        trx.sn = digi_res.get('data', {}).get('sn', '')
+                        award_transaction_points(trx.user_id, trx.ref_id)
+                    else:
+                        trx.status = 'PROCESSING'
         except Exception as e:
             print(f"[ERROR] Digiflazz trigger after payment: {str(e)}")
             trx.status = 'PENDING'

@@ -430,19 +430,21 @@
     <div class="product-list" id="daftarProduk">
         {% if products %}
             {% for p in products %}
+            {% set is_pasca = (p.provider | upper == 'PASCABAYAR') %}
             <div class="product-card item-produk" 
                  data-provider="{{ p.provider | upper }}"
                  data-sku="{{ p.sku_code or p.kode_produk }}"
                  data-nama="{{ p.name or p.nama_produk }}"
                  data-harga="{{ '{:,.0f}'.format(p.sell_price or p.harga)|replace(',', '.') }}"
                  data-rawprice="{{ p.sell_price or p.harga }}"
+                 data-ispasca="{{ 'true' if is_pasca else 'false' }}"
                  data-active="{{ 'true' if p.is_active else 'false' }}"
-                 onclick="beliProdukModal(this)">
+                 onclick="{% if is_pasca %}cekTagihanPascaModal(this){% else %}beliProdukModal(this){% endif %}">
                 
                 <div style="flex: 1;">
                     <div class="p-header-row">
                         <span class="p-code">{{ p.sku_code or p.kode_produk }}</span>
-                        <span class="p-provider-badge">{{ p.provider }}</span>
+                        <span class="p-provider-badge" style="{% if is_pasca %}background: #e0f2fe; color: #0369a1; font-weight: 800;{% endif %}">{{ p.provider }}</span>
                         {% if p.is_active %}
                         <span class="p-status-badge">Tersedia</span>
                         {% else %}
@@ -450,14 +452,27 @@
                         {% endif %}
                     </div>
                     <h4 class="p-name">{{ p.name or p.nama_produk }}</h4>
+                    {% if is_pasca %}
+                    <p class="p-desc"><i class="fas fa-file-invoice" style="color: #0284c7;"></i> Cek tagihan & bayar bulanan</p>
+                    <p class="p-price" style="font-size: 13px; color: #64748b; font-weight: 700;">
+                        Biaya Admin <span style="font-size: 15px; color: #0284c7; font-weight: 900;">Rp {{ "{:,.0f}".format(p.sell_price or p.harga)|replace(',', '.') }}</span>
+                    </p>
+                    {% else %}
                     <p class="p-desc"><i class="fas fa-bolt" style="color: #f59e0b;"></i> Proses Otomatis 24 Jam</p>
                     <p class="p-price">Rp {{ "{:,.0f}".format(p.sell_price or p.harga)|replace(',', '.') }}</p>
+                    {% endif %}
                 </div>
 
                 <div class="p-action-col">
+                    {% if is_pasca %}
+                    <button class="btn-card-beli" style="background: #0284c7; display: flex; align-items: center; gap: 5px;" onclick="event.stopPropagation(); cekTagihanPascaModal(this.closest('.product-card'))">
+                        <i class="fas fa-search-dollar"></i> CEK TAGIHAN
+                    </button>
+                    {% else %}
                     <button class="btn-card-beli" onclick="event.stopPropagation(); beliProdukModal(this.closest('.product-card'))">
                         BELI
                     </button>
+                    {% endif %}
                 </div>
             </div>
             {% endfor %}
@@ -633,6 +648,97 @@
             <button class="btn-batal" onclick="closeModal()">Batal</button>
             <button class="btn-bayar" id="btnProsesBayar" onclick="prosesBayarModal()">Bayar Sekarang</button>
         </div>
+    </div>
+</div>
+
+<!-- ================= MODAL RINCIAN TAGIHAN PASCABAYAR ================= -->
+<div class="bottom-sheet" id="pascaModal">
+    <div class="sheet-header" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);">
+        <div style="font-weight: 800; font-size: 15px;"><i class="fas fa-file-invoice-dollar"></i> Rincian Tagihan Listrik PLN</div>
+        <i class="fas fa-times" onclick="closePascaModal()" style="cursor:pointer; font-size: 18px;"></i>
+    </div>
+    <div class="sheet-body">
+        <!-- Card Ringkasan Total Tagihan -->
+        <div class="sheet-card-header" style="border-top: 3px solid #0284c7; background: #f0f9ff;">
+            <div style="font-size: 11px; font-weight: 800; color: #0369a1; text-transform: uppercase; margin-bottom: 4px;">Total Tagihan Yang Harus Dibayar</div>
+            <div class="sheet-price" id="pascaTotalBayar" style="color: #0284c7; font-size: 26px;">Rp 0</div>
+            <div style="display: flex; justify-content: center; gap: 6px; margin-top: 6px;">
+                <span class="p-status-badge" style="background: #e0f2fe; color: #0369a1; font-size: 11px;"><i class="fas fa-info-circle"></i> Status: Belum Lunas (Siap Dibayar)</span>
+            </div>
+        </div>
+
+        <!-- Rincian Data Pelanggan & Pemakaian -->
+        <div class="detail-box">
+            <div class="detail-row">
+                <span>No. Meter / ID Pelanggan</span>
+                <span id="pascaCustomerNo" style="font-weight: 800; color: #1e293b; letter-spacing: 0.5px;">-</span>
+            </div>
+            <div class="detail-row">
+                <span>Nama Pelanggan</span>
+                <span id="pascaCustomerName" style="color: #0369a1; font-weight: 800;">-</span>
+            </div>
+            <div class="detail-row">
+                <span>Tarif / Daya</span>
+                <span id="pascaTarifDaya">-</span>
+            </div>
+            <div class="detail-row">
+                <span>Periode Tagihan</span>
+                <span id="pascaPeriode">-</span>
+            </div>
+            <div class="detail-row">
+                <span>Jumlah Lembar Tagihan</span>
+                <span id="pascaLembarTagihan">1 Bulan</span>
+            </div>
+            <div style="border-top: 1px dashed #e2e8f0; margin: 8px 0;"></div>
+            <div class="detail-row">
+                <span>Tagihan Listrik Pokok</span>
+                <span id="pascaTagihanPokok" style="font-weight: 800;">Rp 0</span>
+            </div>
+            <div class="detail-row" id="rowDenda" style="display: none;">
+                <span>Denda Keterlambatan</span>
+                <span id="pascaDenda" style="color: #ef4444; font-weight: 800;">Rp 0</span>
+            </div>
+            <div class="detail-row">
+                <span>Biaya Admin Sistem</span>
+                <span id="pascaAdminFee" style="font-weight: 800;">Rp 0</span>
+            </div>
+        </div>
+
+        <div style="font-size: 12px; font-weight: 800; color: #475569; margin-bottom: 8px;">Pilih Metode Pembayaran:</div>
+        <div class="payment-options">
+            <label class="pay-option selected" id="pascaOptSaldo">
+                <input type="radio" name="pascaPayMethod" value="saldo" checked onchange="selectPascaPay('saldo')">
+                <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+                    <div><i class="fas fa-wallet" style="color: #00877a; margin-right: 6px;"></i> Saldo Akun</div>
+                    {% if current_user.is_authenticated %}
+                    <span style="font-size: 11px; font-weight: 700; color: #64748b;">(Sisa: Rp {{ "{:,.0f}".format(current_user.balance)|replace(',', '.') }})</span>
+                    {% endif %}
+                </div>
+            </label>
+            <label class="pay-option" id="pascaOptQris">
+                <input type="radio" name="pascaPayMethod" value="qris" onchange="selectPascaPay('qris')">
+                <div><i class="fas fa-qrcode" style="color: #0284c7; margin-right: 6px;"></i> QRIS (Scan Otomatis)</div>
+            </label>
+        </div>
+
+        <!-- Tombol Aksi: Batal vs Bayar Sekarang -->
+        <div class="sheet-footer">
+            <button class="btn-batal" onclick="closePascaModal()" style="font-weight: 800;">
+                <i class="fas fa-times-circle"></i> Batal
+            </button>
+            <button class="btn-bayar" id="btnProsesBayarPasca" onclick="eksekusiBayarPasca()" style="background: #0284c7; font-weight: 800; display: flex; justify-content: center; align-items: center; gap: 6px;">
+                <i class="fas fa-check-circle"></i> Bayar Tagihan Sekarang
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- LOADING OVERLAY CEK TAGIHAN -->
+<div id="loadingPascaOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.65); backdrop-filter: blur(4px); z-index: 99999; display: none; justify-content: center; align-items: center; flex-direction: column; color: white;">
+    <div style="background: white; border-radius: 20px; padding: 25px 30px; display: flex; flex-direction: column; align-items: center; text-align: center; max-width: 320px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+        <i class="fas fa-circle-notch fa-spin" style="font-size: 40px; color: #0284c7; margin-bottom: 15px;"></i>
+        <h4 style="margin: 0 0 6px 0; color: #1e293b; font-size: 16px; font-weight: 800;">Memeriksa Tagihan PLN</h4>
+        <p style="margin: 0; color: #64748b; font-size: 12px; line-height: 1.4;">Menghubungkan ke server PLN & Digiflazz untuk mengambil rincian tagihan...</p>
     </div>
 </div>
 <!-- ================= END BOTTOM SHEET ================= -->
@@ -835,8 +941,12 @@
 
     function closeModal() {
         let modal = document.getElementById('checkoutModal');
+        let pascaModal = document.getElementById('pascaModal');
         let overlay = document.getElementById('sheetOverlay');
+        let loadingOverlay = document.getElementById('loadingPascaOverlay');
         if (modal) modal.classList.remove('show');
+        if (pascaModal) pascaModal.classList.remove('show');
+        if (loadingOverlay) loadingOverlay.style.display = 'none';
         setTimeout(() => {
             if (overlay) overlay.classList.remove('show');
         }, 300);
@@ -916,6 +1026,180 @@
             btn.innerText = 'Bayar Sekarang';
             btn.disabled = false;
             showToast('Terjadi kesalahan koneksi saat checkout');
+        });
+    }
+
+    // ==========================================
+    // 6. LOGIKA CEK TAGIHAN PLN PASCABAYAR (INQUIRY)
+    // ==========================================
+    let currentPascaData = null;
+
+    function formatRupiah(num) {
+        return 'Rp ' + Number(num || 0).toLocaleString('id-ID');
+    }
+
+    function cekTagihanPascaModal(el) {
+        let sku = el.getAttribute('data-sku');
+        let nama = el.getAttribute('data-nama');
+        let elInput = document.getElementById('noMeterInput');
+        let noTujuan = elInput ? elInput.value.trim() : '';
+
+        if (!noTujuan || noTujuan.length < 8) {
+            showToast("Masukkan ID Pelanggan / Nomor Meteran PLN minimal 8 digit!");
+            if (elInput) elInput.focus();
+            return;
+        }
+
+        // Tampilkan loading overlay pengecekan ke server
+        document.getElementById('loadingPascaOverlay').style.display = 'flex';
+
+        fetch('/trx/inquiry_bill', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() if csrf_token else "" }}'
+            },
+            body: JSON.stringify({
+                sku_code: sku,
+                customer_no: noTujuan
+            })
+        })
+        .then(res => {
+            document.getElementById('loadingPascaOverlay').style.display = 'none';
+            if (res.status === 401) {
+                showToast('Silakan masuk (login) terlebih dahulu untuk cek tagihan');
+                setTimeout(() => { window.location.href = '/login'; }, 1200);
+                return null;
+            }
+            return res.json();
+        })
+        .then(data => {
+            if (!data) return;
+            if (data.status === 'success') {
+                currentPascaData = data;
+                
+                document.getElementById('pascaTotalBayar').innerText = formatRupiah(data.total_bayar);
+                document.getElementById('pascaCustomerNo').innerText = data.customer_no;
+                document.getElementById('pascaCustomerName').innerText = data.customer_name || '-';
+                
+                let tf = data.tarif || '-';
+                let dy = data.daya ? (data.daya + ' VA') : '';
+                document.getElementById('pascaTarifDaya').innerText = (tf && dy && tf !== '-' && dy !== ' VA') ? `${tf} / ${dy}` : (tf || dy || '-');
+                
+                document.getElementById('pascaPeriode').innerText = data.periode || '-';
+                document.getElementById('pascaLembarTagihan').innerText = (data.lembar_tagihan || 1) + ' Bulan / Lembar';
+                document.getElementById('pascaTagihanPokok').innerText = formatRupiah(data.tagihan_pokok);
+                
+                if (data.denda && data.denda > 0) {
+                    document.getElementById('rowDenda').style.display = 'flex';
+                    document.getElementById('pascaDenda').innerText = formatRupiah(data.denda);
+                } else {
+                    document.getElementById('rowDenda').style.display = 'none';
+                }
+                
+                document.getElementById('pascaAdminFee').innerText = formatRupiah(data.admin_fee);
+                
+                // Reset tombol bayar
+                let btnBayar = document.getElementById('btnProsesBayarPasca');
+                btnBayar.innerHTML = '<i class="fas fa-check-circle"></i> Bayar Tagihan Sekarang (' + formatRupiah(data.total_bayar) + ')';
+                btnBayar.disabled = false;
+
+                // Tampilkan Modal Rincian
+                document.getElementById('sheetOverlay').classList.add('show');
+                setTimeout(() => {
+                    document.getElementById('pascaModal').classList.add('show');
+                }, 10);
+            } else {
+                showToast(data.message || 'Tagihan tidak ditemukan atau sudah lunas');
+            }
+        })
+        .catch(err => {
+            document.getElementById('loadingPascaOverlay').style.display = 'none';
+            console.error('Inquiry error:', err);
+            showToast('Gagal menghubungi server cek tagihan PLN');
+        });
+    }
+
+    function closePascaModal() {
+        let modal = document.getElementById('pascaModal');
+        let overlay = document.getElementById('sheetOverlay');
+        if (modal) modal.classList.remove('show');
+        setTimeout(() => {
+            if (overlay) overlay.classList.remove('show');
+        }, 300);
+    }
+
+    function selectPascaPay(method) {
+        document.getElementById('pascaOptSaldo').classList.remove('selected');
+        document.getElementById('pascaOptQris').classList.remove('selected');
+        if (method === 'saldo') document.getElementById('pascaOptSaldo').classList.add('selected');
+        if (method === 'qris') document.getElementById('pascaOptQris').classList.add('selected');
+    }
+
+    function eksekusiBayarPasca() {
+        if (!currentPascaData) {
+            showToast("Data tagihan belum dicek atau tidak valid!");
+            closePascaModal();
+            return;
+        }
+
+        let btn = document.getElementById('btnProsesBayarPasca');
+        let method = document.querySelector('input[name="pascaPayMethod"]:checked').value;
+        btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Memproses Pembayaran...';
+        btn.disabled = true;
+
+        let payload = {
+            sku_code: currentPascaData.sku_code,
+            target_number: currentPascaData.customer_no,
+            payment_method: method,
+            inquiry_ref_id: currentPascaData.ref_id,
+            amount: currentPascaData.total_bayar
+        };
+
+        fetch('/trx/checkout', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() if csrf_token else "" }}'
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(response => {
+            if (response.status === 401) {
+                showToast('Silakan masuk (login) terlebih dahulu');
+                setTimeout(() => { window.location.href = '/login'; }, 1200);
+                return null;
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (!data) return;
+            if (data.status === 'success') {
+                if (data.qr_url) {
+                    window.location.href = data.qr_url;
+                } else if (data.redirect) {
+                    window.location.href = data.redirect;
+                } else {
+                    window.location.href = '/riwayat';
+                }
+            } else {
+                btn.innerHTML = '<i class="fas fa-check-circle"></i> Bayar Tagihan Sekarang (' + formatRupiah(currentPascaData.total_bayar) + ')';
+                btn.disabled = false;
+
+                if (data.insufficient_balance && data.suggest_qris) {
+                    showToast(data.message || 'Saldo tidak cukup. Silakan gunakan QRIS.');
+                    selectPascaPay('qris');
+                    document.querySelector('input[name="pascaPayMethod"][value="qris"]').checked = true;
+                } else {
+                    showToast(data.message || 'Gagal memproses pembayaran tagihan');
+                }
+            }
+        })
+        .catch(err => {
+            console.error('Checkout pasca error:', err);
+            btn.innerHTML = '<i class="fas fa-check-circle"></i> Bayar Tagihan Sekarang (' + formatRupiah(currentPascaData.total_bayar) + ')';
+            btn.disabled = false;
+            showToast('Terjadi kesalahan koneksi saat memproses pembayaran');
         });
     }
 </script>
