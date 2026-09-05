@@ -1314,3 +1314,35 @@ def kirim_tiket():
     return redirect(url_for('user.bantuan', ticket_success=ticket.ticket_number))
 
 
+@user_bp.route('/inquiry/pln', methods=['POST'])
+@user_bp.route('/api/inquiry/pln', methods=['POST'])
+@csrf.exempt
+def inquiry_pln_route():
+    """Endpoint pengecekan nama pelanggan PLN Token / Tagihan secara online."""
+    data = request.get_json(silent=True) or request.form.to_dict() or {}
+    customer_no = data.get('customer_no') or data.get('id_pelanggan') or data.get('nomor') or ''
+    if not customer_no:
+        return jsonify({'status': 'error', 'message': 'ID Pelanggan / Nomor Meter PLN wajib diisi'}), 400
+
+    from app.services.digiflazz import inquiry_pln
+    ok, res_data, msg = inquiry_pln(customer_no)
+    if ok:
+        return jsonify({
+            'status': 'success',
+            'success': True,
+            'name': res_data.get('name'),
+            'segment_power': res_data.get('segment_power'),
+            'subscriber_id': res_data.get('subscriber_id'),
+            'data': res_data,
+            'message': msg
+        }), 200
+    else:
+        return jsonify({
+            'status': 'error',
+            'success': False,
+            'data': res_data,
+            'message': msg
+        }), 400
+
+
+

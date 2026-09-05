@@ -202,57 +202,33 @@ def checkout():
 
             # B. BEBAS NOMINAL DIGIFLAZZ (INQUIRY + PAYMENT)
             elif is_bebas_nominal:
-                username = os.getenv('DIGI_USER', '').strip()
-                key = os.getenv('DIGI_KEY', '').strip()
-                url = os.getenv('DIGI_URL', 'https://api.digiflazz.com/v1').strip() + '/transaction'
-                sign = hashlib.md5(f"{username}{key}{ref_id}".encode()).hexdigest()
-
-                payload_inq = {
-                    "commands": "inq-pasca", "username": username, "buyer_sku_code": sku_code,
-                    "customer_no": target_number, "ref_id": ref_id, "sign": sign, "amount": int(amount)
-                }
-                try:
-                    res_inq = requests.post(url, json=payload_inq, timeout=15)
-                    res_inq_json = res_inq.json() if res_inq.status_code == 200 else {}
-                    rc_inq = res_inq_json.get('data', {}).get('rc')
-
-                    if rc_inq == '00':
-                        payload_pay = payload_inq.copy()
-                        payload_pay['commands'] = 'pay-pasca'
-                        res_pay = requests.post(url, json=payload_pay, timeout=15)
-                        res_pay_json = res_pay.json() if res_pay.status_code == 200 else {}
-                        if res_pay_json.get('data', {}).get('rc') == '00':
-                            new_trx.status = 'SUCCESS'
-                            new_trx.sn = res_pay_json.get('data', {}).get('sn', '')
-                            db.session.commit()
-                            from app.services.telegram_service import async_send_trx_notification
-                            async_send_trx_notification(new_trx, title="TRANSAKSI BERHASIL (PASCA)")
-                            return jsonify({'status': 'success', 'success': True, 'error': False, 'message': 'Transaksi sukses masuk Digiflazz!', 'redirect': '/riwayat'}), 200
-                        else:
-                            msg = res_pay_json.get('data', {}).get('message', 'Gagal bayar tagihan')
-                            user_locked.balance += amount
-                            new_trx.status = 'FAILED'
-                            new_trx.sn = msg
-                            db.session.commit()
-                            from app.services.telegram_service import async_send_trx_notification
-                            async_send_trx_notification(new_trx, title="TRANSAKSI GAGAL (PASCA)")
-                            return jsonify({'status': 'error', 'error': True, 'success': False, 'message': 'Gagal (Pay): ' + msg}), 200
+                from app.services.digiflazz import inquiry_pasca, pay_pasca
+                ok_inq, res_inq_data, msg_inq = inquiry_pasca(sku_code, target_number, ref_id)
+                if ok_inq:
+                    ok_pay, res_pay_data, msg_pay = pay_pasca(sku_code, target_number, ref_id)
+                    if ok_pay:
+                        new_trx.status = 'SUCCESS'
+                        new_trx.sn = res_pay_data.get('sn', '')
+                        db.session.commit()
+                        from app.services.telegram_service import async_send_trx_notification
+                        async_send_trx_notification(new_trx, title="TRANSAKSI BERHASIL (PASCA)")
+                        return jsonify({'status': 'success', 'success': True, 'error': False, 'message': 'Transaksi sukses masuk Digiflazz!', 'redirect': '/riwayat'}), 200
                     else:
-                        msg = res_inq_json.get('data', {}).get('message', 'Tagihan tidak ditemukan')
                         user_locked.balance += amount
                         new_trx.status = 'FAILED'
-                        new_trx.sn = msg
+                        new_trx.sn = msg_pay
                         db.session.commit()
                         from app.services.telegram_service import async_send_trx_notification
                         async_send_trx_notification(new_trx, title="TRANSAKSI GAGAL (PASCA)")
-                        return jsonify({'status': 'error', 'error': True, 'success': False, 'message': 'Gagal (Inq): ' + msg}), 200
-                except Exception as api_e:
-                    new_trx.status = 'PROCESSING'
-                    new_trx.sn = 'Antrean diproses server'
+                        return jsonify({'status': 'error', 'error': True, 'success': False, 'message': 'Gagal (Pay): ' + msg_pay}), 200
+                else:
+                    user_locked.balance += amount
+                    new_trx.status = 'FAILED'
+                    new_trx.sn = msg_inq
                     db.session.commit()
                     from app.services.telegram_service import async_send_trx_notification
-                    async_send_trx_notification(new_trx, title="TRANSAKSI DIPROSES (PASCA)")
-                    return jsonify({'status': 'success', 'message': 'Transaksi dalam antrean diproses.', 'redirect': '/riwayat'}), 200
+                    async_send_trx_notification(new_trx, title="TRANSAKSI GAGAL (PASCA)")
+                    return jsonify({'status': 'error', 'error': True, 'success': False, 'message': 'Gagal (Inq): ' + msg_inq}), 200
 
             # C. REGULER DIGIFLAZZ (PREPAID / PASCA)
             else:
@@ -543,50 +519,64 @@ def topup_deposit():
 def callback_digiflazz():
     """
     Webhook callback dari Digiflazz untuk update status transaksi otomatis.
-    Dokumentasi: https://developer.digiflazz.com/api/buyer/webhook
+    Dokumentasi resmi: https://developer.digiflazz.com/api/buyer/webhook
+    Header: X-Hub-Signature: sha1=<hmac_sha1>
+    Body: {"data": {"ref_id": "...", "status": "Sukses", "rc": "00", ...}}
     """
     try:
-        # Parse request
-        data = request.get_json() or request.form.to_dict()
+        from app.services.digiflazz import verify_webhook_signature, get_rc_message
+
+        raw_bytes = request.get_data()
+        raw_json = request.get_json(silent=True) or request.form.to_dict() or {}
         
-        # Validasi signature untuk keamanan
-        username = os.getenv('DIGI_USER', '').strip()
-        key = os.getenv('DIGI_KEY', '').strip()
-        
-        # Digiflazz signature: MD5(username + api_key + ref_id)
+        # Unpack struktur resmi Digiflazz {"data": {...}} jika tersedia
+        data = raw_json.get('data') if isinstance(raw_json.get('data'), dict) else raw_json
+
         ref_id = data.get('ref_id') or data.get('trx_id')
-        status = data.get('status', '').lower()
-        
         if not ref_id:
             return jsonify({'status': 'error', 'message': 'Missing ref_id'}), 400
-        
-        # Generate expected signature
-        expected_sign = hashlib.md5(f"{username}{key}{ref_id}".encode()).hexdigest()
-        received_sign = data.get('sign') or data.get('signature', '')
-        
-        # Validasi signature (CRITICAL SECURITY)
-        if received_sign != expected_sign:
-            print(f"[SECURITY] Invalid Digiflazz signature for {ref_id}")
+
+        # Autentikasi Keamanan:
+        # 1. Prioritaskan header resmi X-Hub-Signature (HMAC-SHA1)
+        x_hub_sig = request.headers.get('X-Hub-Signature') or request.headers.get('X-Digiflazz-Delivery')
+        is_signature_valid = False
+
+        if x_hub_sig:
+            is_signature_valid = verify_webhook_signature(raw_bytes, x_hub_sig)
+
+        # 2. Fallback jika callback menyertakan sign MD5 di body (kompatibilitas backward & test suite)
+        if not is_signature_valid:
+            username = os.getenv('DIGI_USER', '').strip()
+            key = os.getenv('DIGI_KEY', '').strip()
+            expected_sign = hashlib.md5(f"{username}{key}{ref_id}".encode()).hexdigest()
+            received_sign = data.get('sign') or data.get('signature', '')
+            if received_sign and received_sign == expected_sign:
+                is_signature_valid = True
+
+        if not is_signature_valid:
+            print(f"[SECURITY] Invalid Digiflazz webhook signature for {ref_id}")
             return jsonify({'status': 'error', 'message': 'Invalid signature'}), 403
-        
-        # Cari transaksi
+
+        # Cari transaksi di database
         trx = Transaction.query.filter_by(ref_id=ref_id).first()
-        
         if not trx:
             return jsonify({'status': 'error', 'message': 'Transaction not found'}), 404
-        
+
         # Idempotency check: jika status transaksi sudah SUCCESS, abaikan callback berulang
         if trx.status == 'SUCCESS':
             return jsonify({'status': 'success', 'message': 'Transaction already completed'}), 200
 
-        # Update status berdasarkan callback
         old_status = trx.status
-        
-        if 'sukses' in status or 'success' in status:
+        status = str(data.get('status', '')).lower()
+        rc = str(data.get('rc', '')).strip()
+        sn = data.get('sn', '')
+        message = data.get('message') or get_rc_message(rc)
+
+        if 'sukses' in status or 'success' in status or rc == '00':
             trx.status = 'SUCCESS'
-            trx.sn = data.get('sn', '') or trx.sn
+            trx.sn = sn or trx.sn
             award_transaction_points(trx.user_id, ref_id)
-        elif 'gagal' in status or 'failed' in status or 'error' in status:
+        elif 'gagal' in status or 'failed' in status or 'error' in status or rc in ['41', '42', '50']:
             # AUTO-REFUND hanya jika status sebelumnya belum FAILED (mencegah double refund)
             if old_status != 'FAILED' and trx.payment_status == 'PAID':
                 user = User.query.filter_by(id=trx.user_id).with_for_update().first()
@@ -594,23 +584,22 @@ def callback_digiflazz():
                     user.balance += trx.amount
                     print(f"[REFUND] User {user.id} refunded Rp {trx.amount} for failed trx {ref_id}")
             trx.status = 'FAILED'
-            if data.get('message'):
-                trx.sn = data.get('message')
-        elif 'pending' in status or 'process' in status:
+            if message:
+                trx.sn = message
+        elif 'pending' in status or 'process' in status or rc == '03':
             if trx.status != 'SUCCESS':
                 trx.status = 'PROCESSING'
-        
-        # Simpan message dari Digiflazz
-        if hasattr(trx, 'note'):
-            trx.note = data.get('message', 'Updated via webhook')
-        
+
+        if hasattr(trx, 'note') and message:
+            trx.note = message
+
         trx.updated_at = db.func.now()
         db.session.commit()
-        
+
         print(f"[WEBHOOK DIGIFLAZZ] {ref_id}: {old_status} -> {trx.status}")
         from app.services.telegram_service import async_send_trx_notification
         async_send_trx_notification(trx, title=f"DIGIFLAZZ UPDATE: {trx.status}")
-        
+
         return jsonify({'status': 'success', 'message': 'Callback processed'}), 200
         
     except Exception as e:
