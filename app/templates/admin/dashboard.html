@@ -165,7 +165,9 @@
                         </div>
                     </div>
                     <div style="font-size: 11px; color: #4338ca; margin-top: 8px; line-height: 1.4; background: rgba(99, 102, 241, 0.08); padding: 6px 10px; border-radius: 6px;">
-                        <i class="fas fa-info-circle"></i> <b>Catatan:</b> Gunakan URL domain HTTPS di atas. Jangan sertakan port <code>:5000</code> di panel VIPayment jika menggunakan Cloudflare Tunnel.
+                        <i class="fas fa-info-circle"></i> <b>Petunjuk Penting VIP-Reseller:</b><br>
+                        • Server kita otomatis diarahkan via jalur <b>IPv4</b>. Pastikan IP <b>{{ server_public_ip }}</b> tersimpan di menu <i>Whitelist IP</i> pada panel VIPayment.<br>
+                        • Gunakan URL domain HTTPS di atas untuk <i>Callback URL</i> di VIPayment (jangan sertakan port <code>:5000</code>).
                     </div>
                 </div>
 

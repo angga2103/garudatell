@@ -2,7 +2,9 @@ import os
 import hashlib
 import requests
 import logging
+import socket
 from dotenv import load_dotenv
+import urllib3.util.connection as urllib3_cn
 
 logger = logging.getLogger(__name__)
 
@@ -12,6 +14,20 @@ def clean_str(val):
     if not val:
         return ''
     return str(val).replace("'", "").replace('"', '').strip(" \t\n\r")
+
+def force_ipv4():
+    """
+    Memaksa koneksi urllib3/requests selalu menggunakan IPv4 (socket.AF_INET).
+    Mencegah penolakan 'IP 2001:... is not permitted' oleh VIP-Reseller karena
+    server Linux dual-stack memprioritaskan rute IPv6 secara default.
+    """
+    try:
+        urllib3_cn.allowed_gai_family = lambda: socket.AF_INET
+    except Exception:
+        pass
+
+# Aktifkan force IPv4 secara default pada modul VIP-Reseller
+force_ipv4()
 
 class VIPReseller:
     """
@@ -37,6 +53,7 @@ class VIPReseller:
         return hashlib.md5(data.encode()).hexdigest()
 
     def _request(self, payload, url=None):
+        force_ipv4()
         sign = self._get_sign()
         if not sign:
             return {"result": False, "message": "API ID atau API Key VIP-Reseller belum disetting di menu Pengaturan Provider."}
