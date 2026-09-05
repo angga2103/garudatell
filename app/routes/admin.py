@@ -76,6 +76,21 @@ def dashboard():
     trx_today_count = Transaction.query.filter(Transaction.created_at >= today_start).count()
     total_trx = Transaction.query.count()
 
+    # Deteksi IP Public VPS untuk Whitelist & Callback URL Dinamis
+    server_public_ip = clean_str(os.getenv('SERVER_PUBLIC_IP'))
+    if not server_public_ip:
+        try:
+            server_public_ip = requests.get('https://api.ipify.org', timeout=2).text.strip()
+        except Exception:
+            server_public_ip = '203.194.115.182'
+
+    f_proto = request.headers.get('X-Forwarded-Proto') or request.scheme
+    f_host = request.headers.get('X-Forwarded-Host') or request.host
+    vip_callback_url = f"{f_proto}://{f_host}/api/callback/vipreseller"
+
+    env_data['server_public_ip'] = server_public_ip
+    env_data['vip_callback_url'] = vip_callback_url
+
     return render_template('admin/dashboard.html',
                            total_users=total_users,
                            total_balance=total_balance,
@@ -129,6 +144,7 @@ def save_config():
         set_key(ENV_FILE, 'BOT_ADMIN_CHAT_ID', clean_str(request.form.get('bot_admin_chat')))
         if request.form.get('bot_admin_token'): set_key(ENV_FILE, 'BOT_ADMIN_TOKEN', clean_str(request.form.get('bot_admin_token')))
         
+    load_dotenv(ENV_FILE, override=True)
     flash('Konfigurasi berhasil disimpan!', 'success')
     return redirect(url_for('admin.dashboard'))
 
@@ -177,6 +193,28 @@ def test_connection(tipe):
                 flash(f"❌ Respons tidak sesuai: {err_msg}", 'danger')
         except Exception as e:
             flash(f"❌ Error Sistem: {str(e)}", 'danger')
+
+    elif tipe == 'vipreseller':
+        from app.services.vip_reseller import VIPReseller
+        vip = VIPReseller()
+        if not vip.api_id or not vip.api_key:
+            flash('❌ API ID atau API Key VIP-Reseller belum diisi!', 'danger')
+            return redirect(url_for('admin.dashboard'))
+        try:
+            res = vip.get_profile()
+            if res and res.get('result'):
+                p_data = res.get('data', {})
+                name = p_data.get('name') or p_data.get('username') or '-'
+                balance = float(p_data.get('balance', 0))
+                flash(f"✅ Koneksi VIP-Reseller Sukses! Akun: {name}, Saldo: Rp {balance:,.0f}", 'success')
+            else:
+                msg = res.get('message', 'Ditolak oleh server VIP-Reseller') if res else 'Respon kosong dari VIP-Reseller'
+                hint = ""
+                if 'whitelist' in str(msg).lower() or 'ip' in str(msg).lower():
+                    hint = " (Pastikan IP VPS Anda didaftarkan di Whitelist IP Panel VIP-Reseller)"
+                flash(f"❌ VIP-Reseller Menolak: {msg}{hint}", 'danger')
+        except Exception as e:
+            flash(f"❌ Error VIP-Reseller: {str(e)}", 'danger')
 
     elif tipe == 'paymentkita':
         from app.services.paymentkita_service import PaymentKitaService
@@ -591,7 +629,16 @@ def sync_vipreseller():
             products_data.append(p)
             
     if not products_data:
-        flash("Gagal menarik data dari VIP-Reseller.", 'danger')
+        err_msgs = []
+        if res_prepaid and not res_prepaid.get('result'):
+            err_msgs.append(f"Prepaid: {res_prepaid.get('message', 'Error')}")
+        if res_games and not res_games.get('result'):
+            err_msgs.append(f"Games: {res_games.get('message', 'Error')}")
+        detail_msg = " | ".join(err_msgs) if err_msgs else "Respon data kosong dari server VIP-Reseller."
+        hint = ""
+        if 'whitelist' in detail_msg.lower() or 'ip' in detail_msg.lower():
+            hint = " (Pastikan IP VPS Anda sudah didaftarkan pada Whitelist IP di Panel VIP-Reseller)"
+        flash(f"❌ Gagal menarik data dari VIP-Reseller: {detail_msg}{hint}", 'danger')
         return redirect(url_for('admin.dashboard'))
         
     tiers = MarginTier.query.all()

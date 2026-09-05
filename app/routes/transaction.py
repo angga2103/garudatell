@@ -805,3 +805,82 @@ def callback_pakasir():
         db.session.rollback()
         print(f"[ERROR WEBHOOK PAKASIR] {str(e)}")
         return jsonify({'status': 'error', 'message': 'Internal error'}), 500
+
+
+@trx_bp.route('/callback/vipreseller', methods=['POST'])
+@csrf.exempt
+def callback_vipreseller():
+    """
+    Webhook callback dari VIP-Reseller (VIPayment) untuk update status pesanan otomatis.
+    Dokumentasi resmi: https://vip-reseller.co.id
+    Payload: { trxid, status, sn, note, price, balance, service, data_no, client_trxid }
+    """
+    try:
+        raw_json = request.get_json(silent=True) or request.form.to_dict() or {}
+        data = raw_json.get('data') if isinstance(raw_json.get('data'), dict) else raw_json
+
+        if not data:
+            return jsonify({'result': False, 'message': 'Payload kosong'}), 400
+
+        trxid = str(data.get('trxid') or data.get('trx_id') or '').strip()
+        client_trxid = str(data.get('client_trxid') or data.get('ref_id') or '').strip()
+        status = str(data.get('status', '')).lower().strip()
+        sn = data.get('sn') or ''
+        note = data.get('note') or data.get('message') or ''
+
+        if not trxid and not client_trxid:
+            return jsonify({'result': False, 'message': 'Parameter trxid atau client_trxid tidak ditemukan'}), 400
+
+        # Cari transaksi berdasarkan provider_ref atau ref_id
+        trx = None
+        if trxid:
+            trx = Transaction.query.filter_by(provider_ref=trxid).first()
+        if not trx and client_trxid:
+            trx = Transaction.query.filter_by(ref_id=client_trxid).first()
+        if not trx and trxid:
+            trx = Transaction.query.filter_by(ref_id=trxid).first()
+
+        if not trx:
+            return jsonify({'result': True, 'message': 'Transaksi tidak ditemukan atau sudah terselesaikan'}), 200
+
+        # Idempotency check: jika status transaksi sudah SUCCESS, abaikan callback berulang
+        if trx.status == 'SUCCESS':
+            return jsonify({'result': True, 'message': 'Transaksi sudah berstatus SUCCESS'}), 200
+
+        old_status = trx.status
+
+        if 'success' in status or 'sukses' in status:
+            trx.status = 'SUCCESS'
+            trx.sn = sn or trx.sn or 'Berhasil dari VIP-Reseller'
+            award_transaction_points(trx.user_id, trx.ref_id)
+
+        elif 'error' in status or 'failed' in status or 'gagal' in status:
+            # Auto-refund saldo user jika transaksi gagal dan pembayaran sudah PAID
+            if old_status != 'FAILED' and trx.payment_status == 'PAID':
+                user = User.query.filter_by(id=trx.user_id).with_for_update().first()
+                if user:
+                    user.balance += trx.amount
+                    print(f"[REFUND VIP] User {user.id} di-refund Rp {trx.amount} untuk transaksi gagal {trx.ref_id}")
+            trx.status = 'FAILED'
+            if note:
+                trx.sn = str(note)
+            elif not trx.sn:
+                trx.sn = 'Pesanan ditolak/gagal di server VIP-Reseller'
+
+        elif 'waiting' in status or 'process' in status or 'pending' in status:
+            if trx.status != 'SUCCESS':
+                trx.status = 'PROCESSING'
+
+        trx.updated_at = db.func.now()
+        db.session.commit()
+
+        print(f"[WEBHOOK VIP-RESELLER] {trx.ref_id}: {old_status} -> {trx.status}")
+        from app.services.telegram_service import async_send_trx_notification
+        async_send_trx_notification(trx, title=f"VIP-RESELLER UPDATE: {trx.status}")
+
+        return jsonify({'result': True, 'message': 'Callback berhasil diproses', 'status': trx.status}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"[ERROR WEBHOOK VIP-RESELLER] {str(e)}")
+        return jsonify({'result': False, 'message': f'Internal error: {str(e)}'}), 500

@@ -87,6 +87,22 @@ def create_app():
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(trx_bp, url_prefix='/trx')
 
+    # Daftarkan Alias Route Webhook Callback (/api/callback/... & /callback/...)
+    from app.routes.transaction import callback_digiflazz, callback_paymentkita, callback_pakasir, callback_vipreseller
+    webhook_routes = [
+        ('/api/callback/vipreseller', callback_vipreseller),
+        ('/callback/vipreseller', callback_vipreseller),
+        ('/api/callback/digiflazz', callback_digiflazz),
+        ('/callback/digiflazz', callback_digiflazz),
+        ('/api/callback/paymentkita', callback_paymentkita),
+        ('/callback/paymentkita', callback_paymentkita),
+        ('/api/callback/pakasir', callback_pakasir),
+        ('/callback/pakasir', callback_pakasir),
+    ]
+    for path, handler in webhook_routes:
+        endpoint_name = 'alias_' + path.replace('/', '_').strip('_')
+        app.add_url_rule(path, endpoint=endpoint_name, view_func=handler, methods=['POST'])
+
     with app.app_context():
         db.create_all()
 
