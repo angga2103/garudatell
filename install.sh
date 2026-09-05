@@ -75,16 +75,98 @@ echo ""
 echo -e "${GREEN}[✔] Konfigurasi awal diterima.${NC}"
 sleep 1
 
-# 3. Update Paket Sistem & Dependensi Dasar
+# 3. Update Paket Sistem & Dependensi Dasar (Self-Healing Mirrors & Locks)
 echo ""
 echo -e "${YELLOW}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${YELLOW}${BOLD}  TAHAP 2: PEMBARUAN SISTEM & DEPENDENSI OS                      ${NC}"
+echo -e "${YELLOW}${BOLD}  TAHAP 2: PEMBARUAN SISTEM & DEPENDENSI OS (SELF-HEALING)       ${NC}"
 echo -e "${YELLOW}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${BLUE}[*] Memperbarui indeks paket APT...${NC}"
-apt-get update -y
 
-echo -e "${BLUE}[*] Memasang dependensi sistem (Python3, venv, pip, curl, git, sqlite3)...${NC}"
-apt-get install -y python3 python3-venv python3-pip git curl sqlite3 build-essential libpq-dev
+export DEBIAN_FRONTEND=noninteractive
+
+# A. Penanganan APT Lock Otomatis (Jika VPS baru boot dan menjalankan background update)
+echo -e "${BLUE}[*] Memeriksa status proses APT & dpkg lock...${NC}"
+lock_waited=0
+while fuser /var/lib/dpkg/lock >/dev/null 2>&1 || fuser /var/lib/apt/lists/lock >/dev/null 2>&1 || fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
+    echo -e "${YELLOW}[!] Sistem APT sedang digunakan oleh proses VPS lain (unattended-upgrades/cloud-init). Menunggu... (${lock_waited}s)${NC}"
+    sleep 3
+    lock_waited=$((lock_waited + 3))
+    if [ $lock_waited -ge 30 ]; then
+        echo -e "${YELLOW}[!] Waktu tunggu habis. Melepaskan lock APT secara aman...${NC}"
+        killall -9 apt apt-get dpkg unattended-upgrade 2>/dev/null || true
+        rm -f /var/lib/apt/lists/lock /var/cache/apt/archives/lock /var/lib/dpkg/lock* 2>/dev/null || true
+        dpkg --configure -a 2>/dev/null || true
+        break
+    fi
+done
+
+# B. Deteksi & Perbaikan Otomatis Mirror Lokal yang Rusak/Down (Rumahweb, Biznet, dll)
+if [ -f "/etc/apt/sources.list" ]; then
+    if grep -Eq "cermin\.rumahweb\.id|mirror\.biznetgio\.com|mirror\.[a-zA-Z0-9.-]*\.id|kambing\.ui\.ac\.id|kartolo\.|buaya\." /etc/apt/sources.list; then
+        echo -e "${YELLOW}[!] Terdeteksi mirror lokal pada /etc/apt/sources.list yang berpotensi 404 / EOL.${NC}"
+        echo -e "${BLUE}[*] Membuat backup /etc/apt/sources.list.bak_garudatel...${NC}"
+        cp /etc/apt/sources.list /etc/apt/sources.list.bak_garudatel
+        sed -i 's/cermin\.rumahweb\.id/archive.ubuntu.com/g' /etc/apt/sources.list
+        sed -i 's/mirror\.biznetgio\.com/archive.ubuntu.com/g' /etc/apt/sources.list
+        sed -i 's/kambing\.ui\.ac\.id/archive.ubuntu.com/g' /etc/apt/sources.list
+        sed -i 's/kartolo\.sby\.datautama\.net\.id/archive.ubuntu.com/g' /etc/apt/sources.list
+        echo -e "${GREEN}[✔] Mirror lokal berhasil dialihkan ke repositori resmi archive.ubuntu.com.${NC}"
+    fi
+fi
+
+# C. Eksekusi Pembaruan Indeks APT dengan Pemulihan Otomatis
+echo -e "${BLUE}[*] Memperbarui indeks paket APT...${NC}"
+if ! apt-get update -y; then
+    echo -e "${YELLOW}[!] apt-get update mengalami kegagalan. Menganalisis dan mereparasi repositori...${NC}"
+
+    OS_ID="ubuntu"
+    OS_CODENAME="focal"
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        OS_ID="${ID:-ubuntu}"
+        OS_CODENAME="${VERSION_CODENAME:-focal}"
+        [ -z "$OS_CODENAME" ] && OS_CODENAME=$(lsb_release -sc 2>/dev/null || echo "focal")
+    fi
+
+    echo -e "${BLUE}[*] Sistem terdeteksi: $OS_ID ($OS_CODENAME)${NC}"
+
+    if [ "$OS_ID" = "ubuntu" ]; then
+        echo -e "${BLUE}[*] Membangun ulang /etc/apt/sources.list bersih menggunakan archive.ubuntu.com...${NC}"
+        cat <<EOF > /etc/apt/sources.list
+deb http://archive.ubuntu.com/ubuntu/ ${OS_CODENAME} main restricted universe multiverse
+deb http://archive.ubuntu.com/ubuntu/ ${OS_CODENAME}-updates main restricted universe multiverse
+deb http://archive.ubuntu.com/ubuntu/ ${OS_CODENAME}-backports main restricted universe multiverse
+deb http://security.ubuntu.com/ubuntu/ ${OS_CODENAME}-security main restricted universe multiverse
+EOF
+        # Hapus daftar cache yang korup
+        rm -rf /var/lib/apt/lists/*
+        
+        # Coba update lagi; jika masih gagal (biasanya karena OS EOL/End of Life), alihkan ke old-releases
+        if ! apt-get update -y; then
+            echo -e "${YELLOW}[!] Repositori standar 404 (versi OS End-of-Life). Mengalihkan ke old-releases.ubuntu.com...${NC}"
+            sed -i 's/archive.ubuntu.com/old-releases.ubuntu.com/g' /etc/apt/sources.list
+            sed -i 's/security.ubuntu.com/old-releases.ubuntu.com/g' /etc/apt/sources.list
+            apt-get clean
+            apt-get update -y || apt-get update -y --fix-missing || true
+        fi
+    elif [ "$OS_ID" = "debian" ]; then
+        echo -e "${BLUE}[*] Membangun ulang /etc/apt/sources.list untuk Debian ($OS_CODENAME)...${NC}"
+        cat <<EOF > /etc/apt/sources.list
+deb http://deb.debian.org/debian ${OS_CODENAME} main contrib non-free
+deb http://deb.debian.org/debian ${OS_CODENAME}-updates main contrib non-free
+deb http://security.debian.org/debian-security ${OS_CODENAME}-security main contrib non-free
+EOF
+        rm -rf /var/lib/apt/lists/*
+        apt-get update -y || true
+    fi
+fi
+
+echo -e "${BLUE}[*] Memasang dependensi sistem inti...${NC}"
+apt-get install -y python3 python3-venv python3-pip python3-dev git curl sqlite3 build-essential libpq-dev || {
+    echo -e "${YELLOW}[!] Mencoba memperbaiki ketergantungan paket sistem...${NC}"
+    dpkg --configure -a
+    apt-get install -f -y
+    apt-get install -y python3 python3-venv python3-pip python3-dev git curl sqlite3 build-essential libpq-dev
+}
 
 echo -e "${GREEN}[✔] Paket sistem berhasil disiapkan.${NC}"
 
@@ -97,7 +179,11 @@ cd "$PROJECT_DIR"
 
 if [ ! -d "venv" ]; then
     echo -e "${BLUE}[*] Membuat virtual environment 'venv'...${NC}"
-    python3 -m venv venv
+    if ! python3 -m venv venv 2>/dev/null; then
+        echo -e "${YELLOW}[!] python3-venv memerlukan komponen tambahan. Memasang python3-distutils / virtualenv...${NC}"
+        apt-get install -y python3-distutils virtualenv python3-virtualenv 2>/dev/null || true
+        virtualenv -p python3 venv || python3 -m venv venv
+    fi
 else
     echo -e "${GREEN}[✔] Virtual environment sudah ada.${NC}"
 fi
