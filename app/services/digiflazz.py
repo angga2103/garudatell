@@ -144,22 +144,39 @@ def sync_products():
     tiers = MarginTier.query.order_by(MarginTier.level.asc()).all()
     new_count = 0
     update_count = 0
+    gangguan_count = 0
+    seen_skus = set()
     cmds = ["prepaid", "pasca"]
+    cmd_success_count = 0
 
     for cmd in cmds:
         ok, items, msg = get_price_list(cmd=cmd)
         if not ok:
-            return False, f"Digiflazz menolak ({cmd}): {msg}"
+            print(f"[SYNC DIGIFLAZZ] Gagal mengambil pricelist {cmd}: {msg}")
+            continue
+
+        cmd_success_count += 1
 
         for item in items:
             sku = item.get('buyer_sku_code')
             if not sku:
                 continue
 
-            product = Product.query.filter_by(sku_code=sku).first()
-            product_active = item.get('buyer_product_status', True)
+            seen_skus.add(sku)
+
+            # Deteksi status ganda: buyer_product_status & seller_product_status
+            # Jika seller_product_status == False, maka operator/provider Digiflazz sedang GANGGUAN!
+            buyer_status = bool(item.get('buyer_product_status', True))
+            seller_status = bool(item.get('seller_product_status', True))
+            product_active = buyer_status and seller_status
+
+            if not product_active:
+                gangguan_count += 1
+
             price = item.get('price', item.get('admin', 0))
             sell_price_calc = calculate_sell_price(price, tiers)
+
+            product = Product.query.filter_by(sku_code=sku).first()
 
             if not product:
                 new_product = Product(
@@ -180,10 +197,31 @@ def sync_products():
                     if not product.is_manual_margin:
                         product.sell_price = sell_price_calc
                     update_count += 1
-                product.is_active = product_active
+                
+                # Sinkronkan status aktif / gangguan secara real-time
+                if product.is_active != product_active:
+                    product.is_active = product_active
+                    update_count += 1
+
+    # Bersihkan produk Digiflazz lokal yang sudah dihapus di server Digiflazz
+    deleted_count = 0
+    if cmd_success_count > 0 and seen_skus:
+        # Cari produk lokal yang BUKAN produk VIP-Reseller dan TIDAK ada dalam seen_skus Digiflazz
+        obsolete_products = Product.query.filter(
+            ~Product.brand.like('VIP-%'),
+            ~Product.name.like('[VIP] %'),
+            ~Product.sku_code.in_(seen_skus)
+        ).all()
+
+        for ob in obsolete_products:
+            db.session.delete(ob)
+            deleted_count += 1
+
+    if cmd_success_count == 0:
+        return False, "Digiflazz menolak permintaan sinkronisasi untuk Prepaid dan Pasca."
 
     db.session.commit()
-    return True, f"Sukses! {new_count} produk baru, {update_count} diperbarui (Prepaid & Pasca)."
+    return True, f"Sukses! {new_count} produk baru, {update_count} diperbarui, {gangguan_count} terdeteksi gangguan, {deleted_count} produk terhapus dibersihkan."
 
 # =====================================================================
 # 4. TRANSAKSI TOPUP PRABAYAR (https://developer.digiflazz.com/api/buyer/topup/)

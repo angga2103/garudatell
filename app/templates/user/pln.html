@@ -342,8 +342,22 @@
         letter-spacing: 0.3px; 
     }
     .p-status-badge.gangguan { 
-        background: #fee2e2; 
-        color: #b91c1c; 
+        background: #fee2e2 !important; 
+        color: #dc2626 !important; 
+        border: 1px solid #fecaca;
+    }
+
+    .btn-card-beli.btn-gangguan {
+        background: #ef4444 !important;
+        color: #ffffff !important;
+    }
+    .btn-card-beli.btn-gangguan:hover {
+        background: #dc2626 !important;
+    }
+
+    .product-card.card-gangguan {
+        border-color: #fee2e2;
+        background: #fffcfc;
     }
 
     .empty-state {
@@ -479,7 +493,7 @@
         {% if products %}
             {% for p in products %}
             {% set is_pasca = (p.provider | upper == 'PASCABAYAR') %}
-            <div class="product-card item-produk" 
+            <div class="product-card item-produk {% if not p.is_active %}card-gangguan{% endif %}" 
                  data-provider="{{ p.provider | upper }}"
                  data-sku="{{ p.sku_code or p.kode_produk }}"
                  data-nama="{{ p.name or p.nama_produk }}"
@@ -496,11 +510,13 @@
                         {% if p.is_active %}
                         <span class="p-status-badge">Tersedia</span>
                         {% else %}
-                        <span class="p-status-badge gangguan">Gangguan</span>
+                        <span class="p-status-badge gangguan"><i class="fas fa-triangle-exclamation"></i> Gangguan</span>
                         {% endif %}
                     </div>
                     <h4 class="p-name">{{ p.name or p.nama_produk }}</h4>
-                    {% if is_pasca %}
+                    {% if not p.is_active %}
+                    <p class="p-desc"><i class="fas fa-wrench" style="color: #ef4444;"></i> Dalam Pemeliharaan Operator</p>
+                    {% elif is_pasca %}
                     <p class="p-desc"><i class="fas fa-file-invoice" style="color: #0284c7;"></i> Cek tagihan & bayar bulanan</p>
                     <p class="p-price" style="font-size: 13px; color: #64748b; font-weight: 700;">
                         Biaya Admin <span style="font-size: 15px; color: #0284c7; font-weight: 900;">Rp {{ "{:,.0f}".format(p.sell_price or p.harga)|replace(',', '.') }}</span>
@@ -512,7 +528,11 @@
                 </div>
 
                 <div class="p-action-col">
-                    {% if is_pasca %}
+                    {% if not p.is_active %}
+                    <button class="btn-card-beli btn-gangguan" type="button" onclick="event.stopPropagation(); {% if is_pasca %}cekTagihanPascaModal(this.closest('.product-card')){% else %}beliProdukModal(this.closest('.product-card')){% endif %}">
+                        GANGGUAN
+                    </button>
+                    {% elif is_pasca %}
                     <button class="btn-card-beli" style="background: #0284c7; display: flex; align-items: center; gap: 5px;" onclick="event.stopPropagation(); cekTagihanPascaModal(this.closest('.product-card'))">
                         <i class="fas fa-search-dollar"></i> CEK TAGIHAN
                     </button>
@@ -959,6 +979,31 @@
     let currentSkuModal = '';
 
     function beliProdukModal(el) {
+        let isActive = el.getAttribute('data-active');
+        let nama = el.getAttribute('data-nama') || 'Token PLN';
+        if (isActive === 'false') {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Produk Sedang Gangguan',
+                    html: `
+                        <div style="text-align: left; font-size: 13.5px; line-height: 1.6; color: #475569;">
+                            <p style="margin-bottom: 8px;">Mohon maaf, <b>${nama}</b> saat ini sedang mengalami <b>gangguan / pemeliharaan</b> dari pihak operator server (Digiflazz).</p>
+                            <div style="background: #f8fafc; border-left: 4px solid #10b981; padding: 10px 12px; border-radius: 6px; margin: 10px 0;">
+                                <i class="fas fa-shield-alt" style="color: #10b981; margin-right: 6px;"></i> <b>Saldo Anda Aman:</b> Pemesanan otomatis dicegat oleh sistem sehingga saldo Anda tidak akan terpotong.
+                            </div>
+                            <p style="margin-top: 8px; margin-bottom: 0;">Silakan coba kembali beberapa saat lagi setelah operator selesai pemeliharaan.</p>
+                        </div>
+                    `,
+                    confirmButtonText: 'Mengerti',
+                    confirmButtonColor: '#008779'
+                });
+            } else {
+                showToast(`Pemberitahuan: Produk ${nama} sedang gangguan dari operator. Saldo Anda aman.`);
+            }
+            return;
+        }
+
         if (isCutoffActive) {
             showToast(cutoffMessage);
             return;
@@ -1073,7 +1118,23 @@
                 btn.innerText = 'Bayar Sekarang';
                 btn.disabled = false;
 
-                if (data.is_cutoff) {
+                if (data.is_gangguan && typeof Swal !== 'undefined') {
+                    closeModal();
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Pemesanan Dicegat',
+                        html: `
+                            <div style="text-align: left; font-size: 13.5px; line-height: 1.6; color: #475569;">
+                                <p style="margin-bottom: 8px;">${data.message}</p>
+                                <div style="background: #f8fafc; border-left: 4px solid #10b981; padding: 10px 12px; border-radius: 6px; margin: 10px 0;">
+                                    <i class="fas fa-shield-alt" style="color: #10b981; margin-right: 6px;"></i> <b>Saldo Aman:</b> Saldo Anda tidak berkurang sepeserpun.
+                                </div>
+                            </div>
+                        `,
+                        confirmButtonText: 'Mengerti',
+                        confirmButtonColor: '#008779'
+                    });
+                } else if (data.is_cutoff) {
                     showToast(data.message || cutoffMessage);
                     closeModal();
                 } else if (data.insufficient_balance && data.suggest_qris) {
@@ -1103,6 +1164,31 @@
     }
 
     function cekTagihanPascaModal(el) {
+        let isActive = el.getAttribute('data-active');
+        let nama = el.getAttribute('data-nama') || 'Tagihan Listrik PLN';
+        if (isActive === 'false') {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Layanan Sedang Gangguan',
+                    html: `
+                        <div style="text-align: left; font-size: 13.5px; line-height: 1.6; color: #475569;">
+                            <p style="margin-bottom: 8px;">Mohon maaf, layanan <b>${nama}</b> saat ini sedang mengalami <b>gangguan / pemeliharaan</b> dari pihak biller server (Digiflazz).</p>
+                            <div style="background: #f8fafc; border-left: 4px solid #10b981; padding: 10px 12px; border-radius: 6px; margin: 10px 0;">
+                                <i class="fas fa-shield-alt" style="color: #10b981; margin-right: 6px;"></i> <b>Saldo Anda Aman:</b> Pengecekan tagihan ditangguhkan sementara.
+                            </div>
+                            <p style="margin-top: 8px; margin-bottom: 0;">Silakan coba kembali beberapa saat lagi setelah pemeliharaan selesai.</p>
+                        </div>
+                    `,
+                    confirmButtonText: 'Mengerti',
+                    confirmButtonColor: '#008779'
+                });
+            } else {
+                showToast(`Pemberitahuan: Layanan ${nama} sedang gangguan dari biller operator.`);
+            }
+            return;
+        }
+
         if (isCutoffActive) {
             showToast(cutoffMessage);
             return;

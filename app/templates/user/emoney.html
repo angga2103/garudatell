@@ -341,6 +341,24 @@
         font-weight: 800; 
         letter-spacing: 0.3px; 
     }
+    .p-status-badge.gangguan { 
+        background: #fee2e2 !important; 
+        color: #dc2626 !important; 
+        border: 1px solid #fecaca;
+    }
+
+    .btn-card-beli.btn-gangguan {
+        background: #ef4444 !important;
+        color: #ffffff !important;
+    }
+    .btn-card-beli.btn-gangguan:hover {
+        background: #dc2626 !important;
+    }
+
+    .product-card.card-gangguan {
+        border-color: #fee2e2;
+        background: #fffcfc;
+    }
 
     .empty-state {
         text-align: center;
@@ -579,7 +597,7 @@
     <div class="product-list" id="daftarProduk">
         {% if products %}
             {% for p in products %}
-            <div class="product-card item-produk" 
+            <div class="product-card item-produk {% if not p.is_active %}card-gangguan{% endif %}" 
                  data-provider="{{ p.provider | upper }}"
                  data-sku="{{ p.kode_produk }}"
                  data-nama="{{ p.nama_produk }}"
@@ -596,12 +614,14 @@
                         {% if p.is_active %}
                             <span class="p-status-badge">Tersedia</span>
                         {% else %}
-                            <span class="p-status-badge gangguan">Gangguan</span>
+                            <span class="p-status-badge gangguan"><i class="fas fa-triangle-exclamation"></i> Gangguan</span>
                         {% endif %}
                     </div>
                     <h3 class="p-name">{{ p.nama_produk }}</h3>
                     <p class="p-desc">
-                        {% if p.is_bebas %}
+                        {% if not p.is_active %}
+                            <i class="fas fa-wrench" style="color: #ef4444;"></i> Dalam Pemeliharaan Operator
+                        {% elif p.is_bebas %}
                             <i class="fas fa-sliders-h" style="color: #0284c7;"></i> Bebas Nominal (Input Sendiri)
                         {% else %}
                             <i class="fas fa-bolt" style="color: #f59e0b;"></i> Proses Otomatis 24 Jam
@@ -617,7 +637,9 @@
                 </div>
                 
                 <div class="p-action-col">
-                    {% if p.is_bebas %}
+                    {% if not p.is_active %}
+                        <button class="btn-card-beli btn-gangguan" type="button">GANGGUAN</button>
+                    {% elif p.is_bebas %}
                         <button class="btn-card-beli" type="button" style="background: #0284c7;">PILIH</button>
                     {% else %}
                         <button class="btn-card-beli" type="button">BELI</button>
@@ -945,8 +967,27 @@
 
     function beliProdukModal(card) {
         const isActive = card.getAttribute('data-active');
+        const nama = card.getAttribute('data-nama') || 'ini';
         if (isActive === 'false') {
-            showToast('Maaf, produk ini sedang gangguan server.');
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Produk Sedang Gangguan',
+                    html: `
+                        <div style="text-align: left; font-size: 13.5px; line-height: 1.6; color: #475569;">
+                            <p style="margin-bottom: 8px;">Mohon maaf, layanan <b>${nama}</b> saat ini sedang mengalami <b>gangguan / pemeliharaan</b> dari pihak operator server (Digiflazz).</p>
+                            <div style="background: #f8fafc; border-left: 4px solid #10b981; padding: 10px 12px; border-radius: 6px; margin: 10px 0;">
+                                <i class="fas fa-shield-alt" style="color: #10b981; margin-right: 6px;"></i> <b>Saldo Anda Aman:</b> Pemesanan otomatis dicegat oleh sistem sehingga saldo Anda tidak akan terpotong.
+                            </div>
+                            <p style="margin-top: 8px; margin-bottom: 0;">Silakan pilih nominal alternatif atau coba kembali beberapa saat lagi setelah operator selesai pemeliharaan.</p>
+                        </div>
+                    `,
+                    confirmButtonText: 'Mengerti',
+                    confirmButtonColor: '#008779'
+                });
+            } else {
+                showToast(`Pemberitahuan: Produk ${nama} sedang gangguan dari operator. Saldo Anda aman dan pesanan dicegat.`);
+            }
             return;
         }
 
@@ -1060,7 +1101,25 @@
                     window.location.href = '/riwayat';
                 }
             } else {
-                showToast(data.message || 'Transaksi gagal diproses.');
+                if (data.is_gangguan && typeof Swal !== 'undefined') {
+                    tutupCheckoutModal();
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Pemesanan Dicegat',
+                        html: `
+                            <div style="text-align: left; font-size: 13.5px; line-height: 1.6; color: #475569;">
+                                <p style="margin-bottom: 8px;">${data.message}</p>
+                                <div style="background: #f8fafc; border-left: 4px solid #10b981; padding: 10px 12px; border-radius: 6px; margin: 10px 0;">
+                                    <i class="fas fa-shield-alt" style="color: #10b981; margin-right: 6px;"></i> <b>Saldo Aman:</b> Saldo Anda tidak berkurang sepeserpun.
+                                </div>
+                            </div>
+                        `,
+                        confirmButtonText: 'Mengerti',
+                        confirmButtonColor: '#008779'
+                    });
+                } else {
+                    showToast(data.message || 'Transaksi gagal diproses.');
+                }
                 btn.disabled = false;
                 btn.innerHTML = 'Bayar Sekarang';
             }

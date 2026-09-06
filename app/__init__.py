@@ -134,6 +134,15 @@ def create_app():
                         ot.sn = USER_FRIENDLY_SN_MSG
                     db.session.commit()
                     app.logger.info(f"[AUTO-CLEAN] Berhasil membersihkan {len(old_trxs)} data transaksi lama.")
+
+            # Bersihkan produk Bebas Nominal yang telah dihapus di Digiflazz
+            if 'product' in inspector.get_table_names():
+                from app.models.product import Product
+                bebas_deleted_skus = ['post685480', 'post685481', 'post685482', 'post685483', 'post685485', 'post706873']
+                deleted_bebas = Product.query.filter(Product.sku_code.in_(bebas_deleted_skus)).delete(synchronize_session=False)
+                if deleted_bebas:
+                    db.session.commit()
+                    app.logger.info(f"[AUTO-CLEAN] Berhasil membersihkan {deleted_bebas} produk Bebas Nominal yang telah dihapus di Digiflazz.")
         except Exception as e:
             app.logger.warning(f"Auto-migration / cleanup failed: {e}")
 

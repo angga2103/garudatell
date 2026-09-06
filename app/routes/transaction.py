@@ -213,9 +213,17 @@ def checkout():
             else:
                 sku_code = db_product.sku_code
 
+            prod_name_label = db_product.name if db_product else (bebas_brand_match or 'E-Money Bebas')
+            if db_product and not db_product.is_active:
+                return jsonify({
+                    'status': 'error',
+                    'error': True,
+                    'is_gangguan': True,
+                    'message': f'Pemesanan dicegat: Layanan {prod_name_label} sedang mengalami gangguan/pemeliharaan dari pihak operator (Digiflazz). Saldo Anda aman dan tidak terpotong. Silakan pilih nominal top up e-wallet regular atau coba beberapa saat lagi.'
+                }), 400
+
             admin_fee = float(db_product.sell_price) if db_product else 1700.0
             amount = nominal + admin_fee
-            prod_name_label = db_product.name if db_product else (bebas_brand_match or 'E-Money Bebas')
             product_name = f"{prod_name_label} Rp {int(nominal):,}"
             is_prepaid_flow = False
 
@@ -237,6 +245,14 @@ def checkout():
                 return jsonify({'status': 'error', 'error': True, 'message': 'Total tagihan harus lebih dari Rp 0.'}), 400
 
             product = db_product or Product.query.filter_by(sku_code=sku_input).first()
+            if product and not product.is_active:
+                return jsonify({
+                    'status': 'error',
+                    'error': True,
+                    'is_gangguan': True,
+                    'message': f'Pemesanan dicegat: Layanan tagihan {product.name} sedang mengalami gangguan/pemeliharaan dari pihak biller operator. Silakan coba beberapa saat lagi.'
+                }), 400
+
             product_name = product.name if product else f"Tagihan Listrik {sku_input}"
             sku_code = product.sku_code if product else sku_input
             is_prepaid_flow = False
@@ -247,7 +263,12 @@ def checkout():
             if not product:
                 return jsonify({'status': 'error', 'error': True, 'message': 'Produk tidak ditemukan'}), 404
             if not product.is_active:
-                return jsonify({'status': 'error', 'error': True, 'message': 'Produk sedang gangguan atau nonaktif'}), 400
+                return jsonify({
+                    'status': 'error',
+                    'error': True,
+                    'is_gangguan': True,
+                    'message': f'Pemesanan dicegat: Produk {product.name} sedang mengalami gangguan/pemeliharaan dari pihak operator server (Digiflazz). Saldo Anda aman dan tidak terpotong. Silakan coba beberapa saat lagi atau pilih produk/provider lain.'
+                }), 400
 
             amount = float(product.sell_price)
             product_name = product.name
@@ -765,6 +786,15 @@ def sync_single_transaction(trx):
                     raw_d_msg = sn or d_data.get('message', msg)
                     trx.sn = sanitize_public_sn_message(raw_d_msg, rc=rc)
                     changed = True
+
+                    # DETEKSI OTOMATIS GANGGUAN DIGIFLAZZ (RC 41: Gangguan, 55: Pasca Gangguan, atau keyword)
+                    if rc in ['41', '55'] or 'gangguan' in str(raw_d_msg).lower() or 'cut off' in str(raw_d_msg).lower():
+                        try:
+                            if trx.sku_code:
+                                Product.query.filter_by(sku_code=trx.sku_code).update({'is_active': False})
+                                print(f"[AUTO-GANGGUAN] SKU {trx.sku_code} otomatis diubah ke Gangguan (is_active=False) dari sync RC {rc}")
+                        except Exception as e_act:
+                            print(f"[AUTO-GANGGUAN ERROR] {e_act}")
                 elif 'pending' in d_status or 'process' in d_status or rc == '03':
                     if hasattr(trx, 'note') and d_data.get('message'):
                         trx.note = d_data.get('message')
@@ -920,6 +950,15 @@ def callback_digiflazz():
             trx.status = 'FAILED'
             from app.services.provider_helper import sanitize_public_sn_message
             trx.sn = sanitize_public_sn_message(sn or message, rc=rc)
+
+            # DETEKSI OTOMATIS GANGGUAN DIGIFLAZZ (RC 41: Gangguan, 55: Pasca Gangguan, atau keyword)
+            if rc in ['41', '55'] or 'gangguan' in str(sn or message).lower() or 'cut off' in str(sn or message).lower():
+                try:
+                    if trx.sku_code:
+                        Product.query.filter_by(sku_code=trx.sku_code).update({'is_active': False})
+                        print(f"[AUTO-GANGGUAN] SKU {trx.sku_code} otomatis diubah ke Gangguan (is_active=False) dari callback webhook RC {rc}")
+                except Exception as e_act:
+                    print(f"[AUTO-GANGGUAN ERROR] {e_act}")
         elif 'pending' in status or 'process' in status or rc == '03':
             if trx.status != 'SUCCESS':
                 trx.status = 'PROCESSING'

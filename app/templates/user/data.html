@@ -342,8 +342,22 @@
         letter-spacing: 0.3px; 
     }
     .p-status-badge.gangguan { 
-        background: #fee2e2; 
-        color: #b91c1c; 
+        background: #fee2e2 !important; 
+        color: #dc2626 !important; 
+        border: 1px solid #fecaca;
+    }
+
+    .btn-card-beli.btn-gangguan {
+        background: #ef4444 !important;
+        color: #ffffff !important;
+    }
+    .btn-card-beli.btn-gangguan:hover {
+        background: #dc2626 !important;
+    }
+
+    .product-card.card-gangguan {
+        border-color: #fee2e2;
+        background: #fffcfc;
     }
 
     .empty-state {
@@ -435,7 +449,7 @@
     <div class="product-list" id="daftarProduk">
         {% if products %}
             {% for p in products %}
-            <div class="product-card item-produk" 
+            <div class="product-card item-produk {% if not p.is_active %}card-gangguan{% endif %}" 
                  data-provider="{{ p.provider | upper }}"
                  data-sku="{{ p.kode_produk }}"
                  data-nama="{{ p.nama_produk }}"
@@ -451,18 +465,30 @@
                         {% if p.is_active %}
                         <span class="p-status-badge">Tersedia</span>
                         {% else %}
-                        <span class="p-status-badge gangguan">Gangguan</span>
+                        <span class="p-status-badge gangguan"><i class="fas fa-triangle-exclamation"></i> Gangguan</span>
                         {% endif %}
                     </div>
                     <h4 class="p-name">{{ p.nama_produk }}</h4>
-                    <p class="p-desc"><i class="fas fa-bolt" style="color: #f59e0b;"></i> Proses Otomatis 24 Jam</p>
+                    <p class="p-desc">
+                        {% if not p.is_active %}
+                            <i class="fas fa-wrench" style="color: #ef4444;"></i> Dalam Pemeliharaan Operator
+                        {% else %}
+                            <i class="fas fa-bolt" style="color: #f59e0b;"></i> Proses Otomatis 24 Jam
+                        {% endif %}
+                    </p>
                     <p class="p-price">Rp {{ "{:,.0f}".format(p.harga)|replace(',', '.') }}</p>
                 </div>
 
                 <div class="p-action-col">
-                    <button class="btn-card-beli" onclick="event.stopPropagation(); beliProdukModal(this.closest('.product-card'))">
-                        BELI
-                    </button>
+                    {% if not p.is_active %}
+                        <button class="btn-card-beli btn-gangguan" type="button" onclick="event.stopPropagation(); beliProdukModal(this.closest('.product-card'))">
+                            GANGGUAN
+                        </button>
+                    {% else %}
+                        <button class="btn-card-beli" type="button" onclick="event.stopPropagation(); beliProdukModal(this.closest('.product-card'))">
+                            BELI
+                        </button>
+                    {% endif %}
                 </div>
             </div>
             {% endfor %}
@@ -862,8 +888,32 @@
     let currentSkuModal = '';
 
     function beliProdukModal(el) {
+        let isActive = el.getAttribute('data-active');
+        let nama = el.getAttribute('data-nama') || 'ini';
+        if (isActive === 'false') {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Produk Sedang Gangguan',
+                    html: `
+                        <div style="text-align: left; font-size: 13.5px; line-height: 1.6; color: #475569;">
+                            <p style="margin-bottom: 8px;">Mohon maaf, paket data <b>${nama}</b> saat ini sedang mengalami <b>gangguan / pemeliharaan</b> dari pihak operator server (Digiflazz).</p>
+                            <div style="background: #f8fafc; border-left: 4px solid #10b981; padding: 10px 12px; border-radius: 6px; margin: 10px 0;">
+                                <i class="fas fa-shield-alt" style="color: #10b981; margin-right: 6px;"></i> <b>Saldo Anda Aman:</b> Pemesanan otomatis dicegat oleh sistem sehingga saldo Anda tidak akan terpotong.
+                            </div>
+                            <p style="margin-top: 8px; margin-bottom: 0;">Silakan pilih nominal atau paket data alternatif lainnya, atau coba kembali beberapa saat lagi.</p>
+                        </div>
+                    `,
+                    confirmButtonText: 'Mengerti',
+                    confirmButtonColor: '#008779'
+                });
+            } else {
+                showToast(`Pemberitahuan: Produk ${nama} sedang gangguan dari operator. Saldo Anda aman.`);
+            }
+            return;
+        }
+
         let sku = el.getAttribute('data-sku');
-        let nama = el.getAttribute('data-nama');
         let harga = el.getAttribute('data-harga');
         
         currentSkuModal = sku;
@@ -963,7 +1013,23 @@
                 btn.innerText = 'Bayar Sekarang';
                 btn.disabled = false;
 
-                if (data.insufficient_balance && data.suggest_qris) {
+                if (data.is_gangguan && typeof Swal !== 'undefined') {
+                    closeModal();
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Pemesanan Dicegat',
+                        html: `
+                            <div style="text-align: left; font-size: 13.5px; line-height: 1.6; color: #475569;">
+                                <p style="margin-bottom: 8px;">${data.message}</p>
+                                <div style="background: #f8fafc; border-left: 4px solid #10b981; padding: 10px 12px; border-radius: 6px; margin: 10px 0;">
+                                    <i class="fas fa-shield-alt" style="color: #10b981; margin-right: 6px;"></i> <b>Saldo Aman:</b> Saldo Anda tidak berkurang sepeserpun.
+                                </div>
+                            </div>
+                        `,
+                        confirmButtonText: 'Mengerti',
+                        confirmButtonColor: '#008779'
+                    });
+                } else if (data.insufficient_balance && data.suggest_qris) {
                     showToast(data.message || 'Saldo tidak cukup. Alihkan ke QRIS.');
                     selectPay('qris');
                     document.querySelector('input[name="payMethod"][value="qris"]').checked = true;

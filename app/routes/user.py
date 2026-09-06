@@ -91,7 +91,7 @@ def kategori_tv_index():
         ~Product.name.ilike('%ragnarok%')
     )
     
-    db_products = Product.query.filter(kondisi_tv, Product.is_active == True).order_by(Product.sell_price.asc()).all()
+    db_products = Product.query.filter(kondisi_tv).order_by(Product.is_active.desc(), Product.sell_price.asc()).all()
     
     produk_final = []
     for prod in db_products:
@@ -124,7 +124,7 @@ def kategori_tv_index():
             'sell_price': prod.sell_price,
             'provider': tag,
             'brand': b,
-            'is_active': prod.is_active
+            'is_active': bool(prod.is_active)
         })
         
     return render_template('user/tv_index.html', products=produk_final, title='TV BERLANGGANAN')
@@ -145,9 +145,8 @@ def lihat_kategori(nama_kategori):
     
     if kat == 'pulsa':
         db_products = Product.query.filter(
-            Product.category.ilike('%pulsa%'),
-            Product.is_active == True
-        ).order_by(Product.sell_price.asc()).all()
+            Product.category.ilike('%pulsa%')
+        ).order_by(Product.is_active.desc(), Product.sell_price.asc()).all()
         produk_final = []
         for prod in db_products:
             brand_clean = (prod.brand or '').replace('VIP-', '').strip().upper()
@@ -160,7 +159,7 @@ def lihat_kategori(nama_kategori):
                 'harga': prod.sell_price,
                 'sell_price': prod.sell_price,
                 'provider': brand_clean,
-                'is_active': prod.is_active
+                'is_active': bool(prod.is_active)
             })
         return render_template('user/pulsa.html', products=produk_final, title='PULSA')
 
@@ -168,9 +167,8 @@ def lihat_kategori(nama_kategori):
         keywords = ['data', 'kuota', 'paket', 'internet', 'inject', 'internetmax']
         filters = [Product.category.ilike(f'%{kw}%') for kw in keywords]
         db_products = Product.query.filter(
-            or_(*filters),
-            Product.is_active == True
-        ).order_by(Product.sell_price.asc()).all()
+            or_(*filters)
+        ).order_by(Product.is_active.desc(), Product.sell_price.asc()).all()
         produk_final = []
         for prod in db_products:
             brand_clean = (prod.brand or '').replace('VIP-', '').strip().upper()
@@ -183,7 +181,7 @@ def lihat_kategori(nama_kategori):
                 'harga': prod.sell_price,
                 'sell_price': prod.sell_price,
                 'provider': brand_clean,
-                'is_active': prod.is_active
+                'is_active': bool(prod.is_active)
             })
         return render_template('user/data.html', products=produk_final, title='PAKET DATA')
 
@@ -196,8 +194,7 @@ def lihat_kategori(nama_kategori):
         # Kondisi dasar: Produk game & voucher VIP-Reseller
         kondisi_games = (
             (MProduct.category.ilike('%game%') | MProduct.category.ilike('%voucher%')) &
-            MProduct.brand.ilike('VIP-%') &
-            (MProduct.is_active == True)
+            MProduct.brand.ilike('VIP-%')
         )
         
         # Ambil daftar unik seluruh 99 game brand untuk selector dropdown
@@ -257,7 +254,7 @@ def lihat_kategori(nama_kategori):
                 MProduct.name.ilike(f'%{search_query}%') | MProduct.brand.ilike(f'%{search_query}%')
             )
             
-        db_products = base_query.order_by(MProduct.sell_price.asc()).all()
+        db_products = base_query.order_by(MProduct.is_active.desc(), MProduct.sell_price.asc()).all()
         
         produk_final = []
         for prod in db_products:
@@ -271,7 +268,7 @@ def lihat_kategori(nama_kategori):
                 'sell_price': prod.sell_price,
                 'provider': brand_clean,
                 'brand': brand_clean,
-                'is_active': prod.is_active
+                'is_active': bool(prod.is_active)
             })
             
         return m_render('user/games.html', 
@@ -303,9 +300,8 @@ def lihat_kategori(nama_kategori):
             ~Product.category.ilike('%perdana%')
         )
         db_products = Product.query.filter(
-            kondisi_emoney,
-            Product.is_active == True
-        ).order_by(Product.sell_price.asc()).all()
+            kondisi_emoney
+        ).order_by(Product.is_active.desc(), Product.sell_price.asc()).all()
 
         produk_final = []
         for prod in db_products:
@@ -339,7 +335,7 @@ def lihat_kategori(nama_kategori):
                 'sub_tag': sub_tag,
                 'is_bebas': is_bebas,
                 'brand': brand_upper,
-                'is_active': prod.is_active
+                'is_active': bool(prod.is_active)
             })
 
         return render_template('user/emoney.html', products=produk_final, title='E-WALLET & E-MONEY')
@@ -351,9 +347,8 @@ def lihat_kategori(nama_kategori):
             Product.name.ilike('%pln%')
         )
         db_products = Product.query.filter(
-            kondisi_pln,
-            Product.is_active == True
-        ).order_by(Product.sell_price.asc()).all()
+            kondisi_pln
+        ).order_by(Product.is_active.desc(), Product.sell_price.asc()).all()
         produk_final = []
         for prod in db_products:
             brand_clean = (prod.brand or '').replace('VIP-', '').strip().upper()
@@ -368,7 +363,7 @@ def lihat_kategori(nama_kategori):
                 'sell_price': prod.sell_price,
                 'provider': kategori_tag,
                 'brand': brand_clean,
-                'is_active': prod.is_active
+                'is_active': bool(prod.is_active)
             })
         from app.services.digiflazz import is_pln_cutoff_time
         return render_template('user/pln.html', products=produk_final, title='TOKEN PLN', is_cutoff=is_pln_cutoff_time())
@@ -377,9 +372,8 @@ def lihat_kategori(nama_kategori):
         keywords = ['telp', 'sms']
         filters = [Product.category.ilike(f'%{kw}%') for kw in keywords]
         db_products = Product.query.filter(
-            or_(*filters),
-            Product.is_active == True
-        ).order_by(Product.sell_price.asc()).all()
+            or_(*filters)
+        ).order_by(Product.is_active.desc(), Product.sell_price.asc()).all()
         produk_final = []
         for prod in db_products:
             brand_clean = (prod.brand or '').replace('VIP-', '').strip().upper()
@@ -391,7 +385,7 @@ def lihat_kategori(nama_kategori):
                 'harga': prod.sell_price,
                 'sell_price': prod.sell_price,
                 'provider': brand_clean,
-                'is_active': prod.is_active
+                'is_active': bool(prod.is_active)
             })
         return render_template('user/telpsms.html', products=produk_final, title='TELP & SMS')
 
@@ -400,7 +394,7 @@ def lihat_kategori(nama_kategori):
             Product.category.ilike('%masa aktif%') |
             (Product.name.ilike('%masa%') & Product.name.ilike('%aktif%'))
         )
-        db_products = Product.query.filter(kondisi_masaaktif, Product.is_active == True).order_by(Product.sell_price.asc()).all()
+        db_products = Product.query.filter(kondisi_masaaktif).order_by(Product.is_active.desc(), Product.sell_price.asc()).all()
         produk_final = []
         for prod in db_products:
             brand_clean = (prod.brand or '').replace('VIP-', '').strip().upper()
@@ -412,7 +406,7 @@ def lihat_kategori(nama_kategori):
                 'harga': prod.sell_price,
                 'sell_price': prod.sell_price,
                 'provider': brand_clean,
-                'is_active': prod.is_active
+                'is_active': bool(prod.is_active)
             })
         return render_template('user/masaaktif.html', products=produk_final, title='MASA AKTIF')
         
@@ -420,7 +414,7 @@ def lihat_kategori(nama_kategori):
     filters = [Product.category.ilike(f'%{kw}%') for kw in keywords]
     
     # Perbaikan Filter Mutlak: Jauhkan produk TV dari halaman Games
-    base_query = Product.query.filter(or_(*filters), Product.is_active == True)
+    base_query = Product.query.filter(or_(*filters))
     
     if kat in ['games', 'voucher game', 'game', 'hiburan', 'voucher-game']:
         # Tolak semua produk yang kategori atau namanya mengandung unsur TV Berlangganan
@@ -432,7 +426,7 @@ def lihat_kategori(nama_kategori):
             ~Product.brand.ilike('%parabola%')
         )
         
-    db_products = base_query.all()
+    db_products = base_query.order_by(Product.is_active.desc(), Product.sell_price.asc()).all()
     
     # 3. Format Data untuk UI (Menerjemahkan Database ke Bahasa UI)
     produk_final = []
@@ -441,11 +435,12 @@ def lihat_kategori(nama_kategori):
             'kode_produk': prod.sku_code,
             'nama_produk': prod.name,
             'harga': prod.sell_price,
-            'provider': prod.brand
+            'provider': prod.brand,
+            'is_active': bool(prod.is_active)
         })
         
-    # 4. Urutkan berdasarkan harga termurah
-    produk_final.sort(key=lambda x: x['harga'])
+    # 4. Urutkan: produk aktif terlebih dahulu, lalu berdasarkan harga termurah
+    produk_final.sort(key=lambda x: (0 if x.get('is_active') else 1, x.get('harga', 0)))
         
     return render_template(template_name, products=produk_final, title=title)
 
