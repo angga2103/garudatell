@@ -151,4 +151,5 @@ app.post('/api/reset', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Mesin Baileys V2.2 Aktif di port ${PORT}`));
+const HOST = process.env.HOST || '0.0.0.0';
+app.listen(PORT, HOST, () => console.log(`🚀 Mesin Baileys V2.2 Aktif di http://${HOST}:${PORT}`));

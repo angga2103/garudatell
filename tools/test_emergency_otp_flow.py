@@ -172,6 +172,19 @@ class TestEmergencyOtpFlow(unittest.TestCase):
             data = res.get_json()
             self.assertEqual(data.get('status'), 'success')
 
+    def test_admin_wa_diagnostics(self):
+        """Tes endpoint /admin/wa_diagnostics."""
+        with self.client.session_transaction() as sess:
+            sess['admin_logged_in'] = True
+
+        res = self.client.get('/admin/wa_diagnostics')
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertEqual(data.get('status'), 'success')
+        self.assertIn('diagnostics', data)
+        self.assertIn('node_path', data['diagnostics'])
+        self.assertIn('port_3000_listening', data['diagnostics'])
+
 
 if __name__ == '__main__':
     unittest.main()

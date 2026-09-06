@@ -715,63 +715,178 @@ def sync_vipreseller():
 # =====================================================================
 # API BOT WHATSAPP PAIRING (REAL NODE.JS CONNECTION) & AUTO-RECOVERY
 # =====================================================================
+def _find_executable(name):
+    """
+    Mencari binary executable (node, pm2, npm) secara komprehensif di PATH,
+    direktori standar Linux, nvm (/root/.nvm, /home/*/.nvm), dan snap.
+    """
+    import shutil, glob, os, subprocess
+
+    # 1. Cek standard PATH
+    p = shutil.which(name)
+    if p and os.path.isfile(p):
+        return p
+
+    # 2. Cek lokasi standar Linux
+    candidates = [
+        f"/usr/local/bin/{name}",
+        f"/usr/bin/{name}",
+        f"/bin/{name}",
+        f"/snap/bin/{name}",
+        f"/root/.npm-global/bin/{name}",
+    ]
+    for loc in candidates:
+        if os.path.isfile(loc) and (os.access(loc, os.X_OK) or os.name == 'nt'):
+            return loc
+
+    # 3. Cek pola NVM di /root dan /home
+    nvm_patterns = [
+        f"/root/.nvm/versions/node/*/bin/{name}",
+        f"/home/*/.nvm/versions/node/*/bin/{name}",
+        f"/home/*/.npm-global/bin/{name}",
+        f"/var/www/.nvm/versions/node/*/bin/{name}",
+    ]
+    for pat in nvm_patterns:
+        matches = glob.glob(pat)
+        if matches:
+            for m in sorted(matches, reverse=True):
+                if os.path.isfile(m) and (os.access(m, os.X_OK) or os.name == 'nt'):
+                    return m
+
+    # 4. Coba temukan via login shell bash (evaluasi .bashrc / .profile)
+    if os.name != 'nt':
+        try:
+            out = subprocess.run(
+                ['bash', '-l', '-c', f'which {name}'],
+                capture_output=True, text=True, timeout=3
+            )
+            if out.returncode == 0:
+                cand = out.stdout.strip()
+                if cand and os.path.isfile(cand):
+                    return cand
+        except Exception:
+            pass
+
+    return None
+
+
 def _ensure_wa_bot_running():
     """
     Mengecek apakah Mesin Baileys di port 3000 aktif.
     Jika tidak aktif, mencoba menyalakan via PM2 (di Linux) atau background node.
     """
-    import requests
-    import subprocess
-    import shutil
-    import sys
-    import os
-    import time
+    import requests, subprocess, sys, os, time
     from flask import current_app
-    
-    # 1. Cek dulu apakah port 3000 sudah merespons
-    try:
-        r = requests.get('http://127.0.0.1:3000/api/status', timeout=2)
-        if r.status_code == 200:
-            return True, "Mesin Node.js sudah aktif di port 3000."
-    except Exception:
-        pass
-        
-    # 2. Coba hidupkan mesin bot
-    base_dir = os.path.abspath(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-    wa_bot_dir = os.path.join(base_dir, 'wa_bot')
-    server_js = os.path.join(wa_bot_dir, 'server_bot.js')
-    
-    pm2_cmd = shutil.which('pm2')
-    if pm2_cmd:
-        try:
-            res = subprocess.run([pm2_cmd, 'restart', 'garudatel-wa-bot'], cwd=wa_bot_dir, capture_output=True, text=True, timeout=10)
-            if res.returncode != 0:
-                subprocess.run([pm2_cmd, 'start', 'server_bot.js', '--name', 'garudatel-wa-bot', '--restart-delay=3000'], cwd=wa_bot_dir, capture_output=True, text=True, timeout=10)
-                subprocess.run([pm2_cmd, 'save'], cwd=wa_bot_dir, capture_output=True, text=True, timeout=5)
-        except Exception as e:
-            current_app.logger.warning(f"PM2 auto-start failed: {e}")
-    else:
-        node_cmd = shutil.which('node')
-        if node_cmd and os.path.exists(server_js):
-            try:
-                if sys.platform == 'win32':
-                    subprocess.Popen([node_cmd, 'server_bot.js'], cwd=wa_bot_dir, creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS)
-                else:
-                    subprocess.Popen([node_cmd, 'server_bot.js'], cwd=wa_bot_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
-            except Exception as e:
-                current_app.logger.warning(f"Node auto-start failed: {e}")
 
-    # Tunggu beberapa detik agar socket siap listen
-    for _ in range(4):
-        time.sleep(1)
+    # 1. Cek dulu apakah port 3000 sudah merespons (coba 127.0.0.1 dan localhost)
+    for host in ['127.0.0.1', 'localhost']:
         try:
-            r = requests.get('http://127.0.0.1:3000/api/status', timeout=2)
+            r = requests.get(f'http://{host}:3000/api/status', timeout=2)
             if r.status_code == 200:
-                return True, "Mesin Node.js berhasil dihidupkan!"
+                return True, "Mesin Node.js sudah aktif di port 3000."
         except Exception:
             pass
 
-    return False, "Mesin belum merespons di port 3000. Pastikan PM2 berjalan di server Anda."
+    # 2. Persiapkan direktori & file log
+    base_dir = os.path.abspath(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+    wa_bot_dir = os.path.join(base_dir, 'wa_bot')
+    server_js = os.path.join(wa_bot_dir, 'server_bot.js')
+    log_dir = os.path.join(base_dir, 'storage', 'logs')
+    os.makedirs(log_dir, exist_ok=True)
+    log_file = os.path.join(log_dir, 'wa_bot.log')
+
+    if not os.path.exists(server_js):
+        return False, f"File server_bot.js tidak ditemukan di {wa_bot_dir}."
+
+    node_bin = _find_executable('node')
+    npm_bin = _find_executable('npm')
+    pm2_bin = _find_executable('pm2')
+
+    if not node_bin and not pm2_bin:
+        return False, (
+            "Node.js belum terinstall di server VPS Anda. "
+            "Silakan buka terminal VPS dan jalankan: bash wa_bot/setup_pm2.sh"
+        )
+
+    # 3. Cek dependensi node_modules
+    baileys_pkg = os.path.join(wa_bot_dir, 'node_modules', '@whiskeysockets', 'baileys')
+    express_pkg = os.path.join(wa_bot_dir, 'node_modules', 'express')
+    if not (os.path.exists(baileys_pkg) and os.path.exists(express_pkg)):
+        if npm_bin:
+            try:
+                current_app.logger.info("Menginstall dependencies wa_bot via npm...")
+                subprocess.run([npm_bin, 'install', '--omit=dev'], cwd=wa_bot_dir, capture_output=True, text=True, timeout=180)
+            except Exception as e:
+                current_app.logger.warning(f"npm install warning: {e}")
+
+    # 4. Coba nyalakan mesin bot
+    start_method = "direct node"
+    pm2_error_msg = ""
+    if pm2_bin:
+        try:
+            # Set PATH agar PM2 menemukan binary node
+            pm2_env = os.environ.copy()
+            if node_bin:
+                node_dir = os.path.dirname(node_bin)
+                pm2_env['PATH'] = node_dir + os.pathsep + pm2_env.get('PATH', '')
+
+            res = subprocess.run([pm2_bin, 'restart', 'garudatel-wa-bot'], cwd=wa_bot_dir, capture_output=True, text=True, env=pm2_env, timeout=12)
+            if res.returncode != 0:
+                res = subprocess.run([pm2_bin, 'start', 'server_bot.js', '--name', 'garudatel-wa-bot', '--restart-delay=3000'], cwd=wa_bot_dir, capture_output=True, text=True, env=pm2_env, timeout=12)
+                if res.returncode == 0:
+                    subprocess.run([pm2_bin, 'save'], cwd=wa_bot_dir, capture_output=True, text=True, env=pm2_env, timeout=5)
+                    start_method = "pm2"
+                else:
+                    pm2_error_msg = (res.stderr or res.stdout or "").strip()
+            else:
+                start_method = "pm2"
+        except Exception as e:
+            pm2_error_msg = str(e)
+            current_app.logger.warning(f"PM2 auto-start failed: {e}")
+
+    if start_method != "pm2" and node_bin:
+        # Fallback jalankan proses node di latar belakang
+        try:
+            with open(log_file, 'a', encoding='utf-8') as out_f:
+                if sys.platform == 'win32':
+                    subprocess.Popen([node_bin, 'server_bot.js'], cwd=wa_bot_dir, stdout=out_f, stderr=out_f, creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS)
+                else:
+                    subprocess.Popen([node_bin, 'server_bot.js'], cwd=wa_bot_dir, stdout=out_f, stderr=out_f, start_new_session=True)
+            start_method = "direct node"
+        except Exception as e:
+            current_app.logger.warning(f"Direct node start failed: {e}")
+
+    # 5. Tunggu hingga socket siap mendengarkan (hingga 8 detik)
+    for _ in range(8):
+        time.sleep(1)
+        for host in ['127.0.0.1', 'localhost']:
+            try:
+                r = requests.get(f'http://{host}:3000/api/status', timeout=2)
+                if r.status_code == 200:
+                    return True, f"Mesin Node.js berhasil dihidupkan ({start_method}) dan siap di port 3000!"
+            except Exception:
+                pass
+
+    # Ambil catatan log terakhir untuk diagnostik
+    last_log = ""
+    if os.path.exists(log_file):
+        try:
+            with open(log_file, 'r', encoding='utf-8', errors='ignore') as lf:
+                lines = lf.readlines()
+                last_log = "".join(lines[-4:]).strip()
+        except Exception:
+            pass
+
+    diag = []
+    diag.append(f"Node: {'OK' if node_bin else 'Tidak Ditemukan'}")
+    diag.append(f"PM2: {'OK' if pm2_bin else 'Tidak Ditemukan'}")
+    if pm2_error_msg:
+        diag.append(f"PM2 Err: {pm2_error_msg[:60]}")
+    if last_log:
+        diag.append(f"Log: {last_log[:80]}")
+
+    detail = " | ".join(diag)
+    return False, f"Mesin belum merespons di port 3000 ({detail}). Silakan jalankan 'bash wa_bot/setup_pm2.sh' di terminal VPS."
 
 
 @admin_bp.route('/wa_pairing', methods=['POST'])
@@ -801,7 +916,7 @@ def wa_pairing():
             else:
                 return jsonify({
                     'status': 'error',
-                    'message': 'Gagal menghubungi Mesin Node.js di port 3000. Klik tombol "Nyalakan / Restart Mesin" atau jalankan "bash wa_bot/setup_pm2.sh" di VPS.'
+                    'message': f'Gagal menghubungi Mesin Node.js: {msg}'
                 })
         
     except Exception as e:
@@ -841,6 +956,72 @@ def wa_reset_session():
     return jsonify({
         'status': 'success',
         'message': 'Sesi WhatsApp berhasil dibersihkan & mesin direstart. Silakan masukkan nomor dan minta kode pairing baru.'
+    })
+
+
+@admin_bp.route('/wa_diagnostics', methods=['GET'])
+def wa_diagnostics():
+    from flask import jsonify
+    import os, requests, subprocess
+    
+    base_dir = os.path.abspath(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+    wa_bot_dir = os.path.join(base_dir, 'wa_bot')
+    log_file = os.path.join(base_dir, 'storage', 'logs', 'wa_bot.log')
+    
+    node_bin = _find_executable('node')
+    npm_bin = _find_executable('npm')
+    pm2_bin = _find_executable('pm2')
+    
+    node_ver = None
+    if node_bin:
+        try:
+            node_ver = subprocess.run([node_bin, '-v'], capture_output=True, text=True, timeout=3).stdout.strip()
+        except Exception:
+            pass
+            
+    pm2_ver = None
+    if pm2_bin:
+        try:
+            pm2_ver = subprocess.run([pm2_bin, '-v'], capture_output=True, text=True, timeout=3).stdout.strip()
+        except Exception:
+            pass
+
+    port_status = False
+    port_resp = None
+    for host in ['127.0.0.1', 'localhost']:
+        try:
+            r = requests.get(f'http://{host}:3000/api/status', timeout=2)
+            if r.status_code == 200:
+                port_status = True
+                port_resp = r.json()
+                break
+        except Exception as e:
+            port_resp = {'error': str(e)}
+
+    node_modules_ok = os.path.exists(os.path.join(wa_bot_dir, 'node_modules', '@whiskeysockets', 'baileys'))
+    
+    log_tail = ""
+    if os.path.exists(log_file):
+        try:
+            with open(log_file, 'r', encoding='utf-8', errors='ignore') as f:
+                lines = f.readlines()
+                log_tail = "".join(lines[-10:])
+        except Exception:
+            pass
+
+    return jsonify({
+        'status': 'success',
+        'diagnostics': {
+            'node_path': node_bin,
+            'node_version': node_ver,
+            'npm_path': npm_bin,
+            'pm2_path': pm2_bin,
+            'pm2_version': pm2_ver,
+            'node_modules_installed': node_modules_ok,
+            'port_3000_listening': port_status,
+            'port_3000_data': port_resp,
+            'log_tail': log_tail
+        }
     })
 
 

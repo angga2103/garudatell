@@ -6,6 +6,7 @@
     <title>Garudatel - Admin Panel</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         :root { --admin-dark: #1E293B; --admin-card: #FFFFFF; --admin-bg: #F1F5F9; --teal-main: #3A827F; --text-dark: #334155; --text-muted: #64748B; --border-color: #E2E8F0; }
         body { background-color: var(--admin-bg); margin: 0; font-family: 'Nunito', sans-serif; }
@@ -419,9 +420,12 @@
                         <span id="wa-status-badge" style="background: #ef4444; color: white; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; display: inline-block;">
                             <i class="fas fa-circle" style="font-size: 8px; margin-right: 4px;"></i> Disconnected
                         </span>
-                        <div style="display: flex; gap: 6px;">
+                        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
                             <button type="button" onclick="restartWaBot()" id="btn-restart-wa" title="Nyalakan atau restart worker PM2 Node.js" style="background: #3b82f6; color: white; font-size: 11px; padding: 5px 10px; border-radius: 4px; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
                                 <i class="fas fa-sync-alt"></i> Nyalakan / Restart Mesin
+                            </button>
+                            <button type="button" onclick="showWaDiagnostics()" id="btn-diag-wa" title="Cek status teknis Node.js, PM2, dan port 3000" style="background: #0ea5e9; color: white; font-size: 11px; padding: 5px 10px; border-radius: 4px; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+                                <i class="fas fa-stethoscope"></i> Diagnostik Mesin
                             </button>
                             <button type="button" onclick="resetWaSession()" id="btn-reset-wa" title="Hapus sesi lama untuk ganti nomor WA" style="background: #64748b; color: white; font-size: 11px; padding: 5px 10px; border-radius: 4px; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
                                 <i class="fas fa-trash-alt"></i> Reset Sesi
@@ -458,7 +462,7 @@
                     toast.style.color = '#991b1b';
                     toast.style.border = '1px solid #ef4444';
                 }
-                setTimeout(() => { toast.style.display = 'none'; }, 4000);
+                setTimeout(() => { toast.style.display = 'none'; }, 6000);
             }
 
             function checkBotStatus() {
@@ -481,7 +485,7 @@
             function restartWaBot() {
                 const btn = document.getElementById('btn-restart-wa');
                 const orig = btn.innerHTML;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Merestart...';
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memeriksa & Menyalakan...';
                 btn.disabled = true;
                 
                 fetch('/admin/wa_restart', {
@@ -495,12 +499,116 @@
                         setTimeout(checkBotStatus, 1500);
                     } else {
                         showCustomNotification('⚠️ ' + data.message, 'error');
+                        if (window.Swal) {
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'Mesin Belum Merespons',
+                                html: `
+                                    <div style="text-align: left; font-size: 12px; line-height: 1.6; color: #334155;">
+                                        <p style="margin-bottom: 8px;"><b>Detail:</b> ${data.message}</p>
+                                        <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; margin-top: 10px;">
+                                            <div style="font-weight: bold; color: #0f172a; margin-bottom: 4px;"><i class="fas fa-terminal"></i> Solusi 1-Klik Setup di Terminal VPS:</div>
+                                            <div style="font-size: 11px; background: #1e293b; color: #38bdf8; padding: 8px; border-radius: 4px; font-family: monospace; word-break: break-all; user-select: all;">
+                                                cd /root/garudatel_v2/wa_bot && bash setup_pm2.sh
+                                            </div>
+                                            <div style="font-size: 10px; color: #64748b; margin-top: 4px;">Jalankan perintah di atas melalui SSH terminal VPS Anda untuk memasang Node.js & PM2 secara otomatis.</div>
+                                        </div>
+                                    </div>
+                                `,
+                                confirmButtonText: '<i class="fas fa-stethoscope"></i> Cek Diagnostik Lengkap',
+                                showCancelButton: true,
+                                cancelButtonText: 'Tutup',
+                                confirmButtonColor: '#0ea5e9'
+                            }).then((res) => {
+                                if (res.isConfirmed) {
+                                    showWaDiagnostics();
+                                }
+                            });
+                        }
                     }
                 })
                 .catch(() => showCustomNotification('🚨 Gagal menghubungi server', 'error'))
                 .finally(() => {
                     btn.innerHTML = orig;
                     btn.disabled = false;
+                });
+            }
+
+            function showWaDiagnostics() {
+                const btn = document.getElementById('btn-diag-wa');
+                const orig = btn ? btn.innerHTML : '';
+                if (btn) {
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cek...';
+                    btn.disabled = true;
+                }
+
+                fetch('/admin/wa_diagnostics')
+                .then(r => r.json())
+                .then(data => {
+                    const d = data.diagnostics || {};
+                    let infoHtml = `
+                    <div style="text-align: left; font-size: 12px; line-height: 1.6; color: #334155;">
+                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px;">
+                            <tr style="border-bottom: 1px solid #e2e8f0;">
+                                <td style="padding: 6px 0; font-weight: bold; width: 40%;">Status Port 3000:</td>
+                                <td style="padding: 6px 0;">${d.port_3000_listening ? '<span style="color:#16a34a; font-weight:bold;"><i class="fas fa-check-circle"></i> MENDENGARKAN (AKTIF)</span>' : '<span style="color:#dc2626; font-weight:bold;"><i class="fas fa-times-circle"></i> TIDAK MERESPONS</span>'}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #e2e8f0;">
+                                <td style="padding: 6px 0; font-weight: bold;">Node.js:</td>
+                                <td style="padding: 6px 0;">${d.node_path ? '<span style="color:#16a34a;"><b>' + (d.node_version || 'OK') + '</b> (' + d.node_path + ')</span>' : '<span style="color:#dc2626; font-weight:bold;">❌ Belum Terinstall di VPS</span>'}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #e2e8f0;">
+                                <td style="padding: 6px 0; font-weight: bold;">PM2 Process Manager:</td>
+                                <td style="padding: 6px 0;">${d.pm2_path ? '<span style="color:#16a34a;"><b>' + (d.pm2_version || 'OK') + '</b> (' + d.pm2_path + ')</span>' : '<span style="color:#eab308; font-weight:bold;">⚠️ Belum Terinstall di VPS</span>'}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #e2e8f0;">
+                                <td style="padding: 6px 0; font-weight: bold;">Dependensi Baileys:</td>
+                                <td style="padding: 6px 0;">${d.node_modules_installed ? '<span style="color:#16a34a;"><i class="fas fa-check"></i> Terpasang Lengkap</span>' : '<span style="color:#dc2626;">❌ Belum Lengkap (Perlu npm install)</span>'}</td>
+                            </tr>
+                        </table>
+                    `;
+
+                    if (!d.port_3000_listening || !d.node_path || !d.pm2_path) {
+                        infoHtml += `
+                        <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; margin-top: 10px;">
+                            <div style="font-weight: bold; color: #0f172a; margin-bottom: 4px;"><i class="fas fa-terminal"></i> Perintah Setup Otomatis di Terminal VPS:</div>
+                            <div style="font-size: 11px; background: #1e293b; color: #38bdf8; padding: 8px; border-radius: 4px; font-family: monospace; word-break: break-all; user-select: all;">
+                                cd /root/garudatel_v2/wa_bot && bash setup_pm2.sh
+                            </div>
+                            <div style="font-size: 10px; color: #64748b; margin-top: 4px;">Salin perintah di atas dan jalankan pada terminal SSH VPS Anda untuk auto-install Node.js, PM2, dan Baileys.</div>
+                        </div>
+                        `;
+                    }
+
+                    if (d.log_tail) {
+                        infoHtml += `
+                        <div style="margin-top: 10px;">
+                            <div style="font-weight: bold; font-size: 11px; color: #475569;">Log Terakhir (wa_bot.log):</div>
+                            <pre style="background: #0f172a; color: #e2e8f0; font-size: 10px; padding: 8px; border-radius: 4px; max-height: 100px; overflow-y: auto; text-align: left; white-space: pre-wrap;">${d.log_tail}</pre>
+                        </div>
+                        `;
+                    }
+
+                    infoHtml += `</div>`;
+
+                    if (window.Swal) {
+                        Swal.fire({
+                            title: '<i class="fas fa-stethoscope"></i> Diagnostik Mesin WhatsApp Bot',
+                            html: infoHtml,
+                            width: 600,
+                            confirmButtonText: 'Tutup',
+                            confirmButtonColor: '#0ea5e9'
+                        });
+                    } else {
+                        alert('Status Port 3000: ' + (d.port_3000_listening ? 'Aktif' : 'Offline') + '\nNode.js: ' + (d.node_path || 'Tidak ada') + '\nPM2: ' + (d.pm2_path || 'Tidak ada'));
+                    }
+                })
+                .catch(() => showCustomNotification('🚨 Gagal mengambil data diagnostik server', 'error'))
+                .finally(() => {
+                    if (btn) {
+                        btn.innerHTML = orig;
+                        btn.disabled = false;
+                    }
                 });
             }
 
@@ -557,6 +665,31 @@
                         showCustomNotification('✅ Kode pairing dibuat!');
                     } else {
                         showCustomNotification('🚨 ' + data.message, 'error');
+                        if (window.Swal && data.message && data.message.includes('port 3000')) {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Gagal Menghubungkan ke Mesin Bot',
+                                html: `
+                                    <div style="text-align: left; font-size: 12px; line-height: 1.6; color: #334155;">
+                                        <p style="margin-bottom: 8px;">${data.message}</p>
+                                        <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; margin-top: 10px;">
+                                            <div style="font-weight: bold; color: #0f172a; margin-bottom: 4px;"><i class="fas fa-terminal"></i> Jalankan di Terminal VPS:</div>
+                                            <div style="font-size: 11px; background: #1e293b; color: #38bdf8; padding: 8px; border-radius: 4px; font-family: monospace; word-break: break-all; user-select: all;">
+                                                cd /root/garudatel_v2/wa_bot && bash setup_pm2.sh
+                                            </div>
+                                        </div>
+                                    </div>
+                                `,
+                                confirmButtonText: '<i class="fas fa-sync-alt"></i> Coba Nyalakan Mesin',
+                                showCancelButton: true,
+                                cancelButtonText: 'Tutup',
+                                confirmButtonColor: '#3b82f6'
+                            }).then((res) => {
+                                if (res.isConfirmed) {
+                                    restartWaBot();
+                                }
+                            });
+                        }
                     }
                 }).catch(() => showCustomNotification('🚨 Error jaringan.', 'error'))
                 .finally(() => { btn.innerHTML = originalText; btn.disabled = false; btn.style.opacity = '1'; });
