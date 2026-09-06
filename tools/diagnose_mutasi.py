@@ -5,6 +5,14 @@ import traceback
 BASE_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 sys.path.insert(0, BASE_DIR)
 
+# Auto re-exec using project venv if system python lacks flask
+venv_python = os.path.join(BASE_DIR, 'venv', 'bin', 'python')
+if os.path.exists(venv_python) and sys.executable != venv_python:
+    try:
+        import flask
+    except ImportError:
+        os.execv(venv_python, [venv_python] + sys.argv)
+
 print("=" * 70)
 print("   DIAGNOSTIK SISTEM MUTASI SALDO GARUDATEL (VPS SCAN)")
 print("=" * 70)
@@ -90,3 +98,4 @@ else:
 print("\n" + "=" * 70)
 print("   DIAGNOSTIK SELESAI")
 print("=" * 70)
+
