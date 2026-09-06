@@ -379,7 +379,10 @@ def get_admin_inline_keyboard():
                 {"text": "💾 Backup DB Sekarang", "callback_data": "cmd_backup"}
             ],
             [
-                {"text": "🩺 Status Sistem VPS", "callback_data": "cmd_system"},
+                {"text": "📱 Status / Pairing WA", "callback_data": "cmd_wa_status"},
+                {"text": "🩺 Status Sistem VPS", "callback_data": "cmd_system"}
+            ],
+            [
                 {"text": "🔄 Refresh Menu", "callback_data": "cmd_menu"}
             ]
         ]
@@ -635,10 +638,58 @@ def handle_admin_callback(app, callback_query):
             )
             _edit_message(token, chat_id, message_id, text, get_back_button())
 
+        elif data == 'cmd_wa_status':
+            try:
+                res = requests.get('http://127.0.0.1:3000/api/status', timeout=5)
+                wa_data = res.json()
+                is_conn = wa_data.get('connected', False)
+                state = wa_data.get('state', 'unknown')
+                u_info = wa_data.get('user', {}) or {}
+                wa_phone = u_info.get('id', '').split(':')[0] if u_info else '-'
+                if is_conn:
+                    st_badge = "🟢 <b>TERHUBUNG (CONNECTED)</b>"
+                    detail = f"• <b>Nomor Bot:</b> <code>{wa_phone}</code>\n• <b>Status:</b> Siap Kirim OTP & Notifikasi"
+                    markup = {
+                        "inline_keyboard": [
+                            [{"text": "📱 Tautkan Nomor Baru", "callback_data": "cmd_pair_new"}],
+                            [{"text": "« Kembali ke Menu Utama", "callback_data": "cmd_menu"}]
+                        ]
+                    }
+                else:
+                    st_badge = "🔴 <b>TERPUTUS / BELUM TERTAUT</b>"
+                    detail = f"• <b>Status Soket:</b> <code>{state}</code>\n• Klik tombol di bawah untuk menautkan nomor WhatsApp bot Anda."
+                    markup = {
+                        "inline_keyboard": [
+                            [{"text": "📱 TAUTKAN NOMOR BARU", "callback_data": "cmd_pair_new"}],
+                            [{"text": "« Kembali ke Menu Utama", "callback_data": "cmd_menu"}]
+                        ]
+                    }
+                text = (
+                    f"📱 <b>STATUS BOT WHATSAPP (BAILEYS)</b>\n"
+                    f"━━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"Status: {st_badge}\n"
+                    f"{detail}\n"
+                    f"━━━━━━━━━━━━━━━━━━━━━━"
+                )
+            except Exception as e:
+                text = f"🚨 <b>Gagal menghubungi mesin Baileys di port 3000:</b>\n<code>{str(e)}</code>"
+                markup = get_back_button()
+            _edit_message(token, chat_id, message_id, text, markup)
+
+        elif data == 'cmd_pair_new':
+            text = (
+                "📲 <b>TAUTKAN NOMOR WHATSAPP BARU</b>\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n"
+                "Silakan ketik dan kirimkan nomor WhatsApp bot ke chat ini:\n\n"
+                "👉 Awali dengan <code>62</code>, contoh: <code>6281234567890</code>\n\n"
+                "Mesin Baileys akan menstabilkan socket dan memberikan 8 digit kode pairing."
+            )
+            _edit_message(token, chat_id, message_id, text, get_back_button())
+
 
 def handle_admin_message(app, message):
     """
-    Memproses perintah teks dari Admin di Bot 3 (seperti /start, /menu, /otp <nomor>).
+    Memproses perintah teks dari Admin di Bot 3 (seperti /start, /menu, /otp <nomor>, nomor WA pairing).
     """
     token, allowed_chat = get_bot_admin_credentials()
     if not token:
@@ -650,6 +701,33 @@ def handle_admin_message(app, message):
     # Validasi otorisasi chat_id admin
     if allowed_chat and chat_id != str(allowed_chat):
         _send_message(token, chat_id, "⛔ <b>Akses Ditolak!</b>\nAkun Telegram Anda tidak terdaftar sebagai Admin GarudaTel.")
+        return
+
+    # Tangkap balasan nomor telepon untuk pairing WhatsApp (awalan 62 dan panjang 10-16 digit)
+    clean_digits = ''.join(c for c in text if c.isdigit())
+    if clean_digits.startswith('62') and 10 <= len(clean_digits) <= 16 and not text.startswith('/'):
+        _send_message(token, chat_id, f"⏳ <i>Sedang memproses Pairing Code untuk nomor <code>{clean_digits}</code>... Harap tunggu 3 detik untuk menstabilkan soket WhatsApp...</i>")
+        try:
+            res = requests.post('http://127.0.0.1:3000/api/pair', json={'number': clean_digits}, timeout=35)
+            res_data = res.json()
+            if res_data.get('status') == 'success':
+                p_code = res_data.get('code')
+                reply = (
+                    f"🔗 <b>KODE PAIRING WHATSAPP:</b>\n"
+                    f"━━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"🔑 <code>{p_code}</code>\n"
+                    f"━━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"📌 <b>Langkah Tautkan di HP:</b>\n"
+                    f"1. Buka WhatsApp di HP Anda\n"
+                    f"2. Buka menu titik tiga ➜ <b>Perangkat Tertaut</b>\n"
+                    f"3. Pilih <b>Tautkan Perangkat</b> ➜ <b>Tautkan dengan nomor telepon saja</b>\n"
+                    f"4. Masukkan kode 8 digit di atas."
+                )
+                _send_message(token, chat_id, reply)
+            else:
+                _send_message(token, chat_id, f"🚨 <b>Gagal meminta kode pairing:</b> {res_data.get('message', 'Terjadi kendala soket')}")
+        except Exception as e:
+            _send_message(token, chat_id, f"🚨 <b>Gagal menghubungi mesin WhatsApp (port 3000):</b> {str(e)}")
         return
 
     # Perintah /otp <nomor> (Fitur Bantuan OTP Darurat)

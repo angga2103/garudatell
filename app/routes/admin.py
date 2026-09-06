@@ -902,14 +902,14 @@ def wa_pairing():
             
         # Mengirim sinyal ke Mesin Baileys Node.js
         try:
-            response = requests.post('http://127.0.0.1:3000/api/pair', json={'number': bot_number}, timeout=15)
+            response = requests.post('http://127.0.0.1:3000/api/pair', json={'number': bot_number}, timeout=30)
             return jsonify(response.json())
         except requests.exceptions.RequestException:
             # Jika port 3000 belum menyala, coba auto-recovery
             ok, msg = _ensure_wa_bot_running()
             if ok:
                 try:
-                    response = requests.post('http://127.0.0.1:3000/api/pair', json={'number': bot_number}, timeout=15)
+                    response = requests.post('http://127.0.0.1:3000/api/pair', json={'number': bot_number}, timeout=30)
                     return jsonify(response.json())
                 except Exception as ex:
                     return jsonify({'status': 'error', 'message': f'Mesin dinyalakan namun pairing gagal: {ex}'})
