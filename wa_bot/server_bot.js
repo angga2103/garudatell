@@ -10,6 +10,7 @@ const {
 const pino = require('pino');
 const path = require('path');
 const fs = require('fs');
+const QRCode = require('qrcode');
 
 const app = express();
 app.use(express.json());
@@ -26,6 +27,7 @@ let sock = null;
 let isConnecting = false;
 let connectionState = 'close'; // 'close' | 'connecting' | 'open'
 let reconnectTimer = null;
+let currentQrCode = null; // Base64 Data URL untuk QR Code
 const authFolder = path.join(__dirname, 'auth_info_baileys');
 
 // Fungsi pembantu untuk cek apakah auth directory memiliki sesi aktif yang sudah terdaftar
@@ -38,6 +40,24 @@ function isSessionRegistered() {
         }
     } catch (e) {}
     return false;
+}
+
+// Membersihkan creds.me yang unverified agar saat reconnect tidak memicu "401 Connection Failure"
+function sanitizeUnverifiedCreds() {
+    try {
+        const credsPath = path.join(authFolder, 'creds.json');
+        if (fs.existsSync(credsPath)) {
+            const creds = JSON.parse(fs.readFileSync(credsPath, 'utf8'));
+            if (!creds.registered && creds.me) {
+                console.log('[WA BOT] Membersihkan creds.me yang belum terdaftar sebelum menghubungkan ke Meta...');
+                delete creds.me;
+                delete creds.pairingCode;
+                fs.writeFileSync(credsPath, JSON.stringify(creds, null, 2));
+            }
+        }
+    } catch (e) {
+        console.error('[WA BOT] Gagal sanitize unverified creds:', e);
+    }
 }
 
 // Membersihkan sesi
@@ -56,6 +76,7 @@ function cleanAuthFolder() {
             fs.rmSync(authFolder, { recursive: true, force: true });
         }
         connectionState = 'close';
+        currentQrCode = null;
         console.log('[WA BOT] Direktori auth_info_baileys telah dibersihkan.');
     } catch (err) {
         console.error('[WA BOT] Gagal membersihkan folder auth:', err);
@@ -80,7 +101,7 @@ async function getValidWaVersion() {
     } catch (e) {}
 
     // 3. Fallback ke verified stable WA Web version
-    return [2, 3000, 1046909856];
+    return [2, 3000, 1046911082];
 }
 
 async function connectToWhatsApp() {
@@ -94,6 +115,11 @@ async function connectToWhatsApp() {
     try {
         if (!fs.existsSync(authFolder)) {
             fs.mkdirSync(authFolder, { recursive: true });
+        }
+
+        // Cegah Baileys login premature dengan nomor unverified yang memicu 401
+        if (!isSessionRegistered()) {
+            sanitizeUnverifiedCreds();
         }
 
         const waVersion = await getValidWaVersion();
@@ -115,7 +141,8 @@ async function connectToWhatsApp() {
             logger: pino({ level: 'info' }),
             printQRInTerminal: false,
             auth: state,
-            browser: Browsers.ubuntu('Chrome'), // Standard canonical Ubuntu Chrome ['Ubuntu', 'Chrome', '22.04.4']
+            browser: Browsers.macOS('Desktop'), // Browser macOS Desktop memiliki trust level tertinggi di Meta Multi-Device
+            qrTimeout: 300000, // 5 menit per siklus QR agar tidak cepat timeout 408
             markOnlineOnConnect: false,
             generateHighQualityLinkPreview: false,
             syncFullHistory: false
@@ -123,19 +150,28 @@ async function connectToWhatsApp() {
 
         sock.ev.on('creds.update', saveCreds);
 
-        sock.ev.on('connection.update', (update) => {
-            const { connection, lastDisconnect } = update;
+        sock.ev.on('connection.update', async (update) => {
+            const { connection, lastDisconnect, qr } = update;
             if (connection) {
                 connectionState = connection;
             }
 
+            if (qr) {
+                try {
+                    currentQrCode = await QRCode.toDataURL(qr, { margin: 2, scale: 6 });
+                    console.log('[WA BOT] 📲 Kode QR baru siap discan di Admin Panel!');
+                } catch (err) {
+                    console.error('[WA BOT] Gagal render QR Code:', err);
+                }
+            }
+
             if (connection === 'close') {
                 const statusCode = lastDisconnect?.error?.output?.statusCode;
-                const isLoggedOut = statusCode === DisconnectReason.loggedOut || statusCode === 401;
+                const isLoggedOut = (statusCode === DisconnectReason.loggedOut || statusCode === 401) && isSessionRegistered();
                 console.log(`[WA BOT] ⚠️ Koneksi terputus. Status Code: ${statusCode} (${lastDisconnect?.error?.message || 'Tanpa pesan'}). Sesi Keluar: ${isLoggedOut}`);
 
                 if (isLoggedOut) {
-                    console.log('[WA BOT] 🚨 Sesi WhatsApp telah Logout / Tidak Valid (401). Silakan klik Reset Sesi di Admin Panel.');
+                    console.log('[WA BOT] 🚨 Sesi WhatsApp telah Logout / Dikeluarkan dari HP. Membersihkan memori sesi...');
                     cleanAuthFolder();
                 } else if (statusCode === DisconnectReason.restartRequired || statusCode === 515) {
                     // KODE 515: WhatsApp Companion Registration Handshake meminta restart koneksi segera
@@ -155,6 +191,7 @@ async function connectToWhatsApp() {
                 }
             } else if (connection === 'open') {
                 console.log('✅ BOT WHATSAPP SUKSES TERSAMBUNG KE META!');
+                currentQrCode = null;
                 isConnecting = false;
             }
         });
@@ -176,6 +213,7 @@ app.get('/api/status', (req, res) => {
         connected: isConnected,
         state: connectionState,
         registered: isRegistered,
+        qr: isConnected ? null : currentQrCode,
         user: isConnected ? (sock?.user || null) : null
     });
 });
@@ -189,8 +227,18 @@ app.get('/api/health', (req, res) => {
         connected: isConnected,
         state: connectionState,
         registered: isRegistered,
+        qr: isConnected ? null : currentQrCode,
         uptime: process.uptime(),
         user: isConnected ? (sock?.user || null) : null
+    });
+});
+
+// Endpoint QR Code langsung
+app.get('/api/qr', (req, res) => {
+    res.json({
+        status: 'ok',
+        qr: currentQrCode,
+        connected: (connectionState === 'open') && isSessionRegistered()
     });
 });
 
@@ -283,4 +331,4 @@ app.post('/api/reset', async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
-app.listen(PORT, HOST, () => console.log(`🚀 Mesin Baileys V2.2 Aktif di http://${HOST}:${PORT}`));
+app.listen(PORT, HOST, () => console.log(`🚀 Mesin Baileys V2.3 Aktif di http://${HOST}:${PORT}`));

@@ -41,8 +41,8 @@ fi
 echo "[+] PM2 terdeteksi: $(pm2 -v) di $(which pm2)"
 
 # 4. Install dependencies wa_bot jika belum ada atau belum lengkap
-if [ ! -d "node_modules/@whiskeysockets/baileys" ] || [ ! -d "node_modules/express" ]; then
-    echo "[*] Menginstall dependensi (Baileys, Express, Pino)..."
+if [ ! -d "node_modules/@whiskeysockets/baileys" ] || [ ! -d "node_modules/express" ] || [ ! -d "node_modules/qrcode" ]; then
+    echo "[*] Menginstall dependensi (Baileys, Express, Pino, QRCode)..."
     npm install --omit=dev
 else
     echo "[+] Dependensi node_modules sudah lengkap."
