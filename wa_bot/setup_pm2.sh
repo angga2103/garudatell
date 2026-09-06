@@ -56,6 +56,10 @@ pm2 delete garudatel-wa-bot 2>/dev/null || true
 echo "[*] Menjalankan server_bot.js via PM2..."
 pm2 start server_bot.js --name garudatel-wa-bot --restart-delay=3000
 pm2 save
+# Konfigurasi auto-start PM2 saat VPS reboot
+echo "[*] Mengonfigurasi auto-startup PM2 saat reboot sistem..."
+pm2 startup systemd -u root --hp /root 2>/dev/null || pm2 startup 2>/dev/null || true
+pm2 save
 
 # 7. Verifikasi respon port 3000
 echo "[*] Menunggu inisialisasi socket port 3000..."

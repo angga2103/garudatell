@@ -295,10 +295,37 @@ ln -sf "$PROJECT_DIR/garudatell" /usr/local/bin/garudatell
 chmod +x /usr/local/bin/garudatell
 echo -e "${GREEN}[✔] Perintah global 'garudatell' siap digunakan dari terminal mana saja!${NC}"
 
+# 7. Setup & Aktivasi Otomatis Mesin Bot WhatsApp (Node.js + Baileys + PM2)
+echo ""
+echo -e "${YELLOW}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${YELLOW}${BOLD}  TAHAP 7: SETUP & AKTIVASI MESIN BOT WHATSAPP (NODE.JS + PM2)   ${NC}"
+echo -e "${YELLOW}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+if [ -f "$PROJECT_DIR/wa_bot/setup_pm2.sh" ]; then
+    chmod +x "$PROJECT_DIR/wa_bot/setup_pm2.sh"
+    echo -e "${BLUE}[*] Menjalankan installer otomatis mesin WhatsApp Bot...${NC}"
+    bash "$PROJECT_DIR/wa_bot/setup_pm2.sh" || {
+        echo -e "${YELLOW}[!] Setup PM2 otomatis menemui kendala, menjalankan fallback...${NC}"
+        if ! command -v node >/dev/null 2>&1; then
+            curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+            apt-get install -y nodejs
+        fi
+        if ! command -v pm2 >/dev/null 2>&1; then
+            npm install -g pm2
+        fi
+        cd "$PROJECT_DIR/wa_bot"
+        npm install --omit=dev || true
+        pm2 start server_bot.js --name garudatel-wa-bot --restart-delay=3000 || true
+        pm2 save || true
+        cd "$PROJECT_DIR"
+    }
+    echo -e "${GREEN}[✔] Mesin WhatsApp Bot (Baileys) aktif di background dan terdaftar di PM2.${NC}"
+fi
+
 # 8. Konfigurasi Cloudflare Zero Trust (Jika Token Diisi)
 echo ""
 echo -e "${YELLOW}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${YELLOW}${BOLD}  TAHAP 7: AKTIVASI CLOUDFLARE ZERO TRUST TUNNEL                 ${NC}"
+echo -e "${YELLOW}${BOLD}  TAHAP 8: AKTIVASI CLOUDFLARE ZERO TRUST TUNNEL                 ${NC}"
 echo -e "${YELLOW}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
 if [ -n "$CF_TOKEN" ]; then
@@ -351,6 +378,7 @@ else
 fi
 echo -e "  👤 Username Admin   : ${BOLD}admin${NC}"
 echo -e "  🔐 Password Admin   : ${BOLD}admin123${NC}"
+echo -e "  📱 Mesin WhatsApp   : ${GREEN}Port 3000 Aktif (PM2 - Siap Pairing)${NC}"
 echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 echo -e "${BOLD}LANGKAH BERIKUTNYA DI PANEL ADMIN:${NC}"
@@ -361,7 +389,7 @@ echo -e "   • ${CYAN}Digiflazz${NC}      : Username & API Key (Pulsa, PLN, Dat
 echo -e "   • ${CYAN}VIP-Reseller${NC}   : API ID & API Key (Top Up Games & Voucher)"
 echo -e "   • ${CYAN}Pakasir / PK${NC}   : Project & API Key (Payment Gateway QRIS)"
 echo -e "   • ${CYAN}Bot Telegram${NC}   : Token Bot 1 (CS), Bot 2 (Notif), Bot 3 (Admin)"
-echo -e "4. Hubungkan WhatsApp Bot melalui menu QR Code WhatsApp jika diperlukan."
+echo -e "4. Tautkan WhatsApp Bot: Masuk ke Dashboard Admin -> ketik nomor -> klik 'Minta Kode Pairing'."
 echo ""
 echo -e "${BOLD}MANAJEMEN SISTEM DENGAN PERINTAH GLOBAL CLI:${NC}"
 echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

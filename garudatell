@@ -78,7 +78,16 @@ show_header() {
         STATUS_CF="${YELLOW}● OFF / NOT FOUND${NC}"
     fi
 
-    echo -e "  🌐 ${BOLD}Server Web    :${NC} $STATUS_WEB  │  🤖 ${BOLD}Bot Admin :${NC} $STATUS_BOT  │  ☁️ ${BOLD}Tunnel :${NC} $STATUS_CF"
+    # Cek status cepat WhatsApp Bot (PM2 & Port 3000)
+    if command -v pm2 >/dev/null 2>&1 && pm2 list 2>/dev/null | grep -q "garudatel-wa-bot.*online"; then
+        STATUS_WA="${GREEN}● ACTIVE${NC}"
+    elif command -v curl >/dev/null 2>&1 && curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/api/health 2>/dev/null | grep -q "200"; then
+        STATUS_WA="${GREEN}● ONLINE${NC}"
+    else
+        STATUS_WA="${RED}● STOPPED${NC}"
+    fi
+
+    echo -e "  🌐 ${BOLD}Web Server :${NC} $STATUS_WEB  │  🤖 ${BOLD}Bot Admin :${NC} $STATUS_BOT  │  📱 ${BOLD}Bot WA :${NC} $STATUS_WA  │  ☁️ ${BOLD}Tunnel :${NC} $STATUS_CF"
     echo -e "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
 }
@@ -266,9 +275,69 @@ menu_cloudflare() {
     done
 }
 
-# 8. Cek Pembaruan (Update Repository)
+# 8. Manajemen Mesin WhatsApp Bot (PM2 + Baileys)
+menu_wa_bot() {
+    while true; do
+        show_header
+        echo -e "${CYAN}${BOLD}MANAJEMEN MESIN WHATSAPP BOT (BAILEYS + PM2)${NC}"
+        echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo -e "  ${BOLD}[1]${NC} Cek Status PM2 (pm2 status garudatel-wa-bot)"
+        echo -e "  ${BOLD}[2]${NC} Pantau Log Live (pm2 logs garudatel-wa-bot)"
+        echo -e "  ${BOLD}[3]${NC} Restart Mesin WhatsApp Bot (pm2 restart garudatel-wa-bot)"
+        echo -e "  ${BOLD}[4]${NC} Reset Sesi & Bersihkan Auth Lama"
+        echo -e "  ${BOLD}[5]${NC} Jalankan Ulang Setup Otomatis (setup_pm2.sh)"
+        echo -e "  ${BOLD}[0]${NC} Kembali ke Menu Utama"
+        echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        read -p ">> Masukkan pilihan [0-5]: " wa_choice
+
+        case $wa_choice in
+            1)
+                echo ""
+                pm2 status garudatel-wa-bot || pm2 status || true
+                pause
+                ;;
+            2)
+                echo ""
+                echo -e "${BLUE}[*] Membuka log live PM2 (Tekan Ctrl+C untuk kembali)...${NC}"
+                pm2 logs garudatel-wa-bot --lines 30 || true
+                pause
+                ;;
+            3)
+                echo ""
+                echo -e "${BLUE}[*] Merestart mesin WhatsApp Bot di PM2...${NC}"
+                pm2 restart garudatel-wa-bot || (cd "$PROJECT_DIR/wa_bot" && pm2 start server_bot.js --name garudatel-wa-bot --restart-delay=3000)
+                sleep 2
+                echo -e "${GREEN}[✔] Perintah restart selesai.${NC}"
+                pause
+                ;;
+            4)
+                echo ""
+                read -p "Yakin ingin menghapus sesi WhatsApp? Anda harus pairing ulang! (y/n): " ans
+                if [[ "$ans" =~ ^[Yy]$ ]]; then
+                    curl -s -X POST http://127.0.0.1:3000/api/reset >/dev/null 2>&1 || (rm -rf "$PROJECT_DIR/wa_bot/auth_info_baileys" && pm2 restart garudatel-wa-bot)
+                    echo -e "${GREEN}[✔] Sesi auth berhasil dibersihkan.${NC}"
+                fi
+                pause
+                ;;
+            5)
+                echo ""
+                bash "$PROJECT_DIR/wa_bot/setup_pm2.sh"
+                pause
+                ;;
+            0)
+                break
+                ;;
+            *)
+                echo -e "${RED}Pilihan tidak valid!${NC}"
+                sleep 1
+                ;;
+        esac
+    done
+}
+
+# 9. Cek Pembaruan (Update Repository)
 menu_check_update() {
-    echo -e "${CYAN}${BOLD}[8] CEK PEMBARUAN SISTEM (GIT REPOSITORY UPDATE)${NC}"
+    echo -e "${CYAN}${BOLD}[9] CEK PEMBARUAN SISTEM (GIT REPOSITORY UPDATE)${NC}"
     echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     cd "$PROJECT_DIR"
 
@@ -299,27 +368,35 @@ menu_check_update() {
         read -p ">> Ada pembaruan tersedia. Update sekarang? (Y/N): " do_update
         if [[ "$do_update" =~ ^[Yy]$ ]]; then
             echo ""
-            echo -e "${BLUE}[1/4] Mengambil pembaruan source code (git fetch & sync)...${NC}"
+            echo -e "${BLUE}[1/5] Mengambil pembaruan source code (git fetch & sync)...${NC}"
             # Bersihkan modifikasi lokal/line endings agar tidak menabrak merge conflict
             git stash 2>/dev/null || true
             git fetch origin "$CURRENT_BRANCH" 2>/dev/null || git fetch origin main 2>/dev/null || true
             git reset --hard "origin/$CURRENT_BRANCH" 2>/dev/null || git reset --hard origin/main 2>/dev/null || git pull origin main
 
-            echo -e "${BLUE}[2/4] Memeriksa & mengupgrade dependensi paket (requirements.txt)...${NC}"
+            echo -e "${BLUE}[2/5] Memeriksa & mengupgrade dependensi paket (requirements.txt)...${NC}"
             $PROJECT_DIR/venv/bin/pip install -r requirements.txt --upgrade --quiet 2>/dev/null || true
 
-            echo -e "${BLUE}[3/4] Menjalankan verifikasi database seeder...${NC}"
+            echo -e "${BLUE}[3/5] Menjalankan verifikasi database seeder...${NC}"
             $VENV_PYTHON "$PROJECT_DIR/tools/init_app.py" >/dev/null 2>&1 || true
 
-            echo -e "${BLUE}[4/4] Merestart layanan GarudaTel & Bot Admin...${NC}"
+            echo -e "${BLUE}[4/5] Merestart layanan GarudaTel & Bot Admin...${NC}"
             sudo systemctl restart garudatel 2>/dev/null || true
             sudo systemctl restart garudatel-bot-admin 2>/dev/null || true
+
+            if [ -d "$PROJECT_DIR/wa_bot" ]; then
+                echo -e "${BLUE}[5/5] Memeriksa dependensi & merestart mesin WhatsApp Bot (PM2)...${NC}"
+                cd "$PROJECT_DIR/wa_bot"
+                npm install --omit=dev --quiet 2>/dev/null || true
+                pm2 restart garudatel-wa-bot 2>/dev/null || pm2 start server_bot.js --name garudatel-wa-bot --restart-delay=3000 2>/dev/null || true
+                cd "$PROJECT_DIR"
+            fi
 
             UPDATED_HASH=$(git rev-parse HEAD 2>/dev/null)
             echo ""
             echo -e "${GREEN}${BOLD}🎉 PEMBARUAN SUKSES DIAPLIKASIKAN SECARA LENGKAP! 🚀${NC}"
             echo -e "Commit sekarang: ${YELLOW}${UPDATED_HASH:0:8}${NC}"
-            echo -e "Seluruh service telah berjalan dengan versi terbaru."
+            echo -e "Seluruh service (Web, Bot Admin Telegram, Bot WhatsApp PM2) telah berjalan dengan versi terbaru."
         else
             echo -e "${YELLOW}[!] Pembaruan ditunda oleh pengguna.${NC}"
         fi
@@ -337,29 +414,31 @@ while true; do
     echo -e "  ${BOLD}[2]${NC} Restart Server Web           ${BLUE}(sudo systemctl restart garudatel)${NC}"
     echo -e "  ${BOLD}[3]${NC} Pantau Log Error (Live)      ${BLUE}(tail -f storage/logs/error.log)${NC}"
     echo -e "  ${BOLD}[4]${NC} Cek Status Bot 3 Admin       ${BLUE}(sudo systemctl status garudatel-bot-admin)${NC}"
-    echo -e "  ${BOLD}[5]${NC} Backup Database Manual       ${BLUE}(Snapshot WAL SQLite -> Telegram)${NC}"
-    echo -e "  ${BOLD}[6]${NC} Pengujian Otomatis Sistem    ${BLUE}(Jalankan test_telegram_and_otp.py)${NC}"
-    echo -e "  ${BOLD}[7]${NC} Manajemen Cloudflare Tunnel  ${BLUE}(Status & Ganti Token Zero Trust)${NC}"
-    echo -e "  ${BOLD}[8]${NC} Cek Pembaruan (Git Update)   ${BLUE}(Git Fetch, Pull & Auto-Restart)${NC}"
+    echo -e "  ${BOLD}[5]${NC} Manajemen Bot WhatsApp (PM2) ${BLUE}(Status, Restart, Log Baileys)${NC}"
+    echo -e "  ${BOLD}[6]${NC} Backup Database Manual       ${BLUE}(Snapshot WAL SQLite -> Telegram)${NC}"
+    echo -e "  ${BOLD}[7]${NC} Pengujian Otomatis Sistem    ${BLUE}(Jalankan test_telegram_and_otp.py)${NC}"
+    echo -e "  ${BOLD}[8]${NC} Manajemen Cloudflare Tunnel  ${BLUE}(Status & Ganti Token Zero Trust)${NC}"
+    echo -e "  ${BOLD}[9]${NC} Cek Pembaruan (Git Update)   ${BLUE}(Git Fetch, Pull & Auto-Restart)${NC}"
     echo -e "  ${BOLD}[0]${NC} Keluar (Exit)"
     echo -e "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    read -p ">> Masukkan angka pilihan Anda [0-8]: " choice
+    read -p ">> Masukkan angka pilihan Anda [0-9]: " choice
 
     case $choice in
         1) menu_status_web ;;
         2) menu_restart_web ;;
         3) menu_tail_log ;;
         4) menu_status_bot ;;
-        5) menu_backup_db ;;
-        6) menu_run_tests ;;
-        7) menu_cloudflare ;;
-        8) menu_check_update ;;
+        5) menu_wa_bot ;;
+        6) menu_backup_db ;;
+        7) menu_run_tests ;;
+        8) menu_cloudflare ;;
+        9) menu_check_update ;;
         0) 
             echo -e "\n${GREEN}Terima kasih telah menggunakan GarudaTell CLI! Sampai jumpa.${NC}\n"
             exit 0
             ;;
         *)
-            echo -e "\n${RED}[!] Pilihan tidak valid, silakan masukkan angka 0 hingga 8.${NC}"
+            echo -e "\n${RED}[!] Pilihan tidak valid, silakan masukkan angka 0 hingga 9.${NC}"
             sleep 1
             ;;
     esac
