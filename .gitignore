@@ -82,3 +82,7 @@ wa_bot/auth_info_baileys/
 wa_bot/auth_info_baileys/*
 wa_bot_config.json
 
+# User Uploads
+app/static/uploads/*
+!app/static/uploads/.gitkeep
+

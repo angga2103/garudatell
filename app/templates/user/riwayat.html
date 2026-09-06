@@ -513,8 +513,12 @@
     }
 
     function bagikanStruk(refId, produk, tujuan, harga, sn, waktu, status) {
-        const text = 
-            `*STRUK TRANSAKSI GARUDATEL*\n` +
+        const storeName = {{ store.name|tojson }};
+        const footer = {{ store.receipt_footer|tojson }};
+        const waGroup = {{ (store.whatsapp_group or '')|tojson }};
+        
+        let text = 
+            `*STRUK TRANSAKSI ${storeName.toUpperCase()}*\n` +
             `--------------------------------\n` +
             `Status   : [ ${status} ]\n` +
             `No. Ref  : ${refId}\n` +
@@ -524,8 +528,10 @@
             `SN / Ket : ${sn}\n` +
             `Waktu    : ${waktu}\n` +
             `--------------------------------\n` +
-            `Terima kasih telah bertransaksi di GarudaTel!\n` +
-            `Layanan Pelanggan: 081775700114`;
+            `${footer}\n`;
+        if (waGroup) {
+            text += `Grup/Info: ${waGroup}\n`;
+        }
 
         const encoded = encodeURIComponent(text);
         window.location.href = `whatsapp://send?text=${encoded}`;

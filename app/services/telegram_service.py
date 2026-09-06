@@ -65,7 +65,12 @@ def send_cs_ticket(ticket, transaction=None):
     # Link direct WhatsApp
     wa_num = ticket.clean_phone_for_wa
     if wa_num:
-        lines.append(f"👉 <a href=\"https://wa.me/{wa_num}?text=Halo%20{ticket.user_name},%20terkait%20tiket%20bantuan%20{ticket.ticket_number}%20di%20GarudaTel:\">Klik untuk Balas via WhatsApp Pelapor</a>")
+        try:
+            from app.services.setting_service import get_store_name
+            s_name = get_store_name()
+        except Exception:
+            s_name = "GarudaTel"
+        lines.append(f"👉 <a href=\"https://wa.me/{wa_num}?text=Halo%20{ticket.user_name},%20terkait%20tiket%20bantuan%20{ticket.ticket_number}%20di%20{urllib.parse.quote(s_name)}:\">Klik untuk Balas via WhatsApp Pelapor</a>")
 
     full_text = "\n".join(lines)
 
@@ -119,13 +124,19 @@ def send_emergency_otp_request(phone, otp_code=None, user_name=None, action_type
     # Susun Teks Pesan WhatsApp jika kode OTP tersedia
     wa_direct_link = ""
     if otp_code:
+        try:
+            from app.services.setting_service import get_store_name
+            s_name = get_store_name()
+        except Exception:
+            s_name = "GarudaTel"
+
         wa_message = (
             f"Halo kak {display_name}!\n\n"
-            f"Berikut adalah *Kode OTP Darurat* Anda untuk akun GarudaTel:\n\n"
+            f"Berikut adalah *Kode OTP Darurat* Anda untuk akun {s_name}:\n\n"
             f"👉 *{otp_code}*\n\n"
             f"⚠️ *PENTING:* Kode OTP ini bersifat rahasia dan *HANYA BERLAKU {expiry_minutes} MENIT* "
             f"khusus untuk nomor ini ({clean_num}).\n\n"
-            f"Silakan masukkan kode pada formulir verifikasi Anda di website GarudaTel. Terima kasih!"
+            f"Silakan masukkan kode pada formulir verifikasi Anda di website {s_name}. Terima kasih!"
         )
         encoded_wa_msg = urllib.parse.quote(wa_message)
         wa_direct_link = f"https://wa.me/{clean_num}?text={encoded_wa_msg}"

@@ -22,6 +22,9 @@
         </div>
 
         <div style="display: flex; align-items: center; gap: 12px;">
+            <a href="{{ url_for('admin.store_settings') }}" title="Pengaturan Toko & Logo Struk" style="color:white; font-size:16px; text-decoration: none;">
+                <i class="fas fa-store"></i>
+            </a>
             <a href="{{ url_for('admin.otp_manual') }}" title="Pusat Bantuan OTP Manual" style="color:white; font-size:16px; position:relative; text-decoration: none;">
                 <i class="fas fa-shield-alt"></i>
                 {% if pending_otp_count and pending_otp_count > 0 %}

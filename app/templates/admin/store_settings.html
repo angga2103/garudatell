@@ -1,0 +1,359 @@
+{% extends "admin/layout.html" %}
+
+{% block page_css %}
+<style>
+    .store-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 20px;
+        margin-top: 15px;
+    }
+    @media (min-width: 900px) {
+        .store-grid {
+            grid-template-columns: 1.2fr 0.8fr;
+        }
+    }
+    
+    .card-box {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.04);
+        border: 1px solid #e2e8f0;
+    }
+    
+    .form-label {
+        font-size: 12px;
+        font-weight: 800;
+        color: #334155;
+        margin-bottom: 6px;
+        display: block;
+    }
+    
+    .form-input {
+        width: 100%;
+        padding: 12px 14px;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 700;
+        color: #1e293b;
+        background: #f8fafc;
+        box-sizing: border-box;
+        transition: 0.2s;
+        outline: none;
+    }
+    .form-input:focus {
+        border-color: #00877a;
+        background: #ffffff;
+        box-shadow: 0 0 0 3px rgba(0, 135, 122, 0.12);
+    }
+    
+    .logo-upload-area {
+        border: 2px dashed #cbd5e1;
+        border-radius: 14px;
+        padding: 20px;
+        text-align: center;
+        background: #f8fafc;
+        cursor: pointer;
+        transition: 0.2s;
+        position: relative;
+    }
+    .logo-upload-area:hover {
+        border-color: #00877a;
+        background: #f0fdfa;
+    }
+    
+    .btn-save-store {
+        background: #00877a;
+        color: white;
+        padding: 14px 20px;
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 800;
+        border: none;
+        cursor: pointer;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 4px 12px rgba(0, 135, 122, 0.25);
+        transition: 0.2s;
+    }
+    .btn-save-store:hover {
+        background: #006b5f;
+    }
+
+    /* SIMULASI STRUK THERMAL 58mm */
+    .thermal-receipt {
+        background: #fff;
+        width: 100%;
+        max-width: 290px;
+        margin: 0 auto;
+        padding: 20px 16px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+        border: 1px solid #e2e8f0;
+        font-family: 'Courier New', Courier, monospace;
+        color: #000;
+        font-size: 12px;
+        line-height: 1.4;
+        position: relative;
+    }
+    .thermal-receipt::before, .thermal-receipt::after {
+        content: "";
+        position: absolute;
+        left: 0; right: 0;
+        height: 6px;
+        background-size: 12px 6px;
+    }
+    .thermal-receipt::before {
+        top: -6px;
+        background-image: radial-gradient(circle at 6px 6px, transparent 6px, #fff 6px);
+    }
+    .thermal-receipt::after {
+        bottom: -6px;
+        background-image: radial-gradient(circle at 6px 0, transparent 6px, #fff 6px);
+    }
+    
+    .receipt-center { text-align: center; }
+    .receipt-bold { font-weight: bold; }
+    .receipt-title { font-size: 16px; font-weight: 900; letter-spacing: 0.5px; }
+    .receipt-divider { border-top: 1px dashed #000; margin: 8px 0; }
+    .receipt-row { display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 11px; }
+    .receipt-logo-preview {
+        max-width: 110px;
+        max-height: 60px;
+        object-fit: contain;
+        display: block;
+        margin: 0 auto 8px auto;
+        filter: grayscale(100%) contrast(150%);
+    }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div style="margin-bottom: 15px;">
+    <h2 style="font-size: 18px; font-weight: 900; color: #1e293b; margin: 0 0 6px 0;">
+        <i class="fas fa-store" style="color: #00877a;"></i> Profil Toko & Logo Struk Thermal
+    </h2>
+    <p style="font-size: 12px; color: #64748b; margin: 0;">
+        Sesuaikan nama toko, identitas brand, link grup WhatsApp, serta logo yang akan dicetak pada struk thermal Bluetooth.
+    </p>
+</div>
+
+<div class="store-grid">
+    <!-- KOLOM KIRI: FORM PENGATURAN -->
+    <div class="card-box">
+        <form action="{{ url_for('admin.store_settings') }}" method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
+            <div style="margin-bottom: 18px;">
+                <label class="form-label"><i class="fas fa-tag"></i> Nama Toko / Outlet</label>
+                <input type="text" name="store_name" id="inputStoreName" class="form-input" 
+                       value="{{ store.name }}" placeholder="Contoh: GarudaTel, Berkah Cell, dll." required>
+                <span style="font-size: 11px; color: #64748b;">*Nama ini otomatis tampil di web, notifikasi Bot WhatsApp OTP, Bot Telegram, dan struk.</span>
+            </div>
+            
+            <div style="margin-bottom: 18px;">
+                <label class="form-label"><i class="fas fa-quote-left"></i> Slogan / Tagline Toko</label>
+                <input type="text" name="store_tagline" id="inputStoreTagline" class="form-input" 
+                       value="{{ store.tagline }}" placeholder="Contoh: Platform PPOB & Top Up Terpercaya">
+            </div>
+
+            <div style="margin-bottom: 18px;">
+                <label class="form-label"><i class="fab fa-whatsapp"></i> Link Channel / Grup WhatsApp</label>
+                <input type="text" name="store_whatsapp_group" id="inputStoreWaGroup" class="form-input" 
+                       value="{{ store.whatsapp_group }}" placeholder="Contoh: https://chat.whatsapp.com/xxx atau 0812xxxx">
+                <span style="font-size: 11px; color: #64748b;">*Tautan grup/channel untuk dicantumkan pada informasi struk pelanggan.</span>
+            </div>
+
+            <div style="margin-bottom: 18px;">
+                <label class="form-label"><i class="fas fa-receipt"></i> Pesan Penutup Struk (Footer)</label>
+                <textarea name="receipt_footer" id="inputReceiptFooter" rows="2" class="form-input" 
+                          placeholder="Contoh: Terima kasih atas kepercayaan Anda!">{{ store.receipt_footer }}</textarea>
+            </div>
+
+            <div style="margin-bottom: 22px;">
+                <label class="form-label"><i class="fas fa-image"></i> Logo Toko (Khusus Struk Thermal & Web)</label>
+                
+                <div class="logo-upload-area" onclick="document.getElementById('fileLogoInput').click();">
+                    <input type="file" name="store_logo" id="fileLogoInput" accept="image/png, image/jpeg, image/webp" style="display: none;" onchange="handleLogoChange(event)">
+                    
+                    <div id="uploadPlaceholder" {% if store.logo_url %}style="display:none;"{% endif %}>
+                        <i class="fas fa-cloud-upload-alt" style="font-size: 32px; color: #00877a; margin-bottom: 8px;"></i>
+                        <div style="font-size: 13px; font-weight: 800; color: #334155;">Pilih atau Tarik Foto Logo ke Sini</div>
+                        <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Mendukung format PNG, JPG, WEBP (Maks. 2MB)</div>
+                    </div>
+
+                    <div id="previewUploadedBox" {% if not store.logo_url %}style="display:none;"{% endif %}>
+                        <img id="imgLogoPreview" src="{{ store.logo_url }}" alt="Logo Toko" style="max-width: 140px; max-height: 70px; object-fit: contain; margin-bottom: 8px;">
+                        <div style="font-size: 11px; color: #00877a; font-weight: 800;"><i class="fas fa-sync-alt"></i> Klik untuk mengganti logo</div>
+                    </div>
+                </div>
+
+                {% if store.logo_url %}
+                <div style="margin-top: 8px; text-align: right;">
+                    <button type="button" onclick="confirmDeleteLogo()" style="background: none; border: none; color: #ef4444; font-size: 12px; font-weight: 800; cursor: pointer;">
+                        <i class="fas fa-trash-alt"></i> Hapus Logo Toko
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+
+            <button type="submit" class="btn-save-store">
+                <i class="fas fa-save"></i> Simpan Pengaturan Toko
+            </button>
+        </form>
+
+        <form id="deleteLogoForm" action="{{ url_for('admin.store_settings_delete_logo') }}" method="POST" style="display: none;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        </form>
+    </div>
+
+    <!-- KOLOM KANAN: LIVE PREVIEW STRUK THERMAL 58mm -->
+    <div>
+        <div style="text-align: center; margin-bottom: 12px;">
+            <span style="background: #e2e8f0; color: #475569; font-size: 11px; font-weight: 900; padding: 4px 12px; border-radius: 20px; text-transform: uppercase;">
+                <i class="fas fa-print"></i> Live Preview Struk Thermal 58mm
+            </span>
+        </div>
+
+        <div class="thermal-receipt">
+            <!-- LOGO PREVIEW -->
+            <img id="thermalLogoImg" class="receipt-logo-preview" 
+                 src="{{ store.logo_url }}" 
+                 alt="Logo" {% if not store.logo_url %}style="display:none;"{% endif %}>
+
+            <!-- NAMA TOKO -->
+            <div class="receipt-center receipt-title" id="thermalStoreName">
+                {{ store.name|upper }}
+            </div>
+            
+            <!-- SLOGAN -->
+            <div class="receipt-center" style="font-size: 10px; margin-bottom: 4px;" id="thermalTagline">
+                {{ store.tagline }}
+            </div>
+
+            <!-- CHANNEL WA -->
+            <div class="receipt-center" style="font-size: 9px;" id="thermalWaGroup">
+                {% if store.whatsapp_group %}Grup WA: {{ store.whatsapp_group }}{% endif %}
+            </div>
+
+            <div class="receipt-divider"></div>
+
+            <div class="receipt-row">
+                <span>No. Ref :</span>
+                <span class="receipt-bold">GT-20260906-8891</span>
+            </div>
+            <div class="receipt-row">
+                <span>Waktu   :</span>
+                <span>06/09/2026 17:30</span>
+            </div>
+            <div class="receipt-row">
+                <span>Status  :</span>
+                <span class="receipt-bold">[ SUKSES ]</span>
+            </div>
+
+            <div class="receipt-divider"></div>
+
+            <div class="receipt-row">
+                <span class="receipt-bold">PRODUK :</span>
+                <span>PULSA TELKOMSEL 50.000</span>
+            </div>
+            <div class="receipt-row">
+                <span>TUJUAN :</span>
+                <span class="receipt-bold">081234567890</span>
+            </div>
+            <div class="receipt-row">
+                <span>SN     :</span>
+                <span style="font-size: 10px;">609060128941029</span>
+            </div>
+
+            <div class="receipt-divider"></div>
+
+            <div class="receipt-row" style="font-size: 13px; font-weight: bold;">
+                <span>TOTAL  :</span>
+                <span>Rp 51.500</span>
+            </div>
+
+            <div class="receipt-divider"></div>
+
+            <div class="receipt-center" style="font-size: 10px; margin-top: 6px;" id="thermalFooter">
+                {{ store.receipt_footer }}
+            </div>
+
+            <div class="receipt-center" style="font-size: 9px; margin-top: 6px; color: #555;">
+                ================================
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Live Synchronized Preview
+    const nameInput = document.getElementById('inputStoreName');
+    const taglineInput = document.getElementById('inputStoreTagline');
+    const waGroupInput = document.getElementById('inputStoreWaGroup');
+    const footerInput = document.getElementById('inputReceiptFooter');
+
+    const thermalName = document.getElementById('thermalStoreName');
+    const thermalTagline = document.getElementById('thermalTagline');
+    const thermalWaGroup = document.getElementById('thermalWaGroup');
+    const thermalFooter = document.getElementById('thermalFooter');
+
+    nameInput.addEventListener('input', function() {
+        thermalName.innerText = (this.value || 'NAMA TOKO').toUpperCase();
+    });
+
+    taglineInput.addEventListener('input', function() {
+        thermalTagline.innerText = this.value;
+    });
+
+    waGroupInput.addEventListener('input', function() {
+        thermalWaGroup.innerText = this.value ? ('Grup WA: ' + this.value) : '';
+    });
+
+    footerInput.addEventListener('input', function() {
+        thermalFooter.innerText = this.value || 'Terima kasih!';
+    });
+
+    // Preview File Logo
+    function handleLogoChange(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                // Tampilkan preview di form
+                document.getElementById('uploadPlaceholder').style.display = 'none';
+                document.getElementById('previewUploadedBox').style.display = 'block';
+                document.getElementById('imgLogoPreview').src = e.target.result;
+                
+                // Tampilkan di struk thermal
+                const thermalLogo = document.getElementById('thermalLogoImg');
+                thermalLogo.src = e.target.result;
+                thermalLogo.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    function confirmDeleteLogo() {
+        Swal.fire({
+            title: 'Hapus Logo Toko?',
+            text: 'Logo akan dihapus dan struk thermal akan menggunakan header teks standar.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Ya, Hapus Logo',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                document.getElementById('deleteLogoForm').submit();
+            }
+        });
+    }
+</script>
+{% endblock %}
+

@@ -1055,15 +1055,18 @@ def generate_otp_manual():
         if clean_num.startswith('0'):
             clean_num = '62' + clean_num[1:]
 
+        from app.services.setting_service import get_store_name
+        current_store = get_store_name()
+        
         # Susun pesan WhatsApp untuk user
         display_name = user_name or 'Pengguna / Calon Member'
         wa_message = (
             f"Halo kak {display_name}!\n\n"
-            f"Berikut adalah *Kode OTP Darurat* Anda untuk akun GarudaTel:\n\n"
+            f"Berikut adalah *Kode OTP Darurat* Anda untuk akun {current_store}:\n\n"
             f"👉 *{otp_code}*\n\n"
             f"⚠️ *PENTING:* Kode OTP ini bersifat rahasia dan *HANYA BERLAKU 10 MENIT* "
             f"khusus untuk nomor ini ({clean_num}).\n\n"
-            f"Silakan masukkan kode pada formulir verifikasi Anda di website GarudaTel. Terima kasih!"
+            f"Silakan masukkan kode pada formulir verifikasi Anda di website {current_store}. Terima kasih!"
         )
         wa_link = f"https://wa.me/{clean_num}?text={urllib.parse.quote(wa_message)}"
         
@@ -1149,13 +1152,16 @@ def otp_manual_approve():
         if clean_num.startswith('0'):
             clean_num = '62' + clean_num[1:]
             
+        from app.services.setting_service import get_store_name
+        current_store = get_store_name()
+        
         wa_message = (
             f"Halo kak {manual_req.name or 'Pelanggan'}!\n\n"
-            f"Permintaan bantuan OTP Anda telah *DISETUJUI* oleh Admin.\n"
+            f"Permintaan bantuan OTP Anda telah *DISETUJUI* oleh Admin {current_store}.\n"
             f"Berikut adalah Kode OTP Anda:\n\n"
             f"👉 *{otp_code}*\n\n"
             f"⚠️ *PENTING:* Kode ini berlaku selama *10 MENIT* khusus untuk nomor {clean_num}. "
-            f"Silakan masukkan pada form verifikasi Anda di website GarudaTel."
+            f"Silakan masukkan pada form verifikasi Anda di website {current_store}."
         )
         wa_link = f"https://wa.me/{clean_num}?text={urllib.parse.quote(wa_message)}"
         
@@ -1747,6 +1753,41 @@ def update_ticket_status(id):
     else:
         flash('Status tidak valid!', 'danger')
     return redirect(url_for('admin.tickets'))
+
+
+# =====================================================================
+# RUTE PENGATURAN PROFIL TOKO & UPLOAD LOGO STRUK THERMAL
+# =====================================================================
+@admin_bp.route('/store_settings', methods=['GET', 'POST'])
+def store_settings():
+    """Halaman Pengaturan Profil Toko Dinamis & Upload Logo Struk Thermal"""
+    from app.services.setting_service import get_store_settings, save_store_settings
+    
+    if request.method == 'POST':
+        logo_file = request.files.get('store_logo')
+        try:
+            save_store_settings(request.form, logo_file=logo_file)
+            flash('Pengaturan profil toko & logo berhasil disimpan!', 'success')
+        except Exception as e:
+            flash(f'Gagal menyimpan pengaturan toko: {str(e)}', 'danger')
+        return redirect(url_for('admin.store_settings'))
+        
+    store = get_store_settings()
+    return render_template('admin/store_settings.html', store=store, page_title='Pengaturan Toko & Logo Struk')
+
+
+@admin_bp.route('/store_settings/delete_logo', methods=['POST'])
+@csrf.exempt
+def store_settings_delete_logo():
+    """Menghapus logo toko dan kembali ke default"""
+    from app.services.setting_service import delete_store_logo
+    try:
+        delete_store_logo()
+        flash('Logo toko berhasil dihapus.', 'info')
+    except Exception as e:
+        flash(f'Gagal menghapus logo toko: {str(e)}', 'danger')
+    return redirect(url_for('admin.store_settings'))
+
 
 
 

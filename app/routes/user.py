@@ -666,7 +666,8 @@ def profil():
             db.session.commit()
             
             login_user(new_user, remember=True)
-            return jsonify({'status': 'success', 'message': 'Pendaftaran berhasil! Selamat datang di GarudaTel.'})
+            from app.services.setting_service import get_store_name
+            return jsonify({'status': 'success', 'message': f'Pendaftaran berhasil! Selamat datang di {get_store_name()}.'})
 
         # =====================================================================
         # 3. LOGIKA MASUK (LOGIN 2-STEP DENGAN OTP)
@@ -1440,9 +1441,11 @@ def deposit_manual_action():
     # Format URL WhatsApp konfirmasi
     user_name = getattr(current_user, 'name', 'Member')
     user_phone = getattr(current_user, 'phone', '-')
+    from app.services.setting_service import get_store_name
+    current_store = get_store_name()
     
     wa_message = (
-        f"Halo Admin GarudaTel, saya ingin konfirmasi deposit manual E-Wallet:\n\n"
+        f"Halo Admin {current_store}, saya ingin konfirmasi deposit manual E-Wallet:\n\n"
         f"• Nama Akun: {user_name}\n"
         f"• No. WhatsApp: {user_phone}\n"
         f"• Nominal Saldo: Rp {nominal:,.0f}\n"

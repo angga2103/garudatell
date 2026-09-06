@@ -36,6 +36,7 @@ Platform web modern untuk penjualan produk digital Pulsa, Paket Data, Token PLN,
 - **PM2 Process Manager**: Dikelola penuh dengan PM2 auto-recovery dan auto-start saat reboot server VPS (`pm2 startup` & `pm2 save`).
 
 ### 5. Keamanan & Keandalan Tingkat Tinggi
+- **Universal Manual OTP**: Solusi darurat jika SMS/WhatsApp gateway mengalami kendala. Admin dapat meng-generate OTP darurat 10-15 menit via Bot Telegram atau Dashboard Admin dengan tautan direct WhatsApp otomatis.
 - **Universal Manual OTP & Approval CS/Admin**: Solusi darurat jika bot WhatsApp offline/terputus. Tombol bantuan manual otomatis muncul di halaman login/daftar, permohonan diteruskan langsung ke Bot Telegram CS dan Panel Web Admin (`/admin/otp_manual`) dengan fitur persetujuan (Approve 10 menit + direct link WhatsApp), penolakan (Reject) disertai alasan, serta hak akses pemulihan (Unblock).
 - **Lupa Password Otomatis**: Fitur self-service pemulihan akun berbasis validasi silang Username & No. WhatsApp terdaftar dengan verifikasi OTP otomatis atau via bantuan manual.
 - **Proteksi Anti-Brute-Force OTP**: Batas maksimal 3 kali kesalahan input sebelum kode OTP dihanguskan secara permanen untuk mencegah eksploitasi brute-force.

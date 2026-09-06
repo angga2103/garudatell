@@ -298,10 +298,10 @@
                 <!-- Nav Back Bar -->
                 <div class="flex justify-between items-center mb-3">
                     <a href="/" class="flex items-center gap-2 text-white/95 hover:text-white font-bold text-xs transition">
-                        <i class="fas fa-arrow-left"></i><span>Kembali ke GarudaTel</span>
+                        <i class="fas fa-arrow-left"></i><span>Kembali ke Beranda</span>
                     </a>
                     <span class="bg-white/20 text-white text-[9px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider">
-                        <i class="fas fa-heart text-rose-300 mr-1"></i> GarudaTel Super-App
+                        <i class="fas fa-heart text-rose-300 mr-1"></i> Moeslem Tracker Pro
                     </span>
                 </div>
 
@@ -507,7 +507,7 @@
 
             <!-- Footer -->
             <div class="text-center py-6 border-t border-slate-200 dark:border-slate-700 mb-8">
-                <p class="text-[11px] text-slate-400 dark:text-slate-500 font-medium">GarudaTel Super-App • Moeslem Daily Tracker Pro</p>
+                <p class="text-[11px] text-slate-400 dark:text-slate-500 font-medium">Moeslem Daily Tracker Pro • Istiqomah Setiap Hari</p>
             </div>
         </div>
     </div>
@@ -1171,13 +1171,12 @@
             const percent = pEl ? pEl.innerText : '0%';
             const text = 
                 `*📊 LAPORAN MOESLEM DAILY TRACKER*\n` +
-                `GarudaTel Super-App\n` +
                 `------------------------------------\n` +
                 `👤 Nama             : ${appUserName}\n` +
                 `✨ Capaian Hari Ini : ${percent}\n` +
                 `🔥 Konsistensi      : ${streakValue} Hari Berturut-turut\n` +
                 `------------------------------------\n` +
-                `_Mari istiqomah dalam ibadah, kesehatan & akhlak bersama GarudaTel!_`;
+                `_Mari istiqomah dalam ibadah, kesehatan & akhlak setiap hari!_`;
 
             window.location.href = `whatsapp://send?text=${encodeURIComponent(text)}`;
         };
@@ -1292,7 +1291,7 @@
             if (uNameEl) uNameEl.innerText = appUserName;
             if (uBadgeEl) {
                 uBadgeEl.innerHTML = isGarudatelLoggedIn ?
-                    `<i class="fas fa-check-circle text-emerald-300 mr-1"></i>Akun GarudaTel (${appUserPhone})` :
+                    `<i class="fas fa-check-circle text-emerald-300 mr-1"></i>Akun Member (${appUserPhone})` :
                     `<i class="fas fa-user-clock text-amber-300 mr-1"></i>Mode Tamu (Mandiri)`;
             }
             if (uAvatarEl) {

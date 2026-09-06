@@ -121,6 +121,26 @@ def create_app():
         except Exception as e:
             app.logger.warning(f"Auto-migration failed: {e}")
 
+    # Pastikan direktori uploads untuk logo toko tersedia
+    uploads_dir = os.path.join(basedir, 'static', 'uploads')
+    os.makedirs(uploads_dir, exist_ok=True)
+
+    # Global Context Processor: Injeksi Pengaturan Toko Dinamis ke Seluruh Template Jinja2
+    @app.context_processor
+    def inject_store():
+        try:
+            from app.services.setting_service import get_store_settings
+            return dict(store=get_store_settings())
+        except Exception:
+            return dict(store={
+                'name': 'GarudaTel',
+                'tagline': 'Platform PPOB & Top Up Terpercaya',
+                'whatsapp_group': '',
+                'receipt_footer': 'Terima kasih atas kepercayaan Anda!',
+                'logo': '',
+                'logo_url': ''
+            })
+
     # Endpoint Healthcheck untuk Uptime Monitoring
     @app.route('/health', methods=['GET'])
     @app.route('/api/health', methods=['GET'])

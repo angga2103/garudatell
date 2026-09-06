@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Garudatel - Admin Panel</title>
+    <title>{{ store.name }} - Admin Panel</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -90,6 +90,7 @@
             <a href="{{ url_for('admin.notifications') }}" class="menu-item {% if request.endpoint == 'admin.notifications' %}active{% endif %}"><i class="fas fa-bell" style="color: #00877a;"></i><span>Notifikasi</span></a>
             <a href="{{ url_for('admin.tickets') }}" class="menu-item {% if request.endpoint == 'admin.tickets' %}active{% endif %}"><i class="fas fa-headset" style="color: #0284c7;"></i><span>Tiket CS</span></a>
             <a href="{{ url_for('admin.reports') }}" class="menu-item {% if request.endpoint == 'admin.reports' %}active{% endif %}"><i class="fas fa-chart-line"></i><span>Laporan</span></a>
+            <a href="{{ url_for('admin.store_settings') }}" class="menu-item {% if request.endpoint == 'admin.store_settings' %}active{% endif %}"><i class="fas fa-store" style="color: #0d9488;"></i><span>Profil Toko</span></a>
         </div>
 
         <div class="section-header"><i class="fas fa-plug"></i> Konfigurasi API & Gateway</div>

@@ -111,6 +111,142 @@
     .timer-box { background: #fffbeb; padding: 12px; border-radius: 14px; text-align: center; margin: 16px 0 0 0; border: 1px solid #fef3c7; }
     .timer-text { font-size: 11px; color: #92400e; font-weight: 800; margin-bottom: 4px; text-transform: uppercase; }
     .timer-countdown { font-size: 22px; font-weight: 900; color: #b45309; letter-spacing: 1px; }
+
+    /* THERMAL RECEIPT STYLES */
+    .thermal-box-wrapper {
+        margin-top: 24px;
+        padding-top: 20px;
+        border-top: 2px dashed #e2e8f0;
+    }
+    .thermal-receipt {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 18px 14px;
+        font-family: 'Courier New', Courier, monospace;
+        color: #0f172a;
+        font-size: 12px;
+        line-height: 1.4;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        max-width: 320px;
+        margin: 0 auto;
+    }
+    .receipt-center { text-align: center; }
+    .receipt-bold { font-weight: bold; }
+    .receipt-logo {
+        max-width: 100px;
+        max-height: 55px;
+        object-fit: contain;
+        display: block;
+        margin: 0 auto 6px auto;
+        filter: grayscale(100%) contrast(150%);
+    }
+    .receipt-divider {
+        border-top: 1px dashed #64748b;
+        margin: 8px 0;
+    }
+    .receipt-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 3px;
+        font-size: 11px;
+    }
+    
+    /* PRINT BUTTONS */
+    .btn-thermal-print {
+        background: #1e293b;
+        color: white;
+        padding: 12px 14px;
+        border-radius: 12px;
+        font-weight: 800;
+        font-size: 12px;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        flex: 1;
+        transition: 0.2s;
+        text-decoration: none;
+    }
+    .btn-thermal-print:hover { background: #0f172a; }
+
+    .btn-bluetooth-print {
+        background: #0284c7;
+        color: white;
+        padding: 12px 14px;
+        border-radius: 12px;
+        font-weight: 800;
+        font-size: 12px;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        flex: 1;
+        transition: 0.2s;
+    }
+    .btn-bluetooth-print:hover { background: #0369a1; }
+
+    .btn-wa-share {
+        background: #16a34a;
+        color: white;
+        padding: 12px 14px;
+        border-radius: 12px;
+        font-weight: 800;
+        font-size: 12px;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        flex: 1;
+        transition: 0.2s;
+        text-decoration: none;
+    }
+    .btn-wa-share:hover { background: #15803d; }
+
+    @media print {
+        body {
+            background: #ffffff !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        .inv-header, .action-btns, .print-actions-grid, .btn-secondary, .btn-primary, .bottom-nav, .fab-home, .qris-container, .detail-section, .price-row {
+            display: none !important;
+        }
+        .inv-card-wrapper {
+            margin: 0 !important;
+            padding: 0 !important;
+            max-width: 100% !important;
+        }
+        .inv-card {
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+        }
+        .thermal-box-wrapper {
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+            border-top: none !important;
+        }
+        .thermal-receipt {
+            border: none !important;
+            box-shadow: none !important;
+            width: 58mm !important;
+            max-width: 58mm !important;
+            padding: 2mm !important;
+            margin: 0 !important;
+            font-size: 10px !important;
+        }
+        @page {
+            size: 58mm auto;
+            margin: 0mm;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -235,7 +371,7 @@
             <div class="price-value">Rp {{ "{:,.0f}".format(trx.amount).replace(',', '.') }}</div>
         </div>
         
-        <!-- TOMBOL AKSI -->
+        <!-- TOMBOL AKSI UTAMA -->
         <div class="action-btns">
             {% if trx.payment_status == 'UNPAID' %}
                 <a href="/riwayat" class="btn-secondary">Batalkan</a>
@@ -245,7 +381,108 @@
                 <a href="/riwayat" class="btn-primary">Lihat Riwayat</a>
             {% endif %}
         </div>
-        
+
+        <!-- SECTION STRUK THERMAL BLUETOOTH -->
+        {% if trx.status == 'SUCCESS' or trx.payment_status == 'PAID' %}
+        <div class="thermal-box-wrapper" id="thermalBoxWrapper">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <span style="font-size: 12px; font-weight: 800; color: #475569; text-transform: uppercase;">
+                    <i class="fas fa-receipt" style="color: #00877a;"></i> Struk Thermal Bluetooth
+                </span>
+                <span style="background: #f1f5f9; color: #475569; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 6px;">
+                    Format 58mm POS
+                </span>
+            </div>
+
+            <!-- TAMPILAN FISIK STRUK THERMAL 58mm -->
+            <div class="thermal-receipt" id="printableReceipt">
+                {% if store.logo_url %}
+                <img src="{{ store.logo_url }}" alt="Logo Toko" class="receipt-logo" id="storeReceiptLogo">
+                {% endif %}
+                <div class="receipt-center receipt-bold" style="font-size: 15px; letter-spacing: 0.5px;">
+                    {{ store.name|upper }}
+                </div>
+                {% if store.tagline %}
+                <div class="receipt-center" style="font-size: 10px; color: #334155; margin-bottom: 2px;">
+                    {{ store.tagline }}
+                </div>
+                {% endif %}
+                {% if store.whatsapp_group %}
+                <div class="receipt-center" style="font-size: 9px; color: #475569;">
+                    Grup WA: {{ store.whatsapp_group }}
+                </div>
+                {% endif %}
+
+                <div class="receipt-divider"></div>
+
+                <div class="receipt-row">
+                    <span>No. Ref :</span>
+                    <span class="receipt-bold">{{ trx.ref_id }}</span>
+                </div>
+                <div class="receipt-row">
+                    <span>Waktu   :</span>
+                    <span>{{ trx.created_at_wib or 'Baru Saja' }}</span>
+                </div>
+                <div class="receipt-row">
+                    <span>Status  :</span>
+                    <span class="receipt-bold">[ BERHASIL ]</span>
+                </div>
+
+                <div class="receipt-divider"></div>
+
+                <div class="receipt-row">
+                    <span class="receipt-bold">PRODUK :</span>
+                    <span style="text-align: right; font-weight: 700;">{{ trx.product_name }}</span>
+                </div>
+                <div class="receipt-row">
+                    <span>TUJUAN :</span>
+                    <span class="receipt-bold">{{ trx.target_number }}</span>
+                </div>
+                {% if trx.sn %}
+                <div class="receipt-row">
+                    <span>SN     :</span>
+                    <span style="font-size: 9px; word-break: break-all; text-align: right;">{{ trx.sn }}</span>
+                </div>
+                {% endif %}
+
+                <div class="receipt-divider"></div>
+
+                <div class="receipt-row" style="font-size: 13px; font-weight: bold;">
+                    <span>TOTAL  :</span>
+                    <span>Rp {{ "{:,.0f}".format(trx.amount).replace(',', '.') }}</span>
+                </div>
+
+                <div class="receipt-divider"></div>
+
+                <div class="receipt-center" style="font-size: 9px; margin-top: 4px;">
+                    {{ store.receipt_footer }}
+                </div>
+                <div class="receipt-center" style="font-size: 8px; margin-top: 4px; color: #64748b;">
+                    ================================
+                </div>
+            </div>
+
+            <!-- OPSI CETAK STRUK THERMAL -->
+            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 16px;">
+                <div style="display: flex; gap: 8px;">
+                    <button type="button" class="btn-bluetooth-print" onclick="connectAndPrintBluetooth()" title="Hubungkan langsung ke Printer Bluetooth via Browser">
+                        <i class="fab fa-bluetooth-b"></i> Cetak Bluetooth
+                    </button>
+                    <button type="button" class="btn-thermal-print" onclick="window.print()" title="Cetak Roll Thermal 58mm / Simpan PDF">
+                        <i class="fas fa-print"></i> Cetak 58mm / PDF
+                    </button>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button type="button" class="btn-thermal-print" onclick="printViaRawBT()" style="background: #475569;" title="Cetak 1-Klik via Aplikasi RawBT Android">
+                        <i class="fas fa-mobile-alt"></i> Buka di RawBT POS
+                    </button>
+                    <button type="button" class="btn-wa-share" onclick="shareReceiptWhatsApp()" title="Kirim struk teks rapi ke WhatsApp Pembeli">
+                        <i class="fab fa-whatsapp"></i> Bagikan Struk WA
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 
@@ -318,5 +555,165 @@ function checkPaymentStatus() {
         });
 }
 {% endif %}
+
+// =========================================================================
+// FITUR CETAK STRUK THERMAL BLUETOOTH & RAWBT POS
+// =========================================================================
+
+// 1. Bagikan Struk Format Teks ke WhatsApp
+function shareReceiptWhatsApp() {
+    const storeName = {{ store.name|tojson }};
+    const tagline = {{ store.tagline|tojson }};
+    const refId = {{ trx.ref_id|tojson }};
+    const waktu = {{ (trx.created_at_wib or 'Baru Saja')|tojson }};
+    const produk = {{ trx.product_name|tojson }};
+    const tujuan = {{ trx.target_number|tojson }};
+    const sn = {{ (trx.sn or '-')|tojson }};
+    const harga = 'Rp ' + Number({{ trx.amount }}).toLocaleString('id-ID');
+    const footer = {{ store.receipt_footer|tojson }};
+    const waGroup = {{ (store.whatsapp_group or '')|tojson }};
+
+    let text = `*STRUK TRANSAKSI ${storeName.toUpperCase()}*\n`;
+    if (tagline) text += `${tagline}\n`;
+    if (waGroup) text += `Grup WA: ${waGroup}\n`;
+    text += `--------------------------------\n`;
+    text += `No. Ref  : ${refId}\n`;
+    text += `Waktu    : ${waktu}\n`;
+    text += `Status   : [ BERHASIL ]\n`;
+    text += `--------------------------------\n`;
+    text += `Produk   : ${produk}\n`;
+    text += `Tujuan   : ${tujuan}\n`;
+    text += `SN / Ket : ${sn}\n`;
+    text += `--------------------------------\n`;
+    text += `*TOTAL    : ${harga}*\n`;
+    text += `--------------------------------\n`;
+    text += `${footer}\n`;
+
+    window.location.href = `whatsapp://send?text=${encodeURIComponent(text)}`;
+}
+
+// 2. Kirim 1-Klik ke Aplikasi Android RawBT Printer
+function printViaRawBT() {
+    const storeName = {{ store.name|tojson }};
+    const refId = {{ trx.ref_id|tojson }};
+    const waktu = {{ (trx.created_at_wib or 'Baru Saja')|tojson }};
+    const produk = {{ trx.product_name|tojson }};
+    const tujuan = {{ trx.target_number|tojson }};
+    const sn = {{ (trx.sn or '-')|tojson }};
+    const harga = 'Rp ' + Number({{ trx.amount }}).toLocaleString('id-ID');
+    const footer = {{ store.receipt_footer|tojson }};
+
+    let text = `\x1b\x61\x01\x1b\x45\x01${storeName.toUpperCase()}\x1b\x45\x00\n`;
+    text += `--------------------------------\n`;
+    text += `\x1b\x61\x00No. Ref : ${refId}\n`;
+    text += `Waktu   : ${waktu}\n`;
+    text += `Status  : [ BERHASIL ]\n`;
+    text += `--------------------------------\n`;
+    text += `PRODUK  : ${produk}\n`;
+    text += `TUJUAN  : ${tujuan}\n`;
+    text += `SN      : ${sn}\n`;
+    text += `--------------------------------\n`;
+    text += `\x1b\x45\x01TOTAL   : ${harga}\x1b\x45\x00\n`;
+    text += `--------------------------------\n`;
+    text += `\x1b\x61\x01${footer}\n\n\n\n\n`;
+
+    try {
+        window.location.href = `rawbt:data:text/plain;base64,` + btoa(unescape(encodeURIComponent(text)));
+    } catch (e) {
+        window.print();
+    }
+}
+
+// 3. Web Bluetooth Direct Connect & Print ESC/POS
+async function connectAndPrintBluetooth() {
+    if (!navigator.bluetooth) {
+        alert('Browser Anda belum mendukung Web Bluetooth API secara langsung. Silakan gunakan tombol "Buka di RawBT POS" atau "Cetak 58mm / PDF".');
+        return;
+    }
+
+    try {
+        const device = await navigator.bluetooth.requestDevice({
+            acceptAllDevices: true,
+            optionalServices: [
+                '000018f0-0000-1000-8000-00805f9b34fb',
+                '0000ffe0-0000-1000-8000-00805f9b34fb',
+                '49535343-fe7d-4ae5-8fa9-9fafd205e455',
+                'e7810a71-73ae-499d-8c15-faa9aef0c3f2'
+            ]
+        });
+
+        if (!device || !device.gatt) {
+            alert('Perangkat Bluetooth tidak dipilih.');
+            return;
+        }
+
+        const server = await device.gatt.connect();
+        let targetChar = null;
+        const services = await server.getPrimaryServices();
+        for (const s of services) {
+            try {
+                const chars = await s.getCharacteristics();
+                for (const c of chars) {
+                    if (c.properties.write || c.properties.writeWithoutResponse) {
+                        targetChar = c;
+                        break;
+                    }
+                }
+            } catch (ex) {}
+            if (targetChar) break;
+        }
+
+        if (!targetChar) {
+            alert('Karakteristik printer tidak ditemukan pada perangkat Bluetooth ini.');
+            return;
+        }
+
+        const encoder = new TextEncoder();
+        let commands = [];
+        commands.push(0x1B, 0x40); // Init
+        commands.push(0x1B, 0x61, 0x01); // Center
+        commands.push(0x1B, 0x45, 0x01); // Bold ON
+        commands.push(...encoder.encode({{ store.name|tojson }}.toUpperCase() + '\n'));
+        commands.push(0x1B, 0x45, 0x00); // Bold OFF
+        {% if store.tagline %}
+        commands.push(...encoder.encode({{ store.tagline|tojson }} + '\n'));
+        {% endif %}
+        commands.push(...encoder.encode('--------------------------------\n'));
+        commands.push(0x1B, 0x61, 0x00); // Left
+        commands.push(...encoder.encode('No. Ref : ' + {{ trx.ref_id|tojson }} + '\n'));
+        commands.push(...encoder.encode('Waktu   : ' + {{ (trx.created_at_wib or 'Baru Saja')|tojson }} + '\n'));
+        commands.push(...encoder.encode('Status  : [ BERHASIL ]\n'));
+        commands.push(...encoder.encode('--------------------------------\n'));
+        commands.push(...encoder.encode('PRODUK  : ' + {{ trx.product_name|tojson }} + '\n'));
+        commands.push(...encoder.encode('TUJUAN  : ' + {{ trx.target_number|tojson }} + '\n'));
+        {% if trx.sn %}
+        commands.push(...encoder.encode('SN      : ' + {{ trx.sn|tojson }} + '\n'));
+        {% endif %}
+        commands.push(...encoder.encode('--------------------------------\n'));
+        commands.push(0x1B, 0x45, 0x01);
+        commands.push(...encoder.encode('TOTAL   : Rp ' + Number({{ trx.amount }}).toLocaleString('id-ID') + '\n'));
+        commands.push(0x1B, 0x45, 0x00);
+        commands.push(...encoder.encode('--------------------------------\n'));
+        commands.push(0x1B, 0x61, 0x01);
+        commands.push(...encoder.encode({{ store.receipt_footer|tojson }} + '\n\n\n\n'));
+
+        const u8 = new Uint8Array(commands);
+        const chunkSize = 100;
+        for (let i = 0; i < u8.length; i += chunkSize) {
+            const chunk = u8.slice(i, i + chunkSize);
+            if (targetChar.properties.write) {
+                await targetChar.writeValueWithResponse(chunk);
+            } else {
+                await targetChar.writeValueWithoutResponse(chunk);
+            }
+        }
+
+        alert('Struk berhasil dicetak ke printer Bluetooth!');
+    } catch (err) {
+        if (err.name !== 'NotFoundError') {
+            alert('Kendala koneksi Bluetooth: ' + err.message);
+        }
+    }
+}
 </script>
 {% endblock %}
