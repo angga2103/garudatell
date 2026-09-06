@@ -390,8 +390,10 @@
 
                     {% if t.sn %}
                     {% set is_failed = (s in ['FAILED', 'GAGAL', 'CANCELLED']) %}
-                    <div class="sn-box {% if is_failed %}sn-failed{% endif %}" onclick="copyText('{{ t.sn|format_sn }}')" title="Klik untuk salin {% if is_failed %}keterangan{% else %}SN{% endif %}">
-                        <span>{% if is_failed %}Keterangan: {% else %}SN: {% endif %}{{ t.sn|format_sn }}</span>
+                    {% set is_bal_err = ('saldo' in (t.sn|lower) or 'balance' in (t.sn|lower)) %}
+                    {% set display_sn = "Jalur operator sedang gangguan sementara. Saldo aman & telah direfund." if (is_failed and is_bal_err) else t.sn %}
+                    <div class="sn-box {% if is_failed %}sn-failed{% endif %}" onclick="copyText('{{ display_sn }}')" title="Klik untuk salin {% if is_failed %}keterangan{% else %}SN{% endif %}">
+                        <span>{% if is_failed %}Keterangan: {% else %}SN: {% endif %}{{ display_sn }}</span>
                         <i class="far fa-copy"></i>
                     </div>
                     {% endif %}

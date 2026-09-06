@@ -524,6 +524,13 @@ def invoice(ref_id):
     if not trx:
         return "Transaksi tidak ditemukan", 404
         
+    try:
+        from app.services.provider_helper import format_display_sn
+        if trx.sn and getattr(trx, 'status', '') in ['FAILED', 'CANCELLED', 'GAGAL']:
+            trx.sn = format_display_sn(trx.sn, trx.status)
+    except Exception:
+        pass
+
     return render_template('user/invoice.html', trx=trx)
 
 @trx_bp.route('/generate_qris/<ref_id>', methods=['GET'])

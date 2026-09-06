@@ -357,10 +357,13 @@
                 </span>
             </div>
             
-            {% if trx.sn %}
+            {% set is_trx_failed = (trx.status in ['FAILED', 'GAGAL', 'CANCELLED']) %}
+            {% set is_trx_bal_err = (trx.sn and ('saldo' in (trx.sn|lower) or 'balance' in (trx.sn|lower))) %}
+            {% set clean_trx_sn = "Jalur operator sedang gangguan sementara. Saldo aman & telah direfund." if (is_trx_failed and is_trx_bal_err) else (trx.sn or '') %}
+            {% if clean_trx_sn %}
             <div class="detail-row">
-                <span class="detail-label">{% if trx.status in ['FAILED', 'GAGAL', 'CANCELLED'] %}Keterangan{% else %}Serial Number (SN){% endif %}</span>
-                <span class="detail-value" style="font-size: 12px; word-break: break-all; color: #475569;">{{ trx.sn|format_sn }}</span>
+                <span class="detail-label">{% if is_trx_failed %}Keterangan{% else %}Serial Number (SN){% endif %}</span>
+                <span class="detail-value" style="font-size: 12px; word-break: break-all; color: #475569;">{{ clean_trx_sn }}</span>
             </div>
             {% endif %}
         </div>
@@ -438,10 +441,10 @@
                     <span>TUJUAN :</span>
                     <span class="receipt-bold">{{ trx.target_number }}</span>
                 </div>
-                {% if trx.sn %}
+                {% if clean_trx_sn %}
                 <div class="receipt-row">
-                    <span>{% if trx.status in ['FAILED', 'GAGAL', 'CANCELLED'] %}KET    :{% else %}SN     :{% endif %}</span>
-                    <span style="font-size: 9px; word-break: break-all; text-align: right;">{{ trx.sn|format_sn }}</span>
+                    <span>{% if is_trx_failed %}KET    :{% else %}SN     :{% endif %}</span>
+                    <span style="font-size: 9px; word-break: break-all; text-align: right;">{{ clean_trx_sn }}</span>
                 </div>
                 {% endif %}
 
@@ -568,7 +571,7 @@ function shareReceiptWhatsApp() {
     const waktu = {{ (trx.created_at_wib or 'Baru Saja')|tojson }};
     const produk = {{ trx.product_name|tojson }};
     const tujuan = {{ trx.target_number|tojson }};
-    const sn = {{ (trx.sn|format_sn or '-')|tojson }};
+    const sn = {{ (clean_trx_sn or '-')|tojson }};
     const harga = 'Rp ' + Number({{ trx.amount }}).toLocaleString('id-ID');
     const footer = {{ store.receipt_footer|tojson }};
     const waGroup = {{ (store.whatsapp_group or '')|tojson }};
@@ -599,7 +602,7 @@ function printViaRawBT() {
     const waktu = {{ (trx.created_at_wib or 'Baru Saja')|tojson }};
     const produk = {{ trx.product_name|tojson }};
     const tujuan = {{ trx.target_number|tojson }};
-    const sn = {{ (trx.sn|format_sn or '-')|tojson }};
+    const sn = {{ (clean_trx_sn or '-')|tojson }};
     const harga = 'Rp ' + Number({{ trx.amount }}).toLocaleString('id-ID');
     const footer = {{ store.receipt_footer|tojson }};
 
@@ -686,8 +689,8 @@ async function connectAndPrintBluetooth() {
         commands.push(...encoder.encode('--------------------------------\n'));
         commands.push(...encoder.encode('PRODUK  : ' + {{ trx.product_name|tojson }} + '\n'));
         commands.push(...encoder.encode('TUJUAN  : ' + {{ trx.target_number|tojson }} + '\n'));
-        {% if trx.sn %}
-        commands.push(...encoder.encode('{% if trx.status in ["FAILED", "GAGAL", "CANCELLED"] %}KET     : {% else %}SN      : {% endif %}' + {{ (trx.sn|format_sn)|tojson }} + '\n'));
+        {% if clean_trx_sn %}
+        commands.push(...encoder.encode('{% if is_trx_failed %}KET     : {% else %}SN      : {% endif %}' + {{ clean_trx_sn|tojson }} + '\n'));
         {% endif %}
         commands.push(...encoder.encode('--------------------------------\n'));
         commands.push(0x1B, 0x45, 0x01);

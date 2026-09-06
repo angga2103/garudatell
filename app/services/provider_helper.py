@@ -112,3 +112,4 @@ def format_display_sn(sn_val, status=None):
         return USER_FRIENDLY_SN_MSG
 
     return sn_val
+

@@ -496,6 +496,13 @@ def riwayat():
             print(f"[AUTO-SYNC RIWAYAT WARNING]: {sync_err}")
 
         transactions = query.order_by(Transaction.created_at.desc()).all()
+        try:
+            from app.services.provider_helper import format_display_sn
+            for t in transactions:
+                if t.sn and getattr(t, 'status', '') in ['FAILED', 'CANCELLED', 'GAGAL']:
+                    t.sn = format_display_sn(t.sn, t.status)
+        except Exception:
+            pass
         
         count_sukses = sum(1 for t in transactions if getattr(t, 'status', '') == 'SUCCESS')
         count_antri = sum(1 for t in transactions if getattr(t, 'status', '') in ['PENDING', 'UNPAID'])
