@@ -444,6 +444,12 @@
                 <div class="btn-group">
                     <button type="button" onclick="requestPairing()" id="btn-pairing" class="btn-save" style="background:#25D366; cursor:pointer; border:none;"><i class="fas fa-link"></i> Minta Kode Pairing</button>
                     <button type="button" onclick="testBot()" class="btn-test" style="cursor:pointer; border:none;"><i class="fas fa-paper-plane"></i> Tes</button>
+                    <a href="{{ url_for('admin.otp_manual') }}" class="btn-save" style="background:#f59e0b; color:white; text-decoration:none; display:inline-flex; align-items:center; justify-content:center; gap:6px; font-weight:800; font-size:12px;">
+                        <i class="fas fa-shield-alt"></i> Persetujuan OTP Manual
+                        {% if pending_otp_count and pending_otp_count > 0 %}
+                        <span style="background:#dc2626; color:white; padding:2px 6px; border-radius:10px; font-size:10px;">{{ pending_otp_count }} Baru</span>
+                        {% endif %}
+                    </a>
                 </div>
             </form>
         </div>

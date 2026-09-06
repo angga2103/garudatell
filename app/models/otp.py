@@ -13,6 +13,7 @@ class OtpCode(db.Model):
     password_hash = db.Column(db.String(255), nullable=True)
     expires_at = db.Column(db.Float, nullable=False)
     is_used = db.Column(db.Boolean, default=False)
+    attempts = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def is_expired(self, current_time=None):

@@ -1,7 +1,7 @@
 from flask import Flask, request
 from app.extensions import db, migrate, cache, csrf, limiter
 from dotenv import load_dotenv
-from sqlalchemy import event
+from sqlalchemy import event, inspect
 from sqlalchemy.engine import Engine
 import os
 import secrets
@@ -103,12 +103,23 @@ def create_app():
         endpoint_name = 'alias_' + path.replace('/', '_').strip('_')
         app.add_url_rule(path, endpoint=endpoint_name, view_func=handler, methods=['POST'])
 
-    # Daftarkan Alias Route AJAX Auth (/api/auth_ajax)
-    from app.routes.auth import auth_ajax
+    # Daftarkan Alias Route AJAX Auth (/api/auth_ajax & /api/check_wa_status)
+    from app.routes.auth import auth_ajax, check_wa_status
     app.add_url_rule('/api/auth_ajax', endpoint='alias_api_auth_ajax', view_func=auth_ajax, methods=['POST'])
+    app.add_url_rule('/api/check_wa_status', endpoint='alias_api_check_wa_status', view_func=check_wa_status, methods=['GET'])
 
     with app.app_context():
         db.create_all()
+        try:
+            inspector = inspect(db.engine)
+            if 'otp_codes' in inspector.get_table_names():
+                cols = [c['name'] for c in inspector.get_columns('otp_codes')]
+                if 'attempts' not in cols:
+                    with db.engine.connect() as conn:
+                        conn.execute(db.text('ALTER TABLE otp_codes ADD COLUMN attempts INTEGER DEFAULT 0'))
+                        conn.commit()
+        except Exception as e:
+            app.logger.warning(f"Auto-migration failed: {e}")
 
     # Endpoint Healthcheck untuk Uptime Monitoring
     @app.route('/health', methods=['GET'])

@@ -97,194 +97,759 @@
     <!-- ================= TAMPILAN GUEST (LOGIN & REGISTER) ================= -->
     <div style="background: white; border-radius: 15px; padding: 25px 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.08);">
         
+        <!-- Banner Peringatan Status Bot WhatsApp (Dinamis) -->
+        <div id="wa-bot-alert" style="display: none; background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 12px; padding: 12px 15px; margin-bottom: 20px; font-size: 0.8rem; color: #92400E; align-items: center; gap: 10px;">
+            <i class="fas fa-exclamation-triangle" style="font-size: 1.2rem; color: #F59E0B; flex-shrink: 0;"></i>
+            <div>
+                <strong>Layanan Bot WhatsApp Offline</strong><br>
+                <span>Pengiriman kode otomatis sedang dialihkan. Anda dapat menggunakan <b>Bantuan OTP Manual</b> yang akan disetujui Admin/CS.</span>
+            </div>
+        </div>
+
         <!-- Toggle Switcher -->
         <div style="display: flex; background: #F3F4F6; border-radius: 12px; padding: 5px; margin-bottom: 25px;">
             <div id="btn-login" onclick="switchForm('login')" style="flex: 1; text-align: center; padding: 10px; border-radius: 8px; font-weight: 800; font-size: 0.9rem; cursor: pointer; background: white; color: #008f89; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: 0.3s;">Masuk</div>
             <div id="btn-register" onclick="switchForm('register')" style="flex: 1; text-align: center; padding: 10px; border-radius: 8px; font-weight: 800; font-size: 0.9rem; cursor: pointer; color: #6B7280; transition: 0.3s;">Daftar Baru</div>
         </div>
 
-        <!-- FORM LOGIN -->
+        <!-- ================= FORM LOGIN ================= -->
         <div id="form-login">
-            <div style="text-align: center; margin-bottom: 20px;">
-                <h5 style="margin: 0; font-weight: 800; color: #1F2937;">Selamat Datang Kembali!</h5>
-                <p style="color: #6B7280; font-size: 0.85rem; margin-top: 5px;">Silakan masuk untuk melanjutkan transaksi.</p>
-            </div>
-            <form action="/profil" method="POST">
-                <input type="hidden" name="action" value="login">
+            <!-- Step 1: Masukkan Username & Password -->
+            <div id="login-step-1">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <h5 style="margin: 0; font-weight: 800; color: #1F2937;">Selamat Datang Kembali!</h5>
+                    <p style="color: #6B7280; font-size: 0.85rem; margin-top: 5px;">Silakan masukkan identitas untuk melanjutkan transaksi.</p>
+                </div>
                 
                 <div style="margin-bottom: 15px;">
                     <div style="position: relative;">
                         <i class="fas fa-user" style="position: absolute; left: 15px; top: 14px; color: #9CA3AF;"></i>
-                        <input type="text" name="username" required placeholder="Username / No. WA" style="width: 100%; padding: 12px 15px 12px 40px; border: 1px solid #E5E7EB; border-radius: 10px; outline: none; font-size: 0.9rem; background: #F9FAFB;">
+                        <input type="text" id="login_username" required placeholder="Username / No. WA" style="width: 100%; padding: 12px 15px 12px 40px; border: 1px solid #E5E7EB; border-radius: 10px; outline: none; font-size: 0.9rem; background: #F9FAFB; box-sizing: border-box;">
                     </div>
                 </div>
                 
                 <div style="margin-bottom: 10px;">
                     <div style="position: relative;">
                         <i class="fas fa-lock" style="position: absolute; left: 15px; top: 14px; color: #9CA3AF;"></i>
-                        <input type="password" name="password" required placeholder="Password" style="width: 100%; padding: 12px 15px 12px 40px; border: 1px solid #E5E7EB; border-radius: 10px; outline: none; font-size: 0.9rem; background: #F9FAFB;">
+                        <input type="password" id="login_password" required placeholder="Password" style="width: 100%; padding: 12px 15px 12px 40px; border: 1px solid #E5E7EB; border-radius: 10px; outline: none; font-size: 0.9rem; background: #F9FAFB; box-sizing: border-box;">
                     </div>
                 </div>
                 
                 <div style="text-align: right; margin-bottom: 20px;">
-                    <a href="/bantuan?kategori=Akun+dan+Profil" style="font-size: 0.8rem; color: #0EA5E9; text-decoration: none; font-weight: 700;">
-                        <i class="fas fa-question-circle"></i> Lupa Password? Hubungi CS
+                    <a href="javascript:void(0)" onclick="openForgotPasswordModal()" style="font-size: 0.8rem; color: #0EA5E9; text-decoration: none; font-weight: 700;">
+                        <i class="fas fa-key"></i> Lupa Password?
                     </a>
                 </div>
                 
-                <button type="submit" style="width: 100%; padding: 14px; border: none; background: #008f89; color: white; border-radius: 10px; font-weight: 800; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <button type="button" id="btn-submit-login" onclick="handleLoginStep1()" style="width: 100%; padding: 14px; border: none; background: #008f89; color: white; border-radius: 10px; font-weight: 800; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
                     <i class="fas fa-sign-in-alt"></i> Masuk Sekarang
                 </button>
-            </form>
+            </div>
+
+            <!-- Step 2: Verifikasi OTP Masuk / Login -->
+            <div id="login-step-2" style="display: none;">
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <h5 style="margin: 0; font-weight: 800; color: #1F2937;">Verifikasi Keamanan Akun</h5>
+                    <p style="font-size: 0.85rem; color: #6B7280; margin-top: 5px;">
+                        Masukkan 6 digit kode OTP yang dikirim ke <span id="login-display-phone" style="font-weight: 800; color: #008f89;"></span>
+                    </p>
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <input type="number" id="login_otp_code" placeholder="------" maxlength="6" style="width: 100%; padding: 15px; border: 2px dashed #008f89; border-radius: 10px; outline: none; font-size: 1.8rem; font-weight: 900; text-align: center; color: #008f89; background: #F0FDF4; letter-spacing: 8px; box-sizing: border-box;">
+                </div>
+                <button type="button" id="btn-verif-login-otp" onclick="handleLoginStep2()" style="width: 100%; padding: 14px; border: none; background: #008f89; color: white; border-radius: 10px; font-weight: 800; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <i class="fas fa-check-circle"></i> Verifikasi & Masuk
+                </button>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
+                    <a href="javascript:void(0)" onclick="backToLoginStep1()" style="font-size: 0.8rem; color: #64748B; text-decoration: none; font-weight: 700;">
+                        <i class="fas fa-arrow-left"></i> Kembali
+                    </a>
+                    <a href="javascript:void(0)" id="link-manual-login" onclick="mintaOTPDaruratUser(activeLoginPhone, activeLoginUser, 'login', onLoginManualApproved)" style="display: none; font-size: 0.8rem; color: #D97706; text-decoration: none; font-weight: 800;">
+                        <i class="fas fa-shield-alt"></i> Bantuan OTP Manual
+                    </a>
+                </div>
+            </div>
         </div>
 
-        <!-- FORM REGISTER -->
+        <!-- ================= FORM REGISTER ================= -->
         <div id="form-register" style="display: none;">
             <div style="text-align: center; margin-bottom: 20px;">
                 <h5 style="margin: 0; font-weight: 800; color: #1F2937;">Daftar Akun Baru</h5>
                 <p style="color: #6B7280; font-size: 0.85rem; margin-top: 5px;">Nikmati kemudahan transaksi dalam genggaman.</p>
             </div>
             
-    <!-- FORM REGISTER OTP (SUNTIKAN) -->
-    <div id="register-step-1">
-        <div style="margin-bottom: 15px;">
-            <div style="position: relative;">
-                <i class="fas fa-user" style="position: absolute; left: 15px; top: 14px; color: #9CA3AF;"></i>
-                <input type="text" id="reg_new_username" required placeholder="Buat Username" style="width: 100%; padding: 12px 15px 12px 40px; border: 1px solid #E5E7EB; border-radius: 10px; outline: none; font-size: 0.9rem; background: #F9FAFB;">
+            <!-- Register Step 1 -->
+            <div id="register-step-1">
+                <div style="margin-bottom: 15px;">
+                    <div style="position: relative;">
+                        <i class="fas fa-user" style="position: absolute; left: 15px; top: 14px; color: #9CA3AF;"></i>
+                        <input type="text" id="reg_new_username" required placeholder="Buat Username" style="width: 100%; padding: 12px 15px 12px 40px; border: 1px solid #E5E7EB; border-radius: 10px; outline: none; font-size: 0.9rem; background: #F9FAFB; box-sizing: border-box;">
+                    </div>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <div style="position: relative;">
+                        <i class="fab fa-whatsapp" style="position: absolute; left: 15px; top: 14px; color: #9CA3AF;"></i>
+                        <input type="number" id="reg_new_whatsapp" required placeholder="Nomor WhatsApp Aktif (Cth: 08123456789)" style="width: 100%; padding: 12px 15px 12px 40px; border: 1px solid #E5E7EB; border-radius: 10px; outline: none; font-size: 0.9rem; background: #F9FAFB; box-sizing: border-box;">
+                    </div>
+                    <div style="font-size: 0.7rem; color: #EF4444; margin-top: 5px; font-weight: 600;"><i class="fas fa-exclamation-circle"></i> Wajib aktif untuk menerima kode OTP.</div>
+                </div>
+                <div style="margin-bottom: 25px;">
+                    <div style="position: relative;">
+                        <i class="fas fa-key" style="position: absolute; left: 15px; top: 14px; color: #9CA3AF;"></i>
+                        <input type="password" id="reg_new_password" required placeholder="Buat Password" style="width: 100%; padding: 12px 15px 12px 40px; border: 1px solid #E5E7EB; border-radius: 10px; outline: none; font-size: 0.9rem; background: #F9FAFB; box-sizing: border-box;">
+                    </div>
+                </div>
+                <button type="button" id="btn-req-otp" onclick="requestOTP()" style="width: 100%; padding: 14px; border: none; background: #10B981; color: white; border-radius: 10px; font-weight: 800; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <i class="fas fa-user-plus"></i> Daftar & Verifikasi WA
+                </button>
             </div>
-        </div>
-        <div style="margin-bottom: 15px;">
-            <div style="position: relative;">
-                <i class="fab fa-whatsapp" style="position: absolute; left: 15px; top: 14px; color: #9CA3AF;"></i>
-                <input type="number" id="reg_new_whatsapp" required placeholder="Nomor WhatsApp Aktif" style="width: 100%; padding: 12px 15px 12px 40px; border: 1px solid #E5E7EB; border-radius: 10px; outline: none; font-size: 0.9rem; background: #F9FAFB;">
-            </div>
-            <div style="font-size: 0.7rem; color: #EF4444; margin-top: 5px; font-weight: 600;"><i class="fas fa-exclamation-circle"></i> Wajib aktif untuk verifikasi OTP.</div>
-        </div>
-        <div style="margin-bottom: 25px;">
-            <div style="position: relative;">
-                <i class="fas fa-key" style="position: absolute; left: 15px; top: 14px; color: #9CA3AF;"></i>
-                <input type="password" id="reg_new_password" required placeholder="Buat Password" style="width: 100%; padding: 12px 15px 12px 40px; border: 1px solid #E5E7EB; border-radius: 10px; outline: none; font-size: 0.9rem; background: #F9FAFB;">
-            </div>
-        </div>
-        <button type="button" id="btn-req-otp" onclick="requestOTP()" style="width: 100%; padding: 14px; border: none; background: #10B981; color: white; border-radius: 10px; font-weight: 800; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
-            <i class="fas fa-user-plus"></i> Daftar & Verifikasi WA
-        </button>
-    </div>
 
-    <div id="register-step-2" style="display: none;">
-        <div style="text-align: center; margin-bottom: 15px;">
-            <p style="font-size: 0.85rem; color: #6B7280;">Masukkan 6 digit OTP yang dikirim ke <span id="display-wa" style="font-weight:800; color:#10B981;"></span></p>
+            <!-- Register Step 2 -->
+            <div id="register-step-2" style="display: none;">
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <p style="font-size: 0.85rem; color: #6B7280;">Masukkan 6 digit OTP yang dikirim ke <span id="display-wa" style="font-weight:800; color:#10B981;"></span></p>
+                </div>
+                <div style="margin-bottom: 25px;">
+                    <input type="number" id="reg_otp_code" placeholder="------" maxlength="6" style="width: 100%; padding: 15px; border: 2px dashed #10B981; border-radius: 10px; outline: none; font-size: 1.8rem; font-weight: 900; text-align: center; color: #10B981; background: #F0FDF4; letter-spacing: 8px; box-sizing: border-box;">
+                </div>
+                <button type="button" id="btn-verif-otp" onclick="verifyOTP()" style="width: 100%; padding: 14px; border: none; background: #10B981; color: white; border-radius: 10px; font-weight: 800; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <i class="fas fa-check-circle"></i> Verifikasi & Masuk
+                </button>
+                <div style="text-align: center; margin-top: 15px;">
+                    <a href="javascript:void(0)" id="link-manual-register" onclick="mintaOTPDaruratUser(document.getElementById('reg_new_whatsapp').value, document.getElementById('reg_new_username').value, 'register', onRegisterManualApproved)" style="display: none; font-size: 0.8rem; color: #D97706; text-decoration: none; font-weight: 800; align-items: center; gap: 5px;">
+                        <i class="fas fa-shield-alt"></i> Tidak menerima kode? Bantuan OTP Manual
+                    </a>
+                </div>
+            </div>
         </div>
-        <div style="margin-bottom: 25px;">
-            <input type="number" id="reg_otp_code" placeholder="------" style="width: 100%; padding: 15px; border: 2px dashed #10B981; border-radius: 10px; outline: none; font-size: 1.8rem; font-weight: 900; text-align: center; color: #10B981; background: #F0FDF4; letter-spacing: 8px;">
-        </div>
-        <button type="button" id="btn-verif-otp" onclick="verifyOTP()" style="width: 100%; padding: 14px; border: none; background: #10B981; color: white; border-radius: 10px; font-weight: 800; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
-            <i class="fas fa-check-circle"></i> Verifikasi & Masuk
+
+    </div>
+    {% endif %}
+</div>
+
+<!-- ================= MODAL LUPA PASSWORD (3-STEP) ================= -->
+<div id="modalForgotPassword" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(4px); padding: 15px; box-sizing: border-box;">
+    <div style="background: white; border-radius: 20px; max-width: 440px; width: 100%; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; box-sizing: border-box;">
+        <button type="button" onclick="closeForgotPasswordModal()" style="position: absolute; right: 18px; top: 18px; background: none; border: none; font-size: 20px; color: #94A3B8; cursor: pointer;">
+            <i class="fas fa-times"></i>
         </button>
-        <div style="text-align: center; margin-top: 15px;">
-            <a href="javascript:void(0)" onclick="mintaOTPDaruratUser()" style="font-size: 0.8rem; color: #d97706; text-decoration: none; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;">
-                <i class="fas fa-life-ring"></i> Tidak menerima kode? Bantuan OTP Darurat / Hubungi CS
-            </a>
+        
+        <!-- Step 1: Input Identitas -->
+        <div id="fp-step-1">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <div style="width: 50px; height: 50px; border-radius: 50%; background: #EFF6FF; color: #2563EB; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px auto; font-size: 20px;">
+                    <i class="fas fa-lock"></i>
+                </div>
+                <h4 style="margin: 0; font-weight: 900; color: #1E293B;">Pemulihan Password</h4>
+                <p style="margin: 5px 0 0 0; font-size: 12px; color: #64748B;">Masukkan Username dan Nomor WhatsApp terdaftar Anda.</p>
+            </div>
+
+            <div style="margin-bottom: 12px;">
+                <label style="display: block; font-size: 11px; font-weight: 800; color: #64748B; margin-bottom: 4px;">Username</label>
+                <input type="text" id="fp_username" placeholder="Cth: ansor21" style="width: 100%; padding: 12px; border: 1px solid #CBD5E1; border-radius: 10px; font-family: inherit; font-size: 14px; box-sizing: border-box; outline: none;">
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-size: 11px; font-weight: 800; color: #64748B; margin-bottom: 4px;">Nomor WhatsApp Terdaftar</label>
+                <input type="number" id="fp_phone" placeholder="Cth: 08123456789" style="width: 100%; padding: 12px; border: 1px solid #CBD5E1; border-radius: 10px; font-family: inherit; font-size: 14px; box-sizing: border-box; outline: none;">
+            </div>
+
+            <button type="button" id="btn-fp-req" onclick="requestForgotOTP()" style="width: 100%; padding: 14px; border: none; background: #2563EB; color: white; border-radius: 10px; font-weight: 800; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <i class="fas fa-paper-plane"></i> Kirim Kode Verifikasi
+            </button>
+            <div id="fp-manual-option" style="display: none; text-align: center; margin-top: 12px;">
+                <a href="javascript:void(0)" onclick="mintaOTPDaruratUser(document.getElementById('fp_phone').value, document.getElementById('fp_username').value, 'reset_password', onForgotManualApproved)" style="font-size: 11px; color: #D97706; font-weight: 800; text-decoration: none;">
+                    <i class="fas fa-shield-alt"></i> Bot Offline? Gunakan Bantuan OTP Manual
+                </a>
+            </div>
+        </div>
+
+        <!-- Step 2: Masukkan Kode OTP Reset -->
+        <div id="fp-step-2" style="display: none;">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <div style="width: 50px; height: 50px; border-radius: 50%; background: #ECFDF5; color: #059669; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px auto; font-size: 20px;">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <h4 style="margin: 0; font-weight: 900; color: #1E293B;">Verifikasi OTP</h4>
+                <p style="margin: 5px 0 0 0; font-size: 12px; color: #64748B;">Masukkan 6 digit kode OTP yang dikirim ke <span id="fp-display-phone" style="font-weight: 800; color: #059669;"></span></p>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <input type="number" id="fp_otp" placeholder="------" maxlength="6" style="width: 100%; padding: 14px; border: 2px dashed #059669; border-radius: 10px; font-family: inherit; font-size: 24px; font-weight: 900; letter-spacing: 8px; text-align: center; color: #059669; background: #F0FDF4; box-sizing: border-box; outline: none;">
+            </div>
+
+            <button type="button" id="btn-fp-verif" onclick="verifyForgotOTP()" style="width: 100%; padding: 14px; border: none; background: #059669; color: white; border-radius: 10px; font-weight: 800; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <i class="fas fa-check-circle"></i> Lanjutkan Ubah Password
+            </button>
+        </div>
+
+        <!-- Step 3: Input Kata Sandi Baru -->
+        <div id="fp-step-3" style="display: none;">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <div style="width: 50px; height: 50px; border-radius: 50%; background: #FEF3C7; color: #D97706; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px auto; font-size: 20px;">
+                    <i class="fas fa-key"></i>
+                </div>
+                <h4 style="margin: 0; font-weight: 900; color: #1E293B;">Buat Kata Sandi Baru</h4>
+                <p style="margin: 5px 0 0 0; font-size: 12px; color: #64748B;">Masukkan kata sandi baru untuk akun Anda (min 6 karakter).</p>
+            </div>
+
+            <div style="margin-bottom: 12px;">
+                <label style="display: block; font-size: 11px; font-weight: 800; color: #64748B; margin-bottom: 4px;">Kata Sandi Baru</label>
+                <input type="password" id="fp_new_pass" placeholder="Minimal 6 karakter" style="width: 100%; padding: 12px; border: 1px solid #CBD5E1; border-radius: 10px; font-family: inherit; font-size: 14px; box-sizing: border-box; outline: none;">
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-size: 11px; font-weight: 800; color: #64748B; margin-bottom: 4px;">Konfirmasi Kata Sandi Baru</label>
+                <input type="password" id="fp_new_pass_confirm" placeholder="Ulangi kata sandi baru" style="width: 100%; padding: 12px; border: 1px solid #CBD5E1; border-radius: 10px; font-family: inherit; font-size: 14px; box-sizing: border-box; outline: none;">
+            </div>
+
+            <button type="button" id="btn-fp-submit" onclick="submitNewPassword()" style="width: 100%; padding: 14px; border: none; background: #D97706; color: white; border-radius: 10px; font-weight: 800; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <i class="fas fa-save"></i> Simpan Kata Sandi & Masuk
+            </button>
         </div>
     </div>
+</div>
 
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    // State Global
+    let isBotConnected = true;
+    let activeLoginPhone = '';
+    let activeLoginUser = '';
+    let pollingInterval = null;
+
+    // 1. Cek Status Bot WhatsApp secara Dinamis
+    function checkBotStatus() {
+        fetch('/api/check_wa_status')
+        .then(r => r.json())
+        .then(data => {
+            isBotConnected = (data.connected === true);
+            const alertEl = document.getElementById('wa-bot-alert');
+            const linkManualLogin = document.getElementById('link-manual-login');
+            const linkManualReg = document.getElementById('link-manual-register');
+            const fpManualOpt = document.getElementById('fp-manual-option');
+
+            if (!isBotConnected) {
+                if (alertEl) alertEl.style.display = 'flex';
+                if (linkManualLogin) linkManualLogin.style.display = 'inline-flex';
+                if (linkManualReg) linkManualReg.style.display = 'inline-flex';
+                if (fpManualOpt) fpManualOpt.style.display = 'block';
+            } else {
+                if (alertEl) alertEl.style.display = 'none';
+                if (linkManualLogin) linkManualLogin.style.display = 'none';
+                if (linkManualReg) linkManualReg.style.display = 'none';
+                if (fpManualOpt) fpManualOpt.style.display = 'none';
+            }
+        })
+        .catch(() => {
+            isBotConnected = false;
+        });
+    }
+
+    // Panggil saat halaman siap dan polling berkala tiap 5 detik
+    document.addEventListener('DOMContentLoaded', function() {
+        checkBotStatus();
+        setInterval(checkBotStatus, 5000);
+    });
+
+    // 2. Tab Switcher (Login vs Register)
+    function switchForm(type) {
+        const loginForm = document.getElementById('form-login');
+        const registerForm = document.getElementById('form-register');
+        const btnLogin = document.getElementById('btn-login');
+        const btnRegister = document.getElementById('btn-register');
+        
+        if (type === 'login') {
+            loginForm.style.display = 'block';
+            registerForm.style.display = 'none';
+            btnLogin.style.background = 'white';
+            btnLogin.style.color = '#008f89';
+            btnLogin.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+            btnRegister.style.background = 'transparent';
+            btnRegister.style.color = '#6B7280';
+            btnRegister.style.boxShadow = 'none';
+        } else {
+            loginForm.style.display = 'none';
+            registerForm.style.display = 'block';
+            btnRegister.style.background = 'white';
+            btnRegister.style.color = '#008f89';
+            btnRegister.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+            btnLogin.style.background = 'transparent';
+            btnLogin.style.color = '#6B7280';
+            btnLogin.style.boxShadow = 'none';
+        }
+    }
+
+    // ==========================================
+    // ALUR LOGIN (2-STEP: KREDENSIAL -> OTP)
+    // ==========================================
+    function handleLoginStep1() {
+        const username = document.getElementById('login_username').value.trim();
+        const password = document.getElementById('login_password').value.trim();
+        if (!username || !password) {
+            Swal.fire('Perhatian', 'Username / No. WA dan Password wajib diisi!', 'warning');
+            return;
+        }
+
+        const btn = document.getElementById('btn-submit-login');
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memeriksa Akun...';
+        btn.disabled = true;
+
+        let formData = new FormData();
+        formData.append('action', 'login_step1');
+        formData.append('username', username);
+        formData.append('password', password);
+
+        fetch('/profil', { method: 'POST', body: formData })
+        .then(r => r.json())
+        .then(data => {
+            btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Masuk Sekarang';
+            btn.disabled = false;
+
+            if (data.status === 'otp_sent') {
+                activeLoginPhone = data.phone;
+                activeLoginUser = username;
+                document.getElementById('login-step-1').style.display = 'none';
+                document.getElementById('login-step-2').style.display = 'block';
+                document.getElementById('login-display-phone').innerText = data.masked_phone || data.phone;
+                Swal.fire({
+                    title: 'Kode OTP Terkirim!',
+                    text: data.message,
+                    icon: 'success',
+                    timer: 2500,
+                    showConfirmButton: false
+                });
+            } else if (data.status === 'bot_offline') {
+                activeLoginPhone = data.phone;
+                activeLoginUser = data.name || username;
+                // Bot offline: tawarkan bantuan manual langsung
+                Swal.fire({
+                    title: 'Bot WhatsApp Offline',
+                    text: data.message,
+                    icon: 'info',
+                    showCancelButton: true,
+                    confirmButtonColor: '#D97706',
+                    cancelButtonColor: '#94A3B8',
+                    confirmButtonText: '<i class="fas fa-shield-alt"></i> Gunakan Bantuan OTP Manual',
+                    cancelButtonText: 'Batal'
+                }).then((res) => {
+                    if (res.isConfirmed) {
+                        mintaOTPDaruratUser(activeLoginPhone, activeLoginUser, 'login', onLoginManualApproved);
+                    }
+                });
+            } else {
+                Swal.fire('Gagal Masuk', data.message || 'Username atau Kata Sandi salah!', 'error');
+            }
+        })
+        .catch(() => {
+            btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Masuk Sekarang';
+            btn.disabled = false;
+            Swal.fire('Error', 'Gagal menghubungi server', 'error');
+        });
+    }
+
+    function handleLoginStep2() {
+        const otp = document.getElementById('login_otp_code').value.trim();
+        if (!otp || otp.length < 4) {
+            Swal.fire('Perhatian', 'Masukkan 6 digit kode OTP yang valid!', 'warning');
+            return;
+        }
+
+        const btn = document.getElementById('btn-verif-login-otp');
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifikasi...';
+        btn.disabled = true;
+
+        let formData = new FormData();
+        formData.append('action', 'login_step2');
+        formData.append('phone', activeLoginPhone);
+        formData.append('otp', otp);
+
+        fetch('/profil', { method: 'POST', body: formData })
+        .then(r => r.json())
+        .then(data => {
+            btn.innerHTML = '<i class="fas fa-check-circle"></i> Verifikasi & Masuk';
+            btn.disabled = false;
+
+            if (data.status === 'success') {
+                Swal.fire({
+                    title: 'Berhasil Masuk!',
+                    text: data.message,
+                    icon: 'success',
+                    timer: 1500,
+                    showConfirmButton: false
+                }).then(() => {
+                    window.location.reload();
+                });
+            } else {
+                Swal.fire('Gagal Verifikasi', data.message || 'Kode OTP salah!', 'error');
+            }
+        })
+        .catch(() => {
+            btn.innerHTML = '<i class="fas fa-check-circle"></i> Verifikasi & Masuk';
+            btn.disabled = false;
+            Swal.fire('Error', 'Gagal memverifikasi ke server', 'error');
+        });
+    }
+
+    function backToLoginStep1() {
+        document.getElementById('login-step-2').style.display = 'none';
+        document.getElementById('login-step-1').style.display = 'block';
+    }
+
+    function onLoginManualApproved() {
+        document.getElementById('login-step-1').style.display = 'none';
+        document.getElementById('login-step-2').style.display = 'block';
+        document.getElementById('login-display-phone').innerText = activeLoginPhone;
+        document.getElementById('login_otp_code').focus();
+    }
+
+    // ==========================================
+    // ALUR DAFTAR BARU (REGISTER DENGAN OTP)
+    // ==========================================
     function requestOTP() {
-        let user = document.getElementById('reg_new_username').value;
-        let wa = document.getElementById('reg_new_whatsapp').value;
-        let psw = document.getElementById('reg_new_password').value;
-        if(!user || !wa || !psw){ Swal.fire('Oops','Isi semua kolom!','warning'); return; }
-        
-        let btn = document.getElementById('btn-req-otp');
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengirim OTP...'; btn.disabled = true;
-        
+        const user = document.getElementById('reg_new_username').value.trim();
+        const wa = document.getElementById('reg_new_whatsapp').value.trim();
+        const psw = document.getElementById('reg_new_password').value.trim();
+        if (!user || !wa || !psw) {
+            Swal.fire('Perhatian', 'Lengkapi semua kolom formulir pendaftaran!', 'warning');
+            return;
+        }
+
+        const btn = document.getElementById('btn-req-otp');
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengirim OTP...';
+        btn.disabled = true;
+
         let formData = new FormData();
         formData.append('action', 'request_otp_baru');
         formData.append('new_username', user);
         formData.append('new_whatsapp', wa);
         formData.append('new_password', psw);
-        
+
         fetch('/profil', { method: 'POST', body: formData })
-        .then(res => res.json())
+        .then(r => r.json())
         .then(data => {
-            if(data.status === 'success'){
+            btn.innerHTML = '<i class="fas fa-user-plus"></i> Daftar & Verifikasi WA';
+            btn.disabled = false;
+
+            if (data.status === 'success') {
                 document.getElementById('register-step-1').style.display = 'none';
                 document.getElementById('register-step-2').style.display = 'block';
                 document.getElementById('display-wa').innerText = wa;
-                Swal.fire({title:'Terkirim!', text:data.message, icon:'success', timer:2000, showConfirmButton:false});
-            } else { Swal.fire('Gagal', data.message, 'error'); btn.innerHTML = '<i class="fas fa-user-plus"></i> Coba Lagi'; btn.disabled = false; }
-        }).catch(err => { Swal.fire('Error', 'Sistem sibuk', 'error'); btn.innerHTML = '<i class="fas fa-user-plus"></i> Coba Lagi'; btn.disabled = false; });
+                Swal.fire({
+                    title: 'Kode Terkirim!',
+                    text: data.message,
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            } else if (data.status === 'bot_offline') {
+                Swal.fire({
+                    title: 'Bot WhatsApp Offline',
+                    text: data.message,
+                    icon: 'info',
+                    showCancelButton: true,
+                    confirmButtonColor: '#D97706',
+                    cancelButtonColor: '#94A3B8',
+                    confirmButtonText: '<i class="fas fa-shield-alt"></i> Gunakan Bantuan OTP Manual',
+                    cancelButtonText: 'Batal'
+                }).then((res) => {
+                    if (res.isConfirmed) {
+                        mintaOTPDaruratUser(wa, user, 'register', onRegisterManualApproved);
+                    }
+                });
+            } else {
+                Swal.fire('Gagal', data.message || 'Pendaftaran gagal diproses', 'error');
+            }
+        })
+        .catch(() => {
+            btn.innerHTML = '<i class="fas fa-user-plus"></i> Daftar & Verifikasi WA';
+            btn.disabled = false;
+            Swal.fire('Error', 'Sistem sibuk, silakan coba lagi', 'error');
+        });
     }
 
     function verifyOTP() {
-        let wa = document.getElementById('reg_new_whatsapp').value;
-        let otp = document.getElementById('reg_otp_code').value;
-        if(otp.length < 4){ Swal.fire('Oops','Masukkan OTP yang valid','warning'); return; }
-        
-        let btn = document.getElementById('btn-verif-otp');
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memverifikasi...'; btn.disabled = true;
-        
+        const wa = document.getElementById('reg_new_whatsapp').value.trim();
+        const otp = document.getElementById('reg_otp_code').value.trim();
+        if (!otp || otp.length < 4) {
+            Swal.fire('Perhatian', 'Masukkan 6 digit kode OTP yang valid!', 'warning');
+            return;
+        }
+
+        const btn = document.getElementById('btn-verif-otp');
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memverifikasi...';
+        btn.disabled = true;
+
         let formData = new FormData();
         formData.append('action', 'verify_otp_baru');
         formData.append('new_whatsapp', wa);
         formData.append('otp', otp);
-        
+
         fetch('/profil', { method: 'POST', body: formData })
-        .then(res => res.json())
+        .then(r => r.json())
         .then(data => {
-            if(data.status === 'success'){
-                Swal.fire({title:'Berhasil!', text:data.message, icon:'success', timer:2000, showConfirmButton:false});
-                setTimeout(()=>{ window.location.reload(); }, 1500);
-            } else { Swal.fire('Gagal', data.message, 'error'); btn.innerHTML = '<i class="fas fa-check-circle"></i> Verifikasi & Masuk'; btn.disabled = false; }
-        }).catch(err => { Swal.fire('Error', 'Sistem sibuk', 'error'); btn.innerHTML = '<i class="fas fa-check-circle"></i> Verifikasi & Masuk'; btn.disabled = false; });
+            btn.innerHTML = '<i class="fas fa-check-circle"></i> Verifikasi & Masuk';
+            btn.disabled = false;
+
+            if (data.status === 'success') {
+                Swal.fire({
+                    title: 'Pendaftaran Berhasil!',
+                    text: data.message,
+                    icon: 'success',
+                    timer: 1800,
+                    showConfirmButton: false
+                }).then(() => window.location.reload());
+            } else {
+                Swal.fire('Gagal Verifikasi', data.message || 'Kode OTP salah!', 'error');
+            }
+        })
+        .catch(() => {
+            btn.innerHTML = '<i class="fas fa-check-circle"></i> Verifikasi & Masuk';
+            btn.disabled = false;
+            Swal.fire('Error', 'Gagal memverifikasi', 'error');
+        });
     }
 
-    function mintaOTPDaruratUser() {
-        let wa = document.getElementById('reg_new_whatsapp').value;
-        let user = document.getElementById('reg_new_username').value;
-        if (!wa) {
-            Swal.fire('Perhatian', 'Nomor WhatsApp belum terisi', 'warning');
+    function onRegisterManualApproved() {
+        document.getElementById('register-step-1').style.display = 'none';
+        document.getElementById('register-step-2').style.display = 'block';
+        document.getElementById('display-wa').innerText = document.getElementById('reg_new_whatsapp').value;
+        document.getElementById('reg_otp_code').focus();
+    }
+
+    // ==========================================
+    // ALUR LUPA PASSWORD (MODAL 3-STEP)
+    // ==========================================
+    let fpPhone = '';
+
+    function openForgotPasswordModal() {
+        document.getElementById('modalForgotPassword').style.display = 'flex';
+        document.getElementById('fp-step-1').style.display = 'block';
+        document.getElementById('fp-step-2').style.display = 'none';
+        document.getElementById('fp-step-3').style.display = 'none';
+    }
+
+    function closeForgotPasswordModal() {
+        document.getElementById('modalForgotPassword').style.display = 'none';
+    }
+
+    function requestForgotOTP() {
+        const username = document.getElementById('fp_username').value.trim();
+        const phone = document.getElementById('fp_phone').value.trim();
+        if (!username || !phone) {
+            Swal.fire('Perhatian', 'Username dan Nomor WhatsApp terdaftar wajib diisi!', 'warning');
+            return;
+        }
+
+        const btn = document.getElementById('btn-fp-req');
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memeriksa...';
+        btn.disabled = true;
+
+        let formData = new FormData();
+        formData.append('action', 'forgot_password_step1');
+        formData.append('username', username);
+        formData.append('phone', phone);
+
+        fetch('/profil', { method: 'POST', body: formData })
+        .then(r => r.json())
+        .then(data => {
+            btn.innerHTML = '<i class="fas fa-paper-plane"></i> Kirim Kode Verifikasi';
+            btn.disabled = false;
+
+            if (data.status === 'otp_sent') {
+                fpPhone = data.phone;
+                document.getElementById('fp-step-1').style.display = 'none';
+                document.getElementById('fp-step-2').style.display = 'block';
+                document.getElementById('fp-display-phone').innerText = fpPhone;
+                Swal.fire({
+                    title: 'Kode OTP Terkirim!',
+                    text: data.message,
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            } else if (data.status === 'bot_offline') {
+                fpPhone = data.phone;
+                Swal.fire({
+                    title: 'Bot WhatsApp Offline',
+                    text: data.message,
+                    icon: 'info',
+                    showCancelButton: true,
+                    confirmButtonColor: '#D97706',
+                    cancelButtonColor: '#94A3B8',
+                    confirmButtonText: '<i class="fas fa-shield-alt"></i> Minta Bantuan OTP Manual',
+                    cancelButtonText: 'Batal'
+                }).then((res) => {
+                    if (res.isConfirmed) {
+                        mintaOTPDaruratUser(fpPhone, username, 'reset_password', onForgotManualApproved);
+                    }
+                });
+            } else {
+                Swal.fire('Data Tidak Cocok', data.message || 'Identitas tidak terdaftar.', 'error');
+            }
+        })
+        .catch(() => {
+            btn.innerHTML = '<i class="fas fa-paper-plane"></i> Kirim Kode Verifikasi';
+            btn.disabled = false;
+            Swal.fire('Error', 'Gagal memproses data', 'error');
+        });
+    }
+
+    function verifyForgotOTP() {
+        const otp = document.getElementById('fp_otp').value.trim();
+        if (!otp || otp.length < 4) {
+            Swal.fire('Perhatian', 'Masukkan kode OTP yang valid!', 'warning');
+            return;
+        }
+
+        const btn = document.getElementById('btn-fp-verif');
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifikasi...';
+        btn.disabled = true;
+
+        let formData = new FormData();
+        formData.append('action', 'forgot_password_step2');
+        formData.append('phone', fpPhone);
+        formData.append('otp', otp);
+
+        fetch('/profil', { method: 'POST', body: formData })
+        .then(r => r.json())
+        .then(data => {
+            btn.innerHTML = '<i class="fas fa-check-circle"></i> Lanjutkan Ubah Password';
+            btn.disabled = false;
+
+            if (data.status === 'success') {
+                document.getElementById('fp-step-2').style.display = 'none';
+                document.getElementById('fp-step-3').style.display = 'block';
+            } else {
+                Swal.fire('Gagal Verifikasi', data.message || 'Kode OTP salah!', 'error');
+            }
+        })
+        .catch(() => {
+            btn.innerHTML = '<i class="fas fa-check-circle"></i> Lanjutkan Ubah Password';
+            btn.disabled = false;
+            Swal.fire('Error', 'Gagal verifikasi OTP', 'error');
+        });
+    }
+
+    function submitNewPassword() {
+        const p1 = document.getElementById('fp_new_pass').value;
+        const p2 = document.getElementById('fp_new_pass_confirm').value;
+        if (!p1 || p1.length < 6) {
+            Swal.fire('Perhatian', 'Kata sandi minimal 6 karakter!', 'warning');
+            return;
+        }
+        if (p1 !== p2) {
+            Swal.fire('Perhatian', 'Konfirmasi kata sandi tidak cocok!', 'warning');
+            return;
+        }
+
+        const btn = document.getElementById('btn-fp-submit');
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...';
+        btn.disabled = true;
+
+        let formData = new FormData();
+        formData.append('action', 'forgot_password_step3');
+        formData.append('phone', fpPhone);
+        formData.append('new_password', p1);
+
+        fetch('/profil', { method: 'POST', body: formData })
+        .then(r => r.json())
+        .then(data => {
+            btn.innerHTML = '<i class="fas fa-save"></i> Simpan Kata Sandi & Masuk';
+            btn.disabled = false;
+
+            if (data.status === 'success') {
+                Swal.fire({
+                    title: 'Sukses!',
+                    text: data.message,
+                    icon: 'success',
+                    timer: 1800,
+                    showConfirmButton: false
+                }).then(() => window.location.reload());
+            } else {
+                Swal.fire('Gagal', data.message || 'Gagal mengubah kata sandi', 'error');
+            }
+        })
+        .catch(() => {
+            btn.innerHTML = '<i class="fas fa-save"></i> Simpan Kata Sandi & Masuk';
+            btn.disabled = false;
+            Swal.fire('Error', 'Gagal menghubungi server', 'error');
+        });
+    }
+
+    function onForgotManualApproved() {
+        document.getElementById('fp-step-1').style.display = 'none';
+        document.getElementById('fp-step-2').style.display = 'block';
+        document.getElementById('fp-display-phone').innerText = fpPhone;
+        document.getElementById('fp_otp').focus();
+    }
+
+    // =========================================================================
+    // SISTEM BANTUAN OTP MANUAL (PERSETUJUAN ADMIN & LIVE POLLING DIALOG)
+    // =========================================================================
+    function mintaOTPDaruratUser(phone, name, actionType, onApprovedCallback) {
+        if (!phone) {
+            Swal.fire('Perhatian', 'Nomor WhatsApp belum terisi!', 'warning');
             return;
         }
 
         Swal.fire({
-            title: 'Bantuan OTP Darurat',
-            text: `Apakah Anda ingin meminta bantuan kode OTP darurat secara manual ke CS untuk nomor ${wa}?`,
+            title: 'Minta Bantuan OTP Manual?',
+            html: `
+                <p style="font-size: 13px; color: #475569; line-height: 1.5;">
+                    Layanan pengiriman otomatis sedang antrean/offline. Sistem akan meneruskan permintaan bantuan untuk nomor <b>${phone}</b> ke <b>Admin & Tim CS Telegram</b> kami.
+                </p>
+                <div style="background: #F8FAFC; border: 1px dashed #CBD5E1; border-radius: 8px; padding: 10px; font-size: 11px; color: #64748B; margin-top: 10px;">
+                    <i class="fas fa-info-circle"></i> Anda akan diminta menunggu beberapa saat hingga Admin menyetujui dan mengirimkan kode ke WhatsApp Anda.
+                </div>
+            `,
             icon: 'question',
             showCancelButton: true,
             confirmButtonColor: '#008f89',
-            cancelButtonColor: '#94a3b8',
-            confirmButtonText: '<i class="fas fa-paper-plane"></i> Ya, Teruskan ke CS',
+            cancelButtonColor: '#94A3B8',
+            confirmButtonText: '<i class="fas fa-paper-plane"></i> Ya, Minta Persetujuan Admin',
             cancelButtonText: 'Batal'
         }).then((result) => {
             if (result.isConfirmed) {
+                // Tampilkan loading saat mengirim request
                 Swal.fire({
-                    title: 'Menghubungkan CS...',
-                    text: 'Meneruskan data permintaan OTP darurat ke Bot Telegram CS...',
+                    title: 'Meneruskan ke Admin...',
+                    html: '<p style="font-size: 13px; color: #64748B;">Menghubungkan ke Panel Admin dan Bot Telegram CS...</p>',
                     allowOutsideClick: false,
                     didOpen: () => { Swal.showLoading(); }
                 });
 
                 let formData = new FormData();
-                formData.append('action', 'request_emergency_otp');
-                formData.append('phone', wa);
-                formData.append('name', user);
-                formData.append('purpose', 'Pendaftaran Akun Baru');
+                formData.append('action', 'request_manual_otp');
+                formData.append('phone', phone);
+                formData.append('name', name || '');
+                formData.append('action_type', actionType || 'register');
 
                 fetch('/profil', { method: 'POST', body: formData })
-                .then(res => res.json())
+                .then(r => r.json())
                 .then(data => {
-                    if (data.status === 'success') {
-                        let htmlMsg = `<p style="font-size: 13px; line-height: 1.5; color: #334155;">${data.message}</p>`;
-                        if (data.wa_direct_link) {
-                            htmlMsg += `<div style="margin-top: 15px;"><a href="${data.wa_direct_link}" target="_blank" class="swal2-confirm swal2-styled" style="background:#25D366; text-decoration:none; display:inline-flex; align-items:center; gap:6px; font-weight:bold;"><i class="fab fa-whatsapp"></i> Chat Langsung ke CS WhatsApp</a></div>`;
-                        }
+                    if (data.status === 'rejected') {
+                        // KONDISI KHUSUS: DITOLAK OLEH ADMIN
                         Swal.fire({
-                            title: 'Permintaan Diterima!',
-                            html: htmlMsg,
-                            icon: 'success'
+                            title: 'Permintaan Ditolak Admin',
+                            html: `
+                                <div style="text-align: center; margin: 10px 0;">
+                                    <p style="font-size: 13px; color: #DC2626; line-height: 1.5; font-weight: 700;">
+                                        ${data.message.replace(/\n/g, '<br>')}
+                                    </p>
+                                    <div style="margin-top: 15px;">
+                                        <a href="/bantuan?kategori=Akun+dan+Profil" class="swal2-confirm swal2-styled" style="background: #2563EB; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                                            <i class="fas fa-headset"></i> Hubungi Customer Service
+                                        </a>
+                                    </div>
+                                </div>
+                            `,
+                            icon: 'error'
                         });
+                    } else if (data.status === 'pending_approval') {
+                        // KONDISI PENDING: MULAI LIVE POLLING
+                        const reqId = data.request_id;
+                        startWaitingApprovalPolling(reqId, phone, onApprovedCallback);
                     } else {
                         Swal.fire('Gagal', data.message || 'Terjadi kesalahan sistem', 'error');
                     }
@@ -295,50 +860,94 @@
             }
         });
     }
-    </script>
 
-        </div>
-    </div>
-    
-    <!-- Script Animasi Tab -->
-    <script>
-        function switchForm(type) {
-            const loginForm = document.getElementById('form-login');
-            const registerForm = document.getElementById('form-register');
-            const btnLogin = document.getElementById('btn-login');
-            const btnRegister = document.getElementById('btn-register');
-            
-            if (type === 'login') {
-                loginForm.style.display = 'block';
-                registerForm.style.display = 'none';
-                btnLogin.style.background = 'white';
-                btnLogin.style.color = '#008f89';
-                btnLogin.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-                btnRegister.style.background = 'transparent';
-                btnRegister.style.color = '#6B7280';
-                btnRegister.style.boxShadow = 'none';
-            } else {
-                loginForm.style.display = 'none';
-                registerForm.style.display = 'block';
-                btnRegister.style.background = 'white';
-                btnRegister.style.color = '#008f89';
-                btnRegister.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-                btnLogin.style.background = 'transparent';
-                btnLogin.style.color = '#6B7280';
-                btnLogin.style.boxShadow = 'none';
+    // Polling realtime saat user menunggu Admin menyetujui
+    function startWaitingApprovalPolling(requestId, phone, onApprovedCallback) {
+        if (pollingInterval) clearInterval(pollingInterval);
+
+        Swal.fire({
+            title: 'Menunggu Persetujuan Admin',
+            html: `
+                <div style="text-align: center; padding: 10px 0;">
+                    <div style="font-size: 36px; color: #D97706; margin-bottom: 12px;">
+                        <i class="fas fa-clock fa-spin" style="animation-duration: 3s;"></i>
+                    </div>
+                    <p style="font-size: 13px; color: #334155; line-height: 1.6; margin: 0 0 10px 0;">
+                        Permintaan bantuan OTP darurat untuk nomor <b>${phone}</b> telah berhasil masuk ke antrean Admin & CS Telegram kami.
+                    </p>
+                    <div style="background: #FEF3C7; border: 1px solid #FDE68A; border-radius: 8px; padding: 10px; font-size: 11px; color: #92400E;">
+                        ⏳ <b>Sedang Menunggu Tinjauan Admin...</b><br>
+                        Halaman ini akan otomatis berlanjut begitu Admin menyetujui permintaan Anda.
+                    </div>
+                </div>
+            `,
+            allowOutsideClick: false,
+            showCancelButton: true,
+            cancelButtonText: 'Tutup & Batalkan Menunggu',
+            showConfirmButton: false
+        }).then((res) => {
+            if (res.dismiss) {
+                if (pollingInterval) clearInterval(pollingInterval);
             }
-        }
-
-        // Auto switch ke tab register jika diarahkan dari tombol daftar
-        document.addEventListener('DOMContentLoaded', function() {
-            try {
-                const urlParams = new URLSearchParams(window.location.search);
-                if (urlParams.get('action') === 'register' || urlParams.get('tab') === 'register') {
-                    switchForm('register');
-                }
-            } catch (e) {}
         });
-    </script>
-    {% endif %}
-</div>
+
+        // Polling setiap 3 detik
+        pollingInterval = setInterval(() => {
+            let fd = new FormData();
+            fd.append('action', 'check_manual_otp_status');
+            fd.append('request_id', requestId);
+            fd.append('phone', phone);
+
+            fetch('/profil', { method: 'POST', body: fd })
+            .then(r => r.json())
+            .then(res => {
+                if (res.status === 'APPROVED') {
+                    clearInterval(pollingInterval);
+                    Swal.fire({
+                        title: 'Disetujui Admin!',
+                        html: `
+                            <p style="font-size: 13px; color: #059669; line-height: 1.5; font-weight: 700;">
+                                Permintaan bantuan OTP Anda telah DISETUJUI oleh Admin!<br>
+                                Tim CS telah mengirimkan kode OTP ke WhatsApp Anda. Silakan masukkan kodenya.
+                            </p>
+                        `,
+                        icon: 'success',
+                        timer: 2500,
+                        showConfirmButton: true,
+                        confirmButtonText: 'Masukkan Kode OTP'
+                    }).then(() => {
+                        if (typeof onApprovedCallback === 'function') {
+                            onApprovedCallback();
+                        }
+                    });
+                } else if (res.status === 'REJECTED') {
+                    clearInterval(pollingInterval);
+                    const reason = res.rejection_reason || 'Permintaan tidak disetujui';
+                    Swal.fire({
+                        title: 'Permintaan Ditolak',
+                        html: `
+                            <p style="font-size: 13px; color: #DC2626; line-height: 1.5;">
+                                Mohon maaf, permintaan bantuan OTP untuk nomor ini <b>DITOLAK</b> oleh Admin.<br><br>
+                                <b>Alasan Penolakan:</b><br>
+                                <i>"${reason}"</i>
+                            </p>
+                        `,
+                        icon: 'error'
+                    });
+                }
+            })
+            .catch(() => {});
+        }, 3000);
+    }
+
+    // Auto-switch ke tab register jika URL parameter memuat tab/action=register
+    document.addEventListener('DOMContentLoaded', function() {
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('action') === 'register' || urlParams.get('tab') === 'register') {
+                switchForm('register');
+            }
+        } catch (e) {}
+    });
+</script>
 {% endblock %}

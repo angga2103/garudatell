@@ -523,6 +523,7 @@ def riwayat():
 @csrf.exempt
 def profil():
     from app.models.user import User
+    from app.extensions import db
     from flask_login import login_user, logout_user, current_user
     from flask import render_template, request, redirect, url_for, flash
     from werkzeug.security import generate_password_hash, check_password_hash
@@ -575,103 +576,380 @@ def profil():
             else:
                 flash('Gagal! Akun tidak ditemukan di sistem.', 'danger')
                 
-        # LOGIKA PENDAFTARAN OTP (SUNTIKAN ANTI-PATAH)
+        # =====================================================================
+        # 1. CEK STATUS BOT WHATSAPP
+        # =====================================================================
+        elif action == 'check_wa_status':
+            from flask import jsonify
+            from app.wa_helper import is_wa_bot_connected
+            connected = is_wa_bot_connected()
+            return jsonify({'status': 'success', 'connected': connected})
+
+        # =====================================================================
+        # 2. LOGIKA PENDAFTARAN (REGISTER DENGAN OTP)
+        # =====================================================================
         elif action == 'request_otp_baru':
             from flask import jsonify
             from app.models.user import User
-            from app.wa_helper import kirim_wa_otp
-            from app.services.otp_service import create_otp
+            from app.wa_helper import is_wa_bot_connected, kirim_wa_otp
+            from app.services.otp_service import create_otp, get_phone_variants
             
-            new_username = request.form.get('new_username')
-            new_whatsapp = request.form.get('new_whatsapp')
-            new_password = request.form.get('new_password')
+            new_username = (request.form.get('new_username') or request.json.get('new_username') if request.is_json else request.form.get('new_username') or '').strip()
+            new_whatsapp = (request.form.get('new_whatsapp') or request.json.get('new_whatsapp') if request.is_json else request.form.get('new_whatsapp') or '').strip()
+            new_password = (request.form.get('new_password') or request.json.get('new_password') if request.is_json else request.form.get('new_password') or '').strip()
             
             if not new_username or not new_whatsapp or not new_password:
                 return jsonify({'status': 'error', 'message': 'Semua field wajib diisi.'})
 
             # Cek apakah username / WA sudah dipakai
-            cek_user = None
-            if hasattr(User, 'username'):
-                cek_user = User.query.filter((User.username==new_username) | (User.phone==new_whatsapp)).first()
-            elif hasattr(User, 'name'):
-                cek_user = User.query.filter((User.name==new_username) | (User.phone==new_whatsapp)).first()
-            else:
-                cek_user = User.query.filter_by(phone=new_whatsapp).first()
-            if cek_user: return jsonify({'status': 'error', 'message': 'Username atau No WhatsApp sudah terdaftar.'})
+            clean_wa = ''.join(filter(str.isdigit, str(new_whatsapp)))
+            variants = get_phone_variants(clean_wa)
+            cek_user = User.query.filter((User.name == new_username) | (User.phone.in_(variants))).first()
+            if cek_user:
+                return jsonify({'status': 'error', 'message': 'Username atau No. WhatsApp sudah terdaftar.'})
             
-            # Simpan OTP ke tabel database OtpCode (dengan password ter-hash)
+            # Cek status bot WhatsApp
+            bot_online = is_wa_bot_connected()
             p_hash = generate_password_hash(new_password)
-            otp_kode = create_otp(new_whatsapp, action='register', username=new_username, password_hash=p_hash)
             
-            # Panggil kirim_wa_otp dengan kode 6 digit
-            kirim_wa_otp(new_whatsapp, otp_kode)
-            return jsonify({'status': 'success', 'message': 'Kode OTP dikirim ke WhatsApp!'})
+            if bot_online:
+                # Simpan OTP ke tabel database OtpCode (dengan password ter-hash)
+                otp_kode = create_otp(new_whatsapp, action='register', username=new_username, password_hash=p_hash)
+                terkirim = kirim_wa_otp(new_whatsapp, otp_kode, action='register')
+                if terkirim:
+                    return jsonify({
+                        'status': 'success',
+                        'bot_online': True,
+                        'message': 'Kode OTP pendaftaran telah dikirim ke WhatsApp Anda!'
+                    })
+                else:
+                    bot_online = False
+
+            # Jika bot offline atau pengiriman gagal -> arahkan ke OTP Manual
+            return jsonify({
+                'status': 'bot_offline',
+                'bot_online': False,
+                'allow_manual': True,
+                'phone': clean_wa,
+                'name': new_username,
+                'message': 'Layanan Bot WhatsApp otomatis sedang offline / tidak terhubung. Anda dapat menggunakan Bantuan OTP Manual ke Admin/CS.'
+            })
 
         elif action == 'verify_otp_baru':
             from flask import jsonify
             from app.models.user import User
-            from app.extensions import db
             from flask_login import login_user
             from app.services.otp_service import verify_otp
             
-            new_whatsapp = request.form.get('new_whatsapp')
-            otp_input = request.form.get('otp')
+            new_whatsapp = request.form.get('new_whatsapp') or (request.json.get('new_whatsapp') if request.is_json else None)
+            otp_input = request.form.get('otp') or (request.json.get('otp') if request.is_json else None)
             
+            if not new_whatsapp or not otp_input:
+                return jsonify({'status': 'error', 'message': 'Nomor WhatsApp dan kode OTP wajib diisi.'})
+                
             is_valid, msg, user_data = verify_otp(new_whatsapp, otp_input, action='register')
             if not is_valid:
                 return jsonify({'status': 'error', 'message': msg})
                 
             # Daftar sukses
             password_hash_final = user_data.get('password_hash')
-            user_kwargs = {
-                'phone': new_whatsapp,
-                'password_hash': password_hash_final,
-                'role': 'user',
-                'balance': 0.0,
-                'is_active': True
-            }
             uname = user_data.get('username') or new_whatsapp
-            if hasattr(User, 'username'): user_kwargs['username'] = uname
-            if hasattr(User, 'name'): user_kwargs['name'] = uname
-            
-            new_user = User(**user_kwargs)
-            if hasattr(User, 'name'): new_user.name = uname
+            new_user = User(
+                name=uname,
+                phone=new_whatsapp,
+                password_hash=password_hash_final,
+                role='user',
+                balance=0.0,
+                is_active=True
+            )
             db.session.add(new_user)
             db.session.commit()
             
-            login_user(new_user)
-            return jsonify({'status': 'success', 'message': 'Pendaftaran Berhasil'})
+            login_user(new_user, remember=True)
+            return jsonify({'status': 'success', 'message': 'Pendaftaran berhasil! Selamat datang di GarudaTel.'})
 
-        elif action == 'request_emergency_otp':
+        # =====================================================================
+        # 3. LOGIKA MASUK (LOGIN 2-STEP DENGAN OTP)
+        # =====================================================================
+        elif action == 'login_step1':
             from flask import jsonify
-            from app.services.otp_service import create_otp
-            from app.services.telegram_service import send_emergency_otp_request
+            from app.models.user import User
+            from app.wa_helper import is_wa_bot_connected, kirim_wa_otp_login
+            from app.services.otp_service import create_otp, get_phone_variants
 
-            phone = request.form.get('phone') or request.form.get('new_whatsapp')
-            user_name = request.form.get('name') or request.form.get('new_username') or None
-            purpose = request.form.get('purpose', 'Pendaftaran Akun Baru')
+            identifier = (request.form.get('username') or request.json.get('username') if request.is_json else request.form.get('username') or '').strip()
+            password = (request.form.get('password') or request.json.get('password') if request.is_json else request.form.get('password') or '').strip()
+
+            if not identifier or not password:
+                return jsonify({'status': 'error', 'message': 'Username dan Kata Sandi wajib diisi.'})
+
+            # Cari pengguna berdasarkan nama atau variasi nomor telepon
+            clean_id = ''.join(filter(str.isdigit, str(identifier)))
+            variants = get_phone_variants(clean_id) if clean_id else []
+            user = User.query.filter(
+                (User.name == identifier) | (User.phone.in_(variants)) if variants else (User.name == identifier)
+            ).first()
+
+            if not user or not user.check_password(password):
+                return jsonify({'status': 'error', 'message': 'Username / No. WhatsApp atau Kata Sandi salah!'})
+
+            if not user.is_active:
+                return jsonify({'status': 'error', 'message': 'Akun Anda dinonaktifkan. Silakan hubungi Admin.'})
+
+            # Kredensial cocok! Cek status bot WhatsApp
+            bot_online = is_wa_bot_connected()
+            if bot_online:
+                otp_code = create_otp(user.phone, action='login', username=user.name)
+                terkirim = kirim_wa_otp_login(user.phone, otp_code)
+                if terkirim:
+                    # Masking nomor HP untuk tampilan aman (contoh: 0812****789)
+                    p_str = str(user.phone)
+                    masked = p_str[:4] + "****" + p_str[-3:] if len(p_str) > 7 else p_str
+                    return jsonify({
+                        'status': 'otp_sent',
+                        'bot_online': True,
+                        'phone': user.phone,
+                        'masked_phone': masked,
+                        'message': f'Kredensial cocok! Kode OTP keamanan telah dikirim ke WhatsApp Anda ({masked}).'
+                    })
+                else:
+                    bot_online = False
+
+            return jsonify({
+                'status': 'bot_offline',
+                'bot_online': False,
+                'allow_manual': True,
+                'phone': user.phone,
+                'name': user.name,
+                'message': 'Kredensial Anda benar, namun Bot WhatsApp sedang tidak terhubung. Silakan gunakan Bantuan OTP Manual untuk masuk.'
+            })
+
+        elif action == 'login_step2':
+            from flask import jsonify
+            from app.models.user import User
+            from app.services.otp_service import verify_otp, get_phone_variants
+            from flask_login import login_user
+
+            phone = request.form.get('phone') or (request.json.get('phone') if request.is_json else None)
+            otp_input = request.form.get('otp') or (request.json.get('otp') if request.is_json else None)
+
+            if not phone or not otp_input:
+                return jsonify({'status': 'error', 'message': 'Nomor WhatsApp dan kode OTP wajib diisi.'})
+
+            is_valid, msg, _ = verify_otp(phone, otp_input, action='login')
+            if not is_valid:
+                return jsonify({'status': 'error', 'message': msg})
+
+            clean_p = ''.join(filter(str.isdigit, str(phone)))
+            variants = get_phone_variants(clean_p)
+            user = User.query.filter(User.phone.in_(variants)).first()
+            if not user:
+                return jsonify({'status': 'error', 'message': 'Akun pengguna tidak ditemukan.'})
+
+            login_user(user, remember=True)
+            return jsonify({'status': 'success', 'message': 'Login berhasil! Mengalihkan...'})
+
+        # =====================================================================
+        # 4. LOGIKA LUPA PASSWORD (BERBASIS OTP)
+        # =====================================================================
+        elif action == 'forgot_password_step1':
+            from flask import jsonify
+            from app.models.user import User
+            from app.wa_helper import is_wa_bot_connected, kirim_wa_otp_reset
+            from app.services.otp_service import create_otp, get_phone_variants
+
+            username = (request.form.get('username') or request.json.get('username') if request.is_json else request.form.get('username') or '').strip()
+            phone = (request.form.get('phone') or request.json.get('phone') if request.is_json else request.form.get('phone') or '').strip()
+
+            if not username or not phone:
+                return jsonify({'status': 'error', 'message': 'Username dan Nomor WhatsApp terdaftar wajib diisi!'})
+
+            clean_p = ''.join(filter(str.isdigit, str(phone)))
+            variants = get_phone_variants(clean_p)
+            user = User.query.filter(
+                (User.name == username),
+                User.phone.in_(variants)
+            ).first()
+
+            if not user:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Username dan Nomor WhatsApp tidak cocok atau tidak terdaftar di sistem kami.'
+                })
+
+            bot_online = is_wa_bot_connected()
+            if bot_online:
+                otp_code = create_otp(user.phone, action='reset_password', username=user.name)
+                terkirim = kirim_wa_otp_reset(user.phone, otp_code)
+                if terkirim:
+                    return jsonify({
+                        'status': 'otp_sent',
+                        'bot_online': True,
+                        'phone': user.phone,
+                        'message': 'Kode OTP pemulihan kata sandi telah dikirim ke WhatsApp Anda!'
+                    })
+                else:
+                    bot_online = False
+
+            return jsonify({
+                'status': 'bot_offline',
+                'bot_online': False,
+                'allow_manual': True,
+                'phone': user.phone,
+                'name': user.name,
+                'message': 'Identitas cocok, namun Bot WhatsApp sedang offline. Silakan gunakan Bantuan OTP Manual untuk ganti kata sandi.'
+            })
+
+        elif action == 'forgot_password_step2':
+            from flask import jsonify
+            from app.services.otp_service import verify_otp
+
+            phone = request.form.get('phone') or (request.json.get('phone') if request.is_json else None)
+            otp_input = request.form.get('otp') or (request.json.get('otp') if request.is_json else None)
+
+            if not phone or not otp_input:
+                return jsonify({'status': 'error', 'message': 'Nomor WhatsApp dan kode OTP wajib diisi.'})
+
+            is_valid, msg, _ = verify_otp(phone, otp_input, action='reset_password')
+            if not is_valid:
+                return jsonify({'status': 'error', 'message': msg})
+
+            return jsonify({
+                'status': 'success',
+                'message': 'Kode OTP cocok! Silakan buat kata sandi baru Anda.'
+            })
+
+        elif action == 'forgot_password_step3':
+            from flask import jsonify
+            from app.models.user import User
+            from app.services.otp_service import get_phone_variants
+            from flask_login import login_user
+
+            phone = (request.form.get('phone') or request.json.get('phone') if request.is_json else request.form.get('phone') or '').strip()
+            new_password = (request.form.get('new_password') or request.json.get('new_password') if request.is_json else request.form.get('new_password') or '').strip()
+
+            if not phone or not new_password:
+                return jsonify({'status': 'error', 'message': 'Data tidak lengkap.'})
+
+            if len(new_password) < 6:
+                return jsonify({'status': 'error', 'message': 'Kata sandi minimal 6 karakter.'})
+
+            clean_p = ''.join(filter(str.isdigit, str(phone)))
+            variants = get_phone_variants(clean_p)
+            user = User.query.filter(User.phone.in_(variants)).first()
+            if not user:
+                return jsonify({'status': 'error', 'message': 'Pengguna tidak ditemukan.'})
+
+            user.set_password(new_password)
+            db.session.commit()
+
+            login_user(user, remember=True)
+            return jsonify({
+                'status': 'success',
+                'message': 'Kata sandi berhasil diperbarui! Selamat datang kembali.'
+            })
+
+        # =====================================================================
+        # 5. LOGIKA BANTUAN OTP MANUAL (APPROVAL TELEGRAM CS & PANEL ADMIN)
+        # =====================================================================
+        elif action == 'request_manual_otp':
+            from flask import jsonify
+            from app.models.otp_manual import OtpManualRequest
+            from app.services.telegram_service import send_emergency_otp_request
+            from app.services.otp_service import get_phone_variants
+            import json
+
+            phone = request.form.get('phone') or (request.json.get('phone') if request.is_json else None)
+            name = request.form.get('name') or (request.json.get('name') if request.is_json else None)
+            action_type = request.form.get('action_type') or request.form.get('purpose') or (request.json.get('action_type') if request.is_json else 'register')
+            temp_data_raw = request.form.get('temp_data') or (request.json.get('temp_data') if request.is_json else None)
 
             if not phone:
                 return jsonify({'status': 'error', 'message': 'Nomor WhatsApp wajib diisi.'})
 
             clean_num = ''.join(filter(str.isdigit, str(phone)))
-            if clean_num.startswith('0'):
-                clean_num = '62' + clean_num[1:]
+            variants = get_phone_variants(clean_num)
 
-            otp_kode = create_otp(clean_num, action='manual', username=user_name, expiry_seconds=600)
-            tele_ok, tele_msg, wa_link = send_emergency_otp_request(
+            # 1. Cek apakah nomor ini pernah DITOLAK (REJECTED) dan belum dibuka blokirnya
+            latest_rejection = OtpManualRequest.query.filter(
+                OtpManualRequest.phone.in_(variants),
+                OtpManualRequest.status == 'REJECTED'
+            ).order_by(OtpManualRequest.id.desc()).first()
+
+            if latest_rejection:
+                reason = latest_rejection.rejection_reason or 'Permintaan ditolak oleh Administrator'
+                return jsonify({
+                    'status': 'rejected',
+                    'rejection_reason': reason,
+                    'message': f"Permintaan OTP manual untuk nomor ini sebelumnya telah DITOLAK oleh Admin/CS.\nAlasan: \"{reason}\".\nSilakan hubungi CS jika Anda merasa ini adalah kekeliruan."
+                })
+
+            # 2. Cek apakah sudah ada request PENDING yang masih berjalan
+            pending_req = OtpManualRequest.query.filter(
+                OtpManualRequest.phone.in_(variants),
+                OtpManualRequest.status == 'PENDING'
+            ).order_by(OtpManualRequest.id.desc()).first()
+
+            if pending_req:
+                return jsonify({
+                    'status': 'pending_approval',
+                    'request_id': pending_req.id,
+                    'message': 'Permintaan bantuan Anda sebelumnya sedang menunggu persetujuan Admin/CS. Mohon menunggu sebentar...'
+                })
+
+            # 3. Buat request baru berstatus PENDING
+            temp_str = json.dumps(temp_data_raw) if isinstance(temp_data_raw, dict) else (temp_data_raw or None)
+            new_req = OtpManualRequest(
                 phone=clean_num,
-                otp_code=otp_kode,
-                user_name=user_name,
-                action_type=purpose,
-                expiry_minutes=10
+                name=name,
+                action=action_type,
+                temp_data=temp_str,
+                status='PENDING',
+                ip_address=request.remote_addr
+            )
+            db.session.add(new_req)
+            db.session.commit()
+
+            # 4. Kirim notifikasi seketika ke Bot CS Telegram
+            tele_ok, tele_msg, _ = send_emergency_otp_request(
+                phone=clean_num,
+                otp_code=None,
+                user_name=name,
+                action_type=action_type,
+                request_id=new_req.id,
+                status='PENDING'
             )
 
             return jsonify({
-                'status': 'success',
-                'message': 'Permintaan bantuan OTP Darurat telah diteruskan ke Tim CS Telegram kami. Tim CS akan segera menghubungi atau mengirimkan kode ke WhatsApp Anda (berlaku 10 menit).',
-                'wa_direct_link': wa_link,
-                'telegram_notified': tele_ok
+                'status': 'pending_approval',
+                'request_id': new_req.id,
+                'message': 'Permintaan bantuan OTP Manual telah diteruskan ke Admin & CS Telegram kami. Mohon menunggu persetujuan Admin...'
+            })
+
+        elif action == 'check_manual_otp_status':
+            from flask import jsonify
+            from app.models.otp_manual import OtpManualRequest
+            from app.services.otp_service import get_phone_variants
+
+            req_id = request.form.get('request_id') or (request.json.get('request_id') if request.is_json else None)
+            phone = request.form.get('phone') or (request.json.get('phone') if request.is_json else None)
+
+            manual_req = None
+            if req_id:
+                manual_req = OtpManualRequest.query.get(req_id)
+            elif phone:
+                clean_num = ''.join(filter(str.isdigit, str(phone)))
+                variants = get_phone_variants(clean_num)
+                manual_req = OtpManualRequest.query.filter(OtpManualRequest.phone.in_(variants)).order_by(OtpManualRequest.id.desc()).first()
+
+            if not manual_req:
+                return jsonify({'status': 'not_found', 'message': 'Permintaan tidak ditemukan.'})
+
+            return jsonify({
+                'status': manual_req.status,
+                'rejection_reason': manual_req.rejection_reason,
+                'is_expired': manual_req.is_expired(),
+                'message': f'Status permintaan: {manual_req.status}'
             })
             
     return render_template('user/profil.html', title='Profil Akun')

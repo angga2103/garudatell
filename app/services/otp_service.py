@@ -87,9 +87,11 @@ def create_otp(phone, action='register', username=None, password_hash=None, expi
 def verify_otp(phone, otp_input, action=None):
     """
     Verifikasi kode OTP pengguna.
-    Mendukung OTP darurat manual (action='manual') sebagai universal override.
+    Mendukung anti-brute-force (maksimal 3 kali salah input)
+    serta sinkronisasi dengan tabel OtpCode dan OtpManualRequest (yang di-approve Admin).
     Mengembalikan tuple: (is_valid: bool, message: str, user_data: dict)
     """
+    from app.models.otp_manual import OtpManualRequest
     clean_phone = ''.join(filter(str.isdigit, str(phone)))
     phone_variants = get_phone_variants(clean_phone)
     otp_input_str = str(otp_input).strip()
@@ -102,8 +104,8 @@ def verify_otp(phone, otp_input, action=None):
         from sqlalchemy import or_
         query = OtpCode.query.filter(OtpCode.phone.in_(phone_variants), OtpCode.is_used == False)
         if action:
-            # Mengizinkan OTP dengan action yang sesuai ATAU OTP darurat manual (master override)
-            query = query.filter(or_(OtpCode.action == action, OtpCode.action == 'manual'))
+            # Mengizinkan OTP dengan action yang sesuai
+            query = query.filter(or_(OtpCode.action == action, OtpCode.action == f"manual_{action}", OtpCode.action == 'manual'))
         latest_otp = query.order_by(OtpCode.id.desc()).first()
 
         if latest_otp:
@@ -111,7 +113,18 @@ def verify_otp(phone, otp_input, action=None):
                 return False, "Kode OTP sudah kedaluwarsa. Silakan minta ulang.", {}
 
             if latest_otp.otp_code != otp_input_str:
-                return False, "Kode OTP salah!", {}
+                latest_otp.attempts = (latest_otp.attempts or 0) + 1
+                if latest_otp.attempts >= 3:
+                    latest_otp.is_used = True
+                    db.session.commit()
+                    # Bersihkan juga dari mirror JSON agar tidak bisa di-fallback
+                    for p_var in phone_variants:
+                        _cleanup_legacy_json(p_var)
+                    return False, "Kode OTP telah dinonaktifkan karena salah memasukkan 3 kali demi keamanan. Silakan minta kode baru.", {}
+                
+                db.session.commit()
+                sisa = 3 - latest_otp.attempts
+                return False, f"Kode OTP salah! Sisa percobaan: {sisa} kali.", {}
 
             # OTP Benar -> Tandai terpakai
             latest_otp.is_used = True
@@ -128,9 +141,59 @@ def verify_otp(phone, otp_input, action=None):
             }
     except Exception as e:
         db.session.rollback()
-        logger.error(f"[OTP Service] Error saat query DB: {e}")
+        logger.error(f"[OTP Service] Error saat query DB OtpCode: {e}")
 
-    # 2. Fallback: Cek di legacy JSON jika tidak ditemukan di DB
+    # 2. Cek di Database OtpManualRequest (Disetujui Admin)
+    try:
+        query_m = OtpManualRequest.query.filter(
+            OtpManualRequest.phone.in_(phone_variants),
+            OtpManualRequest.status == 'APPROVED'
+        )
+        if action:
+            query_m = query_m.filter(OtpManualRequest.action == action)
+        manual_req = query_m.order_by(OtpManualRequest.id.desc()).first()
+
+        if manual_req:
+            if manual_req.is_expired():
+                manual_req.status = 'EXPIRED'
+                db.session.commit()
+                return False, "Kode OTP manual sudah kedaluwarsa. Silakan minta ulang.", {}
+
+            if manual_req.otp_code != otp_input_str:
+                manual_req.attempts = (manual_req.attempts or 0) + 1
+                if manual_req.attempts >= 3:
+                    manual_req.status = 'EXPIRED'
+                    db.session.commit()
+                    for p_var in phone_variants:
+                        _cleanup_legacy_json(p_var)
+                    return False, "Kode OTP manual telah dinonaktifkan karena salah memasukkan 3 kali demi keamanan.", {}
+                
+                db.session.commit()
+                sisa = 3 - manual_req.attempts
+                return False, f"Kode OTP salah! Sisa percobaan: {sisa} kali.", {}
+
+            # OTP Manual Benar -> Tandai terpakai
+            manual_req.status = 'USED'
+            db.session.commit()
+
+            # Parse data sementara jika ada
+            temp_info = {}
+            if manual_req.temp_data:
+                try:
+                    temp_info = json.loads(manual_req.temp_data)
+                except Exception:
+                    temp_info = {}
+
+            return True, "Verifikasi berhasil!", {
+                'username': manual_req.name,
+                'password_hash': temp_info.get('password_hash'),
+                'action': manual_req.action
+            }
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"[OTP Service] Error saat query OtpManualRequest: {e}")
+
+    # 3. Fallback: Cek di legacy JSON jika tidak ditemukan di DB
     if os.path.exists(LEGACY_JSON_PATH):
         try:
             with open(LEGACY_JSON_PATH, 'r') as f:

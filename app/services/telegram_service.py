@@ -98,21 +98,10 @@ def send_cs_ticket(ticket, transaction=None):
         return False, f"Koneksi error: {str(e)}"
 
 
-def send_emergency_otp_request(phone, otp_code, user_name=None, action_type='Pendaftaran / Masuk', expiry_minutes=10):
+def send_emergency_otp_request(phone, otp_code=None, user_name=None, action_type='Pendaftaran / Masuk', expiry_minutes=10, request_id=None, status='PENDING'):
     """
     Mengirimkan laporan Permintaan Bantuan OTP Darurat (Manual) ke Bot 1 : CS & Balas Inbox di Telegram.
-    Menyertakan tautan direct WhatsApp yang saat diklik langsung membuka chat ke nomor peminta OTP
-    dengan pesan otomatis berisikan kode OTP dan keterangan hanya berlaku 10 menit di nomor tersebut.
-    
-    Args:
-        phone (str): Nomor telepon peminta OTP
-        otp_code (str): Kode OTP (6 digit)
-        user_name (str, optional): Nama pengguna jika ada
-        action_type (str, optional): Kategori aksi (Pendaftaran, Lupa Password, dsb.)
-        expiry_minutes (int, optional): Masa berlaku OTP dalam menit (default: 10)
-        
-    Returns:
-        tuple (bool, str, str): (Status sukses, Pesan respons, Tautan WhatsApp direct)
+    Mendukung status PENDING (Menunggu persetujuan admin) dan tautan direct WhatsApp saat disetujui.
     """
     import urllib.parse
     from datetime import datetime
@@ -127,33 +116,39 @@ def send_emergency_otp_request(phone, otp_code, user_name=None, action_type='Pen
     display_name = user_name or 'Pengguna / Calon Member'
     wib_now = datetime.utcnow().strftime('%d/%m/%Y %H:%M WIB')
 
-    # Susun Teks Pesan WhatsApp yang akan dikirim CS ke pengguna
-    wa_message = (
-        f"Halo kak {display_name}!\n\n"
-        f"Berikut adalah *Kode OTP Darurat* Anda untuk akun GarudaTel:\n\n"
-        f"👉 *{otp_code}*\n\n"
-        f"⚠️ *PENTING:* Kode OTP ini bersifat rahasia dan *HANYA BERLAKU {expiry_minutes} MENIT* "
-        f"khusus untuk nomor ini ({clean_num}).\n\n"
-        f"Silakan masukkan kode pada formulir verifikasi Anda di website GarudaTel. Terima kasih!"
-    )
-    encoded_wa_msg = urllib.parse.quote(wa_message)
-    wa_direct_link = f"https://wa.me/{clean_num}?text={encoded_wa_msg}"
+    # Susun Teks Pesan WhatsApp jika kode OTP tersedia
+    wa_direct_link = ""
+    if otp_code:
+        wa_message = (
+            f"Halo kak {display_name}!\n\n"
+            f"Berikut adalah *Kode OTP Darurat* Anda untuk akun GarudaTel:\n\n"
+            f"👉 *{otp_code}*\n\n"
+            f"⚠️ *PENTING:* Kode OTP ini bersifat rahasia dan *HANYA BERLAKU {expiry_minutes} MENIT* "
+            f"khusus untuk nomor ini ({clean_num}).\n\n"
+            f"Silakan masukkan kode pada formulir verifikasi Anda di website GarudaTel. Terima kasih!"
+        )
+        encoded_wa_msg = urllib.parse.quote(wa_message)
+        wa_direct_link = f"https://wa.me/{clean_num}?text={encoded_wa_msg}"
 
     # Susun Pesan Telegram untuk Tim CS
+    status_badge = "⏳ <b>MENUNGGU PERSETUJUAN ADMIN</b>" if status == 'PENDING' else f"✅ <b>{status}</b>"
     lines = [
-        "🚨 <b>PERMINTAAN BANTUAN OTP DARURAT (MANUAL)</b>",
+        "🚨 <b>PERMINTAAN BANTUAN OTP MANUAL BARU</b>",
         "━━━━━━━━━━━━━━━━━━━━━━",
+        f"🆔 <b>ID Request:</b> #{request_id or '-'}",
         f"👤 <b>Nama:</b> {display_name}",
         f"📱 <b>Nomor WhatsApp:</b> <code>{clean_num}</code>",
         f"🎯 <b>Keperluan:</b> {action_type}",
-        f"🔑 <b>Kode OTP Sistem:</b> <code>{otp_code}</code>",
-        f"⏳ <b>Masa Berlaku:</b> {expiry_minutes} Menit (Khusus nomor ini)",
+        f"📊 <b>Status:</b> {status_badge}",
         f"⏰ <b>Waktu Request:</b> {wib_now}",
         "━━━━━━━━━━━━━━━━━━━━━━",
-        "💬 <i>Pengguna mengalami kendala penerimaan OTP otomatis. Klik tautan di bawah ini untuk langsung mengirimkan kode OTP ke WhatsApp pengguna:</i>",
-        "",
-        f"👉 <a href=\"{wa_direct_link}\">KLIK UNTUK KIRIM KODE OTP VIA WHATSAPP</a>"
+        "⚠️ <i>Layanan Bot WhatsApp otomatis terdeteksi sedang offline/antrean.</i>",
+        "👉 Buka Panel Web Admin di menu <b>Bantuan OTP Manual</b> untuk menyetujui atau menolak permohonan ini."
     ]
+
+    if wa_direct_link and status == 'APPROVED':
+        lines.append("")
+        lines.append(f"👉 <a href=\"{wa_direct_link}\">KLIK UNTUK KIRIM KODE OTP VIA WHATSAPP</a>")
 
     full_text = "\n".join(lines)
 

@@ -13,9 +13,15 @@ BASE_DIR = os.path.abspath(os.path.dirname(os.path.dirname(os.path.dirname(__fil
 
 auth_bp = Blueprint('auth', __name__)
 
+@auth_bp.route('/api/check_wa_status', methods=['GET'])
+@csrf.exempt
+def check_wa_status():
+    from app.wa_helper import is_wa_bot_connected
+    return jsonify({'connected': is_wa_bot_connected()})
+
 @auth_bp.route('/api/auth_ajax', methods=['POST'])
 @csrf.exempt
-@limiter.limit("20 per minute")
+@limiter.limit("30 per minute")
 def auth_ajax():
     try:
         data = request.get_json() or {}
@@ -23,16 +29,9 @@ def auth_ajax():
         phone = data.get('phone')
         password = data.get('password')
 
-        if not phone:
-            return jsonify({'status': 'error', 'message': 'Nomor WhatsApp wajib diisi!'})
-
-        if action != 'request_emergency_otp' and not password:
-            return jsonify({'status': 'error', 'message': 'Data tidak lengkap!'})
-
-
-        # ==========================================
-        # LOGIKA MINTA OTP DAFTAR BARU
-        # ==========================================
+        if action == 'check_wa_status':
+            from app.wa_helper import is_wa_bot_connected
+            return jsonify({'status': 'success', 'connected': is_wa_bot_connected()})
         if action == 'request_otp_register':
             from app.services.otp_service import create_otp
             name = data.get('name')
@@ -128,45 +127,98 @@ def auth_ajax():
         # ==========================================
         # LOGIKA PERMINTAAN BANTUAN OTP DARURAT KE CS TELEGRAM
         # ==========================================
-        elif action == 'request_emergency_otp':
-            from app.services.otp_service import create_otp
+        # ==========================================
+        # LOGIKA PERMINTAAN BANTUAN OTP MANUAL (PERSETUJUAN ADMIN & CS)
+        # ==========================================
+        elif action in ['request_manual_otp', 'request_emergency_otp']:
+            from app.models.otp_manual import OtpManualRequest
             from app.services.telegram_service import send_emergency_otp_request
-            
+            from app.services.otp_service import get_phone_variants
+            import json
+
             user_name = data.get('name') or None
-            purpose = data.get('purpose', 'Pendaftaran / Masuk Akun')
-            
-            # Buat OTP darurat 10 menit (600 detik) dengan action 'manual'
-            otp_kode = create_otp(phone, action='manual', username=user_name, expiry_seconds=600)
-            
-            # Kirim notifikasi ke Bot Telegram CS
+            purpose = data.get('action_type') or data.get('purpose', 'Pendaftaran / Masuk Akun')
+            temp_data_raw = data.get('temp_data') or None
+
             clean_num = ''.join(filter(str.isdigit, str(phone)))
-            if clean_num.startswith('0'):
-                clean_num = '62' + clean_num[1:]
-                
-            tele_ok, tele_msg, wa_direct_link = send_emergency_otp_request(
+            variants = get_phone_variants(clean_num)
+
+            # Cek status penolakan
+            latest_rejection = OtpManualRequest.query.filter(
+                OtpManualRequest.phone.in_(variants),
+                OtpManualRequest.status == 'REJECTED'
+            ).order_by(OtpManualRequest.id.desc()).first()
+
+            if latest_rejection:
+                reason = latest_rejection.rejection_reason or 'Permintaan ditolak oleh Administrator'
+                return jsonify({
+                    'status': 'rejected',
+                    'rejection_reason': reason,
+                    'message': f"Permintaan OTP manual untuk nomor ini sebelumnya telah DITOLAK oleh Admin/CS.\nAlasan: \"{reason}\".\nSilakan hubungi CS jika Anda merasa ini adalah kekeliruan."
+                })
+
+            # Cek jika ada request PENDING yang masih berjalan
+            pending_req = OtpManualRequest.query.filter(
+                OtpManualRequest.phone.in_(variants),
+                OtpManualRequest.status == 'PENDING'
+            ).order_by(OtpManualRequest.id.desc()).first()
+
+            if pending_req:
+                return jsonify({
+                    'status': 'pending_approval',
+                    'request_id': pending_req.id,
+                    'message': 'Permintaan bantuan Anda sedang menunggu persetujuan Admin/CS.'
+                })
+
+            # Buat record baru
+            temp_str = json.dumps(temp_data_raw) if isinstance(temp_data_raw, dict) else (temp_data_raw or None)
+            new_req = OtpManualRequest(
                 phone=clean_num,
-                otp_code=otp_kode,
+                name=user_name,
+                action=purpose,
+                temp_data=temp_str,
+                status='PENDING',
+                ip_address=request.remote_addr
+            )
+            db.session.add(new_req)
+            db.session.commit()
+
+            # Kirim notifikasi ke Bot CS Telegram
+            send_emergency_otp_request(
+                phone=clean_num,
+                otp_code=None,
                 user_name=user_name,
                 action_type=purpose,
-                expiry_minutes=10
+                request_id=new_req.id,
+                status='PENDING'
             )
 
-            # Link WhatsApp menuju ke nomor CS
-            import urllib.parse
-            cs_phone = ''.join(filter(str.isdigit, os.getenv('ADMIN_PHONE') or '6281234567890'))
-            if cs_phone.startswith('0'):
-                cs_phone = '62' + cs_phone[1:]
-            cs_text = urllib.parse.quote(
-                f"Halo CS GarudaTel, saya ({user_name or clean_num}) memohon bantuan verifikasi OTP darurat untuk nomor {clean_num}. Terima kasih."
-            )
-            cs_wa_url = f"https://wa.me/{cs_phone}?text={cs_text}"
-            
             return jsonify({
-                'status': 'success',
-                'message': 'Permintaan bantuan OTP Darurat telah berhasil diteruskan ke Tim CS Telegram kami! Tim CS akan segera menghubungi Anda via WhatsApp. Kode OTP ini berlaku selama 10 menit.',
-                'wa_direct_link': wa_direct_link,
-                'cs_wa_url': cs_wa_url,
-                'telegram_notified': tele_ok
+                'status': 'pending_approval',
+                'request_id': new_req.id,
+                'message': 'Permintaan bantuan OTP Manual telah diteruskan ke Admin & CS Telegram kami. Mohon menunggu persetujuan Admin...'
+            })
+
+        elif action == 'check_manual_otp_status':
+            from app.models.otp_manual import OtpManualRequest
+            from app.services.otp_service import get_phone_variants
+
+            req_id = data.get('request_id')
+            manual_req = None
+            if req_id:
+                manual_req = OtpManualRequest.query.get(req_id)
+            elif phone:
+                clean_num = ''.join(filter(str.isdigit, str(phone)))
+                variants = get_phone_variants(clean_num)
+                manual_req = OtpManualRequest.query.filter(OtpManualRequest.phone.in_(variants)).order_by(OtpManualRequest.id.desc()).first()
+
+            if not manual_req:
+                return jsonify({'status': 'not_found', 'message': 'Permintaan tidak ditemukan.'})
+
+            return jsonify({
+                'status': manual_req.status,
+                'rejection_reason': manual_req.rejection_reason,
+                'is_expired': manual_req.is_expired()
             })
 
         # ==========================================

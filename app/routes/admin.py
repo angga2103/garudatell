@@ -8,7 +8,7 @@ from app.models.banner import Banner
 from app.models.broadcast import BroadcastLog
 from app.models.deposit_ticket import DigiDepositTicket
 from app.services.digiflazz import sync_products, check_balance, request_deposit
-from app.extensions import db, limiter, cache
+from app.extensions import db, limiter, cache, csrf
 import os
 import requests
 import hashlib
@@ -1029,6 +1029,7 @@ def wa_diagnostics():
 # API GENERATE OTP MANUAL DARURAT (10 MENIT & NOTIFIKASI TELEGRAM CS)
 # =====================================================================
 @admin_bp.route('/generate_otp_manual', methods=['POST'])
+@csrf.exempt
 def generate_otp_manual():
     from flask import request, jsonify
     import urllib.parse
@@ -1090,6 +1091,148 @@ def generate_otp_manual():
         })
         
     except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)})
+
+
+# =====================================================================
+# PUSAT PERSETUJUAN BANTUAN OTP MANUAL (ADMIN PANEL)
+# =====================================================================
+@admin_bp.context_processor
+def inject_pending_otp():
+    try:
+        from app.models.otp_manual import OtpManualRequest
+        count = OtpManualRequest.query.filter_by(status='PENDING').count()
+        return dict(pending_otp_count=count)
+    except Exception:
+        return dict(pending_otp_count=0)
+
+@admin_bp.route('/otp_manual')
+def otp_manual():
+    from app.models.otp_manual import OtpManualRequest
+    requests_list = OtpManualRequest.query.order_by(OtpManualRequest.id.desc()).limit(100).all()
+    count_pending = OtpManualRequest.query.filter_by(status='PENDING').count()
+    count_approved = OtpManualRequest.query.filter_by(status='APPROVED').count()
+    count_rejected = OtpManualRequest.query.filter_by(status='REJECTED').count()
+    return render_template(
+        'admin/otp_manual.html',
+        requests_list=requests_list,
+        count_pending=count_pending,
+        count_approved=count_approved,
+        count_rejected=count_rejected,
+        page_title='Pusat Bantuan OTP Manual'
+    )
+
+@admin_bp.route('/otp_manual/approve', methods=['POST'])
+@csrf.exempt
+def otp_manual_approve():
+    from app.models.otp_manual import OtpManualRequest
+    from flask import request, jsonify
+    import urllib.parse
+    import random
+    
+    try:
+        data = request.get_json() or {}
+        req_id = data.get('request_id')
+        manual_req = OtpManualRequest.query.get(req_id)
+        if not manual_req:
+            return jsonify({'status': 'error', 'message': 'Data permohonan tidak ditemukan.'})
+            
+        otp_code = str(random.randint(100000, 999999))
+        manual_req.otp_code = otp_code
+        manual_req.status = 'APPROVED'
+        manual_req.approved_at = datetime.utcnow()
+        manual_req.expires_at = time.time() + 600 # 10 menit
+        manual_req.attempts = 0
+        db.session.commit()
+        
+        clean_num = ''.join(filter(str.isdigit, str(manual_req.phone)))
+        if clean_num.startswith('0'):
+            clean_num = '62' + clean_num[1:]
+            
+        wa_message = (
+            f"Halo kak {manual_req.name or 'Pelanggan'}!\n\n"
+            f"Permintaan bantuan OTP Anda telah *DISETUJUI* oleh Admin.\n"
+            f"Berikut adalah Kode OTP Anda:\n\n"
+            f"👉 *{otp_code}*\n\n"
+            f"⚠️ *PENTING:* Kode ini berlaku selama *10 MENIT* khusus untuk nomor {clean_num}. "
+            f"Silakan masukkan pada form verifikasi Anda di website GarudaTel."
+        )
+        wa_link = f"https://wa.me/{clean_num}?text={urllib.parse.quote(wa_message)}"
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Permintaan OTP berhasil disetujui!',
+            'otp_code': otp_code,
+            'phone': clean_num,
+            'wa_link': wa_link
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'status': 'error', 'message': str(e)})
+
+@admin_bp.route('/otp_manual/reject', methods=['POST'])
+@csrf.exempt
+def otp_manual_reject():
+    from app.models.otp_manual import OtpManualRequest
+    from flask import request, jsonify
+    
+    try:
+        data = request.get_json() or {}
+        req_id = data.get('request_id')
+        reason = data.get('reason', '').strip() or 'Permintaan ditolak oleh Administrator'
+        
+        manual_req = OtpManualRequest.query.get(req_id)
+        if not manual_req:
+            return jsonify({'status': 'error', 'message': 'Data permohonan tidak ditemukan.'})
+            
+        manual_req.status = 'REJECTED'
+        manual_req.rejection_reason = reason
+        db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'Permintaan OTP berhasil ditolak dengan alasan: {reason}'
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'status': 'error', 'message': str(e)})
+
+@admin_bp.route('/otp_manual/unblock', methods=['POST'])
+@csrf.exempt
+def otp_manual_unblock():
+    from app.models.otp_manual import OtpManualRequest
+    from flask import request, jsonify
+    
+    try:
+        data = request.get_json() or {}
+        req_id = data.get('request_id')
+        phone = data.get('phone', '').strip()
+        
+        # Reset status penolakan untuk request ini atau semua request nomor ini
+        if req_id:
+            req = OtpManualRequest.query.get(req_id)
+            if req:
+                req.status = 'UNBLOCKED'
+                phone = req.phone
+        
+        if phone:
+            clean_num = ''.join(filter(str.isdigit, str(phone)))
+            from app.services.otp_service import get_phone_variants
+            variants = get_phone_variants(clean_num)
+            rejected_records = OtpManualRequest.query.filter(
+                OtpManualRequest.phone.in_(variants),
+                OtpManualRequest.status == 'REJECTED'
+            ).all()
+            for r in rejected_records:
+                r.status = 'UNBLOCKED'
+                
+        db.session.commit()
+        return jsonify({
+            'status': 'success',
+            'message': 'Blokir nomor berhasil dibuka! Pengguna kini dapat mengajukan OTP kembali.'
+        })
+    except Exception as e:
+        db.session.rollback()
         return jsonify({'status': 'error', 'message': str(e)})
 
 
