@@ -118,8 +118,24 @@ def create_app():
                     with db.engine.connect() as conn:
                         conn.execute(db.text('ALTER TABLE otp_codes ADD COLUMN attempts INTEGER DEFAULT 0'))
                         conn.commit()
+
+            # Perbaiki catatan transaksi lama di database yang terlanjur menyimpan pesan saldo provider habis
+            if 'transaction' in inspector.get_table_names():
+                from app.models.transaction import Transaction
+                from app.services.provider_helper import USER_FRIENDLY_SN_MSG, PROVIDER_BALANCE_KEYWORDS
+                from sqlalchemy import or_
+                filters = [Transaction.sn.ilike(f'%{kw}%') for kw in PROVIDER_BALANCE_KEYWORDS]
+                old_trxs = Transaction.query.filter(
+                    Transaction.status.in_(['FAILED', 'GAGAL', 'CANCELLED']),
+                    or_(*filters)
+                ).all()
+                if old_trxs:
+                    for ot in old_trxs:
+                        ot.sn = USER_FRIENDLY_SN_MSG
+                    db.session.commit()
+                    app.logger.info(f"[AUTO-CLEAN] Berhasil membersihkan {len(old_trxs)} data transaksi lama.")
         except Exception as e:
-            app.logger.warning(f"Auto-migration failed: {e}")
+            app.logger.warning(f"Auto-migration / cleanup failed: {e}")
 
     # Pastikan direktori uploads untuk logo toko tersedia
     uploads_dir = os.path.join(basedir, 'static', 'uploads')
@@ -140,6 +156,12 @@ def create_app():
                 'logo': '',
                 'logo_url': ''
             })
+
+    # Template Filter: Format SN / Keterangan Bersih untuk Pengguna
+    @app.template_filter('format_sn')
+    def format_sn(sn_val, status=None):
+        from app.services.provider_helper import format_display_sn
+        return format_display_sn(sn_val, status)
 
     # Endpoint Healthcheck untuk Uptime Monitoring
     @app.route('/health', methods=['GET'])

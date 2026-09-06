@@ -253,6 +253,13 @@ def send_trx_notification(trx, title="TRANSAKSI MASUK"):
     if sn:
         lines.append(f"🔖 <b>SN/Keterangan:</b> <code>{sn}</code>")
 
+    if "SALDO PROVIDER HABIS" in title.upper():
+        lines.append("")
+        lines.append("🚨 <b>PERHATIAN SERVER ADMIN:</b>")
+        lines.append("⚠️ Transaksi ini GAGAL karena <b>SALDO DEPOSIT PROVIDER HABIS / KURANG</b>!")
+        lines.append("👉 Harap segera lakukan Top Up saldo deposit di portal provider terkait (VIP-Reseller / Digiflazz) agar transaksi pengguna tidak terus gagal.")
+        lines.append("━━━━━━━━━━━━━━━━━━━━━━")
+
     full_text = "\n".join(lines)
 
     try:

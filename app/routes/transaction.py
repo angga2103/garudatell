@@ -371,20 +371,33 @@ def checkout():
                     }), 200
                 else:
                     # Gagal di VIP -> Refund saldo user
+                    from app.services.provider_helper import (
+                        sanitize_public_sn_message,
+                        sanitize_public_popup_message,
+                        is_provider_balance_error
+                    )
+                    raw_vip_msg = str(order_res.get('message', 'Ditolak API VIP'))
                     user_locked.balance += amount
                     new_trx.status = 'FAILED'
-                    new_trx.sn = str(order_res.get('message', 'Ditolak API VIP'))
+                    new_trx.sn = sanitize_public_sn_message(raw_vip_msg)
                     db.session.commit()
+
                     from app.services.telegram_service import async_send_trx_notification
-                    async_send_trx_notification(new_trx, title="TRANSAKSI GAGAL (VIP)")
+                    title_vip = "TRANSAKSI GAGAL (VIP - SALDO PROVIDER HABIS)" if is_provider_balance_error(raw_vip_msg) else "TRANSAKSI GAGAL (VIP)"
+                    async_send_trx_notification(new_trx, title=title_vip)
                     return jsonify({
                         'status': 'error', 'error': True, 'success': False,
-                        'message': 'Gagal (VIP): ' + str(order_res.get('message', 'Error API'))
+                        'message': sanitize_public_popup_message(raw_vip_msg)
                     }), 200
 
             # B. BEBAS NOMINAL DIGIFLAZZ (INQUIRY + PAYMENT)
             elif is_bebas_nominal:
                 from app.services.digiflazz import inquiry_pasca, pay_pasca
+                from app.services.provider_helper import (
+                    sanitize_public_sn_message,
+                    sanitize_public_popup_message,
+                    is_provider_balance_error
+                )
                 ok_inq, res_inq_data, msg_inq = inquiry_pasca(sku_code, target_number, ref_id, amount=nominal)
                 if ok_inq:
                     ok_pay, res_pay_data, msg_pay = pay_pasca(sku_code, target_number, ref_id)
@@ -398,23 +411,30 @@ def checkout():
                     else:
                         user_locked.balance += amount
                         new_trx.status = 'FAILED'
-                        new_trx.sn = msg_pay
+                        new_trx.sn = sanitize_public_sn_message(msg_pay)
                         db.session.commit()
                         from app.services.telegram_service import async_send_trx_notification
-                        async_send_trx_notification(new_trx, title="TRANSAKSI GAGAL (PASCA)")
-                        return jsonify({'status': 'error', 'error': True, 'success': False, 'message': 'Gagal (Pay): ' + msg_pay}), 200
+                        title_pasca = "TRANSAKSI GAGAL (PASCA - SALDO PROVIDER HABIS)" if is_provider_balance_error(msg_pay) else "TRANSAKSI GAGAL (PASCA)"
+                        async_send_trx_notification(new_trx, title=title_pasca)
+                        return jsonify({'status': 'error', 'error': True, 'success': False, 'message': sanitize_public_popup_message(msg_pay)}), 200
                 else:
                     user_locked.balance += amount
                     new_trx.status = 'FAILED'
-                    new_trx.sn = msg_inq
+                    new_trx.sn = sanitize_public_sn_message(msg_inq)
                     db.session.commit()
                     from app.services.telegram_service import async_send_trx_notification
-                    async_send_trx_notification(new_trx, title="TRANSAKSI GAGAL (PASCA)")
-                    return jsonify({'status': 'error', 'error': True, 'success': False, 'message': 'Gagal (Inq): ' + msg_inq}), 200
+                    title_inq = "TRANSAKSI GAGAL (PASCA - SALDO PROVIDER HABIS)" if is_provider_balance_error(msg_inq) else "TRANSAKSI GAGAL (PASCA)"
+                    async_send_trx_notification(new_trx, title=title_inq)
+                    return jsonify({'status': 'error', 'error': True, 'success': False, 'message': sanitize_public_popup_message(msg_inq)}), 200
 
             # C. TAGIHAN PASCABAYAR DIGIFLAZZ (PLN, DLL) DENGAN REF_ID INQUIRY
             elif is_pasca_bill:
                 from app.services.digiflazz import pay_pasca
+                from app.services.provider_helper import (
+                    sanitize_public_sn_message,
+                    sanitize_public_popup_message,
+                    is_provider_balance_error
+                )
                 ok_pay, res_pay_data, msg_pay = pay_pasca(sku_code, target_number, ref_id)
                 if ok_pay:
                     rc_pay = str(res_pay_data.get('rc', '')).strip()
@@ -438,32 +458,39 @@ def checkout():
                     # Gagal di server Digiflazz -> Auto-refund saldo user
                     user_locked.balance += amount
                     new_trx.status = 'FAILED'
-                    new_trx.sn = msg_pay
+                    new_trx.sn = sanitize_public_sn_message(msg_pay)
                     db.session.commit()
                     from app.services.telegram_service import async_send_trx_notification
-                    async_send_trx_notification(new_trx, title="TAGIHAN PLN GAGAL (REFUND)")
+                    title_bill = "TAGIHAN PLN GAGAL (SALDO PROVIDER HABIS)" if is_provider_balance_error(msg_pay) else "TAGIHAN PLN GAGAL (REFUND)"
+                    async_send_trx_notification(new_trx, title=title_bill)
                     return jsonify({
                         'status': 'error',
                         'error': True,
                         'success': False,
-                        'message': 'Pembayaran tagihan gagal: ' + msg_pay
+                        'message': sanitize_public_popup_message(msg_pay)
                     }), 200
 
             # D. REGULER DIGIFLAZZ (PREPAID TOPUP)
             else:
                 from app.services.digiflazz import create_transaction
+                from app.services.provider_helper import (
+                    sanitize_public_sn_message,
+                    is_provider_balance_error
+                )
                 try:
                     digi_response = create_transaction(sku_code, target_number, ref_id)
                     if digi_response and 'data' in digi_response:
                         digi_data = digi_response['data']
                         digi_status = str(digi_data.get('status', '')).lower()
-                        if 'sukses' in digi_status or 'success' in digi_status:
+                        rc = str(digi_data.get('rc', '')).strip()
+                        if 'sukses' in digi_status or 'success' in digi_status or rc == '00':
                             new_trx.status = 'SUCCESS'
                             new_trx.sn = digi_data.get('sn', '')
-                        elif 'gagal' in digi_status or 'failed' in digi_status:
+                        elif 'gagal' in digi_status or 'failed' in digi_status or rc in ['01', '41', '42', '50', '52']:
                             new_trx.status = 'FAILED'
                             user_locked.balance += amount  # Auto refund jika langsung gagal
-                            new_trx.sn = digi_data.get('message', 'Gagal dari provider')
+                            raw_d_msg = digi_data.get('message', 'Gagal dari provider')
+                            new_trx.sn = sanitize_public_sn_message(raw_d_msg, rc=rc)
                         else:
                             new_trx.status = 'PROCESSING'
                         db.session.commit()
@@ -687,17 +714,22 @@ def sync_single_transaction(trx):
                     award_transaction_points(trx.user_id, trx.ref_id)
                     changed = True
                 elif v_status in ['error', 'failed', 'gagal']:
+                    from app.services.provider_helper import sanitize_public_sn_message, is_provider_balance_error
                     if old_status != 'FAILED' and trx.payment_status == 'PAID' and trx.payment_method == 'SALDO':
                         user = User.query.filter_by(id=trx.user_id).first()
                         if user:
                             user.balance += trx.amount
                     trx.status = 'FAILED'
-                    trx.sn = v_data.get('note', 'Gagal di server VIP')
+                    raw_v_note = v_data.get('note', 'Gagal di server VIP')
+                    trx.sn = sanitize_public_sn_message(raw_v_note)
                     changed = True
                 db.session.commit()
                 if changed:
                     from app.services.telegram_service import async_send_trx_notification
-                    async_send_trx_notification(trx, title=f"TRANSAKSI {trx.status} (VIP)")
+                    from app.services.provider_helper import is_provider_balance_error
+                    raw_check = v_data.get('note', '')
+                    title_sync_vip = "TRANSAKSI GAGAL (VIP - SALDO PROVIDER HABIS)" if is_provider_balance_error(raw_check) else f"TRANSAKSI {trx.status} (VIP)"
+                    async_send_trx_notification(trx, title=title_sync_vip)
         else:
             # B. Digiflazz (Bebas Nominal / Pasca vs Prabayar Reguler)
             bebas_sku_list = ['post685480', 'post685481', 'post685482', 'post685483', 'post685485', 'post706873']
@@ -716,13 +748,15 @@ def sync_single_transaction(trx):
                         trx.sn = sn
                     award_transaction_points(trx.user_id, trx.ref_id)
                     changed = True
-                elif 'gagal' in d_status or 'failed' in d_status or rc in ['41', '42', '50']:
+                elif 'gagal' in d_status or 'failed' in d_status or rc in ['01', '41', '42', '50', '52']:
+                    from app.services.provider_helper import sanitize_public_sn_message
                     if old_status != 'FAILED' and trx.payment_status == 'PAID' and trx.payment_method == 'SALDO':
                         user = User.query.filter_by(id=trx.user_id).first()
                         if user:
                             user.balance += trx.amount
                     trx.status = 'FAILED'
-                    trx.sn = sn or d_data.get('message', msg)
+                    raw_d_msg = sn or d_data.get('message', msg)
+                    trx.sn = sanitize_public_sn_message(raw_d_msg, rc=rc)
                     changed = True
                 elif 'pending' in d_status or 'process' in d_status or rc == '03':
                     if hasattr(trx, 'note') and d_data.get('message'):
@@ -731,7 +765,10 @@ def sync_single_transaction(trx):
                 db.session.commit()
                 if changed:
                     from app.services.telegram_service import async_send_trx_notification
-                    async_send_trx_notification(trx, title=f"TRANSAKSI {trx.status} (DIGIFLAZZ SYNC)")
+                    from app.services.provider_helper import is_provider_balance_error
+                    raw_d_check = sn or d_data.get('message', msg)
+                    title_sync_digi = "TRANSAKSI GAGAL (DIGIFLAZZ - SALDO PROVIDER HABIS)" if is_provider_balance_error(raw_d_check, rc=rc) else f"TRANSAKSI {trx.status} (DIGIFLAZZ SYNC)"
+                    async_send_trx_notification(trx, title=title_sync_digi)
     except Exception as e:
         print(f"[SYNC ERROR] {trx.ref_id}: {e}")
         db.session.rollback()
@@ -866,7 +903,7 @@ def callback_digiflazz():
             trx.status = 'SUCCESS'
             trx.sn = sn or trx.sn
             award_transaction_points(trx.user_id, ref_id)
-        elif 'gagal' in status or 'failed' in status or 'error' in status or rc in ['41', '42', '50']:
+        elif 'gagal' in status or 'failed' in status or 'error' in status or rc in ['01', '41', '42', '50', '52']:
             # AUTO-REFUND hanya jika status sebelumnya belum FAILED (mencegah double refund)
             if old_status != 'FAILED' and trx.payment_status == 'PAID' and trx.payment_method == 'SALDO':
                 user = User.query.filter_by(id=trx.user_id).with_for_update().first()
@@ -874,8 +911,8 @@ def callback_digiflazz():
                     user.balance += trx.amount
                     print(f"[REFUND] User {user.id} refunded Rp {trx.amount} for failed trx {ref_id}")
             trx.status = 'FAILED'
-            if message:
-                trx.sn = message
+            from app.services.provider_helper import sanitize_public_sn_message
+            trx.sn = sanitize_public_sn_message(sn or message, rc=rc)
         elif 'pending' in status or 'process' in status or rc == '03':
             if trx.status != 'SUCCESS':
                 trx.status = 'PROCESSING'
@@ -897,7 +934,9 @@ def callback_digiflazz():
 
         print(f"[WEBHOOK DIGIFLAZZ] {ref_id}: {old_status} -> {trx.status}")
         from app.services.telegram_service import async_send_trx_notification
-        async_send_trx_notification(trx, title=f"DIGIFLAZZ UPDATE: {trx.status}")
+        from app.services.provider_helper import is_provider_balance_error
+        title_digi_cb = "DIGIFLAZZ UPDATE: GAGAL (SALDO PROVIDER HABIS)" if is_provider_balance_error(sn or message, rc=rc) else f"DIGIFLAZZ UPDATE: {trx.status}"
+        async_send_trx_notification(trx, title=title_digi_cb)
 
         return jsonify({'status': 'success', 'message': 'Callback processed'}), 200
         
@@ -979,18 +1018,25 @@ def process_paid_order(trx):
                         trx.status = 'PROCESSING'
                 else:
                     trx.status = 'FAILED'
-                    trx.sn = msg_pay
+                    from app.services.provider_helper import sanitize_public_sn_message
+                    trx.sn = sanitize_public_sn_message(msg_pay)
             else:
                 from app.services.digiflazz import create_transaction
+                from app.services.provider_helper import sanitize_public_sn_message
                 product = Product.query.filter_by(sku_code=trx.sku_code).first()
                 if product:
                     digi_res = create_transaction(product.sku_code, trx.target_number, trx.ref_id)
                     digi_status = digi_res.get('data', {}).get('status', '').lower()
+                    rc = str(digi_res.get('data', {}).get('rc', '')).strip()
                     
-                    if 'sukses' in digi_status or 'success' in digi_status:
+                    if 'sukses' in digi_status or 'success' in digi_status or rc == '00':
                         trx.status = 'SUCCESS'
                         trx.sn = digi_res.get('data', {}).get('sn', '')
                         award_transaction_points(trx.user_id, trx.ref_id)
+                    elif 'gagal' in digi_status or 'failed' in digi_status or rc in ['01', '41', '42', '50', '52']:
+                        trx.status = 'FAILED'
+                        raw_msg = digi_res.get('data', {}).get('message', 'Gagal dari provider')
+                        trx.sn = sanitize_public_sn_message(raw_msg, rc=rc)
                     else:
                         trx.status = 'PROCESSING'
         except Exception as e:
@@ -1179,10 +1225,9 @@ def callback_vipreseller():
                     user.balance += trx.amount
                     print(f"[REFUND VIP] User {user.id} di-refund Rp {trx.amount} untuk transaksi gagal {trx.ref_id}")
             trx.status = 'FAILED'
-            if note:
-                trx.sn = str(note)
-            elif not trx.sn:
-                trx.sn = 'Pesanan ditolak/gagal di server VIP-Reseller'
+            from app.services.provider_helper import sanitize_public_sn_message
+            raw_vip_note = note or trx.sn or 'Pesanan ditolak/gagal di server VIP-Reseller'
+            trx.sn = sanitize_public_sn_message(raw_vip_note)
 
         elif 'waiting' in status or 'process' in status or 'pending' in status:
             if trx.status != 'SUCCESS':
@@ -1193,7 +1238,10 @@ def callback_vipreseller():
 
         print(f"[WEBHOOK VIP-RESELLER] {trx.ref_id}: {old_status} -> {trx.status}")
         from app.services.telegram_service import async_send_trx_notification
-        async_send_trx_notification(trx, title=f"VIP-RESELLER UPDATE: {trx.status}")
+        from app.services.provider_helper import is_provider_balance_error
+        raw_vip_check = note or ''
+        title_vip_cb = "VIP-RESELLER UPDATE: GAGAL (SALDO PROVIDER HABIS)" if is_provider_balance_error(raw_vip_check) else f"VIP-RESELLER UPDATE: {trx.status}"
+        async_send_trx_notification(trx, title=title_vip_cb)
 
         return jsonify({'result': True, 'message': 'Callback berhasil diproses', 'status': trx.status}), 200
 

@@ -359,8 +359,8 @@
             
             {% if trx.sn %}
             <div class="detail-row">
-                <span class="detail-label">Keterangan / SN</span>
-                <span class="detail-value" style="font-size: 12px; word-break: break-all; color: #475569;">{{ trx.sn }}</span>
+                <span class="detail-label">{% if trx.status in ['FAILED', 'GAGAL', 'CANCELLED'] %}Keterangan{% else %}Serial Number (SN){% endif %}</span>
+                <span class="detail-value" style="font-size: 12px; word-break: break-all; color: #475569;">{{ trx.sn|format_sn }}</span>
             </div>
             {% endif %}
         </div>
@@ -440,8 +440,8 @@
                 </div>
                 {% if trx.sn %}
                 <div class="receipt-row">
-                    <span>SN     :</span>
-                    <span style="font-size: 9px; word-break: break-all; text-align: right;">{{ trx.sn }}</span>
+                    <span>{% if trx.status in ['FAILED', 'GAGAL', 'CANCELLED'] %}KET    :{% else %}SN     :{% endif %}</span>
+                    <span style="font-size: 9px; word-break: break-all; text-align: right;">{{ trx.sn|format_sn }}</span>
                 </div>
                 {% endif %}
 
@@ -568,7 +568,7 @@ function shareReceiptWhatsApp() {
     const waktu = {{ (trx.created_at_wib or 'Baru Saja')|tojson }};
     const produk = {{ trx.product_name|tojson }};
     const tujuan = {{ trx.target_number|tojson }};
-    const sn = {{ (trx.sn or '-')|tojson }};
+    const sn = {{ (trx.sn|format_sn or '-')|tojson }};
     const harga = 'Rp ' + Number({{ trx.amount }}).toLocaleString('id-ID');
     const footer = {{ store.receipt_footer|tojson }};
     const waGroup = {{ (store.whatsapp_group or '')|tojson }};
@@ -599,7 +599,7 @@ function printViaRawBT() {
     const waktu = {{ (trx.created_at_wib or 'Baru Saja')|tojson }};
     const produk = {{ trx.product_name|tojson }};
     const tujuan = {{ trx.target_number|tojson }};
-    const sn = {{ (trx.sn or '-')|tojson }};
+    const sn = {{ (trx.sn|format_sn or '-')|tojson }};
     const harga = 'Rp ' + Number({{ trx.amount }}).toLocaleString('id-ID');
     const footer = {{ store.receipt_footer|tojson }};
 
@@ -687,7 +687,7 @@ async function connectAndPrintBluetooth() {
         commands.push(...encoder.encode('PRODUK  : ' + {{ trx.product_name|tojson }} + '\n'));
         commands.push(...encoder.encode('TUJUAN  : ' + {{ trx.target_number|tojson }} + '\n'));
         {% if trx.sn %}
-        commands.push(...encoder.encode('SN      : ' + {{ trx.sn|tojson }} + '\n'));
+        commands.push(...encoder.encode('{% if trx.status in ["FAILED", "GAGAL", "CANCELLED"] %}KET     : {% else %}SN      : {% endif %}' + {{ (trx.sn|format_sn)|tojson }} + '\n'));
         {% endif %}
         commands.push(...encoder.encode('--------------------------------\n'));
         commands.push(0x1B, 0x45, 0x01);

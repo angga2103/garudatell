@@ -179,6 +179,11 @@
         align-items: center;
         margin-top: 4px;
     }
+    .sn-box.sn-failed {
+        background: #fff7ed;
+        border-color: #fed7aa;
+        color: #c2410c;
+    }
 
     .trx-bottom-row {
         display: flex;
@@ -384,8 +389,9 @@
                     </div>
 
                     {% if t.sn %}
-                    <div class="sn-box" onclick="copyText('{{ t.sn }}')" title="Klik untuk salin SN">
-                        <span>SN: {{ t.sn }}</span>
+                    {% set is_failed = (s in ['FAILED', 'GAGAL', 'CANCELLED']) %}
+                    <div class="sn-box {% if is_failed %}sn-failed{% endif %}" onclick="copyText('{{ t.sn|format_sn }}')" title="Klik untuk salin {% if is_failed %}keterangan{% else %}SN{% endif %}">
+                        <span>{% if is_failed %}Keterangan: {% else %}SN: {% endif %}{{ t.sn|format_sn }}</span>
                         <i class="far fa-copy"></i>
                     </div>
                     {% endif %}
