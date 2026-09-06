@@ -1491,6 +1491,228 @@ def muslimtrack():
 
 
 # ==========================================
+# API MOESLEM DAILY TRACKER (CLOUD SYNC PER-USER)
+# ==========================================
+@user_bp.route('/api/muslimtrack/day', methods=['GET'])
+def api_muslimtrack_get_day():
+    """
+    Mengambil rekaman amalan harian untuk tanggal tertentu.
+    Jika guest (belum login), mengembalikan status unauthenticated sehingga data tidak disimpan di cloud.
+    """
+    from datetime import datetime
+    date_str = request.args.get('date')
+    if not date_str:
+        date_str = datetime.now().strftime('%Y-%m-%d')
+
+    if not current_user.is_authenticated:
+        return jsonify({
+            'logged_in': False,
+            'date': date_str,
+            'data': {},
+            'journal': '',
+            'score': 0,
+            'message': 'Mode Tamu: Anda belum login. Amalan tidak tersimpan di cloud.'
+        }), 200
+
+    from app.models.muslim_track import MuslimTrackRecord
+    record = MuslimTrackRecord.query.filter_by(user_id=current_user.id, date=date_str).first()
+    if record:
+        return jsonify({
+            'logged_in': True,
+            'date': record.date,
+            'data': record.get_habits(),
+            'journal': record.journal or '',
+            'score': record.score or 0,
+            'updated_at': record.updated_at.strftime('%Y-%m-%d %H:%M:%S') if record.updated_at else None
+        }), 200
+
+    return jsonify({
+        'logged_in': True,
+        'date': date_str,
+        'data': {},
+        'journal': '',
+        'score': 0,
+        'updated_at': None
+    }), 200
+
+
+@user_bp.route('/api/muslimtrack/save', methods=['POST'])
+@csrf.exempt
+def api_muslimtrack_save():
+    """
+    Menyimpan atau memperbarui data amalan dan jurnal harian akun pengguna terdaftar.
+    Jika belum login (mode tamu), menolak penyimpanan dan memberitahukan frontend.
+    """
+    from datetime import datetime
+    if not current_user.is_authenticated:
+        return jsonify({
+            'success': False,
+            'guest': True,
+            'message': 'Mode Tamu: Data amalan tidak disimpan. Silakan masuk akun terlebih dahulu agar riwayat Anda tersimpan rapi.'
+        }), 401
+
+    payload = request.get_json(silent=True) or {}
+    date_str = payload.get('date')
+    if not date_str:
+        return jsonify({'success': False, 'message': 'Parameter tanggal (date) wajib diisi.'}), 400
+
+    habits_data = payload.get('habits_data')
+    journal = payload.get('journal')
+    score = payload.get('score', 0)
+
+    try:
+        score = int(score)
+    except (ValueError, TypeError):
+        score = 0
+
+    from app.models.muslim_track import MuslimTrackRecord
+    record = MuslimTrackRecord.query.filter_by(user_id=current_user.id, date=date_str).first()
+    if not record:
+        record = MuslimTrackRecord(
+            user_id=current_user.id,
+            date=date_str,
+            score=score
+        )
+        if habits_data is not None:
+            record.set_habits(habits_data)
+        if journal is not None:
+            record.journal = journal
+        db.session.add(record)
+    else:
+        if habits_data is not None:
+            record.set_habits(habits_data)
+        if journal is not None:
+            record.journal = journal
+        if 'score' in payload:
+            record.score = score
+        record.updated_at = datetime.utcnow()
+
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'message': 'Tersimpan di Akun ☁️',
+        'date': date_str,
+        'score': record.score,
+        'updated_at': record.updated_at.strftime('%Y-%m-%d %H:%M:%S') if record.updated_at else None
+    }), 200
+
+
+@user_bp.route('/api/muslimtrack/summary', methods=['GET'])
+def api_muslimtrack_summary():
+    """
+    Mengambil data rekap mingguan dan kalender bulanan akun pengguna terdaftar.
+    Menghitung streak secara akurat langsung dari database cloud.
+    """
+    from datetime import datetime, timedelta
+    if not current_user.is_authenticated:
+        return jsonify({
+            'logged_in': False,
+            'streak': 0,
+            'weekly_scores': [0, 0, 0, 0, 0, 0, 0],
+            'monthly_data': {}
+        }), 200
+
+    from app.models.muslim_track import MuslimTrackRecord
+
+    today = datetime.now().date()
+    # Rekap 7 hari terakhir
+    weekly_scores = []
+    for i in range(6, -1, -1):
+        d_str = (today - timedelta(days=i)).strftime('%Y-%m-%d')
+        rec = MuslimTrackRecord.query.filter_by(user_id=current_user.id, date=d_str).first()
+        weekly_scores.append(rec.score if rec else 0)
+
+    # Rekap bulan aktif
+    current_month_prefix = today.strftime('%Y-%m')
+    records_month = MuslimTrackRecord.query.filter(
+        MuslimTrackRecord.user_id == current_user.id,
+        MuslimTrackRecord.date.like(f'{current_month_prefix}%')
+    ).all()
+    monthly_data = {r.date: r.score for r in records_month}
+
+    # Hitung streak harian dari database (hari ke belakang tanpa putus)
+    streak = 0
+    today_rec = MuslimTrackRecord.query.filter_by(user_id=current_user.id, date=today.strftime('%Y-%m-%d')).first()
+    if today_rec and today_rec.score >= 50:
+        start_streak_day = today
+    else:
+        yesterday = today - timedelta(days=1)
+        yesterday_rec = MuslimTrackRecord.query.filter_by(user_id=current_user.id, date=yesterday.strftime('%Y-%m-%d')).first()
+        if yesterday_rec and yesterday_rec.score >= 50:
+            start_streak_day = yesterday
+        else:
+            start_streak_day = None
+
+    if start_streak_day:
+        cur_d = start_streak_day
+        while True:
+            cur_d_str = cur_d.strftime('%Y-%m-%d')
+            rec = MuslimTrackRecord.query.filter_by(user_id=current_user.id, date=cur_d_str).first()
+            if rec and rec.score >= 50:
+                streak += 1
+                cur_d -= timedelta(days=1)
+            else:
+                break
+
+    return jsonify({
+        'logged_in': True,
+        'streak': streak,
+        'weekly_scores': weekly_scores,
+        'monthly_data': monthly_data
+    }), 200
+
+
+@user_bp.route('/api/muslimtrack/reset', methods=['POST'])
+@csrf.exempt
+def api_muslimtrack_reset():
+    """
+    Mereset semua data tracking milik akun yang sedang login dari database server.
+    """
+    if not current_user.is_authenticated:
+        return jsonify({'success': False, 'message': 'Akses ditolak. Silakan login terlebih dahulu.'}), 401
+
+    from app.models.muslim_track import MuslimTrackRecord
+    deleted_count = MuslimTrackRecord.query.filter_by(user_id=current_user.id).delete()
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'message': f'Berhasil mereset data tracker akun ({deleted_count} hari dihapus).'
+    }), 200
+
+
+@user_bp.route('/api/muslimtrack/export', methods=['GET'])
+def api_muslimtrack_export():
+    """
+    Mengekspor seluruh riwayat tracker akun yang sedang login ke file JSON untuk backup.
+    """
+    from datetime import datetime
+    if not current_user.is_authenticated:
+        return jsonify({'success': False, 'message': 'Akses ditolak.'}), 401
+
+    from app.models.muslim_track import MuslimTrackRecord
+    records = MuslimTrackRecord.query.filter_by(user_id=current_user.id).order_by(MuslimTrackRecord.date.asc()).all()
+    
+    export_dict = {}
+    for r in records:
+        export_dict[r.date] = {
+            'data': r.get_habits(),
+            'journal': r.journal or '',
+            'score': r.score or 0,
+            'updated_at': r.updated_at.strftime('%Y-%m-%d %H:%M:%S') if r.updated_at else None
+        }
+
+    return jsonify({
+        'user_id': current_user.id,
+        'user_name': current_user.name,
+        'exported_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        'total_records': len(records),
+        'records': export_dict
+    }), 200
+
+
+# ==========================================
 # RUTE NOTIFIKASI & PENGUMUMAN USER
 # ==========================================
 @user_bp.route('/notifikasi')

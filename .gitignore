@@ -86,3 +86,5 @@ wa_bot_config.json
 app/static/uploads/*
 !app/static/uploads/.gitkeep
 
+# Temporary test scripts
+scratch/

@@ -329,14 +329,45 @@
                             <div id="user-status-badge" class="text-[10px] text-teal-200/90 font-medium leading-none mt-0.5">Memeriksa status akun...</div>
                         </div>
                     </div>
-                    <span id="streak-badge" class="text-xs bg-white/20 px-3 py-1 rounded-full font-bold border border-white/10 shrink-0">
-                        <i class="fas fa-fire text-amber-300 mr-1"></i> Streak 0 hari
-                    </span>
+                    <div class="flex items-center gap-2">
+                        <span id="streak-badge" class="text-xs bg-white/20 px-3 py-1 rounded-full font-bold border border-white/10 shrink-0">
+                            <i class="fas fa-fire text-amber-300 mr-1"></i> Streak 0 hari
+                        </span>
+                        {% if not current_user or not current_user.is_authenticated %}
+                        <a href="/profil" class="text-[10px] bg-amber-400 hover:bg-amber-300 text-slate-900 font-extrabold px-2.5 py-1 rounded-lg shadow transition active:scale-95">
+                            Masuk
+                        </a>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
 
         <div class="px-4 relative z-20">
+            {% if not current_user or not current_user.is_authenticated %}
+            <!-- BANNER MODE TAMU (TANPA SIMPAN) -->
+            <div class="bg-gradient-to-r from-amber-500/10 via-amber-400/15 to-teal-500/10 dark:from-amber-900/30 dark:to-teal-900/30 border border-amber-300 dark:border-amber-600/50 rounded-2xl p-3.5 mb-4 shadow-sm flex items-start gap-3 animate-fade-in">
+                <div class="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-md">
+                    <i class="fas fa-user-lock text-sm"></i>
+                </div>
+                <div class="flex-1">
+                    <div class="flex items-center justify-between">
+                        <h4 class="text-xs font-extrabold text-amber-900 dark:text-amber-200 uppercase tracking-wide">Mode Tamu (Tanpa Simpan)</h4>
+                        <span class="text-[9px] bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100 px-2 py-0.5 rounded-full font-bold">Uji Coba</span>
+                    </div>
+                    <p class="text-[11px] text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
+                        Amalan yang Anda tandai saat ini <b>tidak disimpan</b>. Masuk atau daftar akun sekarang agar seluruh ibadah, streak harian, dan muhasabah Anda tersimpan permanen di cloud akun!
+                    </p>
+                    <div class="mt-2.5 flex items-center gap-2">
+                        <a href="/profil" class="inline-flex items-center gap-1.5 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow transition active:scale-95">
+                            <i class="fas fa-sign-in-alt text-[10px]"></i> Masuk / Daftar Akun
+                        </a>
+                        <span class="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Data tersinkron otomatis</span>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
             <!-- Progress Card -->
             <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-soft dark:shadow-lg mb-4 border border-slate-100 dark:border-slate-700 transition-colors">
                 <div class="flex justify-between items-end mb-3">
@@ -360,7 +391,12 @@
                     <input type="date" id="view-date" class="text-xs border-none focus:ring-0 bg-transparent text-slate-700 dark:text-slate-200 font-bold cursor-pointer">
                     <span class="text-[11px] font-bold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/40 px-2 py-0.5 rounded-full" id="view-date-percent">0%</span>
                 </div>
-                <button id="today-btn" type="button" class="text-xs bg-teal-50 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300 px-3 py-1 rounded-full font-bold hover:bg-teal-100 transition">Hari Ini</button>
+                <div class="flex items-center gap-2">
+                    <span id="sync-status-badge" class="text-[10px] font-semibold text-teal-600 dark:text-teal-400 transition-opacity duration-300 opacity-0 flex items-center gap-1">
+                        <i class="fas fa-cloud text-xs"></i> <span>Tersimpan</span>
+                    </span>
+                    <button id="today-btn" type="button" class="text-xs bg-teal-50 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300 px-3 py-1 rounded-full font-bold hover:bg-teal-100 transition">Hari Ini</button>
+                </div>
             </div>
 
             <!-- Jurnal Harian -->
@@ -564,18 +600,33 @@
     <div id="data-modal" class="fixed inset-0 z-50 flex items-center justify-center px-4 hidden modal-bg" style="background-color: rgba(0,0,0,0.55); backdrop-filter: blur(4px);">
         <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-6 max-w-sm w-full relative modal-box border border-slate-100 dark:border-slate-700">
             <button onclick="window.closeModal('data-modal')" type="button" class="absolute top-3 right-4 text-slate-300 hover:text-slate-500"><i class="fas fa-times"></i></button>
-            <h3 class="text-lg font-bold text-slate-800 dark:text-slate-100 mb-1 text-center">Data & Backup</h3>
-            <p class="text-xs text-slate-500 dark:text-slate-400 text-center mb-5">Data tersimpan aman di akun Anda 🔒</p>
+            <h3 class="text-lg font-bold text-slate-800 dark:text-slate-100 mb-1 text-center">Data & Cloud Backup</h3>
+            {% if current_user and current_user.is_authenticated %}
+            <p class="text-xs text-slate-500 dark:text-slate-400 text-center mb-5">Data tersimpan otomatis & aman di database akun Anda 🔒</p>
             
             <button onclick="window.backupData()" type="button" class="w-full bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 py-3 rounded-xl flex items-center justify-center gap-3 transition font-medium text-xs">
                 <i class="fas fa-download text-teal-600 dark:text-teal-400 text-sm"></i>
-                <span>Download Backup Data (JSON)</span>
+                <span>Download Backup Cloud (JSON)</span>
             </button>
             
             <button onclick="window.resetData()" type="button" class="w-full border-2 border-red-200 dark:border-red-800 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 py-2.5 rounded-xl mt-3 font-medium flex items-center justify-center gap-3 transition text-xs">
                 <i class="fas fa-trash-alt"></i>
-                <span>Reset Semua Data Tracker</span>
+                <span>Reset Semua Data Tracker Akun</span>
             </button>
+            {% else %}
+            <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50 rounded-xl p-4 text-center my-3">
+                <div class="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-800/40 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto mb-2">
+                    <i class="fas fa-user-lock text-base"></i>
+                </div>
+                <p class="text-xs font-bold text-amber-800 dark:text-amber-200">Anda dalam Mode Tamu</p>
+                <p class="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
+                    Riwayat tracking tidak disimpan pada mode tamu. Masuk ke akun Anda sekarang untuk mengaktifkan sinkronisasi cloud dan fitur backup.
+                </p>
+                <a href="/profil" class="mt-3.5 inline-block w-full bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white text-xs font-bold py-2.5 rounded-xl shadow transition">
+                    Masuk / Daftar Akun
+                </a>
+            </div>
+            {% endif %}
         </div>
     </div>
 
@@ -938,9 +989,96 @@
         }
 
         // ======================================================================
-        // 7. PENYIMPANAN DATA & TOGGLE HABIT (PER-USER STORAGE)
+        // 7. PENYIMPANAN DATA & TOGGLE HABIT (PER-USER STORAGE & CLOUD SYNC)
         // ======================================================================
+        let lastGuestNoticeTime = 0;
+        let cloudSaveTimer = null;
+
+        function updateSyncBadge(status) {
+            const badge = document.getElementById('sync-status-badge');
+            if (!badge) return;
+            if (status === 'saving') {
+                badge.innerHTML = '<i class="fas fa-spinner fa-spin text-teal-500 mr-1"></i><span>Menyimpan...</span>';
+                badge.className = 'text-[10px] font-semibold text-teal-600 dark:text-teal-400 transition-opacity duration-300 opacity-100 flex items-center';
+            } else if (status === 'saved') {
+                badge.innerHTML = '<i class="fas fa-cloud-check text-emerald-500 mr-1"></i><span>Tersimpan di Cloud</span>';
+                badge.className = 'text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 transition-opacity duration-300 opacity-100 flex items-center';
+                setTimeout(() => {
+                    if (badge) badge.classList.add('opacity-0');
+                }, 2500);
+            } else if (status === 'offline') {
+                badge.innerHTML = '<i class="fas fa-cloud text-slate-400 mr-1"></i><span>Tersimpan Lokal</span>';
+                badge.className = 'text-[10px] font-semibold text-slate-500 dark:text-slate-400 transition-opacity duration-300 opacity-100 flex items-center';
+                setTimeout(() => {
+                    if (badge) badge.classList.add('opacity-0');
+                }, 3000);
+            } else if (status === 'error') {
+                badge.innerHTML = '<i class="fas fa-exclamation-circle text-rose-500 mr-1"></i><span>Gagal Sync</span>';
+                badge.className = 'text-[10px] font-semibold text-rose-600 dark:text-rose-400 transition-opacity duration-300 opacity-100 flex items-center';
+            }
+        }
+
+        function scheduleCloudSave() {
+            if (!isGarudatelLoggedIn) return;
+            updateSyncBadge('saving');
+            clearTimeout(cloudSaveTimer);
+            cloudSaveTimer = setTimeout(async () => {
+                try {
+                    const pct = computePercent(currentDailyData);
+                    const res = await fetch('/api/muslimtrack/save', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            date: currentViewDate,
+                            habits_data: currentDailyData,
+                            journal: currentJournal,
+                            score: pct
+                        })
+                    });
+                    if (res.ok) {
+                        const json = await res.json();
+                        if (json.success) {
+                            updateSyncBadge('saved');
+                        } else {
+                            updateSyncBadge('error');
+                        }
+                    } else {
+                        updateSyncBadge('error');
+                    }
+                } catch(err) {
+                    updateSyncBadge('offline');
+                }
+            }, 450);
+        }
+
+        async function fetchDayFromCloud(date) {
+            if (!isGarudatelLoggedIn) return;
+            try {
+                const res = await fetch(`/api/muslimtrack/day?date=${date}`);
+                if (res.ok) {
+                    const result = await res.json();
+                    if (result.logged_in && result.date === currentViewDate) {
+                        currentDailyData = result.data || {};
+                        currentJournal = result.journal || "";
+                        localStorage.setItem(STORAGE_PREFIX + date, JSON.stringify(currentDailyData));
+                        localStorage.setItem(JOURNAL_PREFIX + date, currentJournal);
+                        renderUI();
+                        updateStreakAndWeekly();
+                    }
+                }
+            } catch (err) {
+                console.warn('Cloud sync day error:', err);
+            }
+        }
+
         function loadDayData(date) {
+            if (!isGarudatelLoggedIn) {
+                // Mode Tamu: Sesuai aturan, data TIDAK TERSIMPAN di penyimpanan manapun
+                currentDailyData = {};
+                currentJournal = "";
+                return;
+            }
+
             const raw = localStorage.getItem(STORAGE_PREFIX + date);
             if (raw) {
                 try {
@@ -952,38 +1090,124 @@
                 currentDailyData = {};
             }
             currentJournal = localStorage.getItem(JOURNAL_PREFIX + date) || "";
+            
+            // Tarik data resmi dari cloud database akun
+            fetchDayFromCloud(date);
         }
 
         window.toggleHabit = function(habitId) {
             if (!currentDailyData) currentDailyData = {};
             currentDailyData[habitId] = !currentDailyData[habitId];
 
-            // Simpan langsung ke penyimpanan per-user
-            localStorage.setItem(STORAGE_PREFIX + currentViewDate, JSON.stringify(currentDailyData));
-
-            // Efek getar halus di smartphone
             if (navigator.vibrate) navigator.vibrate(12);
-
-            // Re-render UI
             renderUI();
 
-            // Perbarui streak & laporan
+            if (!isGarudatelLoggedIn) {
+                // Mode Tamu: JANGAN simpan ke localStorage atau database
+                const now = Date.now();
+                if (now - lastGuestNoticeTime > 8000) {
+                    showToast('Mode Tamu: Amalan tidak disimpan. Masuk akun agar tersimpan permanen!', 'warning', 3500);
+                    lastGuestNoticeTime = now;
+                }
+                updateStreakAndWeekly();
+                return;
+            }
+
+            // Member Login: Simpan ke local cache & sinkronisasi otomatis ke cloud akun
+            localStorage.setItem(STORAGE_PREFIX + currentViewDate, JSON.stringify(currentDailyData));
             updateStreakAndWeekly();
+            scheduleCloudSave();
         };
 
         function saveJournal() {
             const jText = document.getElementById('journal-textarea');
             if (!jText) return;
             const newJournal = jText.value;
+
+            if (!isGarudatelLoggedIn) {
+                showToast('Mode Tamu: Jurnal tidak disimpan. Masuk akun agar catatan Anda tersimpan!', 'warning', 3500);
+                return;
+            }
+
             currentJournal = newJournal;
             localStorage.setItem(JOURNAL_PREFIX + currentViewDate, newJournal);
-            showToast('Jurnal tersimpan ✓', 'success');
+            updateSyncBadge('saving');
+
+            const pct = computePercent(currentDailyData);
+            fetch('/api/muslimtrack/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    date: currentViewDate,
+                    habits_data: currentDailyData,
+                    journal: currentJournal,
+                    score: pct
+                })
+            }).then(r => r.json()).then(res => {
+                if (res.success) {
+                    updateSyncBadge('saved');
+                    showToast('Jurnal tersimpan di Akun Cloud ☁️✓', 'success');
+                } else {
+                    showToast(res.message || 'Gagal menyimpan jurnal', 'error');
+                    updateSyncBadge('error');
+                }
+            }).catch(e => {
+                updateSyncBadge('offline');
+                showToast('Tersimpan di memori lokal (offline)', 'info');
+            });
         }
 
         // ======================================================================
-        // 8. STREAK & MINGGUAN
+        // 8. STREAK & MINGGUAN (DATABASE CLOUD SYNC)
         // ======================================================================
+        async function fetchSummaryFromCloud() {
+            if (!isGarudatelLoggedIn) return;
+            try {
+                const res = await fetch('/api/muslimtrack/summary');
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.logged_in) {
+                        streakValue = data.streak || 0;
+                        if (data.weekly_scores && data.weekly_scores.length === 7) {
+                            weeklyScores = data.weekly_scores;
+                        }
+                        if (data.monthly_data) {
+                            monthlyData = Object.assign({}, monthlyData, data.monthly_data);
+                        }
+                        const sBadge = document.getElementById('streak-badge');
+                        if (sBadge) {
+                            sBadge.innerHTML = `<i class="fas fa-fire text-amber-300 mr-1"></i> Streak ${streakValue} hari`;
+                        }
+                        if (chart) {
+                            chart.data.datasets[0].data = weeklyScores;
+                            chart.update();
+                        }
+                        renderMonthlyCalendar();
+                    }
+                }
+            } catch (err) {
+                console.warn('Cloud summary error:', err);
+            }
+        }
+
         function updateStreakAndWeekly() {
+            if (!isGarudatelLoggedIn) {
+                // Mode Tamu: Tampilkan perhitungan interaktif sesi berjalan
+                streakValue = 0;
+                weeklyScores = [0, 0, 0, 0, 0, 0, computePercent(currentDailyData)];
+                const sBadge = document.getElementById('streak-badge');
+                if (sBadge) {
+                    sBadge.innerHTML = `<i class="fas fa-fire text-amber-300 mr-1"></i> Streak 0 hari`;
+                }
+                if (chart) {
+                    chart.data.datasets[0].data = weeklyScores;
+                    chart.update();
+                }
+                monthlyData = {};
+                renderMonthlyCalendar();
+                return;
+            }
+
             const today = new Date();
             const last7Days = [];
             for (let i = 6; i >= 0; i--) {
@@ -1010,9 +1234,15 @@
                 chart.update();
             }
             loadMonthlyData();
+            fetchSummaryFromCloud();
         }
 
         function loadMonthlyData() {
+            if (!isGarudatelLoggedIn) {
+                monthlyData = {};
+                renderMonthlyCalendar();
+                return;
+            }
             const now = new Date();
             const year = now.getFullYear();
             const month = now.getMonth();
@@ -1182,9 +1412,34 @@
         };
 
         // ======================================================================
-        // 10. BACKUP & RESET DATA
+        // 10. BACKUP & RESET DATA (CLOUD & LOCAL)
         // ======================================================================
-        window.backupData = function() {
+        window.backupData = async function() {
+            if (!isGarudatelLoggedIn) {
+                showToast('Mode Tamu: Tidak ada data tracking tersimpan untuk diunduh.', 'info');
+                return;
+            }
+            showToast('Menyiapkan data backup cloud... ⏳', 'info', 1500);
+            try {
+                const res = await fetch('/api/muslimtrack/export');
+                if (res.ok) {
+                    const data = await res.json();
+                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `moeslem-tracker-backup-${appUserId}-${getTodayKey()}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    URL.revokeObjectURL(url);
+                    window.closeModal('data-modal');
+                    showToast('Backup berhasil diunduh dari Cloud 📥', 'success');
+                    return;
+                }
+            } catch(e) {}
+
+            // Fallback backup lokal jika offline
             const allData = {};
             for (let i = 0; i < localStorage.length; i++) {
                 const key = localStorage.key(i);
@@ -1207,7 +1462,7 @@
             a.remove();
             URL.revokeObjectURL(url);
             window.closeModal('data-modal');
-            showToast('Backup berhasil diunduh 📥', 'success');
+            showToast('Backup lokal berhasil diunduh 📥', 'success');
         };
 
         window.resetData = function() {
@@ -1215,8 +1470,17 @@
             window.openModal('reset-confirm-modal');
         };
 
-        window.confirmResetData = function() {
+        window.confirmResetData = async function() {
             window.closeModal('reset-confirm-modal');
+            if (isGarudatelLoggedIn) {
+                try {
+                    const res = await fetch('/api/muslimtrack/reset', { method: 'POST' });
+                    const json = await res.json();
+                    if (!json.success) {
+                        showToast(json.message || 'Gagal mereset di cloud', 'error');
+                    }
+                } catch(e) {}
+            }
             const toRemove = [];
             for (let i = 0; i < localStorage.length; i++) {
                 const key = localStorage.key(i);
@@ -1256,6 +1520,7 @@
                 currentViewDate = newDate;
                 loadDayData(currentViewDate);
                 renderUI();
+                updateStreakAndWeekly();
             });
 
             const tBtn = document.getElementById('today-btn');
@@ -1265,6 +1530,7 @@
                     currentViewDate = todayStr;
                     loadDayData(currentViewDate);
                     renderUI();
+                    updateStreakAndWeekly();
                     showToast('Menampilkan hari ini ✓', 'info', 1500);
                 });
             }
@@ -1292,7 +1558,7 @@
             if (uBadgeEl) {
                 uBadgeEl.innerHTML = isGarudatelLoggedIn ?
                     `<i class="fas fa-check-circle text-emerald-300 mr-1"></i>Akun Member (${appUserPhone})` :
-                    `<i class="fas fa-user-clock text-amber-300 mr-1"></i>Mode Tamu (Mandiri)`;
+                    `<i class="fas fa-user-lock text-amber-300 mr-1"></i>Mode Tamu (Tanpa Simpan)`;
             }
             if (uAvatarEl) {
                 uAvatarEl.src = 'https://ui-avatars.com/api/?background=00877a&color=fff&bold=true&name=' + encodeURIComponent(appUserName);
@@ -1309,8 +1575,13 @@
             loadDayData(currentViewDate);
             renderUI();
 
-            // Hitung Streak & Skor
+            // Hitung Streak & Skor (Awal)
             updateStreakAndWeekly();
+
+            // Ambil data resmi cloud summary jika user login
+            if (isGarudatelLoggedIn) {
+                fetchSummaryFromCloud();
+            }
         }
 
         // Eksekusi segera jika DOM siap, atau dengarkan DOMContentLoaded

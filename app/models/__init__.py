@@ -12,7 +12,8 @@ from app.models.point_log import PointLog
 from app.models.setting import Setting
 from app.models.notification import Notification, NotificationRead
 from app.models.support_ticket import SupportTicket
+from app.models.muslim_track import MuslimTrackRecord
 
-__all__ = ['Admin', 'User', 'Product', 'Transaction', 'MarginTier', 'OtpCode', 'OtpManualRequest', 'Banner', 'BroadcastLog', 'DigiDepositTicket', 'PointLog', 'Setting', 'Notification', 'NotificationRead', 'SupportTicket']
+__all__ = ['Admin', 'User', 'Product', 'Transaction', 'MarginTier', 'OtpCode', 'OtpManualRequest', 'Banner', 'BroadcastLog', 'DigiDepositTicket', 'PointLog', 'Setting', 'Notification', 'NotificationRead', 'SupportTicket', 'MuslimTrackRecord']
 
 
