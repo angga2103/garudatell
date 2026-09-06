@@ -119,8 +119,8 @@
         <a href="/muslimtrack" class="nav-fab {% if request.path in ['/muslimtrack', '/scan', '/dailytracker', '/tracker'] %}active{% endif %}" title="Moeslim Daily Tracker">
             <i class="fas fa-calendar-check"></i>
         </a>
-        <a href="/informasi" class="nav-item {% if request.path.startswith('/informasi') %}active{% endif %}">
-            <i class="fas fa-exclamation-circle"></i>
+        <a href="/mutasi" class="nav-item {% if request.path.startswith('/informasi') or request.path.startswith('/mutasi') or request.path.startswith('/mutations') %}active{% endif %}">
+            <i class="fas fa-wallet"></i>
             <span>Mutasi</span>
         </a>
         <a href="/profil" class="nav-item {% if request.path.startswith('/profil') %}active{% endif %}">

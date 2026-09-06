@@ -1007,17 +1007,33 @@ def update_security():
 
 
 @user_bp.route('/informasi')
+@user_bp.route('/mutasi')
+@user_bp.route('/mutations')
 @login_required
 def informasi():
-    mutasi_data = []
     try:
-        from app.models.transaction import Transaction
-        # Mengambil 50 transaksi terakhir dari user yang login
-        mutasi_data = Transaction.query.filter_by(user_id=current_user.id).order_by(Transaction.id.desc()).limit(50).all()
+        from app.services.mutasi_service import get_user_mutations
+        res = get_user_mutations(current_user.id, limit=100)
+        mutasi_data = res.get('mutations', [])
+        stats = res.get('stats', {
+            'current_balance': float(current_user.balance or 0.0),
+            'total_pemasukan': 0.0,
+            'total_pengeluaran': 0.0,
+            'total_refund': 0.0,
+            'count': 0
+        })
     except Exception as e:
-        print(f"Error mengambil mutasi: {e}")
+        print(f"[MUTASI] Error mengambil mutasi: {e}")
+        mutasi_data = []
+        stats = {
+            'current_balance': float(current_user.balance or 0.0),
+            'total_pemasukan': 0.0,
+            'total_pengeluaran': 0.0,
+            'total_refund': 0.0,
+            'count': 0
+        }
         
-    return render_template('user/informasi.html', mutasi_data=mutasi_data)
+    return render_template('user/informasi.html', mutasi_data=mutasi_data, stats=stats)
 
 
 

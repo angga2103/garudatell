@@ -1,171 +1,1083 @@
-{% include 'user/header.html' ignore missing %}
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+{% extends 'base.html' %}
 
+{% block title %}Mutasi Saldo - {{ store.name }}{% endblock %}
+
+{% block head %}
 <style>
-    .mutasi-body { font-family: 'Poppins', sans-serif !important; background-color: #FAFAFA; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
-    .mutasi-body * { box-sizing: border-box; font-family: 'Poppins', sans-serif !important; }
-    .header-teal { background-color: #0d9488; padding: 20px 20px 35px 20px; color: white; border-bottom-left-radius: 25px; border-bottom-right-radius: 25px; }
-    .top-nav { display: flex; align-items: center; margin-bottom: 25px; cursor: pointer; width: fit-content; }
-    .top-nav h1 { font-size: 1.1rem; font-weight: 600; margin: 0 0 0 10px; }
-    .header-title-row { display: flex; justify-content: space-between; align-items: center; }
-    .header-title-row h2 { font-size: 1.4rem; font-weight: 800; margin: 0; }
-    .btn-terkini { background-color: white; color: #0d9488; padding: 6px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; display: flex; align-items: center; gap: 6px; }
-    
-    .content-container { padding: 0 20px; margin-top: -20px; position: relative; z-index: 10; }
-    .tab-container { background-color: #F1F5F9; border-radius: 12px; display: flex; padding: 4px; margin-bottom: 20px; }
-    .tab-btn { flex: 1; border: none; background: transparent; color: #64748B; padding: 10px 0; border-radius: 10px; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: all 0.3s ease; }
-    .tab-btn.active { background-color: white; color: #0d9488; font-weight: 700; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-    
-    .search-container { position: relative; margin-bottom: 30px; }
-    .search-icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #94A3B8; display: flex; align-items: center; }
-    .search-container input { width: 100%; padding: 12px 12px 12px 45px; border: 1px solid #E2E8F0; border-radius: 12px; font-size: 0.85rem; outline: none; background-color: white; color: #334155; }
-    .search-container input::placeholder { color: #94A3B8; font-weight: 400; }
-    
-    .empty-state { text-align: center; padding: 50px 20px; color: #64748B; }
-    .empty-state-icon { margin-bottom: 15px; display: flex; justify-content: center; }
-    .empty-state-icon div { background: #F1F5F9; padding: 15px; border-radius: 15px; color: #CBD5E1; display: flex; align-items: center; justify-content: center;}
-    .empty-state p { font-size: 0.9rem; line-height: 1.6; margin: 0; }
-    
-    .mutasi-item { background: white; border-radius: 15px; padding: 15px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #F1F5F9; }
-</style>
+    :root {
+        --primary-teal: #00877a;
+        --primary-teal-dark: #005f56;
+        --danger-red: #ef4444;
+        --success-green: #10b981;
+        --info-blue: #3b82f6;
+    }
 
-<div class="mutasi-body">
-    <div class="header-teal">
-        <!-- TOMBOL KEMBALI DIARAHKAN KE HALAMAN UTAMA -->
-        <div class="top-nav" onclick="window.location.href='/'">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-            <h1>Mutasi Saldo</h1>
-        </div>
-        <div class="header-title-row">
-            <h2>Mutasi Saldo</h2>
-            <div class="btn-terkini">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Terkini
+    /* CONTAINER & WRAPPER */
+    .mutasi-page {
+        padding-bottom: 90px;
+    }
+
+    /* TOP APP BAR / HEADER */
+    .mutasi-header {
+        background: linear-gradient(135deg, #00877a 0%, #005f56 100%);
+        padding: 20px 20px 45px 20px;
+        color: white;
+        border-bottom-left-radius: 28px;
+        border-bottom-right-radius: 28px;
+        box-shadow: 0 8px 24px rgba(0, 135, 122, 0.2);
+        position: relative;
+    }
+
+    .mutasi-top-nav {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 18px;
+    }
+
+    .mutasi-back-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: white;
+        text-decoration: none;
+        font-weight: 700;
+        font-size: 15px;
+        background: rgba(255, 255, 255, 0.15);
+        padding: 6px 14px;
+        border-radius: 20px;
+        backdrop-filter: blur(8px);
+        transition: all 0.2s ease;
+    }
+
+    .mutasi-back-btn:hover {
+        background: rgba(255, 255, 255, 0.25);
+        color: white;
+    }
+
+    .mutasi-badge-live {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(255, 255, 255, 0.2);
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+    }
+
+    .pulse-dot {
+        width: 8px;
+        height: 8px;
+        background: #34d399;
+        border-radius: 50%;
+        display: inline-block;
+        box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.7);
+        animation: pulse-green 2s infinite;
+    }
+
+    @keyframes pulse-green {
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.7); }
+        70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(52, 211, 153, 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+    }
+
+    /* CARD SALDO UTAMA */
+    .balance-card {
+        background: white;
+        border-radius: 20px;
+        padding: 18px 20px;
+        margin: -25px 16px 16px 16px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.06);
+        border: 1px solid rgba(226, 232, 240, 0.8);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        position: relative;
+        z-index: 10;
+    }
+
+    .balance-label {
+        font-size: 12px;
+        color: #64748b;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .balance-value {
+        font-size: 22px;
+        font-weight: 800;
+        color: #0f172a;
+        letter-spacing: -0.5px;
+    }
+
+    .balance-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    .btn-topup-fast {
+        background: linear-gradient(135deg, #00877a 0%, #005f56 100%);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 12px;
+        font-size: 13px;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        box-shadow: 0 4px 12px rgba(0, 135, 122, 0.25);
+        transition: all 0.2s ease;
+        text-decoration: none;
+    }
+
+    .btn-topup-fast:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0, 135, 122, 0.35);
+        color: white;
+    }
+
+    /* FINANCIAL STATS MINI CARDS */
+    .financial-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        padding: 0 16px;
+        margin-bottom: 18px;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 16px;
+        padding: 12px 10px;
+        border: 1px solid #f1f5f9;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 3px;
+    }
+
+    .stat-card.in::before { background: #10b981; }
+    .stat-card.out::before { background: #ef4444; }
+    .stat-card.ref::before { background: #3b82f6; }
+
+    .stat-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        margin-bottom: 6px;
+    }
+
+    .stat-card.in .stat-icon { background: #ecfdf5; color: #10b981; }
+    .stat-card.out .stat-icon { background: #fef2f2; color: #ef4444; }
+    .stat-card.ref .stat-icon { background: #eff6ff; color: #3b82f6; }
+
+    .stat-title {
+        font-size: 10px;
+        font-weight: 700;
+        color: #64748b;
+        text-transform: uppercase;
+        margin-bottom: 2px;
+    }
+
+    .stat-num {
+        font-size: 12px;
+        font-weight: 800;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        width: 100%;
+    }
+
+    .stat-card.in .stat-num { color: #059669; }
+    .stat-card.out .stat-num { color: #dc2626; }
+    .stat-card.ref .stat-num { color: #2563eb; }
+
+    /* FILTER TABS & SEARCH */
+    .controls-wrapper {
+        padding: 0 16px;
+        margin-bottom: 16px;
+    }
+
+    .tab-pills {
+        background: #f1f5f9;
+        border-radius: 14px;
+        padding: 4px;
+        display: flex;
+        gap: 4px;
+        margin-bottom: 12px;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    .tab-pills::-webkit-scrollbar { display: none; }
+
+    .tab-pill-btn {
+        flex: 1;
+        min-width: fit-content;
+        padding: 8px 12px;
+        border: none;
+        background: transparent;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: 700;
+        color: #64748b;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+    }
+
+    .tab-pill-btn.active {
+        background: white;
+        color: #00877a;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    }
+
+    .tab-pill-btn.active.tab-pemasukan { color: #059669; }
+    .tab-pill-btn.active.tab-pengeluaran { color: #dc2626; }
+    .tab-pill-btn.active.tab-refund { color: #2563eb; }
+
+    .search-box-custom {
+        position: relative;
+        width: 100%;
+    }
+
+    .search-box-custom input {
+        width: 100%;
+        padding: 11px 14px 11px 40px;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #334155;
+        outline: none;
+        transition: border 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .search-box-custom input:focus {
+        border-color: #00877a;
+        box-shadow: 0 0 0 3px rgba(0, 135, 122, 0.12);
+    }
+
+    .search-box-custom input::placeholder {
+        color: #94a3b8;
+        font-weight: 500;
+    }
+
+    .search-box-custom i {
+        position: absolute;
+        left: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+        font-size: 14px;
+    }
+
+    /* MUTATION LIST CARDS (SESUAI GAMBAR REFERENSI DENGAN PENYEMPURNAAN) */
+    .mutasi-list {
+        padding: 0 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .mutasi-card {
+        background: white;
+        border-radius: 18px;
+        padding: 14px 16px;
+        border: 1px solid #f1f5f9;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+        position: relative;
+    }
+
+    .mutasi-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.05);
+        border-color: #cbd5e1;
+    }
+
+    .mutasi-card:active {
+        transform: scale(0.99);
+    }
+
+    .mutasi-left {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        flex: 1;
+        min-width: 0;
+    }
+
+    /* CIRCULAR DIRECTION ICON */
+    .direction-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        flex-shrink: 0;
+    }
+
+    .direction-icon.pengeluaran {
+        background: #fef2f2;
+        color: #ef4444;
+        border: 1px solid #fee2e2;
+    }
+
+    .direction-icon.pemasukan {
+        background: #ecfdf5;
+        color: #10b981;
+        border: 1px solid #d1fae5;
+    }
+
+    .direction-icon.refund {
+        background: #eff6ff;
+        color: #3b82f6;
+        border: 1px solid #dbeafe;
+    }
+
+    .mutasi-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+    }
+
+    .mutasi-title {
+        font-size: 14px;
+        font-weight: 800;
+        color: #1e293b;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .mutasi-sub {
+        font-size: 12px;
+        font-weight: 600;
+        color: #475569;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .mutasi-sub .badge-product {
+        background: #f1f5f9;
+        color: #334155;
+        padding: 2px 6px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+    .mutasi-time {
+        font-size: 11px;
+        font-weight: 500;
+        color: #94a3b8;
+    }
+
+    /* RIGHT COLUMN (AMOUNT & SISA SALDO) */
+    .mutasi-right {
+        text-align: right;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 3px;
+        flex-shrink: 0;
+        margin-left: 10px;
+    }
+
+    .mutasi-amount {
+        font-size: 15px;
+        font-weight: 800;
+        letter-spacing: -0.3px;
+    }
+
+    .mutasi-amount.pengeluaran {
+        color: #ef4444;
+    }
+
+    .mutasi-amount.pemasukan {
+        color: #10b981;
+    }
+
+    .mutasi-amount.refund {
+        color: #10b981;
+    }
+
+    .mutasi-balance-after {
+        font-size: 11px;
+        font-weight: 700;
+        color: #64748b;
+    }
+
+    .mutasi-status-badge {
+        font-size: 10px;
+        font-weight: 700;
+        padding: 2px 6px;
+        border-radius: 6px;
+        display: inline-block;
+        margin-top: 2px;
+    }
+
+    .badge-success { background: #d1fae5; color: #065f46; }
+    .badge-warning { background: #fef3c7; color: #92400e; }
+    .badge-danger { background: #fee2e2; color: #991b1b; }
+    .badge-info { background: #dbeafe; color: #1e40af; }
+
+    /* EMPTY STATES */
+    .empty-state-box {
+        text-align: center;
+        padding: 40px 20px;
+        background: white;
+        border-radius: 20px;
+        border: 1px dashed #cbd5e1;
+        margin-top: 10px;
+    }
+
+    .empty-icon-wrap {
+        width: 64px;
+        height: 64px;
+        background: #f8fafc;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 12px auto;
+        color: #94a3b8;
+        font-size: 26px;
+        border: 1px solid #e2e8f0;
+    }
+
+    .empty-title {
+        font-size: 15px;
+        font-weight: 800;
+        color: #334155;
+        margin-bottom: 4px;
+    }
+
+    .empty-desc {
+        font-size: 12px;
+        color: #64748b;
+        line-height: 1.5;
+        margin-bottom: 16px;
+    }
+
+    /* MODAL POPUP DETAIL MUTASI */
+    .modal-overlay {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(15, 23, 42, 0.6);
+        backdrop-filter: blur(4px);
+        z-index: 2000;
+        display: none;
+        align-items: flex-end;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.25s ease;
+    }
+
+    .modal-overlay.show {
+        display: flex;
+        opacity: 1;
+    }
+
+    .modal-sheet {
+        background: white;
+        width: 100%;
+        max-width: 500px;
+        border-top-left-radius: 26px;
+        border-top-right-radius: 26px;
+        padding: 22px 20px 30px 20px;
+        max-height: 85vh;
+        overflow-y: auto;
+        transform: translateY(100%);
+        transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.15);
+    }
+
+    .modal-overlay.show .modal-sheet {
+        transform: translateY(0);
+    }
+
+    .sheet-handle {
+        width: 44px;
+        height: 5px;
+        background: #e2e8f0;
+        border-radius: 10px;
+        margin: 0 auto 16px auto;
+    }
+
+    .sheet-header {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    .sheet-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        margin: 0 auto 10px auto;
+    }
+
+    .sheet-amount {
+        font-size: 24px;
+        font-weight: 800;
+        margin-bottom: 4px;
+    }
+
+    .sheet-type-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+    .sheet-details {
+        background: #f8fafc;
+        border-radius: 16px;
+        padding: 14px 16px;
+        border: 1px solid #e2e8f0;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+
+    .detail-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 12px;
+    }
+
+    .detail-label {
+        color: #64748b;
+        font-weight: 600;
+    }
+
+    .detail-value {
+        color: #0f172a;
+        font-weight: 700;
+        text-align: right;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .copy-btn {
+        background: transparent;
+        border: none;
+        color: #00877a;
+        cursor: pointer;
+        padding: 2px 4px;
+        font-size: 12px;
+    }
+
+    .btn-close-modal {
+        width: 100%;
+        padding: 12px;
+        background: #f1f5f9;
+        color: #475569;
+        border: none;
+        border-radius: 14px;
+        font-weight: 700;
+        font-size: 14px;
+        cursor: pointer;
+    }
+
+    .btn-close-modal:hover {
+        background: #e2e8f0;
+    }
+
+    @media (min-width: 768px) {
+        .modal-overlay {
+            align-items: center;
+        }
+        .modal-sheet {
+            border-radius: 26px;
+            transform: scale(0.95);
+            transition: transform 0.2s ease, opacity 0.2s ease;
+        }
+        .modal-overlay.show .modal-sheet {
+            transform: scale(1);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mutasi-page">
+    <!-- HEADER TEAL -->
+    <div class="mutasi-header">
+        <div class="mutasi-top-nav">
+            <a href="/" class="mutasi-back-btn">
+                <i class="fas fa-arrow-left"></i> Beranda
+            </a>
+            <div class="mutasi-badge-live">
+                <span class="pulse-dot"></span> Live Mutasi
             </div>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+                <h1 style="font-size: 22px; font-weight: 800; margin: 0 0 4px 0; letter-spacing: -0.5px;">Mutasi Saldo</h1>
+                <p style="font-size: 12px; opacity: 0.9; margin: 0;">Catatan riil sirkulasi saldo & refund akun Anda</p>
+            </div>
+            <a href="/riwayat" style="color: white; font-size: 12px; font-weight: 700; text-decoration: underline; opacity: 0.95;">
+                Riwayat Transaksi &raquo;
+            </a>
         </div>
     </div>
 
-    <div class="content-container">
-        <!-- TABS -->
-        <div class="tab-container">
-            <button id="btn-semua" class="tab-btn active" onclick="filterTab('semua')">Semua</button>
-            <button id="btn-pemasukan" class="tab-btn" onclick="filterTab('pemasukan')">Pemasukan</button>
-            <button id="btn-pengeluaran" class="tab-btn" onclick="filterTab('pengeluaran')">Pengeluaran</button>
-        </div>
-
-        <!-- SEARCH BOX DENGAN FUNGSI AKTIF -->
-        <div class="search-container">
-            <div class="search-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+    <!-- CARD SALDO UTAMA & TOPUP CEPAT -->
+    <div class="balance-card">
+        <div>
+            <div class="balance-label">
+                <i class="fas fa-wallet" style="color: #00877a;"></i> Saldo Utama Anda
             </div>
-            <input type="text" id="searchInput" onkeyup="searchMutasi()" placeholder="Cari keterangan, Reff, atau jumlah...">
+            <div class="balance-value">
+                Rp {{ "{:,.0f}".format(stats.current_balance | default(current_user.balance) | default(0)).replace(',', '.') }}
+            </div>
+        </div>
+        <div class="balance-actions">
+            <a href="/deposit" class="btn-topup-fast">
+                <i class="fas fa-plus-circle"></i> Top Up
+            </a>
+        </div>
+    </div>
+
+    <!-- RINGKASAN FINANSIAL (3 MINI CARDS) -->
+    <div class="financial-grid">
+        <div class="stat-card in">
+            <div class="stat-icon"><i class="fas fa-arrow-down"></i></div>
+            <span class="stat-title">Pemasukan</span>
+            <span class="stat-num">+ Rp {{ "{:,.0f}".format(stats.total_pemasukan | default(0)).replace(',', '.') }}</span>
+        </div>
+        <div class="stat-card out">
+            <div class="stat-icon"><i class="fas fa-arrow-up"></i></div>
+            <span class="stat-title">Pengeluaran</span>
+            <span class="stat-num">- Rp {{ "{:,.0f}".format(stats.total_pengeluaran | default(0)).replace(',', '.') }}</span>
+        </div>
+        <div class="stat-card ref">
+            <div class="stat-icon"><i class="fas fa-rotate-left"></i></div>
+            <span class="stat-title">Refund Dana</span>
+            <span class="stat-num">+ Rp {{ "{:,.0f}".format(stats.total_refund | default(0)).replace(',', '.') }}</span>
+        </div>
+    </div>
+
+    <!-- CONTROLS: TABS & SEARCH -->
+    <div class="controls-wrapper">
+        <div class="tab-pills">
+            <button id="tab-all" class="tab-pill-btn active" onclick="setFilter('all')">
+                Semua ({{ mutasi_data | length }})
+            </button>
+            <button id="tab-in" class="tab-pill-btn tab-pemasukan" onclick="setFilter('pemasukan')">
+                <i class="fas fa-arrow-down" style="font-size: 10px;"></i> Pemasukan
+            </button>
+            <button id="tab-out" class="tab-pill-btn tab-pengeluaran" onclick="setFilter('pengeluaran')">
+                <i class="fas fa-arrow-up" style="font-size: 10px;"></i> Pengeluaran
+            </button>
+            <button id="tab-ref" class="tab-pill-btn tab-refund" onclick="setFilter('refund')">
+                <i class="fas fa-rotate-left" style="font-size: 10px;"></i> Refund
+            </button>
         </div>
 
-        <!-- LIST DATA MUTASI -->
-        <div id="mutasi-container" style="padding-bottom: 80px;">
-            {% if mutasi_data %}
-                {% for item in mutasi_data %}
-                {% set nominal = item.price | default(item.amount) | default(0) %}
-                {% set is_pengeluaran = true %} 
+        <div class="search-box-custom">
+            <i class="fas fa-search"></i>
+            <input type="text" id="searchInput" placeholder="Cari nama produk, tujuan, Reff ID, nominal..." oninput="onSearchMutasi()">
+        </div>
+    </div>
+
+    <!-- MUTATION LIST -->
+    <div class="mutasi-list" id="mutasiItemsContainer">
+        {% if mutasi_data %}
+            {% for item in mutasi_data %}
+            <div class="mutasi-card" 
+                 data-type="{{ item.type }}"
+                 data-title="{{ item.title | lower }}"
+                 data-subtitle="{{ item.subtitle | lower }}"
+                 data-product="{{ item.product_name | lower }}"
+                 data-target="{{ item.target | lower }}"
+                 data-ref="{{ item.ref_id | lower }}"
+                 data-amount="{{ item.amount }}"
+                 data-date="{{ item.date_str }}"
+                 onclick="openDetailModal({{ item | tojson | forceescape }})">
                 
-                <div class="mutasi-item" data-type="{% if is_pengeluaran %}pengeluaran{% else %}pemasukan{% endif %}">
-                    <div>
-                        <div class="mutasi-title" style="font-weight: 700; font-size: 0.9rem; color: #334155; margin-bottom: 4px;">
-                            {{ item.product_name | default('Transaksi Saldo') }}
-                        </div>
-                        <div class="mutasi-ref" style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 4px;">
-                            Reff: {{ item.id | default('-') }}
-                        </div>
-                        <div style="font-size: 0.75rem; color: #94A3B8;">
-                            {{ item.created_at.strftime('%d %b %Y, %H:%M') if item.created_at else 'Waktu tidak tersedia' }}
-                        </div>
+                <div class="mutasi-left">
+                    <!-- CIRCULAR DIRECTION ICON SESUAI GAMBAR REFERENSI -->
+                    <div class="direction-icon {{ item.type }}">
+                        {% if item.type == 'pengeluaran' %}
+                            <i class="fas fa-angles-up"></i>
+                        {% elif item.type == 'refund' %}
+                            <i class="fas fa-rotate-left"></i>
+                        {% else %}
+                            <i class="fas fa-angles-down"></i>
+                        {% endif %}
                     </div>
-                    <div style="text-align: right;">
-                        <span class="mutasi-amount" style="font-weight: 800; font-size: 0.95rem; {% if is_pengeluaran %}color: #EF4444;{% else %}color: #10B981;{% endif %}">
-                            {% if is_pengeluaran %}-{% else %}+{% endif %} Rp {{ "{:,.0f}".format(nominal).replace(',', '.') }}
-                        </span>
+
+                    <!-- INFORMATION COLUMN -->
+                    <div class="mutasi-info">
+                        <div class="mutasi-title">{{ item.title }}</div>
                         
-                        <div style="font-size: 0.7rem; margin-top: 5px; padding: 3px 8px; border-radius: 6px; font-weight: 700; display: inline-block;
-                            {% if item.status == 'Sukses' or item.status == 'Success' %} background: #D1FAE5; color: #059669;
-                            {% elif item.status == 'Pending' %} background: #FEF3C7; color: #D97706;
-                            {% else %} background: #FEE2E2; color: #DC2626; {% endif %}">
-                            {{ item.status | default('Selesai') }}
+                        <div class="mutasi-sub">
+                            {% if item.type == 'pengeluaran' %}
+                                <span class="badge-product">{{ item.product_name }}</span>
+                                {% if item.target and item.target != '-' %}
+                                    <span>&bull; {{ item.target }}</span>
+                                {% endif %}
+                            {% elif item.type == 'refund' %}
+                                <span class="badge-product" style="background: #eff6ff; color: #1e40af;">Refund Saldo</span>
+                                <span>{{ item.product_name }}</span>
+                            {% else %}
+                                <span class="badge-product" style="background: #ecfdf5; color: #065f46;">Topup</span>
+                                <span>{{ item.payment_method }}</span>
+                            {% endif %}
+                        </div>
+
+                        <div class="mutasi-time">
+                            <i class="far fa-clock" style="font-size: 10px; margin-right: 2px;"></i> {{ item.date_str }} WIB
                         </div>
                     </div>
                 </div>
-                {% endfor %}
-            {% else %}
-                <div class="empty-state">
-                    <div class="empty-state-icon">
-                        <div>
-                            <svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/><path d="M4 6v12c0 1.1.9 2 2 2h14v-8H6a2 2 0 0 1-2-2Z"/></svg>
-                        </div>
+
+                <!-- RIGHT COLUMN (AMOUNT & SISA SALDO SESUAI GAMBAR REFERENSI) -->
+                <div class="mutasi-right">
+                    <div class="mutasi-amount {{ item.type }}">
+                        {{ item.direction }} Rp {{ "{:,.0f}".format(item.amount).replace(',', '.') }}
                     </div>
-                    <p>Tidak ada data mutasi yang<br>ditemukan</p>
-                </div>
-            {% endif %}
-            
-            <!-- PESAN JIKA HASIL PENCARIAN KOSONG -->
-            <div id="no-result" class="empty-state" style="display: none;">
-                <div class="empty-state-icon">
-                    <div>
-                        <svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                    
+                    <div class="mutasi-balance-after">
+                        Sisa: Rp {{ "{:,.0f}".format(item.balance_after | default(0)).replace(',', '.') }}
                     </div>
+
+                    <span class="mutasi-status-badge badge-{{ item.status_color | default('success') }}">
+                        {{ item.status_badge | default('Selesai') }}
+                    </span>
                 </div>
-                <p>Data yang dicari tidak<br>ditemukan</p>
             </div>
+            {% endfor %}
+        {% else %}
+            <!-- EMPTY STATE -->
+            <div class="empty-state-box">
+                <div class="empty-icon-wrap">
+                    <i class="fas fa-receipt"></i>
+                </div>
+                <div class="empty-title">Belum Ada Mutasi Saldo</div>
+                <div class="empty-desc">
+                    Seluruh pergerakan pengeluaran belanja produk, penambahan saldo (topup), dan pengembalian dana (refund) akan tercatat rapi di sini.
+                </div>
+                <a href="/deposit" class="btn-topup-fast" style="display: inline-flex;">
+                    <i class="fas fa-plus-circle"></i> Mulai Isi Saldo
+                </a>
+            </div>
+        {% endif %}
+
+        <!-- NO SEARCH RESULTS NOTICE -->
+        <div id="noSearchAlert" class="empty-state-box" style="display: none;">
+            <div class="empty-icon-wrap">
+                <i class="fas fa-search-minus"></i>
+            </div>
+            <div class="empty-title">Tidak Ada Data yang Cocok</div>
+            <div class="empty-desc">
+                Pencarian kata kunci Anda tidak ditemukan pada riwayat mutasi saldo. Silakan coba kata kunci lain.
+            </div>
+            <button class="btn-topup-fast" onclick="resetSearch()" style="background: #64748b; border: none; cursor: pointer;">
+                Reset Pencarian
+            </button>
         </div>
     </div>
 </div>
 
-<script>
-// FILTER TAB
-function filterTab(type) {
-    document.getElementById('btn-semua').className = 'tab-btn';
-    document.getElementById('btn-pemasukan').className = 'tab-btn';
-    document.getElementById('btn-pengeluaran').className = 'tab-btn';
-    document.getElementById('btn-' + type).className = 'tab-btn active';
+<!-- MODAL DETAIL MUTASI SALDO INTERAKTIF -->
+<div class="modal-overlay" id="mutasiDetailModal" onclick="closeDetailModalOnOutside(event)">
+    <div class="modal-sheet">
+        <div class="sheet-handle"></div>
+        
+        <div class="sheet-header">
+            <div class="sheet-icon" id="modalIcon">
+                <i class="fas fa-wallet"></i>
+            </div>
+            <div class="sheet-amount" id="modalAmount">- Rp 0</div>
+            <div class="sheet-type-badge" id="modalTypeBadge">Pengeluaran</div>
+        </div>
 
-    const items = document.querySelectorAll('.mutasi-item');
-    items.forEach(item => {
-        if (type === 'semua' || item.getAttribute('data-type') === type) {
-            item.style.display = 'flex';
-        } else {
-            item.style.display = 'none';
-        }
-    });
+        <div class="sheet-details">
+            <div class="detail-row">
+                <span class="detail-label">Status Transaksi</span>
+                <span class="detail-value" id="modalStatusBadge">
+                    <span class="mutasi-status-badge badge-success">Sukses</span>
+                </span>
+            </div>
+            
+            <div class="detail-row">
+                <span class="detail-label">Sisa Saldo Setelahnya</span>
+                <span class="detail-value" id="modalBalanceAfter" style="color: #00877a; font-size: 13px;">Rp 0</span>
+            </div>
+
+            <div class="detail-row">
+                <span class="detail-label">Saldo Sebelumnya</span>
+                <span class="detail-value" id="modalBalanceBefore" style="color: #64748b;">Rp 0</span>
+            </div>
+
+            <hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 2px 0;">
+
+            <div class="detail-row">
+                <span class="detail-label">Keterangan / Produk</span>
+                <span class="detail-value" id="modalProduct">-</span>
+            </div>
+
+            <div class="detail-row" id="rowModalTarget">
+                <span class="detail-label">Nomor Tujuan</span>
+                <span class="detail-value" id="modalTarget">-</span>
+            </div>
+
+            <div class="detail-row">
+                <span class="detail-label">Metode Pembayaran</span>
+                <span class="detail-value" id="modalMethod">SALDO</span>
+            </div>
+
+            <div class="detail-row">
+                <span class="detail-label">ID Referensi</span>
+                <span class="detail-value">
+                    <span id="modalRefId">-</span>
+                    <button class="copy-btn" onclick="copyRefId()" title="Salin Reff ID">
+                        <i class="far fa-copy"></i>
+                    </button>
+                </span>
+            </div>
+
+            <div class="detail-row" id="rowModalSN">
+                <span class="detail-label">SN / Keterangan</span>
+                <span class="detail-value" id="modalSN" style="font-family: monospace; font-size: 11px; max-width: 220px; overflow-wrap: break-word;">-</span>
+            </div>
+
+            <div class="detail-row">
+                <span class="detail-label">Waktu Transaksi</span>
+                <span class="detail-value" id="modalDate">-</span>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 10px;">
+            <button class="btn-close-modal" onclick="closeDetailModal()">Tutup</button>
+            <a id="btnModalInvoice" href="#" class="btn-topup-fast" style="flex: 1; justify-content: center; text-decoration: none;">
+                <i class="fas fa-file-invoice"></i> Lihat Struk / Detail
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentFilter = 'all';
+
+function setFilter(type) {
+    currentFilter = type;
     
-    // Reset pencarian saat ganti tab
-    document.getElementById('searchInput').value = '';
-    document.getElementById('no-result').style.display = 'none';
+    // Toggle active state pill buttons
+    document.getElementById('tab-all').className = 'tab-pill-btn' + (type === 'all' ? ' active' : '');
+    document.getElementById('tab-in').className = 'tab-pill-btn tab-pemasukan' + (type === 'pemasukan' ? ' active' : '');
+    document.getElementById('tab-out').className = 'tab-pill-btn tab-pengeluaran' + (type === 'pengeluaran' ? ' active' : '');
+    document.getElementById('tab-ref').className = 'tab-pill-btn tab-refund' + (type === 'refund' ? ' active' : '');
+
+    filterCards();
 }
 
-// LOGIKA PENCARIAN REAL-TIME
-function searchMutasi() {
-    const input = document.getElementById('searchInput').value.toLowerCase();
-    const items = document.querySelectorAll('.mutasi-item');
-    let hasResult = false;
-    
-    items.forEach(item => {
-        const title = item.querySelector('.mutasi-title').innerText.toLowerCase();
-        const ref = item.querySelector('.mutasi-ref').innerText.toLowerCase();
-        const amount = item.querySelector('.mutasi-amount').innerText.toLowerCase();
-        
-        if (title.includes(input) || ref.includes(input) || amount.includes(input)) {
-            item.style.display = 'flex';
-            hasResult = true;
+function onSearchMutasi() {
+    filterCards();
+}
+
+function resetSearch() {
+    document.getElementById('searchInput').value = '';
+    setFilter('all');
+}
+
+function filterCards() {
+    const query = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+    const cards = document.querySelectorAll('.mutasi-card');
+    let visibleCount = 0;
+
+    cards.forEach(card => {
+        const cType = card.getAttribute('data-type');
+        const cTitle = card.getAttribute('data-title') || '';
+        const cSub = card.getAttribute('data-subtitle') || '';
+        const cProduct = card.getAttribute('data-product') || '';
+        const cTarget = card.getAttribute('data-target') || '';
+        const cRef = card.getAttribute('data-ref') || '';
+        const cAmount = card.getAttribute('data-amount') || '';
+        const cDate = card.getAttribute('data-date') || '';
+
+        // Match type
+        const matchesType = (currentFilter === 'all') || (cType === currentFilter);
+
+        // Match text query
+        const matchesQuery = !query || 
+            cTitle.includes(query) || 
+            cSub.includes(query) || 
+            cProduct.includes(query) || 
+            cTarget.includes(query) || 
+            cRef.includes(query) || 
+            cAmount.includes(query) || 
+            cDate.includes(query);
+
+        if (matchesType && matchesQuery) {
+            card.style.display = 'flex';
+            visibleCount++;
         } else {
-            item.style.display = 'none';
+            card.style.display = 'none';
         }
     });
+
+    const noAlert = document.getElementById('noSearchAlert');
+    if (noAlert) {
+        if (visibleCount === 0 && cards.length > 0) {
+            noAlert.style.display = 'block';
+        } else {
+            noAlert.style.display = 'none';
+        }
+    }
+}
+
+// MODAL DETAIL INTERAKSI
+function openDetailModal(data) {
+    const modal = document.getElementById('mutasiDetailModal');
+    const icon = document.getElementById('modalIcon');
+    const amount = document.getElementById('modalAmount');
+    const typeBadge = document.getElementById('modalTypeBadge');
     
-    // Tampilkan pesan kosong jika tidak ada yang cocok
-    const noResultDiv = document.getElementById('no-result');
-    if(input !== '' && !hasResult && items.length > 0) {
-        noResultDiv.style.display = 'block';
+    // Amount & Colors
+    const formattedAmount = Number(data.amount || 0).toLocaleString('id-ID');
+    amount.innerText = (data.direction || '') + ' Rp ' + formattedAmount;
+    
+    if (data.type === 'pengeluaran') {
+        amount.style.color = '#ef4444';
+        icon.className = 'sheet-icon direction-icon pengeluaran';
+        icon.innerHTML = '<i class="fas fa-angles-up"></i>';
+        typeBadge.innerText = 'Pengeluaran Saldo';
+        typeBadge.style.background = '#fef2f2';
+        typeBadge.style.color = '#dc2626';
+    } else if (data.type === 'refund') {
+        amount.style.color = '#10b981';
+        icon.className = 'sheet-icon direction-icon refund';
+        icon.innerHTML = '<i class="fas fa-rotate-left"></i>';
+        typeBadge.innerText = 'Refund Pengembalian Saldo';
+        typeBadge.style.background = '#eff6ff';
+        typeBadge.style.color = '#2563eb';
     } else {
-        noResultDiv.style.display = 'none';
+        amount.style.color = '#10b981';
+        icon.className = 'sheet-icon direction-icon pemasukan';
+        icon.innerHTML = '<i class="fas fa-angles-down"></i>';
+        typeBadge.innerText = 'Pemasukan Saldo';
+        typeBadge.style.background = '#ecfdf5';
+        typeBadge.style.color = '#059669';
+    }
+
+    // Status Badge
+    const statusColor = data.status_color || 'success';
+    document.getElementById('modalStatusBadge').innerHTML = 
+        `<span class="mutasi-status-badge badge-${statusColor}">${data.status_badge || data.status || 'Sukses'}</span>`;
+
+    // Running Balances
+    const afterNum = Number(data.balance_after || 0).toLocaleString('id-ID');
+    const beforeNum = Number(data.balance_before || 0).toLocaleString('id-ID');
+    document.getElementById('modalBalanceAfter').innerText = 'Rp ' + afterNum;
+    document.getElementById('modalBalanceBefore').innerText = 'Rp ' + beforeNum;
+
+    // Fields
+    document.getElementById('modalProduct').innerText = data.product_name || data.title || '-';
+    
+    const targetRow = document.getElementById('rowModalTarget');
+    if (data.target && data.target !== '-') {
+        targetRow.style.display = 'flex';
+        document.getElementById('modalTarget').innerText = data.target;
+    } else {
+        targetRow.style.display = 'none';
+    }
+
+    document.getElementById('modalMethod').innerText = data.payment_method || 'SALDO';
+    document.getElementById('modalRefId').innerText = data.ref_id || '-';
+    
+    const snRow = document.getElementById('rowModalSN');
+    if (data.sn && data.sn !== '-') {
+        snRow.style.display = 'flex';
+        document.getElementById('modalSN').innerText = data.sn;
+    } else {
+        snRow.style.display = 'none';
+    }
+
+    document.getElementById('modalDate').innerText = (data.date_str || '-') + ' WIB';
+
+    // Invoice Button
+    const btnInvoice = document.getElementById('btnModalInvoice');
+    if (data.ref_id && data.ref_id.startsWith('GT-') || data.ref_id && data.ref_id.startsWith('VIP-') || data.ref_id && data.ref_id.startsWith('DEP-')) {
+        btnInvoice.href = '/riwayat';
+        btnInvoice.style.display = 'inline-flex';
+    } else {
+        btnInvoice.href = '/riwayat';
+        btnInvoice.style.display = 'inline-flex';
+    }
+
+    modal.classList.add('show');
+}
+
+function closeDetailModal() {
+    const modal = document.getElementById('mutasiDetailModal');
+    modal.classList.remove('show');
+}
+
+function closeDetailModalOnOutside(e) {
+    if (e.target.id === 'mutasiDetailModal') {
+        closeDetailModal();
+    }
+}
+
+function copyRefId() {
+    const refText = document.getElementById('modalRefId').innerText;
+    if (refText && refText !== '-') {
+        navigator.clipboard.writeText(refText).then(() => {
+            alert('Reff ID ' + refText + ' berhasil disalin!');
+        }).catch(err => {
+            console.error('Copy failed', err);
+        });
     }
 }
 </script>
-{% include 'user/footer.html' ignore missing %}
+{% endblock %}
