@@ -103,6 +103,10 @@ def create_app():
         endpoint_name = 'alias_' + path.replace('/', '_').strip('_')
         app.add_url_rule(path, endpoint=endpoint_name, view_func=handler, methods=['POST'])
 
+    # Daftarkan Alias Route AJAX Auth (/api/auth_ajax)
+    from app.routes.auth import auth_ajax
+    app.add_url_rule('/api/auth_ajax', endpoint='alias_api_auth_ajax', view_func=auth_ajax, methods=['POST'])
+
     with app.app_context():
         db.create_all()
 

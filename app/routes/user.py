@@ -641,6 +641,38 @@ def profil():
             
             login_user(new_user)
             return jsonify({'status': 'success', 'message': 'Pendaftaran Berhasil'})
+
+        elif action == 'request_emergency_otp':
+            from flask import jsonify
+            from app.services.otp_service import create_otp
+            from app.services.telegram_service import send_emergency_otp_request
+
+            phone = request.form.get('phone') or request.form.get('new_whatsapp')
+            user_name = request.form.get('name') or request.form.get('new_username') or None
+            purpose = request.form.get('purpose', 'Pendaftaran Akun Baru')
+
+            if not phone:
+                return jsonify({'status': 'error', 'message': 'Nomor WhatsApp wajib diisi.'})
+
+            clean_num = ''.join(filter(str.isdigit, str(phone)))
+            if clean_num.startswith('0'):
+                clean_num = '62' + clean_num[1:]
+
+            otp_kode = create_otp(clean_num, action='manual', username=user_name, expiry_seconds=600)
+            tele_ok, tele_msg, wa_link = send_emergency_otp_request(
+                phone=clean_num,
+                otp_code=otp_kode,
+                user_name=user_name,
+                action_type=purpose,
+                expiry_minutes=10
+            )
+
+            return jsonify({
+                'status': 'success',
+                'message': 'Permintaan bantuan OTP Darurat telah diteruskan ke Tim CS Telegram kami. Tim CS akan segera menghubungi atau mengirimkan kode ke WhatsApp Anda (berlaku 10 menit).',
+                'wa_direct_link': wa_link,
+                'telegram_notified': tele_ok
+            })
             
     return render_template('user/profil.html', title='Profil Akun')
 

@@ -712,48 +712,201 @@ def sync_vipreseller():
 
 
 # =====================================================================
-# API BOT WHATSAPP PAIRING (REAL NODE.JS CONNECTION)
 # =====================================================================
+# API BOT WHATSAPP PAIRING (REAL NODE.JS CONNECTION) & AUTO-RECOVERY
+# =====================================================================
+def _ensure_wa_bot_running():
+    """
+    Mengecek apakah Mesin Baileys di port 3000 aktif.
+    Jika tidak aktif, mencoba menyalakan via PM2 (di Linux) atau background node.
+    """
+    import requests
+    import subprocess
+    import shutil
+    import sys
+    import os
+    import time
+    from flask import current_app
+    
+    # 1. Cek dulu apakah port 3000 sudah merespons
+    try:
+        r = requests.get('http://127.0.0.1:3000/api/status', timeout=2)
+        if r.status_code == 200:
+            return True, "Mesin Node.js sudah aktif di port 3000."
+    except Exception:
+        pass
+        
+    # 2. Coba hidupkan mesin bot
+    base_dir = os.path.abspath(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+    wa_bot_dir = os.path.join(base_dir, 'wa_bot')
+    server_js = os.path.join(wa_bot_dir, 'server_bot.js')
+    
+    pm2_cmd = shutil.which('pm2')
+    if pm2_cmd:
+        try:
+            res = subprocess.run([pm2_cmd, 'restart', 'garudatel-wa-bot'], cwd=wa_bot_dir, capture_output=True, text=True, timeout=10)
+            if res.returncode != 0:
+                subprocess.run([pm2_cmd, 'start', 'server_bot.js', '--name', 'garudatel-wa-bot', '--restart-delay=3000'], cwd=wa_bot_dir, capture_output=True, text=True, timeout=10)
+                subprocess.run([pm2_cmd, 'save'], cwd=wa_bot_dir, capture_output=True, text=True, timeout=5)
+        except Exception as e:
+            current_app.logger.warning(f"PM2 auto-start failed: {e}")
+    else:
+        node_cmd = shutil.which('node')
+        if node_cmd and os.path.exists(server_js):
+            try:
+                if sys.platform == 'win32':
+                    subprocess.Popen([node_cmd, 'server_bot.js'], cwd=wa_bot_dir, creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS)
+                else:
+                    subprocess.Popen([node_cmd, 'server_bot.js'], cwd=wa_bot_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+            except Exception as e:
+                current_app.logger.warning(f"Node auto-start failed: {e}")
+
+    # Tunggu beberapa detik agar socket siap listen
+    for _ in range(4):
+        time.sleep(1)
+        try:
+            r = requests.get('http://127.0.0.1:3000/api/status', timeout=2)
+            if r.status_code == 200:
+                return True, "Mesin Node.js berhasil dihidupkan!"
+        except Exception:
+            pass
+
+    return False, "Mesin belum merespons di port 3000. Pastikan PM2 berjalan di server Anda."
+
+
 @admin_bp.route('/wa_pairing', methods=['POST'])
 def wa_pairing():
     from flask import request, jsonify
     import requests
     
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
         bot_number = data.get('number')
         if not bot_number:
-            return jsonify({'status': 'error', 'message': 'Nomor tidak boleh kosong'})
+            return jsonify({'status': 'error', 'message': 'Nomor WhatsApp tidak boleh kosong'})
             
         # Mengirim sinyal ke Mesin Baileys Node.js
-        response = requests.post('http://127.0.0.1:3000/api/pair', json={'number': bot_number}, timeout=15)
-        return jsonify(response.json())
+        try:
+            response = requests.post('http://127.0.0.1:3000/api/pair', json={'number': bot_number}, timeout=15)
+            return jsonify(response.json())
+        except requests.exceptions.RequestException:
+            # Jika port 3000 belum menyala, coba auto-recovery
+            ok, msg = _ensure_wa_bot_running()
+            if ok:
+                try:
+                    response = requests.post('http://127.0.0.1:3000/api/pair', json={'number': bot_number}, timeout=15)
+                    return jsonify(response.json())
+                except Exception as ex:
+                    return jsonify({'status': 'error', 'message': f'Mesin dinyalakan namun pairing gagal: {ex}'})
+            else:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Gagal menghubungi Mesin Node.js di port 3000. Klik tombol "Nyalakan / Restart Mesin" atau jalankan "bash wa_bot/setup_pm2.sh" di VPS.'
+                })
         
-    except requests.exceptions.RequestException:
-        return jsonify({'status': 'error', 'message': 'Gagal menghubungi Mesin Node.js. Pastikan PM2 berjalan.'})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)})
 
+
+@admin_bp.route('/wa_restart', methods=['POST'])
+def wa_restart():
+    from flask import jsonify
+    ok, msg = _ensure_wa_bot_running()
+    return jsonify({'status': 'success' if ok else 'error', 'message': msg})
+
+
+@admin_bp.route('/wa_reset_session', methods=['POST'])
+def wa_reset_session():
+    from flask import jsonify
+    import requests
+    import os, shutil
+    
+    try:
+        r = requests.post('http://127.0.0.1:3000/api/reset', timeout=5)
+        if r.status_code == 200:
+            return jsonify(r.json())
+    except Exception:
+        pass
+        
+    # Manual reset: hapus auth_info_baileys dari disk dan restart mesin
+    base_dir = os.path.abspath(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+    auth_dir = os.path.join(base_dir, 'wa_bot', 'auth_info_baileys')
+    if os.path.exists(auth_dir):
+        try:
+            shutil.rmtree(auth_dir)
+        except Exception as e:
+            return jsonify({'status': 'error', 'message': f'Gagal menghapus folder sesi: {e}'})
+            
+    _ensure_wa_bot_running()
+    return jsonify({
+        'status': 'success',
+        'message': 'Sesi WhatsApp berhasil dibersihkan & mesin direstart. Silakan masukkan nomor dan minta kode pairing baru.'
+    })
+
+
 # =====================================================================
-# API GENERATE OTP MANUAL DARURAT
+# API GENERATE OTP MANUAL DARURAT (10 MENIT & NOTIFIKASI TELEGRAM CS)
 # =====================================================================
 @admin_bp.route('/generate_otp_manual', methods=['POST'])
 def generate_otp_manual():
     from flask import request, jsonify
-    import json, os, random, time
+    import urllib.parse
     
     try:
-        data = request.get_json()
-        target_number = data.get('number')
+        data = request.get_json() or {}
+        target_number = data.get('number', '').strip()
+        user_name = data.get('name', '').strip() or None
+        send_tele = data.get('send_telegram', True)
         
         if not target_number:
-            return jsonify({'status': 'error', 'message': 'Nomor kosong'})
+            return jsonify({'status': 'error', 'message': 'Nomor WhatsApp wajib diisi'})
             
         from app.services.otp_service import create_otp
+        from app.services.telegram_service import send_emergency_otp_request
         
-        # Simpan OTP ke tabel database OtpCode
-        otp_code = create_otp(target_number, action='manual', expiry_seconds=15*60)
-        return jsonify({'status': 'success', 'otp': otp_code})
+        # Simpan OTP ke tabel database OtpCode dengan masa berlaku 10 menit (600 detik)
+        expiry_seconds = 10 * 60
+        otp_code = create_otp(target_number, action='manual', username=user_name, expiry_seconds=expiry_seconds)
+        
+        # Bersihkan format nomor untuk direct WhatsApp
+        clean_num = ''.join(filter(str.isdigit, str(target_number)))
+        if clean_num.startswith('0'):
+            clean_num = '62' + clean_num[1:]
+
+        # Susun pesan WhatsApp untuk user
+        display_name = user_name or 'Pengguna / Calon Member'
+        wa_message = (
+            f"Halo kak {display_name}!\n\n"
+            f"Berikut adalah *Kode OTP Darurat* Anda untuk akun GarudaTel:\n\n"
+            f"👉 *{otp_code}*\n\n"
+            f"⚠️ *PENTING:* Kode OTP ini bersifat rahasia dan *HANYA BERLAKU 10 MENIT* "
+            f"khusus untuk nomor ini ({clean_num}).\n\n"
+            f"Silakan masukkan kode pada formulir verifikasi Anda di website GarudaTel. Terima kasih!"
+        )
+        wa_link = f"https://wa.me/{clean_num}?text={urllib.parse.quote(wa_message)}"
+        
+        # Kirim notifikasi ke Bot Telegram CS
+        tele_sent = False
+        tele_msg = ""
+        if send_tele:
+            tele_sent, tele_msg, _ = send_emergency_otp_request(
+                phone=clean_num,
+                otp_code=otp_code,
+                user_name=user_name,
+                action_type='Admin Generate Manual',
+                expiry_minutes=10
+            )
+        
+        return jsonify({
+            'status': 'success',
+            'otp': otp_code,
+            'expiry_minutes': 10,
+            'phone': clean_num,
+            'wa_link': wa_link,
+            'telegram_sent': tele_sent,
+            'telegram_message': tele_msg,
+            'message': 'Kode OTP Darurat (10 Menit) berhasil diciptakan & notifikasi dikirim ke CS!'
+        })
         
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)})

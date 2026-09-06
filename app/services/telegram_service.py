@@ -97,6 +97,94 @@ def send_cs_ticket(ticket, transaction=None):
         logger.error(f"Koneksi ke Bot CS Telegram gagal: {str(e)}")
         return False, f"Koneksi error: {str(e)}"
 
+
+def send_emergency_otp_request(phone, otp_code, user_name=None, action_type='Pendaftaran / Masuk', expiry_minutes=10):
+    """
+    Mengirimkan laporan Permintaan Bantuan OTP Darurat (Manual) ke Bot 1 : CS & Balas Inbox di Telegram.
+    Menyertakan tautan direct WhatsApp yang saat diklik langsung membuka chat ke nomor peminta OTP
+    dengan pesan otomatis berisikan kode OTP dan keterangan hanya berlaku 10 menit di nomor tersebut.
+    
+    Args:
+        phone (str): Nomor telepon peminta OTP
+        otp_code (str): Kode OTP (6 digit)
+        user_name (str, optional): Nama pengguna jika ada
+        action_type (str, optional): Kategori aksi (Pendaftaran, Lupa Password, dsb.)
+        expiry_minutes (int, optional): Masa berlaku OTP dalam menit (default: 10)
+        
+    Returns:
+        tuple (bool, str, str): (Status sukses, Pesan respons, Tautan WhatsApp direct)
+    """
+    import urllib.parse
+    from datetime import datetime
+
+    token, chat_id = get_bot_cs_credentials()
+
+    # Bersihkan dan format nomor WhatsApp (awalan 62)
+    clean_num = ''.join(filter(str.isdigit, str(phone or '')))
+    if clean_num.startswith('0'):
+        clean_num = '62' + clean_num[1:]
+
+    display_name = user_name or 'Pengguna / Calon Member'
+    wib_now = datetime.utcnow().strftime('%d/%m/%Y %H:%M WIB')
+
+    # Susun Teks Pesan WhatsApp yang akan dikirim CS ke pengguna
+    wa_message = (
+        f"Halo kak {display_name}!\n\n"
+        f"Berikut adalah *Kode OTP Darurat* Anda untuk akun GarudaTel:\n\n"
+        f"👉 *{otp_code}*\n\n"
+        f"⚠️ *PENTING:* Kode OTP ini bersifat rahasia dan *HANYA BERLAKU {expiry_minutes} MENIT* "
+        f"khusus untuk nomor ini ({clean_num}).\n\n"
+        f"Silakan masukkan kode pada formulir verifikasi Anda di website GarudaTel. Terima kasih!"
+    )
+    encoded_wa_msg = urllib.parse.quote(wa_message)
+    wa_direct_link = f"https://wa.me/{clean_num}?text={encoded_wa_msg}"
+
+    # Susun Pesan Telegram untuk Tim CS
+    lines = [
+        "🚨 <b>PERMINTAAN BANTUAN OTP DARURAT (MANUAL)</b>",
+        "━━━━━━━━━━━━━━━━━━━━━━",
+        f"👤 <b>Nama:</b> {display_name}",
+        f"📱 <b>Nomor WhatsApp:</b> <code>{clean_num}</code>",
+        f"🎯 <b>Keperluan:</b> {action_type}",
+        f"🔑 <b>Kode OTP Sistem:</b> <code>{otp_code}</code>",
+        f"⏳ <b>Masa Berlaku:</b> {expiry_minutes} Menit (Khusus nomor ini)",
+        f"⏰ <b>Waktu Request:</b> {wib_now}",
+        "━━━━━━━━━━━━━━━━━━━━━━",
+        "💬 <i>Pengguna mengalami kendala penerimaan OTP otomatis. Klik tautan di bawah ini untuk langsung mengirimkan kode OTP ke WhatsApp pengguna:</i>",
+        "",
+        f"👉 <a href=\"{wa_direct_link}\">KLIK UNTUK KIRIM KODE OTP VIA WHATSAPP</a>"
+    ]
+
+    full_text = "\n".join(lines)
+
+    if not token or not chat_id:
+        err_msg = "BOT_CS_TOKEN atau BOT_CS_CHAT_ID belum dikonfigurasi di file .env"
+        logger.warning(err_msg)
+        return False, err_msg, wa_direct_link
+
+    try:
+        api_url = f"https://api.telegram.org/bot{token}/sendMessage"
+        payload = {
+            "chat_id": chat_id,
+            "text": full_text,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True
+        }
+        resp = requests.post(api_url, json=payload, timeout=12)
+        res_data = resp.json()
+
+        if res_data.get('ok'):
+            return True, "Permintaan OTP Darurat berhasil dikirim ke Bot CS Telegram!", wa_direct_link
+        else:
+            desc = res_data.get('description', 'Unknown error')
+            logger.error(f"Gagal kirim OTP Darurat ke Bot CS Telegram: {desc}")
+            return False, f"Telegram Error: {desc}", wa_direct_link
+
+    except Exception as e:
+        logger.error(f"Koneksi ke Bot CS Telegram gagal: {str(e)}")
+        return False, f"Koneksi error: {str(e)}", wa_direct_link
+
+
 # ==============================================================================
 # BOT 2 : NOTIFIKASI TRANSAKSI MASUK & LAPORAN BACKUP
 # ==============================================================================

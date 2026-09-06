@@ -182,7 +182,7 @@
             <i class="fas fa-check-circle"></i> Verifikasi & Masuk
         </button>
         <div style="text-align: center; margin-top: 15px;">
-            <a href="/bantuan?kategori=Akun+dan+Profil" style="font-size: 0.8rem; color: #d97706; text-decoration: none; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;">
+            <a href="javascript:void(0)" onclick="mintaOTPDaruratUser()" style="font-size: 0.8rem; color: #d97706; text-decoration: none; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;">
                 <i class="fas fa-life-ring"></i> Tidak menerima kode? Bantuan OTP Darurat / Hubungi CS
             </a>
         </div>
@@ -238,6 +238,62 @@
                 setTimeout(()=>{ window.location.reload(); }, 1500);
             } else { Swal.fire('Gagal', data.message, 'error'); btn.innerHTML = '<i class="fas fa-check-circle"></i> Verifikasi & Masuk'; btn.disabled = false; }
         }).catch(err => { Swal.fire('Error', 'Sistem sibuk', 'error'); btn.innerHTML = '<i class="fas fa-check-circle"></i> Verifikasi & Masuk'; btn.disabled = false; });
+    }
+
+    function mintaOTPDaruratUser() {
+        let wa = document.getElementById('reg_new_whatsapp').value;
+        let user = document.getElementById('reg_new_username').value;
+        if (!wa) {
+            Swal.fire('Perhatian', 'Nomor WhatsApp belum terisi', 'warning');
+            return;
+        }
+
+        Swal.fire({
+            title: 'Bantuan OTP Darurat',
+            text: `Apakah Anda ingin meminta bantuan kode OTP darurat secara manual ke CS untuk nomor ${wa}?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#008f89',
+            cancelButtonColor: '#94a3b8',
+            confirmButtonText: '<i class="fas fa-paper-plane"></i> Ya, Teruskan ke CS',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.fire({
+                    title: 'Menghubungkan CS...',
+                    text: 'Meneruskan data permintaan OTP darurat ke Bot Telegram CS...',
+                    allowOutsideClick: false,
+                    didOpen: () => { Swal.showLoading(); }
+                });
+
+                let formData = new FormData();
+                formData.append('action', 'request_emergency_otp');
+                formData.append('phone', wa);
+                formData.append('name', user);
+                formData.append('purpose', 'Pendaftaran Akun Baru');
+
+                fetch('/profil', { method: 'POST', body: formData })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        let htmlMsg = `<p style="font-size: 13px; line-height: 1.5; color: #334155;">${data.message}</p>`;
+                        if (data.wa_direct_link) {
+                            htmlMsg += `<div style="margin-top: 15px;"><a href="${data.wa_direct_link}" target="_blank" class="swal2-confirm swal2-styled" style="background:#25D366; text-decoration:none; display:inline-flex; align-items:center; gap:6px; font-weight:bold;"><i class="fab fa-whatsapp"></i> Chat Langsung ke CS WhatsApp</a></div>`;
+                        }
+                        Swal.fire({
+                            title: 'Permintaan Diterima!',
+                            html: htmlMsg,
+                            icon: 'success'
+                        });
+                    } else {
+                        Swal.fire('Gagal', data.message || 'Terjadi kesalahan sistem', 'error');
+                    }
+                })
+                .catch(() => {
+                    Swal.fire('Error', 'Gagal menghubungi server', 'error');
+                });
+            }
+        });
     }
     </script>
 

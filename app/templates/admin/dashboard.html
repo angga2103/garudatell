@@ -415,10 +415,18 @@
                 
                 <div class="form-group">
                     <label>Status Koneksi Mesin</label>
-                    <div style="margin-top: 5px;">
+                    <div style="margin-top: 5px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
                         <span id="wa-status-badge" style="background: #ef4444; color: white; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; display: inline-block;">
                             <i class="fas fa-circle" style="font-size: 8px; margin-right: 4px;"></i> Disconnected
                         </span>
+                        <div style="display: flex; gap: 6px;">
+                            <button type="button" onclick="restartWaBot()" id="btn-restart-wa" title="Nyalakan atau restart worker PM2 Node.js" style="background: #3b82f6; color: white; font-size: 11px; padding: 5px 10px; border-radius: 4px; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+                                <i class="fas fa-sync-alt"></i> Nyalakan / Restart Mesin
+                            </button>
+                            <button type="button" onclick="resetWaSession()" id="btn-reset-wa" title="Hapus sesi lama untuk ganti nomor WA" style="background: #64748b; color: white; font-size: 11px; padding: 5px 10px; border-radius: 4px; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+                                <i class="fas fa-trash-alt"></i> Reset Sesi
+                            </button>
+                        </div>
                     </div>
                 </div>
                 
@@ -469,6 +477,62 @@
             }
             setInterval(checkBotStatus, 3000); // Otomatis ngecek setiap 3 detik
             window.onload = checkBotStatus;
+
+            function restartWaBot() {
+                const btn = document.getElementById('btn-restart-wa');
+                const orig = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Merestart...';
+                btn.disabled = true;
+                
+                fetch('/admin/wa_restart', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' }
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        showCustomNotification('✅ ' + data.message, 'success');
+                        setTimeout(checkBotStatus, 1500);
+                    } else {
+                        showCustomNotification('⚠️ ' + data.message, 'error');
+                    }
+                })
+                .catch(() => showCustomNotification('🚨 Gagal menghubungi server', 'error'))
+                .finally(() => {
+                    btn.innerHTML = orig;
+                    btn.disabled = false;
+                });
+            }
+
+            function resetWaSession() {
+                if (!confirm('Apakah Anda yakin ingin mereset sesi WhatsApp? Anda perlu melakukan pairing ulang nomor baru.')) {
+                    return;
+                }
+                const btn = document.getElementById('btn-reset-wa');
+                const orig = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mereset...';
+                btn.disabled = true;
+                
+                fetch('/admin/wa_reset_session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' }
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        showCustomNotification('✅ ' + data.message, 'success');
+                        document.getElementById('pairing-area').style.display = 'none';
+                        setTimeout(checkBotStatus, 1500);
+                    } else {
+                        showCustomNotification('⚠️ ' + data.message, 'error');
+                    }
+                })
+                .catch(() => showCustomNotification('🚨 Gagal menghubungi server', 'error'))
+                .finally(() => {
+                    btn.innerHTML = orig;
+                    btn.disabled = false;
+                });
+            }
 
             function requestPairing() {
                 const noWa = document.getElementById('wa_bot_number').value;
@@ -530,26 +594,46 @@
                 <div class="config-title" style="color: #F59E0B;"><i class="fas fa-life-ring"></i> Bantuan OTP Darurat (Manual)</div>
                 
                 <div class="form-group">
-                    <label>Nomor WA User (Target Registrasi/Lupa Password)</label>
-                    <input type="number" id="manual_otp_number" name="manual_otp_number" class="form-control" placeholder="Contoh: 6281234567890">
+                    <label>Nomor WA User (Target Registrasi / Masuk / Verifikasi)</label>
+                    <input type="text" id="manual_otp_number" name="manual_otp_number" class="form-control" placeholder="Contoh: 08123456789 atau 628123456789">
+                </div>
+
+                <div class="form-group">
+                    <label>Nama User / Peminta (Opsional)</label>
+                    <input type="text" id="manual_otp_name" name="manual_otp_name" class="form-control" placeholder="Contoh: Budi Santoso">
                 </div>
                 
                 <!-- Kotak Tampil OTP -->
                 <div id="manual-otp-area" style="display: none; background: #fffbeb; border: 1px dashed #f59e0b; border-radius: 8px; padding: 15px; text-align: center; margin-bottom: 15px;">
-                    <div style="font-size: 11px; color: #b45309; font-weight: bold; margin-bottom: 5px;"><i class="fas fa-ticket-alt"></i> OTP BERHASIL DICIPTAKAN:</div>
-                    <div id="manual-otp-code" style="font-size: 28px; font-weight: 900; letter-spacing: 5px; color: #1f2937; margin-bottom: 5px;">000000</div>
-                    <div style="font-size: 10px; color: #6b7280;">Berikan kode ini secara manual kepada User. Berlaku 15 Menit.</div>
+                    <div style="font-size: 11px; color: #b45309; font-weight: bold; margin-bottom: 5px;"><i class="fas fa-ticket-alt"></i> KODE OTP DARURAT:</div>
+                    <div id="manual-otp-code" style="font-size: 32px; font-weight: 900; letter-spacing: 6px; color: #1f2937; margin-bottom: 8px;">000000</div>
+                    <div style="font-size: 11px; color: #b45309; font-weight: 600; margin-bottom: 10px;">
+                        <i class="fas fa-clock"></i> Berlaku <span id="manual-otp-expiry">10 Menit</span> khusus nomor <span id="manual-otp-target-phone" style="font-weight: bold;">-</span>
+                    </div>
+                    <div id="manual-otp-tele-info" style="font-size: 11px; color: #0284c7; margin-bottom: 12px; display: none;">
+                        <span id="manual-otp-tele-text">Notifikasi permintaan telah diteruskan ke Bot Telegram CS.</span>
+                    </div>
+                    <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+                        <a id="manual-otp-wa-btn" href="#" target="_blank" class="btn" style="background: #25D366; color: white; padding: 8px 14px; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: bold; display: inline-flex; align-items: center; gap: 6px;">
+                            <i class="fab fa-whatsapp" style="font-size: 14px;"></i> Buka WhatsApp & Kirim ke User
+                        </a>
+                        <button type="button" onclick="salinKodeOtp()" id="btn-salin-otp" class="btn" style="background: #4f46e5; color: white; padding: 8px 14px; border-radius: 6px; border: none; font-size: 12px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                            <i class="fas fa-copy"></i> Salin Kode OTP
+                        </button>
+                    </div>
                 </div>
                 
                 <div class="btn-group">
-                    <button type="button" onclick="generateManualOTP()" id="btn-manual-otp" class="btn-save" style="background:#F59E0B; cursor:pointer; border:none; width: 100%;"><i class="fas fa-magic"></i> Generate OTP Baru</button>
+                    <button type="button" onclick="generateManualOTP()" id="btn-manual-otp" class="btn-save" style="background:#F59E0B; cursor:pointer; border:none; width: 100%;"><i class="fas fa-magic"></i> Generate OTP Baru (10 Menit)</button>
                 </div>
             </form>
         </div>
 
         <script>
+            let currentManualOtp = '';
             function generateManualOTP() {
                 let noWa = document.getElementById('manual_otp_number').value.trim();
+                let userName = document.getElementById('manual_otp_name').value.trim();
                 if(!noWa) {
                     alert('🚨 Harap masukkan nomor WhatsApp target'); return;
                 }
@@ -568,14 +652,35 @@
                 fetch('/admin/generate_otp_manual', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
-                    body: JSON.stringify({ number: noWa })
+                    body: JSON.stringify({ number: noWa, name: userName })
                 })
                 .then(r => r.json())
                 .then(data => {
                     if(data.status === 'success') {
+                        currentManualOtp = data.otp;
                         document.getElementById('manual-otp-area').style.display = 'block';
                         document.getElementById('manual-otp-code').innerText = data.otp;
-                        document.getElementById('manual_otp_number').value = '';
+                        document.getElementById('manual-otp-target-phone').innerText = data.phone || noWa;
+                        
+                        if (data.wa_link) {
+                            const waBtn = document.getElementById('manual-otp-wa-btn');
+                            waBtn.href = data.wa_link;
+                            waBtn.style.display = 'inline-flex';
+                        }
+                        
+                        const teleInfo = document.getElementById('manual-otp-tele-info');
+                        const teleText = document.getElementById('manual-otp-tele-text');
+                        if (data.telegram_sent) {
+                            teleInfo.style.display = 'block';
+                            teleInfo.style.color = '#0284c7';
+                            teleText.innerHTML = '<i class="fab fa-telegram-plane"></i> Notifikasi & link WhatsApp berhasil diteruskan ke Bot Telegram CS!';
+                        } else if (data.telegram_message) {
+                            teleInfo.style.display = 'block';
+                            teleInfo.style.color = '#e11d48';
+                            teleText.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Bot Telegram CS: ' + data.telegram_message;
+                        } else {
+                            teleInfo.style.display = 'none';
+                        }
                     } else {
                         alert('🚨 Gagal: ' + data.message);
                     }
@@ -586,6 +691,32 @@
                     btn.disabled = false;
                     btn.style.opacity = '1';
                 });
+            }
+
+            function salinKodeOtp() {
+                if (!currentManualOtp) return;
+                const btn = document.getElementById('btn-salin-otp');
+                if (navigator.clipboard && window.isSecureContext) {
+                    navigator.clipboard.writeText(currentManualOtp).then(() => {
+                        showCopySuccess(btn);
+                    }).catch(() => fallbackCopyText(currentManualOtp, btn));
+                } else {
+                    fallbackCopyText(currentManualOtp, btn);
+                }
+            }
+
+            function fallbackCopyText(text, btn) {
+                const tempInput = document.createElement('textarea');
+                tempInput.value = text;
+                document.body.appendChild(tempInput);
+                tempInput.select();
+                try {
+                    document.execCommand('copy');
+                    showCopySuccess(btn);
+                } catch (e) {
+                    alert('Gagal menyalin: ' + text);
+                }
+                document.body.removeChild(tempInput);
             }
 
             function copyToClipboard(elementId, btn) {

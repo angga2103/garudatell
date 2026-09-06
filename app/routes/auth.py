@@ -18,12 +18,15 @@ auth_bp = Blueprint('auth', __name__)
 @limiter.limit("20 per minute")
 def auth_ajax():
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
         action = data.get('action')
         phone = data.get('phone')
         password = data.get('password')
 
-        if not phone or not password:
+        if not phone:
+            return jsonify({'status': 'error', 'message': 'Nomor WhatsApp wajib diisi!'})
+
+        if action != 'request_emergency_otp' and not password:
             return jsonify({'status': 'error', 'message': 'Data tidak lengkap!'})
 
 
@@ -121,6 +124,50 @@ def auth_ajax():
                 return jsonify({'status': 'success', 'message': 'Password berhasil diubah! Silakan Masuk.'})
             else:
                 return jsonify({'status': 'error', 'message': 'Akun tidak ditemukan.'})
+
+        # ==========================================
+        # LOGIKA PERMINTAAN BANTUAN OTP DARURAT KE CS TELEGRAM
+        # ==========================================
+        elif action == 'request_emergency_otp':
+            from app.services.otp_service import create_otp
+            from app.services.telegram_service import send_emergency_otp_request
+            
+            user_name = data.get('name') or None
+            purpose = data.get('purpose', 'Pendaftaran / Masuk Akun')
+            
+            # Buat OTP darurat 10 menit (600 detik) dengan action 'manual'
+            otp_kode = create_otp(phone, action='manual', username=user_name, expiry_seconds=600)
+            
+            # Kirim notifikasi ke Bot Telegram CS
+            clean_num = ''.join(filter(str.isdigit, str(phone)))
+            if clean_num.startswith('0'):
+                clean_num = '62' + clean_num[1:]
+                
+            tele_ok, tele_msg, wa_direct_link = send_emergency_otp_request(
+                phone=clean_num,
+                otp_code=otp_kode,
+                user_name=user_name,
+                action_type=purpose,
+                expiry_minutes=10
+            )
+
+            # Link WhatsApp menuju ke nomor CS
+            import urllib.parse
+            cs_phone = ''.join(filter(str.isdigit, os.getenv('ADMIN_PHONE') or '6281234567890'))
+            if cs_phone.startswith('0'):
+                cs_phone = '62' + cs_phone[1:]
+            cs_text = urllib.parse.quote(
+                f"Halo CS GarudaTel, saya ({user_name or clean_num}) memohon bantuan verifikasi OTP darurat untuk nomor {clean_num}. Terima kasih."
+            )
+            cs_wa_url = f"https://wa.me/{cs_phone}?text={cs_text}"
+            
+            return jsonify({
+                'status': 'success',
+                'message': 'Permintaan bantuan OTP Darurat telah berhasil diteruskan ke Tim CS Telegram kami! Tim CS akan segera menghubungi Anda via WhatsApp. Kode OTP ini berlaku selama 10 menit.',
+                'wa_direct_link': wa_direct_link,
+                'cs_wa_url': cs_wa_url,
+                'telegram_notified': tele_ok
+            })
 
         # ==========================================
         # LOGIKA DAFTAR BARU (REGISTER)
