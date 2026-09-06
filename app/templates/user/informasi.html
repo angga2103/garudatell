@@ -739,7 +739,7 @@
                  data-ref="{{ item.ref_id | lower }}"
                  data-amount="{{ item.amount }}"
                  data-date="{{ item.date_str }}"
-                 onclick="openDetailModal({{ item | tojson | forceescape }})">
+                 onclick="openDetailModalByIndex({{ loop.index0 }})">
                 
                 <div class="mutasi-left">
                     <!-- CIRCULAR DIRECTION ICON SESUAI GAMBAR REFERENSI -->
@@ -976,8 +976,17 @@ function filterCards() {
     }
 }
 
+const mutasiList = {{ mutasi_data | tojson | safe }};
+
+function openDetailModalByIndex(idx) {
+    if (Array.isArray(mutasiList) && mutasiList[idx]) {
+        openDetailModal(mutasiList[idx]);
+    }
+}
+
 // MODAL DETAIL INTERAKSI
 function openDetailModal(data) {
+    if (!data) return;
     const modal = document.getElementById('mutasiDetailModal');
     const icon = document.getElementById('modalIcon');
     const amount = document.getElementById('modalAmount');

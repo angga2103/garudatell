@@ -1016,24 +1016,33 @@ def informasi():
         res = get_user_mutations(current_user.id, limit=100)
         mutasi_data = res.get('mutations', [])
         stats = res.get('stats', {
-            'current_balance': float(current_user.balance or 0.0),
+            'current_balance': float(getattr(current_user, 'balance', 0.0) or 0.0),
             'total_pemasukan': 0.0,
             'total_pengeluaran': 0.0,
             'total_refund': 0.0,
             'count': 0
         })
     except Exception as e:
-        print(f"[MUTASI] Error mengambil mutasi: {e}")
+        import traceback
+        traceback.print_exc()
+        print(f"[MUTASI SERVICE ERROR]: {e}")
         mutasi_data = []
         stats = {
-            'current_balance': float(current_user.balance or 0.0),
+            'current_balance': float(getattr(current_user, 'balance', 0.0) or 0.0),
             'total_pemasukan': 0.0,
             'total_pengeluaran': 0.0,
             'total_refund': 0.0,
             'count': 0
         }
         
-    return render_template('user/informasi.html', mutasi_data=mutasi_data, stats=stats)
+    try:
+        return render_template('user/informasi.html', mutasi_data=mutasi_data, stats=stats)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"[MUTASI RENDER ERROR]: {e}")
+        # Fallback aman
+        return render_template('user/informasi.html', mutasi_data=[], stats=stats)
 
 
 
