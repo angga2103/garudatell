@@ -26,11 +26,17 @@ Platform web modern untuk penjualan produk digital Pulsa, Paket Data, Token PLN,
    - Menerima file dokumen snapshot database SQLite fisik (`.db.gz`) secara terjadwal maupun manual.
 3. **Bot 3 : Panel Kontrol Admin (Inline Keyboard Button)**
    - Akses kontrol cepat tanpa perlu membuka browser.
-   - 10 Tombol Interaktif: Saldo Digiflazz, Omset Hari Ini, Trx Pending, Tiket CS, Sinkronisasi Produk, Buat OTP Darurat, Snapshot Backup Instan, dan Status VPS.
-   - Perintah cepat: `/otp <nomor_wa>` untuk bypass verifikasi darurat.
+   - Tombol Interaktif: Saldo Digiflazz, Omset Hari Ini, Trx Pending, Tiket CS, Sinkronisasi Produk, Buat OTP Darurat, Status/Pairing WhatsApp, Snapshot Backup Instan, dan Status VPS.
+   - Perintah cepat: `/otp <nomor_wa>` untuk bypass verifikasi darurat dan pairing nomor WhatsApp langsung via chat.
 
-### 4. Keamanan & Keandalan Tingkat Tinggi
-- **Universal Manual OTP**: Solusi darurat jika SMS/WhatsApp gateway mengalami delay. Admin dapat meng-generate OTP darurat 15 menit via Bot Telegram atau Dashboard Admin yang otomatis meloloskan registrasi, login, atau reset kata sandi.
+### 4. Bot WhatsApp Gateway (Baileys Multi-Device & PM2 Auto-Recovery)
+- **Mesin Baileys Multi-Device**: Pengiriman kode OTP pendaftaran/login dan notifikasi transaksi secara otomatis via WhatsApp.
+- **Pairing Code Stabil**: Mendukung penautan Companion Device dengan nomor telepon tanpa QR timeout (menggunakan platform browser `Browsers.ubuntu('Chrome')` dan soket stabilizer 3000ms).
+- **Integrasi Telegram Alarm**: Saat sesi terputus atau logout, bot otomatis mengirimkan alarm ke Telegram dengan tombol interaktif `📱 TAUTKAN NOMOR BARU`.
+- **PM2 Process Manager**: Dikelola penuh dengan PM2 auto-recovery dan auto-start saat reboot server VPS (`pm2 startup` & `pm2 save`).
+
+### 5. Keamanan & Keandalan Tingkat Tinggi
+- **Universal Manual OTP**: Solusi darurat jika SMS/WhatsApp gateway mengalami kendala. Admin dapat meng-generate OTP darurat 10-15 menit via Bot Telegram atau Dashboard Admin dengan tautan direct WhatsApp otomatis.
 - **Proteksi CSRF Global**: Proteksi token CSRF pada seluruh formulir mutasi admin, dengan pengecualian aman (`@csrf.exempt`) khusus webhook pihak ketiga yang divalidasi dengan signature kriptografis.
 - **SQLite WAL Mode**: Write-Ahead Logging & non-blocking concurrency mencegah error database locked saat lonjakan transaksi.
 - **Rate Limiting**: Proteksi endpoint sensitif dengan Flask-Limiter.
@@ -39,7 +45,7 @@ Platform web modern untuk penjualan produk digital Pulsa, Paket Data, Token PLN,
 
 ## 🚀 Panduan Deployment VPS (One-Click Installer)
 
-GarudaTel v2 dilengkapi dengan skrip instalasi interaktif satu klik yang mendukung integrasi **Cloudflare Zero Trust Tunnels**, sehingga domain Anda langsung terhubung ke VPS tanpa perlu membuka port publik atau IP statis.
+GarudaTel v2 dilengkapi dengan skrip instalasi interaktif satu klik yang secara otomatis memasang seluruh dependensi: Python Gunicorn, Cloudflare Zero Trust Tunnels, serta **Node.js 20 LTS + PM2 untuk Bot WhatsApp Baileys**.
 
 ### Persyaratan Minimal VPS
 - OS: Ubuntu 20.04 / 22.04 LTS atau Debian 11 / 12
@@ -61,16 +67,22 @@ GarudaTel v2 dilengkapi dengan skrip instalasi interaktif satu klik yang menduku
    ```
 
 3. **Ikuti Panduan di Terminal**:
-   - Skrip akan meminta **Token Cloudflare Zero Trust Tunnel**.
-     *(Dapatkan token di Cloudflare Dashboard -> Zero Trust -> Networks -> Tunnels -> Add a tunnel -> cloudflared)*
+   - Skrip akan meminta **Token Cloudflare Zero Trust Tunnel** (opsional).
    - Masukkan Domain Anda (misal: `garudatel.com`).
-   - Skrip akan otomatis menginstal dependensi Python, membuat virtual environment, mengonfigurasi `.env` dengan `SECRET_KEY` acak, menyiapkan database SQLite, membuat akun admin awal, meregistrasi `systemd` service (`garudatel.service` dan `garudatel-bot-admin.service`), serta menjalankan Cloudflare Tunnel.
+   - Skrip akan otomatis:
+     - Menginstal dependensi Python & virtual environment.
+     - Mengonfigurasi `.env` dengan `SECRET_KEY` unik.
+     - Menginisialisasi database SQLite & akun default admin.
+     - Meregistrasi `systemd` service (`garudatel.service` dan `garudatel-bot-admin.service`).
+     - **Menginstal Node.js 20 LTS, PM2, dan dependensi WhatsApp Bot Baileys secara otomatis di background**.
+     - Mengonfigurasi `pm2 startup` agar mesin WhatsApp langsung aktif kembali saat VPS reboot.
+     - Menghubungkan Cloudflare Zero Trust Tunnel (port 5000).
 
-4. **Login ke Panel Admin**:
+4. **Login ke Panel Admin & Tautkan WhatsApp**:
    - Akses: `https://domain-anda.com/admin/login`
    - Username Default: `admin`
    - Password Default: `admin123`
-   *(Segera ubah password setelah login pertama kali di menu Pengaturan Akun).*
+   - Buka menu **Konfigurasi Bot WhatsApp** di Dashboard Admin, masukkan nomor WhatsApp Anda, lalu klik **Minta Kode Pairing** (atau gunakan tombol di Bot Telegram Admin).
 
 ---
 
@@ -124,16 +136,17 @@ Antarmuka menu interaktif akan langsung terbuka:
   ║              Management Suite & Operation Center             ║
   ╚══════════════════════════════════════════════════════════════╝
   📂 Lokasi Proyek : /var/www/garudatel
-  🌐 Server Web    : ● RUNNING  │  🤖 Bot Admin : ● RUNNING  │  ☁️ Tunnel : ● CONNECTED
+  🌐 Web Server    : ● RUNNING  │  🤖 Bot Admin : ● RUNNING  │  📱 Bot WA : ● ACTIVE  │  ☁️ Tunnel : ● CONNECTED
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   [1] Cek Status Server Web        (sudo systemctl status garudatel)
   [2] Restart Server Web           (sudo systemctl restart garudatel)
   [3] Pantau Log Error (Live)      (tail -f storage/logs/error.log)
   [4] Cek Status Bot 3 Admin       (sudo systemctl status garudatel-bot-admin)
-  [5] Backup Database Manual       (Snapshot WAL SQLite -> Telegram)
-  [6] Pengujian Otomatis Sistem    (Jalankan test_telegram_and_otp.py)
-  [7] Manajemen Cloudflare Tunnel  (Status & Ganti Token Zero Trust)
-  [8] Cek Pembaruan (Git Update)   (Git Fetch, Pull & Auto-Restart)
+  [5] Manajemen Bot WhatsApp (PM2) (Status, Restart, Log Baileys)
+  [6] Backup Database Manual       (Snapshot WAL SQLite -> Telegram)
+  [7] Pengujian Otomatis Sistem    (Jalankan test_telegram_and_otp.py)
+  [8] Manajemen Cloudflare Tunnel  (Status & Ganti Token Zero Trust)
+  [9] Cek Pembaruan (Git Update)   (Git Fetch, Pull & Auto-Restart)
   [0] Keluar (Exit)
 ```
 
@@ -150,7 +163,16 @@ sudo systemctl status garudatel
 # Restart server web
 sudo systemctl restart garudatel
 
-# Pantau log error secara live
+# Cek status Bot WhatsApp (PM2)
+pm2 status garudatel-wa-bot
+
+# Restart Bot WhatsApp
+pm2 restart garudatel-wa-bot
+
+# Pantau log Baileys WhatsApp secara live
+pm2 logs garudatel-wa-bot
+
+# Pantau log error Flask secara live
 tail -f storage/logs/error.log
 
 # Cek status Bot 3 Admin
