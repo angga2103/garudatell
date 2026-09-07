@@ -21,8 +21,14 @@ class User(db.Model, UserMixin):
     commission_balance = db.Column(db.Float, default=0.0)
     last_reminded_at = db.Column(db.DateTime, nullable=True)
 
+    # Proteksi Kasir & Kunci Perangkat (Eksklusif VIP)
+    is_device_lock_enabled = db.Column(db.Boolean, default=False)
+
     # Relasi Self-Referential Downlines
     downlines = db.relationship('User', backref=db.backref('upline', remote_side=[id]), lazy='dynamic')
+    
+    # Relasi Perangkat Kasir Terpercaya
+    trusted_devices = db.relationship('TrustedDevice', backref='owner', lazy='dynamic', cascade='all, delete-orphan')
 
     def set_password(self, password):
         from werkzeug.security import generate_password_hash

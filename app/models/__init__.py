@@ -14,7 +14,8 @@ from app.models.notification import Notification, NotificationRead
 from app.models.support_ticket import SupportTicket
 from app.models.muslim_track import MuslimTrackRecord
 from app.models.commission import CommissionLog
+from app.models.trusted_device import TrustedDevice
 
-__all__ = ['Admin', 'User', 'Product', 'Transaction', 'MarginTier', 'OtpCode', 'OtpManualRequest', 'Banner', 'BroadcastLog', 'DigiDepositTicket', 'PointLog', 'Setting', 'Notification', 'NotificationRead', 'SupportTicket', 'MuslimTrackRecord', 'CommissionLog']
+__all__ = ['Admin', 'User', 'Product', 'Transaction', 'MarginTier', 'OtpCode', 'OtpManualRequest', 'Banner', 'BroadcastLog', 'DigiDepositTicket', 'PointLog', 'Setting', 'Notification', 'NotificationRead', 'SupportTicket', 'MuslimTrackRecord', 'CommissionLog', 'TrustedDevice']
 
 

@@ -1985,4 +1985,175 @@ def inquiry_pln_route():
         }), 400
 
 
+# ==============================================================================
+# FITUR KUNCI PERANGKAT KASIR & MANAJEMEN CABANG (EKSKLUSIF VIP)
+# ==============================================================================
+
+@user_bp.route('/vip/devices')
+@login_required
+def vip_devices():
+    """Halaman Dashboard Kunci Perangkat Kasir & Laporan Saldo Multi-Cabang."""
+    if not current_user.is_vip_active():
+        flash("Fitur Kunci Kasir & Multi-Cabang hanya tersedia untuk akun VIP aktif.", "warning")
+        return redirect(url_for('user.upgrade_account'))
+
+    from app.models.trusted_device import TrustedDevice
+    from app.services.device_service import get_branch_usage_report
+
+    period = request.args.get('period', 'today')
+    if period not in ['today', 'month', 'all']:
+        period = 'today'
+
+    # Daftar semua perangkat terdaftar
+    devices = TrustedDevice.query.filter_by(user_id=current_user.id).order_by(TrustedDevice.created_at.desc()).all()
+
+    # Laporan pemakaian saldo per cabang
+    report = get_branch_usage_report(current_user.id, period=period)
+
+    # Deteksi perangkat browser saat ini
+    current_device_uuid = request.cookies.get('gt_device_token')
+    current_device = None
+    if current_device_uuid:
+        current_device = TrustedDevice.query.filter_by(user_id=current_user.id, device_uuid=current_device_uuid).first()
+
+    return render_template(
+        'user/devices.html',
+        devices=devices,
+        report=report,
+        period=period,
+        current_device=current_device,
+        current_device_uuid=current_device_uuid,
+        is_lock_enabled=bool(current_user.is_device_lock_enabled)
+    )
+
+
+@user_bp.route('/vip/device/register', methods=['POST'])
+@login_required
+@csrf.exempt
+def register_device():
+    """AJAX endpoint untuk pendaftaran perangkat kasir baru."""
+    if not current_user.is_vip_active():
+        return jsonify({'status': 'error', 'message': 'Hanya akun VIP yang dapat menggunakan fitur ini.'}), 403
+
+    data = request.get_json(silent=True) or request.form.to_dict() or {}
+    device_name = data.get('device_name', '').strip()
+    device_uuid = data.get('device_uuid', '').strip()
+    device_info = data.get('device_info', '') or request.user_agent.string
+    ip_address = request.headers.get('X-Forwarded-For', request.remote_addr)
+    base_url = request.host_url
+
+    from app.services.device_service import register_device_request
+    ok, dev, msg = register_device_request(
+        user=current_user,
+        device_uuid=device_uuid,
+        device_name=device_name,
+        user_agent=device_info,
+        ip_address=ip_address,
+        base_url=base_url
+    )
+
+    if ok:
+        return jsonify({
+            'status': 'success',
+            'message': msg,
+            'device_uuid': dev.device_uuid,
+            'device_name': dev.device_name
+        }), 200
+    else:
+        return jsonify({'status': 'error', 'message': msg}), 400
+
+
+@user_bp.route('/vip/device/check-status/<device_uuid>')
+def check_device_status(device_uuid):
+    """Polling status otorisasi perangkat kasir dari browser."""
+    from app.models.trusted_device import TrustedDevice
+    device = TrustedDevice.query.filter_by(device_uuid=device_uuid).first()
+    if not device:
+        return jsonify({'status': 'not_found', 'is_approved': False}), 404
+
+    return jsonify({
+        'status': device.status,
+        'device_name': device.device_name,
+        'is_approved': (device.status == 'approved')
+    }), 200
+
+
+@user_bp.route('/vip/device/approve/<token>')
+def approve_device_route(token):
+    """Endpoint 1-klik persetujuan dari WhatsApp Owner."""
+    from app.services.device_service import approve_device_by_token
+    ok, dev, msg = approve_device_by_token(token)
+    return render_template(
+        'user/device_approval_result.html',
+        success=ok,
+        device=dev,
+        message=msg,
+        action='approve'
+    )
+
+
+@user_bp.route('/vip/device/reject/<token>')
+def reject_device_route(token):
+    """Endpoint 1-klik penolakan dari WhatsApp Owner."""
+    from app.services.device_service import reject_device_by_token
+    ok, dev, msg = reject_device_by_token(token)
+    return render_template(
+        'user/device_approval_result.html',
+        success=ok,
+        device=dev,
+        message=msg,
+        action='reject'
+    )
+
+
+@user_bp.route('/vip/device/toggle-lock', methods=['POST'])
+@login_required
+@csrf.exempt
+def toggle_device_lock_route():
+    """AJAX endpoint untuk mengaktifkan/menonaktifkan sakelar Kunci Kasir Toko."""
+    if not current_user.is_vip_active():
+        return jsonify({'status': 'error', 'message': 'Hanya akun VIP yang dapat mengatur fitur ini.'}), 403
+
+    data = request.get_json(silent=True) or request.form.to_dict() or {}
+    enabled = data.get('enabled')
+    if enabled is None:
+        enabled = not current_user.is_device_lock_enabled
+    else:
+        enabled = str(enabled).lower() in ['true', '1', 'yes']
+
+    from app.services.device_service import toggle_device_lock
+    ok, msg = toggle_device_lock(current_user, enabled)
+    return jsonify({
+        'status': 'success' if ok else 'error',
+        'is_locked': current_user.is_device_lock_enabled,
+        'message': msg
+    })
+
+
+@user_bp.route('/vip/device/revoke/<int:device_id>', methods=['POST'])
+@login_required
+@csrf.exempt
+def revoke_device_route(device_id):
+    """Mencabut izin transaksi untuk perangkat kasir tertentu."""
+    from app.services.device_service import revoke_device
+    ok, msg = revoke_device(current_user.id, device_id)
+    if request.is_json:
+        return jsonify({'status': 'success' if ok else 'error', 'message': msg})
+    flash(msg, 'success' if ok else 'danger')
+    return redirect(url_for('user.vip_devices'))
+
+
+@user_bp.route('/vip/device/approve-manual/<int:device_id>', methods=['POST'])
+@login_required
+@csrf.exempt
+def approve_device_manual_route(device_id):
+    """Otorisasi manual perangkat kasir langsung dari dashboard VIP."""
+    from app.services.device_service import approve_device_manual
+    ok, msg = approve_device_manual(current_user.id, device_id)
+    if request.is_json:
+        return jsonify({'status': 'success' if ok else 'error', 'message': msg})
+    flash(msg, 'success' if ok else 'danger')
+    return redirect(url_for('user.vip_devices'))
+
+
 

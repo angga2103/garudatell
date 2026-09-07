@@ -141,6 +141,20 @@
     {% endblock %}
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+    // Sinkronisasi otomatis token perangkat kasir (LocalStorage & Cookie)
+    (function() {
+        try {
+            var token = localStorage.getItem('gt_device_token');
+            if (token) {
+                var match = document.cookie.match(new RegExp('(^| )gt_device_token=([^;]+)'));
+                if (!match || match[2] !== token) {
+                    document.cookie = "gt_device_token=" + encodeURIComponent(token) + "; path=/; max-age=31536000; SameSite=Lax";
+                }
+            }
+        } catch(e) {}
+    })();
+    </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

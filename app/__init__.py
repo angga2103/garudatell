@@ -109,7 +109,7 @@ def create_app():
     app.add_url_rule('/api/check_wa_status', endpoint='alias_api_check_wa_status', view_func=check_wa_status, methods=['GET'])
 
     with app.app_context():
-        from app.models import CommissionLog  # Pastikan seluruh model terdaftar di metadata SQLAlchemy
+        from app.models import CommissionLog, TrustedDevice  # Pastikan seluruh model terdaftar di metadata SQLAlchemy
         db.create_all()
         try:
             inspector = inspect(db.engine)
@@ -122,7 +122,8 @@ def create_app():
                     ('upline_id', 'INTEGER REFERENCES user(id)'),
                     ('commission_balance', 'REAL DEFAULT 0.0'),
                     ('last_reminded_at', 'DATETIME'),
-                    ('referral_code', 'VARCHAR(20)')
+                    ('referral_code', 'VARCHAR(20)'),
+                    ('is_device_lock_enabled', 'BOOLEAN DEFAULT 0')
                 ]
                 with db.engine.connect() as conn:
                     for c_name, c_type in new_user_cols:
@@ -132,6 +133,23 @@ def create_app():
                                 app.logger.info(f"[AUTO-MIGRATE] Kolom user.{c_name} berhasil ditambahkan ke database.")
                             except Exception as ex_col:
                                 app.logger.warning(f"Gagal tambah kolom user.{c_name}: {ex_col}")
+                    conn.commit()
+
+            # Auto-migrate kolom baru tabel transaction jika belum ada
+            if 'transaction' in inspector.get_table_names():
+                trx_cols = [c['name'] for c in inspector.get_columns('transaction')]
+                new_trx_cols = [
+                    ('device_id', 'INTEGER REFERENCES trusted_device(id)'),
+                    ('device_name', 'VARCHAR(100)')
+                ]
+                with db.engine.connect() as conn:
+                    for c_name, c_type in new_trx_cols:
+                        if c_name not in trx_cols:
+                            try:
+                                conn.execute(db.text(f'ALTER TABLE `transaction` ADD COLUMN {c_name} {c_type}'))
+                                app.logger.info(f"[AUTO-MIGRATE] Kolom transaction.{c_name} berhasil ditambahkan ke database.")
+                            except Exception as ex_col:
+                                app.logger.warning(f"Gagal tambah kolom transaction.{c_name}: {ex_col}")
                     conn.commit()
 
             if 'otp_codes' in inspector.get_table_names():

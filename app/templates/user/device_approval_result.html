@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Persetujuan Perangkat Kasir - GarudaTel</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; font-family: 'Nunito', sans-serif; }
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #f8fafc;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .card {
+            background: white;
+            border-radius: 24px;
+            max-width: 440px;
+            width: 100%;
+            padding: 28px 22px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            text-align: center;
+        }
+        .icon-box {
+            width: 76px;
+            height: 76px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            margin: 0 auto 18px auto;
+        }
+        .icon-success {
+            background: #dcfce7;
+            color: #15803d;
+            box-shadow: 0 4px 15px rgba(22, 163, 74, 0.2);
+        }
+        .icon-danger {
+            background: #fee2e2;
+            color: #b91c1c;
+            box-shadow: 0 4px 15px rgba(220, 38, 38, 0.2);
+        }
+        .title {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #0f172a;
+            margin-bottom: 8px;
+        }
+        .desc {
+            font-size: 0.88rem;
+            color: #64748b;
+            line-height: 1.5;
+            margin-bottom: 22px;
+        }
+        .info-box {
+            background: #f1f5f9;
+            border-radius: 14px;
+            padding: 14px;
+            text-align: left;
+            font-size: 0.82rem;
+            color: #334155;
+            margin-bottom: 22px;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+        .info-row:last-child {
+            margin-bottom: 0;
+        }
+        .info-label {
+            color: #64748b;
+        }
+        .info-value {
+            font-weight: 800;
+            color: #0f172a;
+        }
+        .btn-home {
+            display: block;
+            width: 100%;
+            padding: 13px;
+            background: #008779;
+            color: white;
+            border: none;
+            border-radius: 14px;
+            font-weight: 800;
+            font-size: 0.95rem;
+            text-decoration: none;
+            box-shadow: 0 4px 15px rgba(0, 135, 121, 0.3);
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    {% if success %}
+        {% if action == 'approve' %}
+        <div class="icon-box icon-success">
+            <i class="fas fa-check"></i>
+        </div>
+        <div class="title">Perangkat Kasir Resmi Disetujui!</div>
+        <div class="desc">{{ message }}</div>
+
+        {% if device %}
+        <div class="info-box">
+            <div class="info-row">
+                <span class="info-label">Nama Cabang:</span>
+                <span class="info-value">{{ device.device_name }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Status Izin:</span>
+                <span class="info-value" style="color: #15803d;">Aktif & Sah Bertransaksi</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Waktu:</span>
+                <span class="info-value">{{ device.created_at_wib }} WIB</span>
+            </div>
+        </div>
+        {% endif %}
+
+        {% else %}
+        <div class="icon-box icon-danger">
+            <i class="fas fa-times"></i>
+        </div>
+        <div class="title">Pendaftaran Perangkat Ditolak</div>
+        <div class="desc">{{ message }}</div>
+        {% endif %}
+    {% else %}
+        <div class="icon-box icon-danger">
+            <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <div class="title">Tautan Tidak Valid</div>
+        <div class="desc">{{ message }}</div>
+    {% endif %}
+
+    <a href="/vip/devices" class="btn-home">
+        <i class="fas fa-shield-alt"></i> Buka Manajemen Cabang & Kasir
+    </a>
+</div>
+
+</body>
+</html>
+

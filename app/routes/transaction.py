@@ -341,6 +341,20 @@ def checkout():
             # Row locking untuk proteksi race condition / double spending
             user_locked = db.session.query(User).filter_by(id=current_user.id).with_for_update().first()
 
+            # Verifikasi Otorisasi Perangkat Kasir (Eksklusif VIP)
+            device_token = request.cookies.get('gt_device_token') or request.headers.get('X-Device-Token') or (req_data.get('device_uuid') if req_data else None)
+            from app.services.device_service import verify_device_for_transaction
+            dev_allowed, dev_obj, dev_err = verify_device_for_transaction(user_locked, device_token)
+
+            if not dev_allowed:
+                db.session.rollback()
+                return jsonify({
+                    'status': 'error',
+                    'error': True,
+                    'device_locked': True,
+                    'message': dev_err or 'Akses Transaksi Saldo Ditolak: Perangkat kasir belum diotorisasi resmi oleh Owner.'
+                }), 403
+
             if user_locked.balance < amount:
                 db.session.rollback()
                 return jsonify({
@@ -368,7 +382,9 @@ def checkout():
                 payment_method='SALDO',
                 payment_status='PAID',
                 status='PROCESSING',
-                is_prepaid=is_prepaid_flow
+                is_prepaid=is_prepaid_flow,
+                device_id=dev_obj.id if dev_obj else None,
+                device_name=dev_obj.device_name if dev_obj else None
             )
             db.session.add(new_trx)
             db.session.commit()

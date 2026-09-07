@@ -18,9 +18,14 @@ class Transaction(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    # Identifikasi Perangkat Kasir / Cabang Toko (Eksklusif VIP)
+    device_id = db.Column(db.Integer, db.ForeignKey('trusted_device.id'), nullable=True, index=True)
+    device_name = db.Column(db.String(100), nullable=True, index=True)
+
     __table_args__ = (
         db.Index('idx_trx_user_created', 'user_id', 'created_at'),
         db.Index('idx_trx_status_created', 'status', 'created_at'),
+        db.Index('idx_trx_user_device', 'user_id', 'device_name'),
     )
 
     @property
@@ -40,5 +45,6 @@ class Transaction(db.Model):
         return self.amount
 
 
-    # Relasi ke User
+    # Relasi ke User & Perangkat Kasir
     user = db.relationship('User', backref=db.backref('transactions', lazy=True))
+    device = db.relationship('TrustedDevice', backref=db.backref('transactions', lazy=True))
