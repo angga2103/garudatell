@@ -17,7 +17,15 @@
             --radius-lg: 24px;
         }
         * { box-sizing: border-box; font-family: 'Nunito', sans-serif; -webkit-tap-highlight-color: transparent; }
-        body { margin: 0; padding: 0; background: var(--bg); color: var(--text-dark); padding-bottom: 80px; }
+        html, body { 
+            margin: 0; 
+            padding: 0; 
+            background: var(--bg); 
+            color: var(--text-dark); 
+            overflow-x: hidden;
+            max-width: 100vw;
+        }
+        body { padding-bottom: 80px; }
         a { text-decoration: none; color: inherit; }
         
         /* HEADER TEAL BACKGROUND (Melengkung di bawah) */
@@ -37,6 +45,8 @@
             max-width: 500px; /* Ukuran App Mobile */
             margin: 0 auto;
             position: relative;
+            overflow-x: hidden;
+            box-sizing: border-box;
         }
         @media (min-width: 768px) { .app-container { max-width: 768px; } }
         @media (min-width: 1024px) { .app-container { max-width: 1024px; } }
