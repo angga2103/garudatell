@@ -570,7 +570,10 @@
     <div class="tab-pill" data-op="OVO"><i class="fas fa-tag"></i> OVO</div>
     <div class="tab-pill" data-op="SHOPEEPAY"><i class="fas fa-tag"></i> SHOPEEPAY</div>
     <div class="tab-pill" data-op="LINKAJA"><i class="fas fa-tag"></i> LINKAJA</div>
+    {% set has_bebas = products|selectattr('is_bebas')|list|length > 0 if products else false %}
+    {% if has_bebas %}
     <div class="tab-pill" data-op="BEBAS"><i class="fas fa-sliders-h"></i> BEBAS NOMINAL</div>
+    {% endif %}
 </div>
 
 <!-- TOOLBAR (SEARCH, SORT, VIEW) -->
@@ -1000,7 +1003,6 @@
         }
 
         selectedSku = card.getAttribute('data-sku');
-        const nama = card.getAttribute('data-nama');
         const harga = card.getAttribute('data-harga');
         const rawPrice = parseFloat(card.getAttribute('data-rawprice') || 0);
         const cardType = card.getAttribute('data-type');
@@ -1034,6 +1036,10 @@
     function closeModal() {
         document.getElementById('sheetOverlay').classList.remove('show');
         document.getElementById('checkoutModal').classList.remove('show');
+    }
+
+    function tutupCheckoutModal() {
+        closeModal();
     }
 
     function selectPay(metode) {
