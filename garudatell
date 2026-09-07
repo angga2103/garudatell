@@ -347,13 +347,13 @@ menu_check_update() {
         return
     fi
 
-    echo -e "${BLUE}[*] Memeriksa pembaruan terbaru dari GitHub (origin/main)...${NC}"
-    git fetch origin main >/dev/null 2>&1 || git fetch origin master >/dev/null 2>&1
-
     # Tentukan branch aktif
     CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+    echo -e "${BLUE}[*] Memeriksa pembaruan terbaru dari GitHub (origin/$CURRENT_BRANCH)...${NC}"
+    git fetch origin "$CURRENT_BRANCH" >/dev/null 2>&1 || git fetch origin >/dev/null 2>&1
+
     LOCAL_HASH=$(git rev-parse HEAD)
-    REMOTE_HASH=$(git rev-parse "origin/$CURRENT_BRANCH" 2>/dev/null || git rev-parse origin/main)
+    REMOTE_HASH=$(git rev-parse FETCH_HEAD 2>/dev/null || git rev-parse "origin/$CURRENT_BRANCH" 2>/dev/null || git rev-parse origin/main)
 
     if [ "$LOCAL_HASH" = "$REMOTE_HASH" ]; then
         echo -e "${GREEN}[✔] GarudaTel Anda sudah menggunakan versi TERBARU (Up-to-Date)!${NC}"
@@ -362,7 +362,7 @@ menu_check_update() {
         echo -e "${YELLOW}${BOLD}📢 PEMBARUAN TERSEDIA DARI GITHUB!${NC}"
         echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         echo -e "Daftar pembaruan fitur / patch perbaikan terbaru:"
-        git log HEAD.."origin/$CURRENT_BRANCH" --oneline --decorate -n 5 2>/dev/null || git log HEAD..origin/main --oneline -n 5
+        git log HEAD..FETCH_HEAD --oneline --decorate -n 5 2>/dev/null || git log HEAD.."origin/$CURRENT_BRANCH" --oneline -n 5
         echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
 
         read -p ">> Ada pembaruan tersedia. Update sekarang? (Y/N): " do_update
