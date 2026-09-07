@@ -109,9 +109,31 @@ def create_app():
     app.add_url_rule('/api/check_wa_status', endpoint='alias_api_check_wa_status', view_func=check_wa_status, methods=['GET'])
 
     with app.app_context():
+        from app.models import CommissionLog  # Pastikan seluruh model terdaftar di metadata SQLAlchemy
         db.create_all()
         try:
             inspector = inspect(db.engine)
+
+            # Auto-migrate kolom baru tabel user jika belum ada (Self-Healing)
+            if 'user' in inspector.get_table_names():
+                user_cols = [c['name'] for c in inspector.get_columns('user')]
+                new_user_cols = [
+                    ('role_expires_at', 'DATETIME'),
+                    ('upline_id', 'INTEGER REFERENCES user(id)'),
+                    ('commission_balance', 'REAL DEFAULT 0.0'),
+                    ('last_reminded_at', 'DATETIME'),
+                    ('referral_code', 'VARCHAR(20)')
+                ]
+                with db.engine.connect() as conn:
+                    for c_name, c_type in new_user_cols:
+                        if c_name not in user_cols:
+                            try:
+                                conn.execute(db.text(f'ALTER TABLE user ADD COLUMN {c_name} {c_type}'))
+                                app.logger.info(f"[AUTO-MIGRATE] Kolom user.{c_name} berhasil ditambahkan ke database.")
+                            except Exception as ex_col:
+                                app.logger.warning(f"Gagal tambah kolom user.{c_name}: {ex_col}")
+                    conn.commit()
+
             if 'otp_codes' in inspector.get_table_names():
                 cols = [c['name'] for c in inspector.get_columns('otp_codes')]
                 if 'attempts' not in cols:
