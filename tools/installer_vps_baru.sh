@@ -165,9 +165,11 @@ fi
 if [ -f "$TARGET_DIR/app/garudatel.db" ]; then
     echo -e "${GREEN}[✔] Database SQLite dari snapshot backup terverifikasi:${NC} $TARGET_DIR/app/garudatel.db"
     ./venv/bin/python tools/apply_db_indexes.py 2>/dev/null || true
+    ./venv/bin/python tools/migrate_tier_and_downline.py 2>/dev/null || true
 else
     echo -e "${YELLOW}[!] Database tidak ditemukan di app/garudatel.db. Menjalankan inisialisasi awal...${NC}"
     ./venv/bin/python tools/init_app.py
+    ./venv/bin/python tools/migrate_tier_and_downline.py 2>/dev/null || true
 fi
 
 # Perbaiki permission
@@ -304,3 +306,4 @@ echo -e "  🛡️ ${BOLD}Auto-Backup   :${NC} ${GREEN}AKTIF (Setiap 30 Menit ke
 echo -e "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo -e "  🚀 Buka Panel Kontrol Server kapan saja dengan mengetik:"
 echo -e "     ${YELLOW}${BOLD}garudatell${NC}\n"
+

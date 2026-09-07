@@ -82,17 +82,18 @@ def get_user_mutations(user_id, limit=100):
         target_num = str(getattr(trx, 'target_number', '') or '-')
         sn_val = str(getattr(trx, 'sn', '') or '-')
 
-        # KASUS A: Top Up / Deposit Saldo Sukses
-        if sku in ['DEPOSIT_SALDO', 'DEPOSIT_MANUAL']:
+        # KASUS A: Top Up / Deposit Saldo Sukses & Pencairan Komisi Downline
+        if sku in ['DEPOSIT_SALDO', 'DEPOSIT_MANUAL', 'COMMISSION_PAYOUT']:
             # Hanya catat sebagai mutasi jika telah dibayar / sukses
             if pay_status in ['PAID', 'SUCCESS', 'SUKSES', 'SETTLEMENT'] or trx_status in ['SUCCESS', 'SUKSES', 'PAID']:
+                is_commission = (sku == 'COMMISSION_PAYOUT')
                 events.append({
-                    'id': f"dep-{trx.id}",
+                    'id': f"dep-{trx.id}" if not is_commission else f"com-{trx.id}",
                     'raw_id': trx.id,
                     'type': 'pemasukan',
-                    'title': f"Topup {ref_id}",
-                    'subtitle': f"Deposit Saldo via {pay_method or 'QRIS'}",
-                    'product_name': prod_name or 'Deposit Saldo',
+                    'title': f"Pencairan Komisi Downline" if is_commission else f"Topup {ref_id}",
+                    'subtitle': f"Bonus Kemitraan VIP ke Saldo Utama" if is_commission else f"Deposit Saldo via {pay_method or 'QRIS'}",
+                    'product_name': prod_name or ('Komisi Downline' if is_commission else 'Deposit Saldo'),
                     'target': '-',
                     'amount': amount,
                     'direction': '+',
@@ -101,21 +102,24 @@ def get_user_mutations(user_id, limit=100):
                     'status_color': 'success',
                     'ref_id': ref_id,
                     'sn': sn_val,
-                    'payment_method': pay_method or 'QRIS',
+                    'payment_method': 'KOMISI' if is_commission else (pay_method or 'QRIS'),
                     '_sort_key': c_time.timestamp(),
                     'date_str': c_str,
                     'is_refund': False
                 })
 
-        # KASUS B: Pembelian Produk Menggunakan Saldo
+        # KASUS B: Pembelian Produk / Upgrade Menggunakan Saldo
         elif pay_method == 'SALDO' or (pay_status == 'PAID' and pay_method in ['SALDO', 'BALANCE']):
+            # Deteksi apakah transaksi upgrade langganan
+            is_upgrade = sku.startswith('UPGRADE_')
+            title_text = 'Langganan Akun' if is_upgrade else 'Pembelian Produk'
             # Event Pengeluaran Saldo saat order dibuat
             events.append({
                 'id': f"buy-{trx.id}",
                 'raw_id': trx.id,
                 'type': 'pengeluaran',
-                'title': 'Pembelian Produk',
-                'subtitle': f"{prod_name} - {target_num}",
+                'title': title_text,
+                'subtitle': f"{prod_name}" if is_upgrade else f"{prod_name} - {target_num}",
                 'product_name': prod_name,
                 'target': target_num,
                 'amount': amount,

@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, render_template, redirect, url_for, flash
+from flask import Blueprint, request, jsonify, render_template, redirect, url_for, flash, session
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from app.models.user import User
@@ -70,16 +70,28 @@ def auth_ajax():
                 
             # Mendaftarkan User
             hashed_password = user_data.get('password_hash') or generate_password_hash(password)
+            ref_code = request.form.get('referral_code') or session.get('upline_ref')
+            upline_id = None
+            if ref_code:
+                clean_ref = str(ref_code).strip()
+                upline_user = User.query.filter((User.referral_code == clean_ref) | (User.phone == clean_ref)).first()
+                if upline_user and upline_user.is_vip_active():
+                    upline_id = upline_user.id
+                    session.pop('upline_ref', None)
+
             new_user = User(
                 name=name,
                 phone=phone,
                 password_hash=hashed_password,
                 role='user',
+                upline_id=upline_id,
                 balance=0.0,
                 is_active=True
             )
             db.session.add(new_user)
             db.session.commit()
+            from app.services.tier_service import ensure_user_referral_code
+            ensure_user_referral_code(new_user)
             
             login_user(new_user)
             return jsonify({'status': 'success', 'message': 'Verifikasi berhasil! Mengalihkan...'})
@@ -236,16 +248,28 @@ def auth_ajax():
             
             # Buat user baru (menyesuaikan field database yang valid)
             hashed_password = generate_password_hash(password)
+            ref_code = data.get('referral_code') or session.get('upline_ref')
+            upline_id = None
+            if ref_code:
+                clean_ref = str(ref_code).strip()
+                upline_user = User.query.filter((User.referral_code == clean_ref) | (User.phone == clean_ref)).first()
+                if upline_user and upline_user.is_vip_active():
+                    upline_id = upline_user.id
+                    session.pop('upline_ref', None)
+
             new_user = User(
                 name=name,
                 phone=phone,
                 password_hash=hashed_password,
                 role='user',
+                upline_id=upline_id,
                 balance=0.0,
                 is_active=True
             )
             db.session.add(new_user)
             db.session.commit()
+            from app.services.tier_service import ensure_user_referral_code
+            ensure_user_referral_code(new_user)
             
             # Langsung otomatis login setelah daftar
             login_user(new_user)

@@ -270,7 +270,8 @@ def checkout():
                     'message': f'Pemesanan dicegat: Produk {product.name} sedang mengalami gangguan/pemeliharaan dari pihak operator server (Digiflazz). Saldo Anda aman dan tidak terpotong. Silakan coba beberapa saat lagi atau pilih produk/provider lain.'
                 }), 400
 
-            amount = float(product.sell_price)
+            from app.services.tier_service import get_user_product_price
+            amount = float(get_user_product_price(current_user, product))
             product_name = product.name
             sku_code = product.sku_code
 
@@ -425,6 +426,7 @@ def checkout():
                     if ok_pay:
                         new_trx.status = 'SUCCESS'
                         new_trx.sn = res_pay_data.get('sn', '')
+                        award_transaction_points(new_trx.user_id, new_trx.ref_id)
                         db.session.commit()
                         from app.services.telegram_service import async_send_trx_notification
                         async_send_trx_notification(new_trx, title="TRANSAKSI BERHASIL (PASCA)")
@@ -507,6 +509,7 @@ def checkout():
                         if 'sukses' in digi_status or 'success' in digi_status or rc == '00':
                             new_trx.status = 'SUCCESS'
                             new_trx.sn = digi_data.get('sn', '')
+                            award_transaction_points(new_trx.user_id, new_trx.ref_id)
                         elif 'gagal' in digi_status or 'failed' in digi_status or rc in ['01', '41', '42', '50', '52']:
                             new_trx.status = 'FAILED'
                             user_locked.balance += amount  # Auto refund jika langsung gagal
@@ -696,6 +699,7 @@ def check_status(ref_id):
                     
                     if 'sukses' in digi_status or 'success' in digi_status:
                         trx.status = 'SUCCESS'
+                        award_transaction_points(trx.user_id, trx.ref_id)
                     elif 'gagal' in digi_status or 'failed' in digi_status:
                         trx.status = 'FAILED'
                     else:
@@ -993,7 +997,7 @@ def callback_digiflazz():
 
 
 def award_transaction_points(user_id, trx_ref_id):
-    """Memberikan reward poin transaksi sukses kepada member secara idempoten."""
+    """Memberikan reward poin transaksi sukses kepada member secara idempoten & komisi downline ke upline VIP."""
     try:
         from app.models.setting import Setting
         from app.models.point_log import PointLog
@@ -1004,27 +1008,34 @@ def award_transaction_points(user_id, trx_ref_id):
 
         desc = f'Reward transaksi {trx_ref_id}'
         existing = PointLog.query.filter_by(user_id=user_id, type='EARN_TRX', description=desc).first()
-        if existing:
-            return
+        if not existing:
+            st = Setting.query.filter_by(key='point_reward_per_trx').first()
+            pts_reward = int(st.value) if st and st.value and st.value.isdigit() else 1
+            if pts_reward > 0:
+                user = User.query.get(user_id)
+                if user:
+                    user.points = (user.points or 0) + pts_reward
+                    plog = PointLog(
+                        user_id=user.id,
+                        type='EARN_TRX',
+                        points=pts_reward,
+                        balance_added=0.0,
+                        description=desc
+                    )
+                    db.session.add(plog)
+                    db.session.commit()
+                    print(f"[POIN] Member {user.id} +{pts_reward} Pts for trx {trx_ref_id}")
 
-        st = Setting.query.filter_by(key='point_reward_per_trx').first()
-        pts_reward = int(st.value) if st and st.value and st.value.isdigit() else 1
-        if pts_reward <= 0:
-            return
+        # Berikan komisi ke Upline VIP jika transaksi ini dilakukan oleh Downline
+        try:
+            from app.models.transaction import Transaction
+            from app.services.commission_service import award_downline_commission
+            trx_obj = Transaction.query.filter_by(ref_id=trx_ref_id).first()
+            if trx_obj and trx_obj.status == 'SUCCESS':
+                award_downline_commission(trx_obj)
+        except Exception as comm_err:
+            print(f"[COMMISSION ERROR] Gagal award komisi downline: {comm_err}")
 
-        user = User.query.get(user_id)
-        if user:
-            user.points = (user.points or 0) + pts_reward
-            plog = PointLog(
-                user_id=user.id,
-                type='EARN_TRX',
-                points=pts_reward,
-                balance_added=0.0,
-                description=desc
-            )
-            db.session.add(plog)
-            db.session.commit()
-            print(f"[POIN] Member {user.id} +{pts_reward} Pts for trx {trx_ref_id}")
     except Exception as err:
         db.session.rollback()
         print(f"[POIN ERROR] Error awarding points: {err}")

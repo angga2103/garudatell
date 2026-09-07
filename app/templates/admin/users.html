@@ -7,8 +7,8 @@
 {% block admin_content %}
 
 <!-- MODAL EDIT USER -->
-<div id="editUserModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(5px);">
-    <div style="background: white; width: 90%; max-width: 480px; border-radius: 20px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+<div id="editUserModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(5px); overflow-y: auto; padding: 20px 10px; box-sizing: border-box;">
+    <div style="background: white; width: 100%; max-width: 520px; border-radius: 20px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); margin: auto; max-height: 90vh; overflow-y: auto; box-sizing: border-box;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <h3 style="margin: 0; color: #1e293b; font-size: 18px;"><i class="fas fa-user-edit" style="color: #3b8a81;"></i> Edit Pengguna</h3>
             <button onclick="closeEditModal()" style="background: none; border: none; font-size: 20px; color: #94a3b8; cursor: pointer;"><i class="fas fa-times"></i></button>
@@ -36,7 +36,7 @@
 
             <div style="display: flex; gap: 10px; margin-bottom: 12px;">
                 <div style="flex: 1;">
-                    <label style="display: block; font-size: 11px; font-weight: 800; color: #64748b; margin-bottom: 4px;">Total Saldo (Rp)</label>
+                    <label style="display: block; font-size: 11px; font-weight: 800; color: #64748b; margin-bottom: 4px;">Total Saldo Utama (Rp)</label>
                     <input type="number" id="eu_balance" name="balance" required step="any" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 10px; font-family: 'Nunito'; background: #f8fafc; font-weight: 800; color: #059669; box-sizing: border-box;">
                 </div>
                 <div style="flex: 1;">
@@ -56,16 +56,16 @@
                     </button>
                 </div>
                 <input type="number" id="eu_points" name="points" min="0" required style="width: 100%; padding: 10px; border: 1px solid #fde047; border-radius: 8px; font-family: 'Nunito'; font-weight: 800; color: #854d0e; background: white; box-sizing: border-box;">
-                <span style="font-size: 10px; color: #a16207; margin-top: 3px; display: block;">Admin dapat mengubah nilai poin secara bebas atau mengosongkannya.</span>
             </div>
             
-            <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+            <!-- TIPE GOLONGAN & STATUS -->
+            <div style="display: flex; gap: 10px; margin-bottom: 12px;">
                 <div style="flex: 1;">
-                    <label style="display: block; font-size: 11px; font-weight: 800; color: #64748b; margin-bottom: 4px;">Tipe Akun</label>
+                    <label style="display: block; font-size: 11px; font-weight: 800; color: #64748b; margin-bottom: 4px;">Golongan / Tier Akun</label>
                     <select id="eu_role" name="role" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 10px; font-family: 'Nunito'; font-weight: 700; box-sizing: border-box;">
-                        <option value="user">Member</option>
+                        <option value="user">Member Biasa</option>
                         <option value="reseller">Reseller</option>
-                        <option value="vip">VIP</option>
+                        <option value="vip">VIP (Downline & Komisi)</option>
                     </select>
                 </div>
                 <div style="flex: 1;">
@@ -77,33 +77,92 @@
                 </div>
             </div>
 
+            <!-- MASA AKTIF LANGGANAN RESELLER / VIP -->
+            <div id="section_tier_expiry" style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 12px; margin-bottom: 12px;">
+                <div style="font-size: 11px; font-weight: 800; color: #166534; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;">
+                    <span><i class="fas fa-clock"></i> Masa Aktif Langganan (Reseller/VIP)</span>
+                    <span id="eu_remaining_badge" style="font-size: 10px;"></span>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <div style="flex: 1;">
+                        <label style="display: block; font-size: 10px; font-weight: 700; color: #166534; margin-bottom: 3px;">Tanggal Kedaluwarsa</label>
+                        <input type="datetime-local" id="eu_role_expires_at" name="role_expires_at" style="width: 100%; padding: 8px; border: 1px solid #86efac; border-radius: 8px; font-size: 12px; font-family: 'Nunito'; box-sizing: border-box; background: white;">
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="display: block; font-size: 10px; font-weight: 700; color: #166534; margin-bottom: 3px;">Tambah Masa Aktif</label>
+                        <select id="eu_add_days" name="add_days" style="width: 100%; padding: 8px; border: 1px solid #86efac; border-radius: 8px; font-size: 12px; font-family: 'Nunito'; box-sizing: border-box; background: white; font-weight: 700;">
+                            <option value="">-- Tetap / Pakai Tanggal --</option>
+                            <option value="7">+7 Hari</option>
+                            <option value="30">+30 Hari (1 Bulan)</option>
+                            <option value="60">+60 Hari (2 Bulan)</option>
+                            <option value="90">+90 Hari (3 Bulan)</option>
+                            <option value="365">+365 Hari (1 Tahun)</option>
+                        </select>
+                    </div>
+                </div>
+                <small style="color: #15803d; font-size: 10px; margin-top: 4px; display: block;">Jika golongan Member, masa aktif akan otomatis dikosongkan (tidak berlaku batas waktu).</small>
+            </div>
+
+            <!-- SALDO KOMISI DOWNLINE & UPLINE -->
+            <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                <div style="flex: 1; background: #fefce8; border: 1px solid #fef08a; border-radius: 12px; padding: 10px;">
+                    <label style="display: block; font-size: 11px; font-weight: 800; color: #854d0e; margin-bottom: 4px;">
+                        <i class="fas fa-wallet" style="color: #eab308;"></i> Saldo Komisi (Rp)
+                    </label>
+                    <input type="number" id="eu_commission_balance" name="commission_balance" step="any" min="0" style="width: 100%; padding: 8px; border: 1px solid #fde047; border-radius: 8px; font-size: 13px; font-family: 'Nunito'; font-weight: 800; color: #854d0e; background: white; box-sizing: border-box;">
+                    <small style="font-size: 9px; color: #a16207; display: block; margin-top: 2px;">Khusus VIP, dicairkan tiap tgl 28.</small>
+                </div>
+                <div style="flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px;">
+                    <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; margin-bottom: 4px;">
+                        <i class="fas fa-network-wired" style="color: #6366f1;"></i> Upline (No. WA / Ref)
+                    </label>
+                    <input type="text" id="eu_upline" name="upline_input" placeholder="No. WA atau Ref" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 12px; font-family: 'Nunito'; box-sizing: border-box;">
+                    <div id="eu_upline_info" style="font-size: 9px; color: #64748b; margin-top: 2px;"></div>
+                </div>
+            </div>
+
             <button type="submit" style="width: 100%; background: #3b8a81; color: white; border: none; padding: 12px; border-radius: 12px; font-weight: 800; cursor: pointer; font-family: 'Nunito'; transition: 0.2s;">
-                <i class="fas fa-save"></i> Simpan Perubahan
+                <i class="fas fa-save"></i> Simpan Perubahan Pengguna
             </button>
         </form>
     </div>
 </div>
 
-<div class="section-header">
-    <i class="fas fa-users-cog"></i>
-    User Center
+<div class="section-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+    <div>
+        <i class="fas fa-users-cog"></i>
+        User Center
+    </div>
+    <a href="{{ url_for('admin.tier_settings') }}" style="font-size: 12px; background: #fef3c7; color: #b45309; padding: 6px 14px; border-radius: 8px; text-decoration: none; font-weight: 800; display: inline-flex; align-items: center; gap: 6px;">
+        <i class="fas fa-crown"></i> Pengaturan Tier & Downline
+    </a>
 </div>
 
-<div class="stats-grid">
+<div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));">
     <div class="stat-card">
         <i class="fas fa-chart-line stat-icon"></i>
         <div class="stat-value">{{ users|length }}</div>
-        <div class="stat-label">TOTAL DATA</div>
+        <div class="stat-label">TOTAL USER</div>
     </div>
     <div class="stat-card">
-        <i class="fas fa-check-circle stat-icon"></i>
-        <div class="stat-value">{{ users|selectattr('is_active', 'equalto', True)|list|length }}</div>
-        <div class="stat-label">USER AKTIF</div>
+        <i class="fas fa-user stat-icon" style="color: #64748b;"></i>
+        <div class="stat-value">{{ users|selectattr('role', 'equalto', 'user')|list|length }}</div>
+        <div class="stat-label">MEMBER</div>
+    </div>
+    <div class="stat-card">
+        <i class="fas fa-store stat-icon" style="color: #0284c7;"></i>
+        <div class="stat-value">{{ users|selectattr('role', 'equalto', 'reseller')|list|length }}</div>
+        <div class="stat-label">RESELLER</div>
+    </div>
+    <div class="stat-card">
+        <i class="fas fa-crown stat-icon" style="color: #f59e0b;"></i>
+        <div class="stat-value">{{ users|selectattr('role', 'equalto', 'vip')|list|length }}</div>
+        <div class="stat-label">VIP</div>
     </div>
     <div class="stat-card">
         <i class="fas fa-user-slash stat-icon" style="color: #ef4444;"></i>
         <div class="stat-value">{{ users|selectattr('is_active', 'equalto', False)|list|length }}</div>
-        <div class="stat-label">USER DIBLOKIR</div>
+        <div class="stat-label">DIBLOKIR</div>
     </div>
 </div>
 
@@ -114,33 +173,78 @@
     </div>
 
     <div style="overflow-x: auto; padding: 0 20px 20px 20px;">
-        <table style="width: 100%; border-collapse: collapse; min-width: 650px; text-align: left; font-family: 'Nunito', sans-serif;">
+        <table style="width: 100%; border-collapse: collapse; min-width: 800px; text-align: left; font-family: 'Nunito', sans-serif;">
             <thead>
                 <tr style="border-bottom: 2px solid #f1f5f9;">
-                    <th style="padding: 12px 8px; color: #64748b; font-weight: 800; font-size: 12px; text-transform: uppercase;">ID</th>
-                    <th style="padding: 12px 8px; color: #64748b; font-weight: 800; font-size: 12px; text-transform: uppercase;">Nama Pelanggan</th>
-                    <th style="padding: 12px 8px; color: #64748b; font-weight: 800; font-size: 12px; text-transform: uppercase;">WhatsApp</th>
-                    <th style="padding: 12px 8px; color: #64748b; font-weight: 800; font-size: 12px; text-transform: uppercase;">Email</th>
-                    <th style="padding: 12px 8px; color: #64748b; font-weight: 800; font-size: 12px; text-transform: uppercase;">Saldo</th>
-                    <th style="padding: 12px 8px; color: #64748b; font-weight: 800; font-size: 12px; text-transform: uppercase;">Poin</th>
-                    <th style="padding: 12px 8px; color: #64748b; font-weight: 800; font-size: 12px; text-transform: uppercase;">Status</th>
-                    <th style="padding: 12px 8px; color: #64748b; font-weight: 800; font-size: 12px; text-transform: uppercase; text-align: right;">Aksi</th>
+                    <th style="padding: 12px 8px; color: #64748b; font-weight: 800; font-size: 11px; text-transform: uppercase;">ID</th>
+                    <th style="padding: 12px 8px; color: #64748b; font-weight: 800; font-size: 11px; text-transform: uppercase;">Pelanggan</th>
+                    <th style="padding: 12px 8px; color: #64748b; font-weight: 800; font-size: 11px; text-transform: uppercase;">Golongan / Tier</th>
+                    <th style="padding: 12px 8px; color: #64748b; font-weight: 800; font-size: 11px; text-transform: uppercase;">Upline</th>
+                    <th style="padding: 12px 8px; color: #64748b; font-weight: 800; font-size: 11px; text-transform: uppercase;">Saldo Utama</th>
+                    <th style="padding: 12px 8px; color: #64748b; font-weight: 800; font-size: 11px; text-transform: uppercase;">Komisi VIP</th>
+                    <th style="padding: 12px 8px; color: #64748b; font-weight: 800; font-size: 11px; text-transform: uppercase;">Poin</th>
+                    <th style="padding: 12px 8px; color: #64748b; font-weight: 800; font-size: 11px; text-transform: uppercase;">Status</th>
+                    <th style="padding: 12px 8px; color: #64748b; font-weight: 800; font-size: 11px; text-transform: uppercase; text-align: right;">Aksi</th>
                 </tr>
             </thead>
             <tbody>
                 {% for u in users %}
                 <tr style="border-bottom: 1px solid #f8fafc; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#f8fafc'" onmouseout="this.style.backgroundColor='transparent'">
                     <td style="padding: 14px 8px; font-weight: 700; color: #94a3b8;">#{{ u.id }}</td>
-                    <td style="padding: 14px 8px; font-weight: 800; color: #334155;">{{ u.name }}</td>
                     <td style="padding: 14px 8px;">
-                        <a href="https://wa.me/{{ u.phone|replace('0', '62', 1) }}" target="_blank" style="text-decoration: none; color: #059669; font-weight: 800; background: #d1fae5; padding: 5px 12px; border-radius: 20px; font-size: 12px; display: inline-flex; align-items: center; gap: 5px;">
+                        <div style="font-weight: 800; color: #334155;">{{ u.name }}</div>
+                        <a href="https://wa.me/{{ u.phone|replace('0', '62', 1) }}" target="_blank" style="text-decoration: none; color: #059669; font-weight: 700; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; margin-top: 2px;">
                             <i class="fab fa-whatsapp"></i> {{ u.phone }}
                         </a>
                     </td>
-                    <td style="padding: 14px 8px; font-size: 12px; color: #64748b;">
-                        {{ u.email or '-' }}
+                    <td style="padding: 14px 8px;">
+                        {% set eff_role = u.get_effective_role() %}
+                        {% if eff_role == 'vip' %}
+                            <span style="background: #fef3c7; color: #b45309; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 800; display: inline-flex; align-items: center; gap: 4px;">
+                                <i class="fas fa-crown" style="color: #f59e0b;"></i> VIP
+                            </span>
+                            <div style="font-size: 10px; color: #92400e; margin-top: 3px; font-weight: 600;">
+                                {% if u.role_expires_at %}
+                                    {{ u.get_remaining_days() }} hari lagi
+                                {% else %}
+                                    Permanen
+                                {% endif %}
+                            </div>
+                        {% elif eff_role == 'reseller' %}
+                            <span style="background: #e0f2fe; color: #0369a1; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 800; display: inline-flex; align-items: center; gap: 4px;">
+                                <i class="fas fa-store" style="color: #0284c7;"></i> Reseller
+                            </span>
+                            <div style="font-size: 10px; color: #0369a1; margin-top: 3px; font-weight: 600;">
+                                {% if u.role_expires_at %}
+                                    {{ u.get_remaining_days() }} hari lagi
+                                {% else %}
+                                    Permanen
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <span style="background: #f1f5f9; color: #475569; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 800; display: inline-flex; align-items: center; gap: 4px;">
+                                <i class="fas fa-user" style="color: #94a3b8;"></i> Member
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 14px 8px; font-size: 11px;">
+                        {% if u.upline %}
+                            <div style="font-weight: 800; color: #1e293b;">{{ u.upline.name }}</div>
+                            <div style="color: #64748b;">{{ u.upline.phone }}</div>
+                        {% else %}
+                            <span style="color: #cbd5e1;">-</span>
+                        {% endif %}
                     </td>
                     <td style="padding: 14px 8px; font-weight: 800; color: #0f172a;">Rp {{ "{:,.0f}".format(u.balance).replace(',', '.') }}</td>
+                    <td style="padding: 14px 8px;">
+                        {% if u.commission_balance and u.commission_balance > 0 %}
+                            <span style="font-weight: 800; color: #15803d; font-size: 12px;">Rp {{ "{:,.0f}".format(u.commission_balance).replace(',', '.') }}</span>
+                        {% elif u.role == 'vip' %}
+                            <span style="color: #94a3b8; font-size: 11px;">Rp 0</span>
+                        {% else %}
+                            <span style="color: #cbd5e1;">-</span>
+                        {% endif %}
+                    </td>
                     <td style="padding: 14px 8px;">
                         <span style="background: #fef3c7; color: #b45309; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 800; display: inline-flex; align-items: center; gap: 4px;">
                             <i class="fas fa-coins" style="font-size: 10px; color: #d97706;"></i> {{ "{:,}".format(u.points or 0).replace(',', '.') }} Pts
@@ -161,8 +265,14 @@
                                 data-email="{{ u.email or '' }}" 
                                 data-balance="{{ u.balance }}" 
                                 data-points="{{ u.points or 0 }}"
-                                data-role="{{ u.role }}" 
+                                data-role="{{ u.role or 'user' }}" 
                                 data-status="{{ '1' if u.is_active else '0' }}" 
+                                data-expires-at="{{ u.role_expires_at.strftime('%Y-%m-%dT%H:%M') if u.role_expires_at else '' }}"
+                                data-remaining-days="{{ u.get_remaining_days() }}"
+                                data-commission-balance="{{ u.commission_balance or 0.0 }}"
+                                data-upline-phone="{{ u.upline.phone if u.upline else '' }}"
+                                data-upline-name="{{ u.upline.name if u.upline else '' }}"
+                                data-referral-code="{{ u.referral_code or '' }}"
                                 onclick="openEditModalBtn(this)" 
                                 style="background: #e0f2fe; color: #0284c7; border: none; padding: 6px 12px; border-radius: 8px; font-weight: 800; font-size: 12px; cursor: pointer; transition: 0.2s;">
                             <i class="fas fa-edit"></i> Edit
@@ -171,7 +281,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="8" style="padding: 40px; text-align: center; color: #94a3b8; font-weight: 600;">
+                    <td colspan="9" style="padding: 40px; text-align: center; color: #94a3b8; font-weight: 600;">
                         <i class="fas fa-folder-open" style="font-size: 24px; margin-bottom: 10px; color: #cbd5e1;"></i><br>
                         Belum ada data pelanggan yang terdaftar.
                     </td>
@@ -193,9 +303,35 @@
         
         document.getElementById('eu_balance').value = parseFloat(btn.getAttribute('data-balance') || 0);
         document.getElementById('eu_points').value = parseInt(btn.getAttribute('data-points') || 0);
-        document.getElementById('eu_role').value = btn.getAttribute('data-role');
+        
+        const role = btn.getAttribute('data-role') || 'user';
+        document.getElementById('eu_role').value = role;
+        
         document.getElementById('eu_status').value = btn.getAttribute('data-status');
         document.getElementById('eu_password').value = '';
+        
+        const exp = btn.getAttribute('data-expires-at') || '';
+        document.getElementById('eu_role_expires_at').value = exp;
+        document.getElementById('eu_add_days').value = '';
+        
+        const remDays = parseInt(btn.getAttribute('data-remaining-days') || 0);
+        const remBadge = document.getElementById('eu_remaining_badge');
+        if (remDays > 0) {
+            remBadge.innerHTML = `<i class="fas fa-check-circle"></i> Sisa aktif: <b>${remDays} hari lagi</b>`;
+        } else if (exp) {
+            remBadge.innerHTML = `<span style="color:#ef4444;"><i class="fas fa-times-circle"></i> Expired (${exp.replace('T', ' ')})</span>`;
+        } else if (role !== 'user') {
+            remBadge.innerHTML = `<span style="color:#0284c7;"><i class="fas fa-infinity"></i> Aktif Permanen</span>`;
+        } else {
+            remBadge.innerHTML = '';
+        }
+        
+        document.getElementById('eu_commission_balance').value = parseFloat(btn.getAttribute('data-commission-balance') || 0);
+        
+        const upPhone = btn.getAttribute('data-upline-phone');
+        const upName = btn.getAttribute('data-upline-name');
+        document.getElementById('eu_upline').value = upPhone || '';
+        document.getElementById('eu_upline_info').innerText = upName ? `Upline saat ini: ${upName} (${upPhone})` : 'Belum memiliki upline';
         
         document.getElementById('editUserModal').style.display = 'flex';
     }

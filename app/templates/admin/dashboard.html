@@ -81,6 +81,7 @@
         <div class="section-header"><i class="fas fa-th-large"></i> Manajemen Sistem</div>
         <div class="menu-grid">
             <a href="{{ url_for('admin.users') }}" class="menu-item {% if request.endpoint == 'admin.users' %}active{% endif %}"><i class="fas fa-users-cog"></i><span>Data User</span></a>
+            <a href="{{ url_for('admin.tier_settings') }}" class="menu-item {% if request.endpoint == 'admin.tier_settings' %}active{% endif %}"><i class="fas fa-crown" style="color: #f59e0b;"></i><span>Tier & Downline</span></a>
             <a href="{{ url_for('admin.transactions') }}" class="menu-item {% if request.endpoint == 'admin.transactions' %}active{% endif %}"><i class="fas fa-list-alt"></i><span>Transaksi</span></a>
             <a href="{{ url_for('admin.produk') }}" class="menu-item"><i class="fas fa-box-open"></i><span>Produk</span></a>
             <a href="{{ url_for('admin.margin') }}" class="menu-item"><i class="fas fa-percentage"></i><span>Margin</span></a>

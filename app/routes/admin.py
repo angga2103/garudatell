@@ -566,10 +566,70 @@ def update_user_action():
         if new_password and new_password.strip():
             user.set_password(new_password.strip())
             
-        # Memperbarui Role & Status
-        user.role = request.form.get('role', 'user')
+        # Memperbarui Role, Masa Aktif, Komisi, dan Upline
+        from app.services.tier_service import get_wib_now, ensure_user_referral_code
+        now = get_wib_now()
+
+        new_role = request.form.get('role', 'user')
+        user.role = new_role
+
         status_val = request.form.get('status')
         user.is_active = True if str(status_val) in ('1', 'true', 'True') else False
+
+        # Saldo Komisi Downline
+        comm_balance_raw = request.form.get('commission_balance')
+        if comm_balance_raw is not None and comm_balance_raw != '':
+            try:
+                user.commission_balance = max(0.0, float(comm_balance_raw))
+            except ValueError:
+                pass
+
+        # Masa Aktif Langganan
+        expires_date_raw = request.form.get('role_expires_at', '').strip()
+        add_days_raw = request.form.get('add_days', '').strip()
+
+        if new_role == 'user':
+            user.role_expires_at = None
+        elif new_role in ('reseller', 'vip'):
+            if new_role == 'vip':
+                ensure_user_referral_code(user)
+
+            if expires_date_raw:
+                try:
+                    if 'T' in expires_date_raw:
+                        user.role_expires_at = datetime.strptime(expires_date_raw, '%Y-%m-%dT%H:%M')
+                    elif len(expires_date_raw) == 10:
+                        user.role_expires_at = datetime.strptime(expires_date_raw, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
+                    else:
+                        user.role_expires_at = datetime.strptime(expires_date_raw, '%Y-%m-%d %H:%M:%S')
+                except Exception:
+                    pass
+            elif add_days_raw:
+                try:
+                    days = int(add_days_raw)
+                    if days > 0:
+                        base_date = user.role_expires_at if (user.role_expires_at and user.role_expires_at > now) else now
+                        user.role_expires_at = base_date + timedelta(days=days)
+                except Exception:
+                    pass
+            elif not user.role_expires_at or user.role_expires_at <= now:
+                # Default 30 hari jika role baru di-upgrade admin tanpa memilih hari
+                user.role_expires_at = now + timedelta(days=30)
+
+        # Upline Assignment / Reset
+        upline_raw = request.form.get('upline_input', '').strip()
+        if upline_raw:
+            if upline_raw in ('0', '-', 'none', 'null', 'hapus'):
+                user.upline_id = None
+            else:
+                up_user = User.query.filter(
+                    (User.referral_code == upline_raw) | 
+                    (User.phone == upline_raw) | 
+                    (User.name == upline_raw) |
+                    (User.id == (int(upline_raw) if upline_raw.isdigit() else -1))
+                ).first()
+                if up_user and up_user.id != user.id:
+                    user.upline_id = up_user.id
         
         db.session.commit()
         status_text = "diaktifkan" if user.is_active else "diblokir"
@@ -1787,6 +1847,98 @@ def store_settings_delete_logo():
     except Exception as e:
         flash(f'Gagal menghapus logo toko: {str(e)}', 'danger')
     return redirect(url_for('admin.store_settings'))
+
+
+# =====================================================================
+# RUTE PENGATURAN TIER & DOWNLINE VIP
+# =====================================================================
+@admin_bp.route('/tier_settings', methods=['GET', 'POST'])
+def tier_settings():
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin.login'))
+        
+    from app.models.setting import Setting
+    from app.models.user import User
+    from app.models.commission import CommissionLog
+    from app.services.tier_service import get_tier_settings
+    
+    keys = [
+        'upgrade_fee_reseller',
+        'upgrade_fee_vip',
+        'discount_reseller',
+        'discount_vip',
+        'commission_flat',
+        'payout_date',
+        'history_retention_days'
+    ]
+    
+    if request.method == 'POST':
+        try:
+            for k in keys:
+                val = request.form.get(k, '').strip()
+                s = Setting.query.filter_by(key=k).first()
+                if not s:
+                    s = Setting(key=k, value=val)
+                    db.session.add(s)
+                else:
+                    s.value = val
+            db.session.commit()
+            flash('Pengaturan Golongan Akun & Skema Downline VIP berhasil disimpan!', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Gagal menyimpan pengaturan: {str(e)}', 'error')
+        return redirect(url_for('admin.tier_settings'))
+        
+    # GET Request
+    tier_cfg = get_tier_settings()
+    
+    total_users = User.query.count()
+    member_count = User.query.filter((User.role == 'user') | (User.role == None)).count()
+    reseller_count = User.query.filter_by(role='reseller').count()
+    vip_count = User.query.filter_by(role='vip').count()
+    total_commission_circulating = db.session.query(db.func.sum(User.commission_balance)).scalar() or 0.0
+    total_commission_paid = db.session.query(db.func.sum(CommissionLog.commission_amount)).filter_by(status='paid_out').scalar() or 0.0
+    
+    return render_template('admin/tier_settings.html',
+                           settings=tier_cfg,
+                           total_users=total_users,
+                           member_count=member_count,
+                           reseller_count=reseller_count,
+                           vip_count=vip_count,
+                           total_commission_circulating=total_commission_circulating,
+                           total_commission_paid=total_commission_paid,
+                           page_title='Tier & Downline VIP')
+
+
+@admin_bp.route('/tier_settings/downgrade_expired', methods=['POST'])
+def downgrade_expired_action():
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin.login'))
+    from app.services.tier_service import check_and_downgrade_expired_users
+    count = check_and_downgrade_expired_users()
+    flash(f'Pemeriksaan selesai: {count} akun yang masa aktifnya telah habis berhasil di-downgrade ke Member.', 'success' if count > 0 else 'info')
+    return redirect(url_for('admin.tier_settings'))
+
+
+@admin_bp.route('/tier_settings/prune_history', methods=['POST'])
+def prune_history_action():
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin.login'))
+    from app.services.commission_service import prune_commission_history
+    count = prune_commission_history()
+    flash(f'Housekeeping selesai: {count} baris riwayat transaksi & komisi lebih dari 120 hari berhasil dibersihkan.', 'success' if count > 0 else 'info')
+    return redirect(url_for('admin.tier_settings'))
+
+
+@admin_bp.route('/tier_settings/send_reminders', methods=['POST'])
+def send_tier_reminders_action():
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin.login'))
+    from app.services.tier_service import send_h12_whatsapp_reminders
+    count = send_h12_whatsapp_reminders()
+    flash(f'Pengingat H-12 diproses: {count} pesan WhatsApp berhasil dikirim ke pelanggan yang mendekati jatuh tempo.', 'success' if count > 0 else 'info')
+    return redirect(url_for('admin.tier_settings'))
+
 
 
 

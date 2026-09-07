@@ -1,0 +1,246 @@
+{% extends 'admin/layout.html' %}
+
+{% block title %}GarudaTel - Pengaturan Tier & Downline VIP{% endblock %}
+
+{% set page_title = "Tier & Downline VIP" %}
+
+{% block admin_content %}
+<div class="section-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+    <div>
+        <i class="fas fa-crown" style="color: #f59e0b;"></i>
+        Pengaturan Golongan Akun & Skema Downline VIP
+    </div>
+    <div style="display: flex; gap: 8px;">
+        <a href="/account/upgrade" target="_blank" style="font-size: 11px; background: #e0f2fe; color: #0284c7; padding: 6px 12px; border-radius: 8px; text-decoration: none; font-weight: 800; display: inline-flex; align-items: center; gap: 6px;">
+            <i class="fas fa-external-link-alt"></i> Halaman Upgrade
+        </a>
+        <a href="/vip/downline" target="_blank" style="font-size: 11px; background: #fef3c7; color: #b45309; padding: 6px 12px; border-radius: 8px; text-decoration: none; font-weight: 800; display: inline-flex; align-items: center; gap: 6px;">
+            <i class="fas fa-network-wired"></i> Dashboard VIP
+        </a>
+    </div>
+</div>
+
+<!-- STATISTIK TIER -->
+<div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));">
+    <div class="stat-card">
+        <i class="fas fa-user stat-icon" style="color: #64748b;"></i>
+        <div class="stat-value">{{ "{:,}".format(member_count) }}</div>
+        <div class="stat-label">MEMBER BIASA</div>
+    </div>
+    <div class="stat-card">
+        <i class="fas fa-store stat-icon" style="color: #0284c7;"></i>
+        <div class="stat-value">{{ "{:,}".format(reseller_count) }}</div>
+        <div class="stat-label">RESELLER AKTIF</div>
+    </div>
+    <div class="stat-card">
+        <i class="fas fa-crown stat-icon" style="color: #f59e0b;"></i>
+        <div class="stat-value">{{ "{:,}".format(vip_count) }}</div>
+        <div class="stat-label">VIP AKTIF</div>
+    </div>
+    <div class="stat-card">
+        <i class="fas fa-wallet stat-icon" style="color: #10b981;"></i>
+        <div class="stat-value">Rp {{ "{:,.0f}".format(total_commission_circulating).replace(',', '.') }}</div>
+        <div class="stat-label">KOMISI SIAP CAIR</div>
+    </div>
+    <div class="stat-card">
+        <i class="fas fa-hand-holding-usd stat-icon" style="color: #6366f1;"></i>
+        <div class="stat-value">Rp {{ "{:,.0f}".format(total_commission_paid).replace(',', '.') }}</div>
+        <div class="stat-label">TOTAL KOMISI DICAIRKAN</div>
+    </div>
+</div>
+
+<!-- FORM KONFIGURASI TIER & DOWNLINE -->
+<div class="config-card">
+    <div class="config-title">
+        <i class="fas fa-sliders-h"></i>
+        Parameter Tarif, Diskon & Skema Komisi
+    </div>
+
+    <form method="POST" action="/admin/tier_settings">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+        <!-- SEKSI 1: BIAYA LANGGANAN BULANAN -->
+        <div style="margin-bottom: 25px;">
+            <div style="font-size: 13px; font-weight: 800; color: #1e293b; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; border-bottom: 1px dashed #e2e8f0; padding-bottom: 6px;">
+                <i class="fas fa-money-check-alt" style="color: #0d9488;"></i> 1. Tarif Langganan Bulanan (30 Hari)
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px;">
+                <div class="form-group">
+                    <label style="display: block; font-size: 11px; font-weight: 800; color: #334155; margin-bottom: 6px;">
+                        Tarif Upgrade Reseller (Rp / 30 Hari)
+                    </label>
+                    <div style="display: flex; align-items: center; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 0 12px;">
+                        <span style="font-weight: 800; color: #64748b; font-size: 13px;">Rp</span>
+                        <input type="number" name="upgrade_fee_reseller" value="{{ "{:.0f}".format(settings.upgrade_fee_reseller) }}" min="0" step="500" required
+                               style="flex: 1; border: none; background: transparent; padding: 10px; font-size: 14px; font-weight: 800; color: #0284c7; outline: none; font-family: 'Nunito';">
+                    </div>
+                    <small style="color: #64748b; font-size: 10px; margin-top: 4px; display: block;">Default: Rp 15.000 dipotong otomatis dari Saldo Utama member.</small>
+                </div>
+
+                <div class="form-group">
+                    <label style="display: block; font-size: 11px; font-weight: 800; color: #334155; margin-bottom: 6px;">
+                        Tarif Upgrade VIP (Rp / 30 Hari)
+                    </label>
+                    <div style="display: flex; align-items: center; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 0 12px;">
+                        <span style="font-weight: 800; color: #64748b; font-size: 13px;">Rp</span>
+                        <input type="number" name="upgrade_fee_vip" value="{{ "{:.0f}".format(settings.upgrade_fee_vip) }}" min="0" step="500" required
+                               style="flex: 1; border: none; background: transparent; padding: 10px; font-size: 14px; font-weight: 800; color: #f59e0b; outline: none; font-family: 'Nunito';">
+                    </div>
+                    <small style="color: #64748b; font-size: 10px; margin-top: 4px; display: block;">Default: Rp 20.000. VIP berhak atas fitur referral downline.</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- SEKSI 2: DISKON HARGA PRODUK DINAMIS -->
+        <div style="margin-bottom: 25px;">
+            <div style="font-size: 13px; font-weight: 800; color: #1e293b; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; border-bottom: 1px dashed #e2e8f0; padding-bottom: 6px;">
+                <i class="fas fa-tags" style="color: #6366f1;"></i> 2. Keuntungan Diskon Belanja Produk (Potongan dari Harga Jual Normal)
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px;">
+                <div class="form-group">
+                    <label style="display: block; font-size: 11px; font-weight: 800; color: #334155; margin-bottom: 6px;">
+                        Potongan Harga Akun Reseller
+                    </label>
+                    <div style="display: flex; align-items: center; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 0 12px;">
+                        <span style="font-weight: 800; color: #64748b; font-size: 13px;">Rp</span>
+                        <input type="number" name="discount_reseller" value="{{ "{:.0f}".format(settings.discount_reseller) }}" min="0" step="50" required
+                               style="flex: 1; border: none; background: transparent; padding: 10px; font-size: 14px; font-weight: 800; color: #0284c7; outline: none; font-family: 'Nunito';">
+                        <span style="font-weight: 800; color: #64748b; font-size: 11px;">/ Produk</span>
+                    </div>
+                    <small style="color: #64748b; font-size: 10px; margin-top: 4px; display: block;">Default: Rp 100 lebih murah dari harga Member biasa.</small>
+                </div>
+
+                <div class="form-group">
+                    <label style="display: block; font-size: 11px; font-weight: 800; color: #334155; margin-bottom: 6px;">
+                        Potongan Harga Akun VIP
+                    </label>
+                    <div style="display: flex; align-items: center; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 0 12px;">
+                        <span style="font-weight: 800; color: #64748b; font-size: 13px;">Rp</span>
+                        <input type="number" name="discount_vip" value="{{ "{:.0f}".format(settings.discount_vip) }}" min="0" step="50" required
+                               style="flex: 1; border: none; background: transparent; padding: 10px; font-size: 14px; font-weight: 800; color: #f59e0b; outline: none; font-family: 'Nunito';">
+                        <span style="font-weight: 800; color: #64748b; font-size: 11px;">/ Produk</span>
+                    </div>
+                    <small style="color: #64748b; font-size: 10px; margin-top: 4px; display: block;">Default: Rp 200 lebih murah (dilengkapi floor proteksi harga modal).</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- SEKSI 3: SKEMA KOMISI DOWNLINE & PENCAIRAN -->
+        <div style="margin-bottom: 25px;">
+            <div style="font-size: 13px; font-weight: 800; color: #1e293b; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; border-bottom: 1px dashed #e2e8f0; padding-bottom: 6px;">
+                <i class="fas fa-network-wired" style="color: #d97706;"></i> 3. Skema Komisi Downline & Aturan Pencairan (Eksklusif VIP)
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px;">
+                <div class="form-group">
+                    <label style="display: block; font-size: 11px; font-weight: 800; color: #334155; margin-bottom: 6px;">
+                        Komisi Flat per Transaksi Downline
+                    </label>
+                    <div style="display: flex; align-items: center; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 0 12px;">
+                        <span style="font-weight: 800; color: #64748b; font-size: 13px;">Rp</span>
+                        <input type="number" name="commission_flat" value="{{ "{:.0f}".format(settings.commission_flat) }}" min="0" step="25" required
+                               style="flex: 1; border: none; background: transparent; padding: 10px; font-size: 14px; font-weight: 800; color: #10b981; outline: none; font-family: 'Nunito';">
+                        <span style="font-weight: 800; color: #64748b; font-size: 11px;">/ Trx Sukses</span>
+                    </div>
+                    <small style="color: #64748b; font-size: 10px; margin-top: 4px; display: block;">Diberikan ke Upline VIP aktif saat downline belanja (Otomatis dibatasi maks 30% margin).</small>
+                </div>
+
+                <div class="form-group">
+                    <label style="display: block; font-size: 11px; font-weight: 800; color: #334155; margin-bottom: 6px;">
+                        Tanggal Pencairan Komisi Bulanan
+                    </label>
+                    <div style="display: flex; align-items: center; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 0 12px;">
+                        <span style="font-weight: 800; color: #64748b; font-size: 13px;">Tanggal</span>
+                        <input type="number" name="payout_date" value="{{ settings.payout_date }}" min="1" max="28" required
+                               style="flex: 1; border: none; background: transparent; padding: 10px; font-size: 14px; font-weight: 800; color: #dc2626; outline: none; font-family: 'Nunito'; text-align: center;">
+                        <span style="font-weight: 800; color: #64748b; font-size: 11px;">Tiap Bulan (WIB)</span>
+                    </div>
+                    <small style="color: #64748b; font-size: 10px; margin-top: 4px; display: block;">Default: Tanggal 28. Tombol klaim di akun VIP hanya terbuka di tanggal ini.</small>
+                </div>
+
+                <div class="form-group">
+                    <label style="display: block; font-size: 11px; font-weight: 800; color: #334155; margin-bottom: 6px;">
+                        Batas Retensi Riwayat Komisi (Hari)
+                    </label>
+                    <div style="display: flex; align-items: center; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 0 12px;">
+                        <input type="number" name="history_retention_days" value="{{ settings.history_retention_days }}" min="30" max="365" required
+                               style="flex: 1; border: none; background: transparent; padding: 10px; font-size: 14px; font-weight: 800; color: #334155; outline: none; font-family: 'Nunito'; text-align: center;">
+                        <span style="font-weight: 800; color: #64748b; font-size: 11px;">Hari (~4 Bulan)</span>
+                    </div>
+                    <small style="color: #64748b; font-size: 10px; margin-top: 4px; display: block;">Data transaksi downline & komisi tersimpan maksimal 120 hari untuk menjaga database tetap ringan.</small>
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" style="background: #00877a; color: white; border: none; padding: 14px 24px; border-radius: 12px; font-weight: 800; font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: 0.2s;">
+            <i class="fas fa-save"></i> Simpan Pengaturan Tier & Downline
+        </button>
+    </form>
+</div>
+
+<!-- KARTU PEMELIHARAAN SISTEM & AKSI MANUAL -->
+<div class="config-card" style="margin-top: 20px; border-left: 4px solid #f59e0b;">
+    <div class="config-title" style="color: #b45309;">
+        <i class="fas fa-tools"></i>
+        Pemeliharaan Sistem & Aksi Manual
+    </div>
+    <p style="font-size: 12px; color: #64748b; margin-top: -5px; margin-bottom: 15px;">
+        Gunakan tombol di bawah ini untuk menjalankan tugas otomatis secara manual kapan saja tanpa menunggu cron job server.
+    </p>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 15px;">
+        <!-- AKSI 1: DOWNGRADE EXPIRED -->
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px; display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+                <div style="font-weight: 800; font-size: 13px; color: #1e293b; margin-bottom: 5px;">
+                    <i class="fas fa-user-clock" style="color: #ef4444;"></i> Cek Akun Kadaluarsa
+                </div>
+                <div style="font-size: 11px; color: #64748b; line-height: 1.5; margin-bottom: 12px;">
+                    Mengecek seluruh akun Reseller & VIP yang masa aktif 30 harinya telah lewat dan menurunkannya kembali ke Member biasa.
+                </div>
+            </div>
+            <form method="POST" action="/admin/tier_settings/downgrade_expired">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <button type="submit" onclick="return confirm('Jalankan pemeriksaan akun kadaluarsa sekarang?')" style="width: 100%; background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; padding: 10px; border-radius: 8px; font-size: 12px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                    <i class="fas fa-sync-alt"></i> Jalankan Downgrade
+                </button>
+            </form>
+        </div>
+
+        <!-- AKSI 2: PENGINGAT WA H-12 -->
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px; display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+                <div style="font-weight: 800; font-size: 13px; color: #1e293b; margin-bottom: 5px;">
+                    <i class="fab fa-whatsapp" style="color: #10b981;"></i> Pengingat WhatsApp H-12
+                </div>
+                <div style="font-size: 11px; color: #64748b; line-height: 1.5; margin-bottom: 12px;">
+                    Kirim pesan WhatsApp otomatis ke pelanggan Reseller & VIP yang masa aktifnya tersisa tepat 12 hari sebelum jatuh tempo.
+                </div>
+            </div>
+            <form method="POST" action="/admin/tier_settings/send_reminders">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <button type="submit" onclick="return confirm('Kirimkan pesan pengingat WA H-12 ke seluruh pelanggan yang mendekati jatuh tempo?')" style="width: 100%; background: #d1fae5; color: #059669; border: 1px solid #6ee7b7; padding: 10px; border-radius: 8px; font-size: 12px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                    <i class="fas fa-paper-plane"></i> Kirim Pengingat H-12
+                </button>
+            </form>
+        </div>
+
+        <!-- AKSI 3: PRUNE DATA 4 BULAN -->
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px; display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+                <div style="font-weight: 800; font-size: 13px; color: #1e293b; margin-bottom: 5px;">
+                    <i class="fas fa-broom" style="color: #6366f1;"></i> Bersihkan Data > 4 Bulan
+                </div>
+                <div style="font-size: 11px; color: #64748b; line-height: 1.5; margin-bottom: 12px;">
+                    Menghapus riwayat transaksi downline & komisi yang sudah berumur lebih dari 120 hari agar database VPS tetap ramping dan gesit.
+                </div>
+            </div>
+            <form method="POST" action="/admin/tier_settings/prune_history">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <button type="submit" onclick="return confirm('Peringatan: Data riwayat komisi lebih dari 120 hari akan dihapus permanen untuk housekeeping. Lanjutkan?')" style="width: 100%; background: #ede9fe; color: #6d28d9; border: 1px solid #c4b5fd; padding: 10px; border-radius: 8px; font-size: 12px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                    <i class="fas fa-trash-alt"></i> Jalankan Pembersihan
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

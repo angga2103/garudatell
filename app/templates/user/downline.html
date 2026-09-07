@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+
+{% block title %}Manajemen Downline VIP - GarudaTel{% endblock %}
+
+{% block content %}
+<div style="background: linear-gradient(135deg, #b45309 0%, #78350f 100%); border-bottom-left-radius: 25px; border-bottom-right-radius: 25px; padding: 25px 20px 35px 20px; margin: -15px -15px 20px -15px; text-align: center; color: white; box-shadow: 0 4px 12px rgba(180, 83, 9, 0.2);">
+    <div style="display: inline-flex; align-items: center; justify-content: center; width: 50px; height: 50px; border-radius: 50%; background: rgba(255,255,255,0.2); margin-bottom: 10px;">
+        <i class="fas fa-crown" style="font-size: 24px; color: #fef08a;"></i>
+    </div>
+    <h4 style="margin: 0; font-weight: 900; font-size: 1.25rem;">Kemitraan & Downline VIP</h4>
+    <p style="margin: 6px 0 0 0; font-size: 0.85rem; opacity: 0.9;">Pantau transaksi jaringan dan nikmati komisi pasif Anda.</p>
+</div>
+
+<div style="padding: 0 10px 90px 10px; margin-top: -20px;">
+
+    <!-- KARTU LINK REFERRAL PRIBADI -->
+    <div style="background: white; border-radius: 18px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.06); margin-bottom: 20px; border: 1.5px solid #fef08a;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div style="font-size: 0.85rem; font-weight: 800; color: #78350f; display: flex; align-items: center; gap: 6px;">
+                <i class="fas fa-link" style="color: #d97706;"></i> Link Referral Pendaftaran Anda
+            </div>
+            <span style="background: #fef3c7; color: #92400e; font-size: 0.75rem; font-weight: 900; padding: 3px 8px; border-radius: 8px;">
+                KODE: {{ ref_code }}
+            </span>
+        </div>
+
+        <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+            <input type="text" id="refLinkInput" readonly value="{{ referral_link }}" style="flex: 1; padding: 12px 14px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 13px; font-weight: 700; color: #334155; background: #f8fafc; font-family: monospace; outline: none; box-sizing: border-box;">
+            <button type="button" onclick="copyRefLink()" id="btnCopyRef" style="background: #008f89; color: white; border: none; padding: 0 16px; border-radius: 10px; font-weight: 800; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 5px; white-space: nowrap;">
+                <i class="fas fa-copy"></i> Salin
+            </button>
+        </div>
+
+        <a href="https://wa.me/?text={{ 'Halo! Yuk belanja pulsa, paket data, voucher game, dan bayar tagihan dengan harga termurah di GarudaTel. Daftar melalui link ini: ' | urlencode }}{{ referral_link | urlencode }}" target="_blank" style="text-decoration: none; width: 100%; padding: 12px; border-radius: 10px; background: #25d366; color: white; font-weight: 800; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 8px; box-sizing: border-box;">
+            <i class="fab fa-whatsapp" style="font-size: 16px;"></i> Bagikan Link ke WhatsApp
+        </a>
+    </div>
+
+    <!-- GRID STATISTIK DOWNLINE -->
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px;">
+        <!-- HARI INI -->
+        <div style="background: white; border-radius: 16px; padding: 16px; box-shadow: 0 3px 10px rgba(0,0,0,0.04); border-top: 4px solid #008f89;">
+            <div style="font-size: 0.75rem; font-weight: 800; color: #64748b; margin-bottom: 4px;">TRANSAKSI HARI INI</div>
+            <div style="font-size: 1.15rem; font-weight: 900; color: #0f172a;">{{ stats.today.count }} Trx</div>
+            <div style="font-size: 0.75rem; color: #059669; font-weight: 800; margin-top: 4px;">
+                +Rp {{ "{:,.0f}".format(stats.today.commission).replace(',', '.') }} komisi
+            </div>
+            <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">
+                Belanja: Rp {{ "{:,.0f}".format(stats.today.amount).replace(',', '.') }}
+            </div>
+        </div>
+
+        <!-- BULAN INI -->
+        <div style="background: white; border-radius: 16px; padding: 16px; box-shadow: 0 3px 10px rgba(0,0,0,0.04); border-top: 4px solid #6366f1;">
+            <div style="font-size: 0.75rem; font-weight: 800; color: #64748b; margin-bottom: 4px;">KOMISI BULAN INI</div>
+            <div style="font-size: 1.15rem; font-weight: 900; color: #4338ca;">Rp {{ "{:,.0f}".format(stats.month.commission).replace(',', '.') }}</div>
+            <div style="font-size: 0.75rem; color: #64748b; font-weight: 700; margin-top: 4px;">
+                Dari {{ stats.month.count }} transaksi
+            </div>
+            <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">
+                Total belanja: Rp {{ "{:,.0f}".format(stats.month.amount).replace(',', '.') }}
+            </div>
+        </div>
+    </div>
+
+    <!-- SALDO KOMISI & PENCAIRAN TANGGAL 28 -->
+    <div style="background: white; border-radius: 18px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.06); margin-bottom: 22px; border: 2px solid {% if stats.is_payout_day %}#10b981{% else %}#e2e8f0{% endif %};">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <div>
+                <div style="font-size: 0.75rem; font-weight: 800; color: #64748b; text-transform: uppercase;">Saldo Komisi Siap Cair</div>
+                <div style="font-size: 1.6rem; font-weight: 900; color: #d97706; margin-top: 2px;" id="dispCommissionBalance">
+                    Rp {{ "{:,.0f}".format(stats.commission_balance).replace(',', '.') }}
+                </div>
+            </div>
+            <div style="width: 46px; height: 46px; border-radius: 50%; background: #fef3c7; color: #d97706; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                <i class="fas fa-wallet"></i>
+            </div>
+        </div>
+
+        {% if stats.is_payout_day %}
+            <!-- HARI INI TANGGAL 28 (PENCAIRAN DIBUKA) -->
+            <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 12px; padding: 12px; margin-bottom: 15px; text-align: center;">
+                <div style="font-size: 13px; font-weight: 800; color: #065f46; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                    <i class="fas fa-calendar-check" style="color: #10b981;"></i> Hari Ini Tanggal {{ stats.payout_date }}! Pencairan Komisi Telah Dibuka
+                </div>
+                <div style="font-size: 11px; color: #047857; margin-top: 3px;">
+                    Dana komisi akan langsung ditransfer ke Saldo Utama akun GarudaTel Anda.
+                </div>
+            </div>
+
+            {% if stats.commission_balance > 0 %}
+            <button type="button" onclick="executeClaimCommission()" id="btnClaim" style="width: 100%; padding: 14px; border: none; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border-radius: 12px; font-weight: 900; font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);">
+                <i class="fas fa-hand-holding-usd"></i> Cairkan Rp {{ "{:,.0f}".format(stats.commission_balance).replace(',', '.') }} ke Saldo Utama
+            </button>
+            {% else %}
+            <button disabled style="width: 100%; padding: 13px; border: none; background: #e2e8f0; color: #94a3b8; border-radius: 12px; font-weight: 800; font-size: 14px; cursor: not-allowed;">
+                Tidak Ada Komisi untuk Dicairkan
+            </button>
+            {% endif %}
+
+        {% else %}
+            <!-- BUKAN TANGGAL 28 (TERKUNCI DENGAN HITUNG MUNDUR) -->
+            <div style="background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 12px; padding: 14px; margin-bottom: 15px; text-align: center;">
+                <div style="font-size: 13px; font-weight: 800; color: #334155; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                    <i class="fas fa-clock" style="color: #f59e0b;"></i> Pencairan Dibuka Setiap Tanggal {{ stats.payout_date }} WIB
+                </div>
+                <div style="font-size: 12px; font-weight: 800; color: #d97706; margin-top: 5px;">
+                    ⏳ Sisa {{ stats.days_until_payout }} hari lagi menuju tanggal pencairan
+                </div>
+                <div style="font-size: 11px; color: #64748b; margin-top: 4px;">
+                    Seluruh komisi transaksi downline Anda tersimpan aman dan terakumulasi di dompet ini.
+                </div>
+            </div>
+
+            <button disabled style="width: 100%; padding: 13px; border: none; background: #e2e8f0; color: #94a3b8; border-radius: 12px; font-weight: 800; font-size: 14px; cursor: not-allowed; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <i class="fas fa-lock"></i> Pencairan Terkunci (Aktif Tanggal {{ stats.payout_date }})
+            </button>
+        {% endif %}
+    </div>
+
+    <!-- DAFTAR DOWNLINE ANDA -->
+    <div style="background: white; border-radius: 18px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.06); margin-bottom: 22px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <div style="font-size: 1rem; font-weight: 900; color: #1e293b; display: flex; align-items: center; gap: 6px;">
+                <i class="fas fa-users" style="color: #008f89;"></i> Jaringan Downline Anda
+            </div>
+            <span style="background: #e0f2fe; color: #0284c7; font-weight: 900; font-size: 0.8rem; padding: 4px 10px; border-radius: 12px;">
+                {{ stats.total_downlines }} Pengguna
+            </span>
+        </div>
+
+        {% if stats.downlines %}
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: left;">
+                <thead>
+                    <tr style="border-bottom: 2px solid #f1f5f9; color: #64748b; font-size: 11px; text-transform: uppercase;">
+                        <th style="padding: 10px 6px;">Nama Downline</th>
+                        <th style="padding: 10px 6px;">WhatsApp</th>
+                        <th style="padding: 10px 6px; text-align: right;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in stats.downlines %}
+                    <tr style="border-bottom: 1px solid #f8fafc;">
+                        <td style="padding: 12px 6px; font-weight: 800; color: #334155;">
+                            {{ d.name }}
+                        </td>
+                        <td style="padding: 12px 6px; color: #64748b; font-family: monospace;">
+                            {{ d.phone_masked }}
+                        </td>
+                        <td style="padding: 12px 6px; text-align: right;">
+                            {% if d.is_vip %}
+                                <span style="background: #fef3c7; color: #b45309; font-size: 10px; font-weight: 900; padding: 2px 8px; border-radius: 6px;">VIP</span>
+                            {% elif d.role == 'reseller' %}
+                                <span style="background: #e0e7ff; color: #3730a3; font-size: 10px; font-weight: 900; padding: 2px 8px; border-radius: 6px;">RESELLER</span>
+                            {% else %}
+                                <span style="background: #f1f5f9; color: #64748b; font-size: 10px; font-weight: 900; padding: 2px 8px; border-radius: 6px;">MEMBER</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div style="text-align: center; padding: 30px 10px; color: #94a3b8;">
+            <i class="fas fa-user-friends" style="font-size: 32px; color: #cbd5e1; margin-bottom: 8px;"></i>
+            <div style="font-size: 13px; font-weight: 700; color: #64748b;">Belum ada downline terdaftar</div>
+            <div style="font-size: 11px; margin-top: 4px;">Bagikan link referral Anda untuk mulai membangun jaringan dan memperoleh komisi pasif!</div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- RIWAYAT KOMISI 4 BULAN TERAKHIR -->
+    <div style="background: white; border-radius: 18px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.06);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <div style="font-size: 1rem; font-weight: 900; color: #1e293b; display: flex; align-items: center; gap: 6px;">
+                <i class="fas fa-history" style="color: #6366f1;"></i> Riwayat Transaksi Downline
+            </div>
+            <span style="font-size: 11px; font-weight: 800; color: #64748b; background: #f1f5f9; padding: 3px 8px; border-radius: 6px;">
+                4 Bulan Terakhir
+            </span>
+        </div>
+
+        <div style="font-size: 11px; color: #64748b; margin-bottom: 15px; line-height: 1.4; background: #f8fafc; padding: 8px 12px; border-radius: 8px; border-left: 3px solid #6366f1;">
+            💡 <em>Data transaksi dan komisi tersimpan selama 4 bulan (120 hari) dan diperbarui secara real-time demi performa sistem yang optimal.</em>
+        </div>
+
+        {% if stats.recent_logs %}
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+                <thead>
+                    <tr style="border-bottom: 2px solid #f1f5f9; color: #64748b; font-size: 11px; text-transform: uppercase;">
+                        <th style="padding: 10px 6px;">Waktu</th>
+                        <th style="padding: 10px 6px;">Downline</th>
+                        <th style="padding: 10px 6px;">Belanja</th>
+                        <th style="padding: 10px 6px; text-align: right;">Komisi</th>
+                        <th style="padding: 10px 6px; text-align: right;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in stats.recent_logs %}
+                    <tr style="border-bottom: 1px solid #f8fafc;">
+                        <td style="padding: 10px 6px; color: #64748b; white-space: nowrap; font-size: 11px;">
+                            {{ log.created_at_str }}
+                        </td>
+                        <td style="padding: 10px 6px; font-weight: 800; color: #334155;">
+                            {{ log.downline_name }}
+                        </td>
+                        <td style="padding: 10px 6px; color: #475569;">
+                            Rp {{ "{:,.0f}".format(log.trx_amount).replace(',', '.') }}
+                        </td>
+                        <td style="padding: 10px 6px; font-weight: 900; color: #059669; text-align: right;">
+                            +Rp {{ "{:,.0f}".format(log.commission_amount).replace(',', '.') }}
+                        </td>
+                        <td style="padding: 10px 6px; text-align: right;">
+                            {% if log.status == 'earned' %}
+                                <span style="background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px;">Tersedia</span>
+                            {% elif log.status == 'paid_out' %}
+                                <span style="background: #ecfdf5; color: #065f46; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px;">Dicairkan</span>
+                            {% else %}
+                                <span style="background: #f1f5f9; color: #64748b; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px;">{{ log.status }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div style="text-align: center; padding: 30px 10px; color: #94a3b8;">
+            <i class="fas fa-file-invoice-dollar" style="font-size: 32px; color: #cbd5e1; margin-bottom: 8px;"></i>
+            <div style="font-size: 13px; font-weight: 700; color: #64748b;">Belum ada riwayat transaksi downline</div>
+            <div style="font-size: 11px; margin-top: 4px;">Komisi akan otomatis tercatat di sini saat downline Anda melakukan transaksi sukses.</div>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+
+<script>
+    function copyRefLink() {
+        const input = document.getElementById('refLinkInput');
+        input.select();
+        input.setSelectionRange(0, 99999);
+        navigator.clipboard.writeText(input.value).then(() => {
+            const btn = document.getElementById('btnCopyRef');
+            const orig = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check"></i> Tersalin';
+            btn.style.background = '#10b981';
+            setTimeout(() => {
+                btn.innerHTML = orig;
+                btn.style.background = '#008f89';
+            }, 2500);
+        }).catch(() => {
+            alert('Tautan disalin: ' + input.value);
+        });
+    }
+
+    function executeClaimCommission() {
+        if (!confirm('Apakah Anda yakin ingin mencairkan seluruh saldo komisi ini ke Saldo Utama akun GarudaTel?')) {
+            return;
+        }
+
+        const btn = document.getElementById('btnClaim');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memproses Pencairan...';
+        }
+
+        fetch('/vip/downline/claim', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({})
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert(data.message);
+                window.location.reload();
+            } else {
+                alert('Gagal: ' + data.message);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-hand-holding-usd"></i> Coba Lagi';
+                }
+            }
+        })
+        .catch(err => {
+            alert('Terjadi kesalahan jaringan: ' + err);
+            if (btn) btn.disabled = false;
+        });
+    }
+</script>
+
+{% endblock %}

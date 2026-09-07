@@ -1,14 +1,45 @@
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import login_required, current_user
-from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for
+from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for, session
 from app.models.product import Product
 from app.extensions import db, csrf, limiter
 from sqlalchemy import or_
 import os
+from app.services.tier_service import (
+    get_user_product_price,
+    process_subscription_upgrade,
+    get_tier_settings,
+    ensure_user_referral_code
+)
+from app.services.commission_service import (
+    get_vip_downline_stats,
+    claim_monthly_commission
+)
 
 BASE_DIR = os.path.abspath(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 user_bp = Blueprint('user', __name__)
+
+def format_product_dict(prod, user, provider_tag=None, extra=None):
+    """Memformat produk ke bentuk dict dengan harga dinamis sesuai tier pengguna (Member, Reseller, VIP)."""
+    u_price = get_user_product_price(user, prod)
+    p_tag = provider_tag or (prod.brand or '').replace('VIP-', '').strip().upper()
+    d = {
+        'kode_produk': prod.sku_code,
+        'sku_code': prod.sku_code,
+        'nama_produk': prod.name,
+        'name': prod.name,
+        'harga': u_price,
+        'sell_price': u_price,
+        'normal_price': float(prod.sell_price or 0.0),
+        'is_discounted': u_price < float(prod.sell_price or 0.0),
+        'provider': p_tag,
+        'brand': (prod.brand or '').replace('VIP-', '').strip().upper(),
+        'is_active': bool(prod.is_active)
+    }
+    if extra:
+        d.update(extra)
+    return d
 
 def get_user_notifications(user_id=None):
     from app.models.notification import Notification, NotificationRead
@@ -61,10 +92,14 @@ def login():
 
 @user_bp.route('/register')
 def register():
-    """Arahkan akses /register langsung ke form pendaftaran di profil."""
+    """Arahkan akses /register langsung ke form pendaftaran di profil dengan membawa kode ref."""
+    ref = request.args.get('ref', '').strip()
+    if ref:
+        session['upline_ref'] = ref
     if current_user.is_authenticated:
         return redirect(url_for('user.dashboard'))
-    return redirect('/profil?action=register')
+    param = f"?action=register{('&ref=' + ref) if ref else ''}"
+    return redirect(f"/profil{param}")
 
 
 # ==========================================
@@ -115,17 +150,7 @@ def kategori_tv_index():
         else:
             tag = b if b else 'TV'
 
-        produk_final.append({
-            'kode_produk': prod.sku_code,
-            'sku_code': prod.sku_code,
-            'nama_produk': prod.name,
-            'name': prod.name,
-            'harga': prod.sell_price,
-            'sell_price': prod.sell_price,
-            'provider': tag,
-            'brand': b,
-            'is_active': bool(prod.is_active)
-        })
+        produk_final.append(format_product_dict(prod, current_user, provider_tag=tag, extra={'brand': b}))
         
     return render_template('user/tv_index.html', products=produk_final, title='TV BERLANGGANAN')
 
@@ -151,16 +176,7 @@ def lihat_kategori(nama_kategori):
         for prod in db_products:
             brand_clean = (prod.brand or '').replace('VIP-', '').strip().upper()
             if brand_clean == 'BY.U': brand_clean = 'BYU'
-            produk_final.append({
-                'kode_produk': prod.sku_code,
-                'sku_code': prod.sku_code,
-                'nama_produk': prod.name,
-                'name': prod.name,
-                'harga': prod.sell_price,
-                'sell_price': prod.sell_price,
-                'provider': brand_clean,
-                'is_active': bool(prod.is_active)
-            })
+            produk_final.append(format_product_dict(prod, current_user, provider_tag=brand_clean))
         return render_template('user/pulsa.html', products=produk_final, title='PULSA')
 
     elif kat == 'data':
@@ -173,16 +189,7 @@ def lihat_kategori(nama_kategori):
         for prod in db_products:
             brand_clean = (prod.brand or '').replace('VIP-', '').strip().upper()
             if brand_clean == 'BY.U': brand_clean = 'BYU'
-            produk_final.append({
-                'kode_produk': prod.sku_code,
-                'sku_code': prod.sku_code,
-                'nama_produk': prod.name,
-                'name': prod.name,
-                'harga': prod.sell_price,
-                'sell_price': prod.sell_price,
-                'provider': brand_clean,
-                'is_active': bool(prod.is_active)
-            })
+            produk_final.append(format_product_dict(prod, current_user, provider_tag=brand_clean))
         return render_template('user/data.html', products=produk_final, title='PAKET DATA')
 
     elif kat in ['tv', 'tv-berlangganan', 'tv berlangganan']:
@@ -259,17 +266,7 @@ def lihat_kategori(nama_kategori):
         produk_final = []
         for prod in db_products:
             brand_clean = (prod.brand or '').replace('VIP-', '').strip().upper()
-            produk_final.append({
-                'kode_produk': prod.sku_code,
-                'sku_code': prod.sku_code,
-                'nama_produk': prod.name,
-                'name': prod.name,
-                'harga': prod.sell_price,
-                'sell_price': prod.sell_price,
-                'provider': brand_clean,
-                'brand': brand_clean,
-                'is_active': bool(prod.is_active)
-            })
+            produk_final.append(format_product_dict(prod, current_user, provider_tag=brand_clean))
             
         return m_render('user/games.html', 
             products=produk_final,
@@ -324,19 +321,11 @@ def lihat_kategori(nama_kategori):
             is_bebas = 'BEBAS' in name_upper
             sub_tag = 'Bebas Nominal' if is_bebas else 'Top Up'
 
-            produk_final.append({
-                'kode_produk': prod.sku_code,
-                'sku_code': prod.sku_code,
-                'nama_produk': prod.name,
-                'name': prod.name,
-                'harga': prod.sell_price,
-                'sell_price': prod.sell_price,
-                'provider': provider_tag,
+            produk_final.append(format_product_dict(prod, current_user, provider_tag=provider_tag, extra={
                 'sub_tag': sub_tag,
                 'is_bebas': is_bebas,
-                'brand': brand_upper,
-                'is_active': bool(prod.is_active)
-            })
+                'brand': brand_upper
+            }))
 
         return render_template('user/emoney.html', products=produk_final, title='E-WALLET & E-MONEY')
 
@@ -354,17 +343,7 @@ def lihat_kategori(nama_kategori):
             brand_clean = (prod.brand or '').replace('VIP-', '').strip().upper()
             is_pasca = 'PASCA' in (prod.name or '').upper() or 'NONTAGLIS' in (prod.name or '').upper() or 'PASCA' in brand_clean
             kategori_tag = 'PASCABAYAR' if is_pasca else 'PRABAYAR'
-            produk_final.append({
-                'kode_produk': prod.sku_code,
-                'sku_code': prod.sku_code,
-                'nama_produk': prod.name,
-                'name': prod.name,
-                'harga': prod.sell_price,
-                'sell_price': prod.sell_price,
-                'provider': kategori_tag,
-                'brand': brand_clean,
-                'is_active': bool(prod.is_active)
-            })
+            produk_final.append(format_product_dict(prod, current_user, provider_tag=kategori_tag, extra={'brand': brand_clean}))
         from app.services.digiflazz import is_pln_cutoff_time
         return render_template('user/pln.html', products=produk_final, title='TOKEN PLN', is_cutoff=is_pln_cutoff_time())
         
@@ -377,16 +356,7 @@ def lihat_kategori(nama_kategori):
         produk_final = []
         for prod in db_products:
             brand_clean = (prod.brand or '').replace('VIP-', '').strip().upper()
-            produk_final.append({
-                'kode_produk': prod.sku_code,
-                'sku_code': prod.sku_code,
-                'nama_produk': prod.name,
-                'name': prod.name,
-                'harga': prod.sell_price,
-                'sell_price': prod.sell_price,
-                'provider': brand_clean,
-                'is_active': bool(prod.is_active)
-            })
+            produk_final.append(format_product_dict(prod, current_user, provider_tag=brand_clean))
         return render_template('user/telpsms.html', products=produk_final, title='TELP & SMS')
 
     elif kat in ['masaaktif', 'masa aktif', 'masa-aktif']:
@@ -398,16 +368,7 @@ def lihat_kategori(nama_kategori):
         produk_final = []
         for prod in db_products:
             brand_clean = (prod.brand or '').replace('VIP-', '').strip().upper()
-            produk_final.append({
-                'kode_produk': prod.sku_code,
-                'sku_code': prod.sku_code,
-                'nama_produk': prod.name,
-                'name': prod.name,
-                'harga': prod.sell_price,
-                'sell_price': prod.sell_price,
-                'provider': brand_clean,
-                'is_active': bool(prod.is_active)
-            })
+            produk_final.append(format_product_dict(prod, current_user, provider_tag=brand_clean))
         return render_template('user/masaaktif.html', products=produk_final, title='MASA AKTIF')
         
     # 2. Tarik Data Database secara Presisi (Sesuai kolom app/models/product.py Anda)
@@ -431,13 +392,7 @@ def lihat_kategori(nama_kategori):
     # 3. Format Data untuk UI (Menerjemahkan Database ke Bahasa UI)
     produk_final = []
     for prod in db_products:
-        produk_final.append({
-            'kode_produk': prod.sku_code,
-            'nama_produk': prod.name,
-            'harga': prod.sell_price,
-            'provider': prod.brand,
-            'is_active': bool(prod.is_active)
-        })
+        produk_final.append(format_product_dict(prod, current_user))
         
     # 4. Urutkan: produk aktif terlebih dahulu, lalu berdasarkan harga termurah
     produk_final.sort(key=lambda x: (0 if x.get('is_active') else 1, x.get('harga', 0)))
@@ -656,16 +611,29 @@ def profil():
             # Daftar sukses
             password_hash_final = user_data.get('password_hash')
             uname = user_data.get('username') or new_whatsapp
+
+            # Cek kode referral upline
+            ref_code = request.form.get('referral_code') or session.get('upline_ref')
+            upline_id = None
+            if ref_code:
+                clean_ref = str(ref_code).strip()
+                upline_user = User.query.filter((User.referral_code == clean_ref) | (User.phone == clean_ref)).first()
+                if upline_user and upline_user.is_vip_active():
+                    upline_id = upline_user.id
+                    session.pop('upline_ref', None)
+
             new_user = User(
                 name=uname,
                 phone=new_whatsapp,
                 password_hash=password_hash_final,
                 role='user',
+                upline_id=upline_id,
                 balance=0.0,
                 is_active=True
             )
             db.session.add(new_user)
             db.session.commit()
+            ensure_user_referral_code(new_user)
             
             login_user(new_user, remember=True)
             from app.services.setting_service import get_store_name
@@ -955,6 +923,9 @@ def profil():
                 'message': f'Status permintaan: {manual_req.status}'
             })
             
+    ref = request.args.get('ref', '').strip()
+    if ref:
+        session['upline_ref'] = ref
     return render_template('user/profil.html', title='Profil Akun')
 
 
@@ -980,25 +951,109 @@ def update_security():
         new_pass = request.form.get('new_password')
         if not check_password_hash(user_db.password_hash, old_pass):
             flash('Password lama salah!', 'error')
-        else:
-            user_db.password_hash = generate_password_hash(new_pass)
-            db.session.add(user_db)
-            db.session.commit()
-            flash('Password berhasil diubah!', 'success')
+            return redirect('/profil')
+        if len(new_pass) < 6:
+            flash('Password baru minimal 6 karakter!', 'error')
+            return redirect('/profil')
+        user_db.set_password(new_pass)
+        db.session.commit()
+        flash('Password berhasil diperbarui!', 'success')
 
     elif action == 'change_pin':
         old_pin = request.form.get('old_pin')
         new_pin = request.form.get('new_pin')
-        if user_db.pin_hash and not check_password_hash(user_db.pin_hash, old_pin):
-            flash('PIN lama salah!', 'error')
-        else:
-            user_db.pin_hash = generate_password_hash(new_pin)
-            db.session.add(user_db)
-            db.session.commit()
-            flash('PIN Transaksi berhasil diatur!', 'success')
+        if user_db.pin_hash:
+            if not check_password_hash(user_db.pin_hash, old_pin):
+                flash('PIN lama salah!', 'error')
+                return redirect('/profil')
+        if not new_pin or len(new_pin) != 6 or not new_pin.isdigit():
+            flash('PIN baru harus 6 digit angka!', 'error')
+            return redirect('/profil')
+        user_db.pin_hash = generate_password_hash(new_pin)
+        db.session.commit()
+        flash('PIN Transaksi berhasil diatur!', 'success')
 
     return redirect('/profil')
 # -------------------------------------
+
+
+# =====================================================================
+# RUTE SISTEM MULTI-TIER, LANGGANAN & MANAJEMEN DOWNLINE VIP
+# =====================================================================
+@user_bp.route('/account/upgrade', methods=['GET', 'POST'])
+@user_bp.route('/upgrade', methods=['GET', 'POST'])
+def account_upgrade():
+    """Halaman pemilihan dan proses upgrade paket langganan Reseller dan VIP."""
+    if not current_user.is_authenticated:
+        flash('Silakan masuk terlebih dahulu untuk mengakses upgrade langganan.', 'warning')
+        return redirect('/profil')
+
+    tier_cfg = get_tier_settings()
+
+    if request.method == 'POST':
+        target_role = request.form.get('target_role') or (request.json.get('target_role') if request.is_json else '')
+        target_role = str(target_role).lower().strip()
+        ok, msg, updated_user = process_subscription_upgrade(current_user, target_role)
+        if request.is_json:
+            return jsonify({
+                'status': 'success' if ok else 'error',
+                'message': msg,
+                'role': updated_user.role if updated_user else current_user.role,
+                'balance': updated_user.balance if updated_user else current_user.balance,
+                'expires_at': updated_user.role_expires_at.strftime('%d/%m/%Y %H:%M') if (updated_user and updated_user.role_expires_at) else None
+            }), (200 if ok else 400)
+        
+        flash(msg, 'success' if ok else 'danger')
+        return redirect(url_for('user.account_upgrade'))
+
+    effective_role = current_user.get_effective_role()
+    remaining_days = current_user.get_remaining_days()
+    return render_template(
+        'user/upgrade.html',
+        title='UPGRADE TINGKATAN AKUN',
+        tier_cfg=tier_cfg,
+        effective_role=effective_role,
+        remaining_days=remaining_days
+    )
+
+@user_bp.route('/vip/downline')
+def vip_downline():
+    """Dashboard manajemen downline, komisi bulanan, dan referral eksklusif VIP."""
+    if not current_user.is_authenticated:
+        flash('Silakan masuk terlebih dahulu untuk mengakses halaman ini.', 'warning')
+        return redirect('/profil')
+
+    if not current_user.is_vip_active():
+        flash('Fitur Kemitraan & Manajemen Downline eksklusif untuk akun VIP. Silakan upgrade ke VIP untuk menikmati fitur ini.', 'info')
+        return redirect(url_for('user.account_upgrade'))
+
+    ref_code = ensure_user_referral_code(current_user)
+    stats = get_vip_downline_stats(current_user.id)
+    base_url = request.host_url.rstrip('/')
+    referral_link = f"{base_url}/register?ref={ref_code}"
+
+    return render_template(
+        'user/downline.html',
+        title='MANAJEMEN DOWNLINE VIP',
+        stats=stats,
+        ref_code=ref_code,
+        referral_link=referral_link
+    )
+
+@user_bp.route('/vip/downline/claim', methods=['POST'])
+def vip_claim_commission():
+    """Pencairan saldo komisi downline ke Saldo Utama (Khusus Tanggal 28 WIB)."""
+    if not current_user.is_authenticated:
+        return jsonify({'status': 'error', 'message': 'Silakan masuk terlebih dahulu.'}), 401
+
+    ok, msg, amount = claim_monthly_commission(current_user)
+    return jsonify({
+        'status': 'success' if ok else 'error',
+        'message': msg,
+        'amount': amount,
+        'balance': current_user.balance,
+        'commission_balance': current_user.commission_balance
+    }), (200 if ok else 400)
 
 
 @user_bp.route('/informasi')
@@ -1183,7 +1238,7 @@ def api_search_cuan_live(provider, nohp):
             result.append({
                 'sku': p.sku_code,
                 'name': p.name,
-                'price': p.sell_price,
+                'price': get_user_product_price(current_user, p),
                 'category': cat,
                 'type': 'prepaid',
                 'desc': getattr(p, 'description', 'Deskripsi tidak tersedia untuk paket ini.')

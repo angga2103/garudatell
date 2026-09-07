@@ -27,8 +27,59 @@
         <p style="color: #6B7280; font-size: 0.9rem; margin-top: 5px; font-weight: 600;">
             <i class="fab fa-whatsapp" style="color: #25D366;"></i> {{ current_user.phone | default(current_user.whatsapp, True) | default('Nomor WA Tidak Tersedia', True) }}
         </p>
+
+        <!-- BADGE LEVEL AKUN & LANGGANAN -->
+        <div style="margin-top: 8px;">
+            {% set user_eff_role = current_user.get_effective_role() if current_user.get_effective_role is defined else current_user.role %}
+            {% if user_eff_role == 'vip' %}
+                <div style="display: inline-flex; align-items: center; gap: 6px; background: #fef3c7; color: #92400e; padding: 5px 14px; border-radius: 20px; font-weight: 900; font-size: 12px; border: 1.5px solid #fde047;">
+                    <i class="fas fa-crown" style="color: #f59e0b;"></i> MITRA VIP (Sisa {{ current_user.get_remaining_days() }} hari)
+                </div>
+            {% elif user_eff_role == 'reseller' %}
+                <div style="display: inline-flex; align-items: center; gap: 6px; background: #e0e7ff; color: #3730a3; padding: 5px 14px; border-radius: 20px; font-weight: 900; font-size: 12px; border: 1.5px solid #c7d2fe;">
+                    <i class="fas fa-store" style="color: #6366f1;"></i> RESELLER (Sisa {{ current_user.get_remaining_days() }} hari)
+                </div>
+            {% else %}
+                <div style="display: inline-flex; align-items: center; gap: 6px; background: #f1f5f9; color: #475569; padding: 5px 14px; border-radius: 20px; font-weight: 900; font-size: 12px; border: 1px solid #e2e8f0;">
+                    <i class="fas fa-user"></i> MEMBER REGULER
+                </div>
+            {% endif %}
+        </div>
         
-        <hr style="margin: 20px 0; border-top: 1px dashed #E5E7EB;">
+        <hr style="margin: 18px 0; border-top: 1px dashed #E5E7EB;">
+
+        <!-- MENU TINGKATAN AKUN & DOWNLINE VIP -->
+        <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; text-align: left;">
+            <a href="/account/upgrade" style="text-decoration: none; background: #f0fdfa; border: 1.5px solid #99f6e4; padding: 12px 16px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; transition: 0.2s;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 38px; height: 38px; border-radius: 10px; background: #ccfbf1; color: #0f766e; display: flex; align-items: center; justify-content: center; font-size: 18px;">
+                        <i class="fas fa-crown"></i>
+                    </div>
+                    <div>
+                        <div style="font-weight: 800; color: #134e4a; font-size: 0.9rem;">Upgrade / Langganan Akun</div>
+                        <div style="font-size: 0.75rem; color: #0f766e;">Nikmati potongan harga reseller & VIP</div>
+                    </div>
+                </div>
+                <i class="fas fa-chevron-right" style="color: #0d9488; font-size: 13px;"></i>
+            </a>
+
+            {% if user_eff_role == 'vip' %}
+            <a href="/vip/downline" style="text-decoration: none; background: #fffbeb; border: 1.5px solid #fde68a; padding: 12px 16px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; transition: 0.2s;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 38px; height: 38px; border-radius: 10px; background: #fef3c7; color: #d97706; display: flex; align-items: center; justify-content: center; font-size: 18px;">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div>
+                        <div style="font-weight: 800; color: #78350f; font-size: 0.9rem;">Kemitraan & Downline (VIP)</div>
+                        <div style="font-size: 0.75rem; color: #b45309; font-weight: 700;">
+                            Komisi Siap Cair: Rp {{ "{:,.0f}".format(current_user.commission_balance or 0).replace(',', '.') }}
+                        </div>
+                    </div>
+                </div>
+                <i class="fas fa-chevron-right" style="color: #d97706; font-size: 13px;"></i>
+            </a>
+            {% endif %}
+        </div>
         
         <div style="display: flex; justify-content: space-between; align-items: center; text-align: left; margin-bottom: 15px;">
             <div>
@@ -193,11 +244,18 @@
                     </div>
                     <div style="font-size: 0.7rem; color: #EF4444; margin-top: 5px; font-weight: 600;"><i class="fas fa-exclamation-circle"></i> Wajib aktif untuk menerima kode OTP.</div>
                 </div>
-                <div style="margin-bottom: 25px;">
+                <div style="margin-bottom: 15px;">
                     <div style="position: relative;">
                         <i class="fas fa-key" style="position: absolute; left: 15px; top: 14px; color: #9CA3AF;"></i>
                         <input type="password" id="reg_new_password" required placeholder="Buat Password" style="width: 100%; padding: 12px 15px 12px 40px; border: 1px solid #E5E7EB; border-radius: 10px; outline: none; font-size: 0.9rem; background: #F9FAFB; box-sizing: border-box;">
                     </div>
+                </div>
+                <div style="margin-bottom: 25px;">
+                    <div style="position: relative;">
+                        <i class="fas fa-user-friends" style="position: absolute; left: 15px; top: 14px; color: #9CA3AF;"></i>
+                        <input type="text" id="reg_referral_code" value="{{ request.args.get('ref') or session.get('upline_ref') or '' }}" placeholder="Kode Referral VIP (Opsional)" style="width: 100%; padding: 12px 15px 12px 40px; border: 1px solid #E5E7EB; border-radius: 10px; outline: none; font-size: 0.9rem; background: #F9FAFB; box-sizing: border-box; text-transform: uppercase;">
+                    </div>
+                    <div style="font-size: 0.7rem; color: #64748B; margin-top: 4px; font-weight: 600;"><i class="fas fa-info-circle" style="color: #0EA5E9;"></i> Masukkan kode referral jika diajak oleh mitra VIP.</div>
                 </div>
                 <button type="button" id="btn-req-otp" onclick="requestOTP()" style="width: 100%; padding: 14px; border: none; background: #10B981; color: white; border-radius: 10px; font-weight: 800; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
                     <i class="fas fa-user-plus"></i> Daftar & Verifikasi WA
@@ -584,6 +642,10 @@
         formData.append('action', 'verify_otp_baru');
         formData.append('new_whatsapp', wa);
         formData.append('otp', otp);
+        const refInput = document.getElementById('reg_referral_code');
+        if (refInput && refInput.value.trim()) {
+            formData.append('referral_code', refInput.value.trim());
+        }
 
         fetch('/profil', { method: 'POST', body: formData })
         .then(r => r.json())

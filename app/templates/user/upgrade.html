@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+
+{% block title %}Upgrade Tingkatan Akun - GarudaTel{% endblock %}
+
+{% block content %}
+<div style="background: linear-gradient(135deg, #008f89 0%, #065f46 100%); border-bottom-left-radius: 25px; border-bottom-right-radius: 25px; padding: 25px 20px 35px 20px; margin: -15px -15px 20px -15px; text-align: center; color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">
+    <div style="display: inline-flex; align-items: center; justify-content: center; width: 50px; height: 50px; border-radius: 50%; background: rgba(255,255,255,0.2); margin-bottom: 10px;">
+        <i class="fas fa-crown" style="font-size: 24px; color: #fef08a;"></i>
+    </div>
+    <h4 style="margin: 0; font-weight: 900; font-size: 1.25rem;">Tingkatan Akun & Langganan</h4>
+    <p style="margin: 6px 0 0 0; font-size: 0.85rem; opacity: 0.9;">Nikmati potongan harga eksklusif dan komisi pasif kemitraan downline.</p>
+</div>
+
+<div style="padding: 0 10px 90px 10px; margin-top: -20px;">
+
+    <!-- STATUS TIER PENGGUNA SAAT INI -->
+    <div style="background: white; border-radius: 16px; padding: 18px 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.06); margin-bottom: 22px; display: flex; align-items: center; justify-content: space-between; border-left: 5px solid {% if effective_role == 'vip' %}#f59e0b{% elif effective_role == 'reseller' %}#6366f1{% else %}#10b981{% endif %};">
+        <div>
+            <div style="font-size: 0.75rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Level Akun Anda</div>
+            <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+                {% if effective_role == 'vip' %}
+                    <span style="background: #fef3c7; color: #92400e; font-weight: 900; font-size: 1rem; padding: 4px 12px; border-radius: 20px; display: inline-flex; align-items: center; gap: 6px;">
+                        <i class="fas fa-crown" style="color: #f59e0b;"></i> VIP AKTIF
+                    </span>
+                    <span style="font-size: 0.8rem; font-weight: 800; color: #b45309;">(Sisa {{ remaining_days }} hari)</span>
+                {% elif effective_role == 'reseller' %}
+                    <span style="background: #e0e7ff; color: #3730a3; font-weight: 900; font-size: 1rem; padding: 4px 12px; border-radius: 20px; display: inline-flex; align-items: center; gap: 6px;">
+                        <i class="fas fa-store" style="color: #6366f1;"></i> RESELLER AKTIF
+                    </span>
+                    <span style="font-size: 0.8rem; font-weight: 800; color: #4338ca;">(Sisa {{ remaining_days }} hari)</span>
+                {% else %}
+                    <span style="background: #f1f5f9; color: #475569; font-weight: 900; font-size: 1rem; padding: 4px 12px; border-radius: 20px; display: inline-flex; align-items: center; gap: 6px;">
+                        <i class="fas fa-user"></i> MEMBER REGULER
+                    </span>
+                {% endif %}
+            </div>
+        </div>
+        <div style="text-align: right;">
+            <div style="font-size: 0.72rem; color: #64748b; font-weight: 700;">Saldo Aktif</div>
+            <div style="font-weight: 900; font-size: 1.05rem; color: #008f89;">Rp {{ "{:,.0f}".format(current_user.balance).replace(',', '.') }}</div>
+        </div>
+    </div>
+
+    <!-- FLASH MESSAGES -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div style="background: {% if category == 'success' %}#d1fae5; color: #065f46; border: 1px solid #a7f3d0;{% else %}#fee2e2; color: #991b1b; border: 1px solid #fecaca;{% endif %} padding: 12px 16px; border-radius: 12px; margin-bottom: 20px; font-size: 0.85rem; font-weight: 800; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.04);">
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <!-- GRID 3 KARTU PAKET TINGKATAN -->
+    <div style="display: flex; flex-direction: column; gap: 20px;">
+
+        <!-- 1. KARTU MEMBER (GRATIS) -->
+        <div style="background: white; border-radius: 20px; padding: 22px 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1.5px solid #e2e8f0; position: relative;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                <div>
+                    <h5 style="margin: 0; font-size: 1.15rem; font-weight: 900; color: #334155;">Member Reguler</h5>
+                    <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #64748b;">Akun standar untuk kebutuhan pribadi.</p>
+                </div>
+                <span style="background: #f1f5f9; color: #475569; font-weight: 900; font-size: 0.8rem; padding: 4px 10px; border-radius: 12px;">
+                    GRATIS
+                </span>
+            </div>
+
+            <div style="font-size: 1.5rem; font-weight: 900; color: #0f172a; margin-bottom: 15px;">
+                Rp 0 <span style="font-size: 0.8rem; font-weight: 700; color: #94a3b8;">/ Selamanya</span>
+            </div>
+
+            <ul style="list-style: none; padding: 0; margin: 0 0 20px 0; font-size: 0.85rem; color: #475569;">
+                <li style="padding: 6px 0; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-check-circle" style="color: #10b981;"></i> Akses ke seluruh katalog pulsa, paket data & game
+                </li>
+                <li style="padding: 6px 0; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-check-circle" style="color: #10b981;"></i> Dapatkan Reward Poin di setiap transaksi sukses
+                </li>
+                <li style="padding: 6px 0; display: flex; align-items: center; gap: 8px; color: #94a3b8;">
+                    <i class="fas fa-times-circle" style="color: #cbd5e1;"></i> Harga beli standar pasar (tanpa diskon khusus)
+                </li>
+                <li style="padding: 6px 0; display: flex; align-items: center; gap: 8px; color: #94a3b8;">
+                    <i class="fas fa-times-circle" style="color: #cbd5e1;"></i> Tidak memiliki Link Referral & Downline
+                </li>
+            </ul>
+
+            <button disabled style="width: 100%; padding: 12px; border-radius: 12px; border: none; background: #e2e8f0; color: #64748b; font-weight: 800; font-size: 0.9rem; cursor: not-allowed;">
+                {% if effective_role == 'user' %}Akun Aktif Anda{% else %}Tingkat Dasar{% endif %}
+            </button>
+        </div>
+
+        <!-- 2. KARTU RESELLER -->
+        <div style="background: white; border-radius: 20px; padding: 22px 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.06); border: 2px solid #818cf8; position: relative;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                <div>
+                    <h5 style="margin: 0; font-size: 1.15rem; font-weight: 900; color: #3730a3;">Paket Reseller</h5>
+                    <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #64748b;">Cocok untuk konter pulsa & pedagang kecil.</p>
+                </div>
+                <span style="background: #e0e7ff; color: #4338ca; font-weight: 900; font-size: 0.8rem; padding: 4px 10px; border-radius: 12px;">
+                    HEMAT
+                </span>
+            </div>
+
+            <div style="font-size: 1.6rem; font-weight: 900; color: #312e81; margin-bottom: 15px;">
+                Rp {{ "{:,.0f}".format(tier_cfg.upgrade_fee_reseller).replace(',', '.') }} <span style="font-size: 0.8rem; font-weight: 700; color: #64748b;">/ 30 Hari</span>
+            </div>
+
+            <ul style="list-style: none; padding: 0; margin: 0 0 20px 0; font-size: 0.85rem; color: #334155;">
+                <li style="padding: 6px 0; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-check-circle" style="color: #6366f1;"></i> <strong>Potongan Rp {{ "{:,.0f}".format(tier_cfg.discount_reseller).replace(',', '.') }}</strong> langsung di setiap produk
+                </li>
+                <li style="padding: 6px 0; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-check-circle" style="color: #6366f1;"></i> Margin keuntungan lebih tebal saat jual eceran
+                </li>
+                <li style="padding: 6px 0; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-check-circle" style="color: #6366f1;"></i> Masa aktif 30 hari (dapat diperpanjang fleksibel)
+                </li>
+                <li style="padding: 6px 0; display: flex; align-items: center; gap: 8px; color: #94a3b8;">
+                    <i class="fas fa-times-circle" style="color: #cbd5e1;"></i> Tidak memiliki Link Referral & Downline
+                </li>
+            </ul>
+
+            <button type="button" onclick="confirmUpgrade('reseller', {{ tier_cfg.upgrade_fee_reseller }}, 'Reseller')" style="width: 100%; padding: 13px; border-radius: 12px; border: none; background: #4f46e5; color: white; font-weight: 800; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 10px rgba(79, 70, 229, 0.3);">
+                <i class="fas fa-arrow-circle-up"></i> {% if effective_role == 'reseller' %}Perpanjang Langganan Reseller{% else %}Pilih Paket Reseller{% endif %}
+            </button>
+        </div>
+
+        <!-- 3. KARTU VIP (PALING DIREKOMENDASIKAN & EKSKLUSIF) -->
+        <div style="background: linear-gradient(to bottom, #ffffff, #fffbeb); border-radius: 20px; padding: 24px 20px; box-shadow: 0 8px 25px rgba(245, 158, 11, 0.15); border: 2.5px solid #f59e0b; position: relative; overflow: hidden;">
+            <div style="position: absolute; top: 12px; right: -30px; background: #f59e0b; color: white; font-size: 0.65rem; font-weight: 900; padding: 4px 35px; transform: rotate(45deg); letter-spacing: 0.5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                TERBAIK
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                <div>
+                    <h5 style="margin: 0; font-size: 1.25rem; font-weight: 900; color: #92400e; display: flex; align-items: center; gap: 6px;">
+                        <i class="fas fa-crown" style="color: #f59e0b;"></i> Mitra VIP Eksklusif
+                    </h5>
+                    <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #78350f;">Level tertinggi dengan benefit finansial maksimal.</p>
+                </div>
+            </div>
+
+            <div style="font-size: 1.7rem; font-weight: 900; color: #b45309; margin-bottom: 15px;">
+                Rp {{ "{:,.0f}".format(tier_cfg.upgrade_fee_vip).replace(',', '.') }} <span style="font-size: 0.8rem; font-weight: 700; color: #78350f;">/ 30 Hari</span>
+            </div>
+
+            <ul style="list-style: none; padding: 0; margin: 0 0 22px 0; font-size: 0.85rem; color: #451a03;">
+                <li style="padding: 7px 0; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-check-circle" style="color: #f59e0b;"></i> <strong>Harga Termurah: Diskon Rp {{ "{:,.0f}".format(tier_cfg.discount_vip).replace(',', '.') }}</strong> mendekati modal server
+                </li>
+                <li style="padding: 7px 0; display: flex; align-items: center; gap: 8px; background: rgba(254, 243, 199, 0.6); padding-left: 8px; border-radius: 8px; margin: 4px 0;">
+                    <i class="fas fa-link" style="color: #d97706;"></i> <strong>Satu-satunya Tier dengan Link Referral & Downline</strong>
+                </li>
+                <li style="padding: 7px 0; display: flex; align-items: center; gap: 8px; background: rgba(254, 243, 199, 0.6); padding-left: 8px; border-radius: 8px; margin: 4px 0;">
+                    <i class="fas fa-coins" style="color: #d97706;"></i> <strong>Bonus Komisi Pasif Flat Rp {{ "{:,.0f}".format(tier_cfg.commission_flat).replace(',', '.') }}</strong> / trx belanja downline
+                </li>
+                <li style="padding: 7px 0; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-calendar-check" style="color: #f59e0b;"></i> Pencairan komisi tiap tanggal {{ tier_cfg.payout_date }} langsung ke Saldo Utama
+                </li>
+                <li style="padding: 7px 0; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-chart-pie" style="color: #f59e0b;"></i> Dashboard analitik transaksi & riwayat 4 bulan
+                </li>
+            </ul>
+
+            {% if effective_role == 'vip' %}
+            <div style="display: flex; gap: 10px;">
+                <a href="/vip/downline" style="flex: 1; text-decoration: none; padding: 13px; border-radius: 12px; background: #fff; border: 2px solid #f59e0b; color: #b45309; font-weight: 800; font-size: 0.9rem; text-align: center; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                    <i class="fas fa-users"></i> Menu Downline
+                </a>
+                <button type="button" onclick="confirmUpgrade('vip', {{ tier_cfg.upgrade_fee_vip }}, 'VIP')" style="flex: 1; padding: 13px; border-radius: 12px; border: none; background: #d97706; color: white; font-weight: 800; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 4px 12px rgba(217, 119, 6, 0.35);">
+                    <i class="fas fa-sync-alt"></i> Perpanjang
+                </button>
+            </div>
+            {% else %}
+            <button type="button" onclick="confirmUpgrade('vip', {{ tier_cfg.upgrade_fee_vip }}, 'VIP')" style="width: 100%; padding: 14px; border-radius: 12px; border: none; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; font-weight: 900; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);">
+                <i class="fas fa-crown"></i> Ambil Paket VIP Sekarang
+            </button>
+            {% endif %}
+        </div>
+
+    </div>
+
+</div>
+
+<!-- MODAL KONFIRMASI UPGRADE -->
+<div id="upgradeModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(4px); padding: 15px; box-sizing: border-box;">
+    <div style="background: white; border-radius: 20px; max-width: 420px; width: 100%; padding: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; box-sizing: border-box;">
+        <button type="button" onclick="closeUpgradeModal()" style="position: absolute; right: 16px; top: 16px; background: none; border: none; font-size: 20px; color: #94a3b8; cursor: pointer;">
+            <i class="fas fa-times"></i>
+        </button>
+
+        <div style="text-align: center; margin-bottom: 20px;">
+            <div style="width: 54px; height: 54px; border-radius: 50%; background: #fef3c7; color: #f59e0b; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px auto; font-size: 24px;">
+                <i class="fas fa-crown"></i>
+            </div>
+            <h4 style="margin: 0; font-weight: 900; color: #1e293b;" id="modalTitle">Konfirmasi Langganan</h4>
+            <p style="margin: 5px 0 0 0; font-size: 13px; color: #64748b;">Masa aktif 30 hari akan ditambahkan ke akun Anda.</p>
+        </div>
+
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px; margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px;">
+                <span style="color: #64748b;">Paket Langganan:</span>
+                <strong style="color: #0f172a;" id="modalPlanName">-</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px;">
+                <span style="color: #64748b;">Biaya Langganan:</span>
+                <strong style="color: #d97706;" id="modalPrice">-</strong>
+            </div>
+            <hr style="border: none; border-top: 1px dashed #cbd5e1; margin: 10px 0;">
+            <div style="display: flex; justify-content: space-between; font-size: 13px;">
+                <span style="color: #64748b;">Saldo Akun Anda:</span>
+                <strong style="color: #059669;">Rp {{ "{:,.0f}".format(current_user.balance).replace(',', '.') }}</strong>
+            </div>
+        </div>
+
+        <!-- JIKA SALDO TIDAK CUKUP -->
+        <div id="insufficientAlert" style="display: none; background: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; padding: 12px; margin-bottom: 18px; text-align: center;">
+            <div style="font-size: 12px; font-weight: 800; color: #dc2626; margin-bottom: 8px;">
+                <i class="fas fa-exclamation-triangle"></i> Saldo Anda tidak mencukupi untuk paket ini.
+            </div>
+            <a href="/" style="display: inline-block; background: #dc2626; color: white; text-decoration: none; font-size: 12px; font-weight: 800; padding: 8px 16px; border-radius: 8px;">
+                <i class="fas fa-wallet"></i> Top Up Saldo Sekarang
+            </a>
+        </div>
+
+        <form id="upgradeForm" method="POST" action="/account/upgrade">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <input type="hidden" id="targetRoleInput" name="target_role" value="">
+
+            <button type="submit" id="btnConfirmPay" style="width: 100%; padding: 14px; border: none; background: #008f89; color: white; border-radius: 12px; font-weight: 900; font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s;">
+                <i class="fas fa-check-circle"></i> Bayar dengan Saldo
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+    const userBalance = {{ current_user.balance|float }};
+
+    function confirmUpgrade(role, fee, roleLabel) {
+        document.getElementById('targetRoleInput').value = role;
+        document.getElementById('modalTitle').innerText = 'Langganan ' + roleLabel;
+        document.getElementById('modalPlanName').innerText = roleLabel + ' (30 Hari)';
+        document.getElementById('modalPrice').innerText = 'Rp ' + fee.toLocaleString('id-ID');
+
+        if (userBalance < fee) {
+            document.getElementById('insufficientAlert').style.display = 'block';
+            document.getElementById('btnConfirmPay').disabled = true;
+            document.getElementById('btnConfirmPay').style.background = '#cbd5e1';
+            document.getElementById('btnConfirmPay').style.cursor = 'not-allowed';
+        } else {
+            document.getElementById('insufficientAlert').style.display = 'none';
+            document.getElementById('btnConfirmPay').disabled = false;
+            document.getElementById('btnConfirmPay').style.background = '#008f89';
+            document.getElementById('btnConfirmPay').style.cursor = 'pointer';
+        }
+
+        document.getElementById('upgradeModal').style.display = 'flex';
+    }
+
+    function closeUpgradeModal() {
+        document.getElementById('upgradeModal').style.display = 'none';
+    }
+</script>
+
+{% endblock %}
