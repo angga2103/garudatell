@@ -87,7 +87,14 @@ show_header() {
         STATUS_WA="${RED}● STOPPED${NC}"
     fi
 
-    echo -e "  🌐 ${BOLD}Web Server :${NC} $STATUS_WEB  │  🤖 ${BOLD}Bot Admin :${NC} $STATUS_BOT  │  📱 ${BOLD}Bot WA :${NC} $STATUS_WA  │  ☁️ ${BOLD}Tunnel :${NC} $STATUS_CF"
+    # Cek status auto-backup 30 menit
+    if crontab -l 2>/dev/null | grep -q "auto_backup.py"; then
+        STATUS_BCK="${GREEN}● 30m ACTIVE${NC}"
+    else
+        STATUS_BCK="${YELLOW}● OFF${NC}"
+    fi
+
+    echo -e "  🌐 ${BOLD}Web :${NC} $STATUS_WEB  │  🤖 ${BOLD}Bot :${NC} $STATUS_BOT  │  📱 ${BOLD}WA :${NC} $STATUS_WA  │  ☁️ ${BOLD}Tunnel :${NC} $STATUS_CF  │  🛡️ ${BOLD}Backup :${NC} $STATUS_BCK"
     echo -e "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
 }
@@ -162,25 +169,104 @@ menu_status_bot() {
     pause
 }
 
-# 5. Backup Database Manual
-menu_backup_db() {
-    echo -e "${CYAN}${BOLD}[5] SNAPSHOT BACKUP DATABASE MANUAL & TELEGRAM${NC}"
-    echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo -e "${BLUE}[*] Membuat snapshot non-blocking SQLite WAL & kompresi gzip...${NC}"
-    cd "$PROJECT_DIR"
-    $VENV_PYTHON -c "
-import sys, os
-from app.services.telegram_service import perform_database_backup, send_backup_notification
-try:
-    gz = perform_database_backup()
-    sz = os.path.getsize(gz)/1024
-    print(f'\033[0;32m[✔] File cadangan lokal berhasil dibuat:\033[0m {gz} ({sz:.2f} KB)')
-    send_backup_notification(gz, status='SUKSES', details='Backup manual via CLI garudatell')
-    print('\033[0;32m[✔] File dokumen database berhasil dikirimkan ke Bot Telegram!\033[0m')
-except Exception as e:
-    print(f'\033[0;31m[✖] Gagal membuat backup: {e}\033[0m')
+# 6. Manajemen Backup & Restore Data
+menu_backup_management() {
+    while true; do
+        clear
+        echo -e "${CYAN}${BOLD}"
+        echo "  ╔══════════════════════════════════════════════════════════════╗"
+        echo "  ║         🛡️ MANAJEMEN BACKUP & RESTORE DATA GARUDATEL 🛡️        ║"
+        echo "  ╚══════════════════════════════════════════════════════════════╝"
+        echo -e "${NC}"
+        
+        # Cek status auto-backup di crontab
+        if crontab -l 2>/dev/null | grep -q "auto_backup.py"; then
+            AUTO_STATUS="${GREEN}● AKTIF (Setiap 30 Menit ke Bot 2)${NC}"
+        else
+            AUTO_STATUS="${RED}● NONAKTIF${NC}"
+        fi
+
+        LATEST_ZIP="$PROJECT_DIR/storage/backups/latest_backup.zip"
+        if [ -f "$LATEST_ZIP" ]; then
+            SIZE_LATEST=$(du -h "$LATEST_ZIP" 2>/dev/null | cut -f1)
+            BACKUP_INFO="${GREEN}Tersedia ($SIZE_LATEST)${NC}"
+        else
+            BACKUP_INFO="${YELLOW}Belum ada backup lokal${NC}"
+        fi
+
+        echo -e "  Auto-Backup 30 Menit : $AUTO_STATUS"
+        echo -e "  Backup Terbaru VPS   : $BACKUP_INFO (Single-file retention)"
+        echo -e "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo -e "  ${BOLD}[1]${NC} Buat Backup Portabel Sekarang & Kirim ke Bot 2 Telegram"
+        echo -e "  ${BOLD}[2]${NC} Restore Database dari Backup Terbaru (latest_backup.zip)"
+        echo -e "  ${BOLD}[3]${NC} Cek Status & Log Aktivitas Auto-Backup 30 Menit"
+        echo -e "  ${BOLD}[4]${NC} Pasang / Aktifkan Auto-Backup 30 Menit (Cron)"
+        echo -e "  ${BOLD}[5]${NC} Nonaktifkan Scheduler Auto-Backup 30 Menit"
+        echo -e "  ${BOLD}[0]${NC} Kembali ke Menu Utama"
+        echo -e "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        read -p ">> Masukkan pilihan Anda [0-5]: " b_choice
+
+        case $b_choice in
+            1)
+                echo ""
+                echo -e "${BLUE}[*] Menjalankan pembuatan backup portabel dan upload ke Telegram...${NC}"
+                $VENV_PYTHON "$PROJECT_DIR/tools/auto_backup.py"
+                pause
+                ;;
+            2)
+                echo ""
+                echo -e "${YELLOW}${BOLD}⚠️ PERINGATAN: RESTORE DATABASE${NC}"
+                echo -e "Database aktif di VPS saat ini akan ditimpa dengan cadangan dari latest_backup.zip."
+                echo -e "Layanan server web garudatel akan otomatis direstart."
+                echo ""
+                read -p "Apakah Anda benar-benar yakin ingin melanjutkan restore? (y/n): " ans_restore
+                if [[ "$ans_restore" =~ ^[Yy]$ ]]; then
+                    echo -e "${BLUE}[*] Memulihkan database SQLite dari latest_backup.zip...${NC}"
+                    $VENV_PYTHON -c "
+from app.core.backup.backup_engine import BackupEngine
+engine = BackupEngine()
+ok, msg = engine.restore_from_latest_backup()
+if ok:
+    print('\033[0;32m[✔] ' + msg + '\033[0m')
+else:
+    print('\033[0;31m[✖] ' + msg + '\033[0m')
 "
-    pause
+                    echo -e "${BLUE}[*] Merestart service server web garudatel...${NC}"
+                    sudo systemctl restart garudatel 2>/dev/null || true
+                    echo -e "${GREEN}[✔] Pemulihan selesai. Server aktif dengan data hasil restore.${NC}"
+                else
+                    echo -e "${YELLOW}[!] Pemulihan database dibatalkan.${NC}"
+                fi
+                pause
+                ;;
+            3)
+                echo ""
+                bash "$PROJECT_DIR/tools/setup_auto_backup.sh" status
+                pause
+                ;;
+            4)
+                echo ""
+                bash "$PROJECT_DIR/tools/setup_auto_backup.sh" enable
+                pause
+                ;;
+            5)
+                echo ""
+                bash "$PROJECT_DIR/tools/setup_auto_backup.sh" disable
+                pause
+                ;;
+            0)
+                break
+                ;;
+            *)
+                echo -e "${RED}[!] Pilihan tidak valid.${NC}"
+                sleep 1
+                ;;
+        esac
+    done
+}
+
+menu_backup_db() {
+    menu_backup_management
 }
 
 # 6. Pengujian Otomatis Sistem
@@ -415,7 +501,7 @@ while true; do
     echo -e "  ${BOLD}[3]${NC} Pantau Log Error (Live)      ${BLUE}(tail -f storage/logs/error.log)${NC}"
     echo -e "  ${BOLD}[4]${NC} Cek Status Bot 3 Admin       ${BLUE}(sudo systemctl status garudatel-bot-admin)${NC}"
     echo -e "  ${BOLD}[5]${NC} Manajemen Bot WhatsApp (PM2) ${BLUE}(Status, Restart, Log Baileys)${NC}"
-    echo -e "  ${BOLD}[6]${NC} Backup Database Manual       ${BLUE}(Snapshot WAL SQLite -> Telegram)${NC}"
+    echo -e "  ${BOLD}[6]${NC} Manajemen Backup & Restore   ${BLUE}(Portabel ZIP, 1-Click Restore, Auto 30m)${NC}"
     echo -e "  ${BOLD}[7]${NC} Pengujian Otomatis Sistem    ${BLUE}(Jalankan test_telegram_and_otp.py)${NC}"
     echo -e "  ${BOLD}[8]${NC} Manajemen Cloudflare Tunnel  ${BLUE}(Status & Ganti Token Zero Trust)${NC}"
     echo -e "  ${BOLD}[9]${NC} Cek Pembaruan (Git Update)   ${BLUE}(Git Fetch, Pull & Auto-Restart)${NC}"
@@ -429,7 +515,7 @@ while true; do
         3) menu_tail_log ;;
         4) menu_status_bot ;;
         5) menu_wa_bot ;;
-        6) menu_backup_db ;;
+        6) menu_backup_management ;;
         7) menu_run_tests ;;
         8) menu_cloudflare ;;
         9) menu_check_update ;;

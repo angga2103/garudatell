@@ -1,8 +1,33 @@
 import os
+import json
 import requests
 import logging
+from datetime import datetime, timezone, timedelta
 
 logger = logging.getLogger(__name__)
+
+# Standardisasi Timezone WIB (Waktu Indonesia Barat / GMT+7)
+WIB_TZ = timezone(timedelta(hours=7))
+
+def get_wib_now():
+    """Mengembalikan objek datetime saat ini dalam Waktu Indonesia Barat (WIB / GMT+7)."""
+    return datetime.now(WIB_TZ)
+
+def format_wib(dt=None, fmt='%Y-%m-%d %H:%M:%S'):
+    """Format datetime ke string WIB yang akurat tanpa selisih jam."""
+    if dt is None:
+        dt = get_wib_now()
+    elif isinstance(dt, str):
+        try:
+            dt = datetime.fromisoformat(dt)
+        except Exception:
+            return dt
+    if hasattr(dt, 'tzinfo') and dt.tzinfo is None:
+        # Jika waktu naive dari database (standar UTC), konversi ke UTC lalu ke WIB
+        dt = dt.replace(tzinfo=timezone.utc).astimezone(WIB_TZ)
+    elif hasattr(dt, 'astimezone'):
+        dt = dt.astimezone(WIB_TZ)
+    return dt.strftime(fmt)
 
 def clean_str(val):
     if val is None:
@@ -109,7 +134,6 @@ def send_emergency_otp_request(phone, otp_code=None, user_name=None, action_type
     Mendukung status PENDING (Menunggu persetujuan admin) dan tautan direct WhatsApp saat disetujui.
     """
     import urllib.parse
-    from datetime import datetime
 
     token, chat_id = get_bot_cs_credentials()
 
@@ -119,7 +143,7 @@ def send_emergency_otp_request(phone, otp_code=None, user_name=None, action_type
         clean_num = '62' + clean_num[1:]
 
     display_name = user_name or 'Pengguna / Calon Member'
-    wib_now = datetime.utcnow().strftime('%d/%m/%Y %H:%M WIB')
+    wib_now = format_wib(fmt='%d/%m/%Y %H:%M WIB')
 
     # Susun Teks Pesan WhatsApp jika kode OTP tersedia
     wa_direct_link = ""
@@ -212,8 +236,7 @@ def send_trx_notification(trx, title="TRANSAKSI MASUK"):
     if not token or not chat_id:
         return False, "Kredensial BOT_NOTIF belum diatur di .env"
 
-    from datetime import datetime
-    wib_now = datetime.utcnow().strftime('%d/%m/%Y %H:%M WIB')
+    wib_now = format_wib(fmt='%d/%m/%Y %H:%M WIB')
 
     # Status Emoji
     status_val = getattr(trx, 'status', '')
@@ -310,55 +333,172 @@ def async_send_trx_notification(trx, title="TRANSAKSI MASUK"):
         return False
 
 
-def send_backup_notification(backup_file_path=None, status="SUKSES", details=""):
+def send_backup_notification(backup_file_path=None, status="SUKSES", details="", display_filename=None):
     """
-    Mengirimkan laporan backup database ke Bot 2 (Notifikasi),
-    dan jika file backup tersedia, mengunggah file .db/.gz langsung ke Telegram.
+    Mengirimkan laporan auto-backup ke Bot 2 (Notifikasi & Backup) di Telegram,
+    melampirkan file zip portabel dengan tombol inline '🔄 Restore Data ke VPS Ini'
+    dan panduan migrasi bencana untuk VPS baru persis seperti referensi template.
     """
     token, chat_id = get_bot_notif_credentials()
     if not token or not chat_id:
         return False, "Kredensial BOT_NOTIF belum diatur di .env"
 
-    from datetime import datetime
-    wib_now = datetime.utcnow().strftime('%d/%m/%Y %H:%M WIB')
+    wib_now_str = format_wib(fmt='%Y-%m-%d %H:%M:%S')
 
-    file_size_str = "-"
-    if backup_file_path and os.path.exists(backup_file_path):
-        size_bytes = os.path.getsize(backup_file_path)
-        if size_bytes > 1024 * 1024:
-            file_size_str = f"{size_bytes / (1024 * 1024):.2f} MB"
-        else:
-            file_size_str = f"{size_bytes / 1024:.2f} KB"
+    if display_filename:
+        filename_only = display_filename
+    elif backup_file_path:
+        filename_only = os.path.basename(backup_file_path)
+    else:
+        filename_only = f"GarudaTell_Backup_{format_wib(fmt='%Y%m%d_%H%M%S')}.zip"
 
-    icon = "✅" if status == "SUKSES" else "🚨"
+    # Jika file fisik adalah 'latest_backup.zip', tampilkan nama bertanggal di Telegram
+    if filename_only == "latest_backup.zip":
+        filename_only = f"GarudaTell_Backup_{format_wib(fmt='%Y%m%d_%H%M%S')}.zip"
+
+    status_badge = "✅ <b>Backup berhasil!</b>" if status == "SUKSES" else f"🚨 <b>Backup status: {status}</b>"
+
     caption = (
-        f"{icon} <b>LAPORAN BACKUP DATABASE GARUDATEL</b>\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"📊 <b>Status:</b> {status}\n"
-        f"⏰ <b>Waktu:</b> {wib_now}\n"
-        f"📦 <b>Ukuran:</b> {file_size_str}\n"
-        f"ℹ️ <b>Info:</b> {details or 'Backup non-blocking SQLite WAL berhasil'}\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━"
+        f"🛡️ <b>GARUDA TELL - AUTO BACKUP</b>\n\n"
+        f"📦 <b>File:</b> <code>{filename_only}</code>\n"
+        f"🕒 <b>Waktu:</b> {wib_now_str}\n\n"
+        f"{status_badge}\n\n"
+        f"🛠️ <b>PANDUAN MIGRASI VPS BARU:</b>\n"
+        f"1. Sewa VPS Ubuntu 20.04/22.04/24.04 baru\n"
+        f"2. Upload ZIP ini ke folder /root/\n"
+        f"3. Ekstrak: <code>unzip -o {filename_only} -d /</code>\n"
+        f"4. Jalankan: <code>bash /var/www/garudatel/tools/installer_vps_baru.sh</code>"
     )
 
+    if details and status != "SUKSES":
+        caption += f"\n\nℹ️ <b>Info:</b> {details}"
+
+    reply_markup = {
+        "inline_keyboard": [
+            [
+                {"text": "🔄 Restore Data ke VPS Ini", "callback_data": "restore_confirm_prompt"}
+            ]
+        ]
+    }
+
     try:
-        # Jika ada file dan ukuran < 45MB, kirim sebagai Dokumen Telegram (Offsite Cloud Backup)
+        # Jika ada file fisik dan ukuran wajar (< 48MB), kirim sebagai Dokumen Telegram
         if backup_file_path and os.path.exists(backup_file_path):
             doc_url = f"https://api.telegram.org/bot{token}/sendDocument"
             with open(backup_file_path, 'rb') as f:
-                files = {'document': f}
-                data = {'chat_id': chat_id, 'caption': caption, 'parse_mode': 'HTML'}
-                res = requests.post(doc_url, files=files, data=data, timeout=60)
+                files = {'document': (filename_only, f, 'application/zip')}
+                data = {
+                    'chat_id': chat_id,
+                    'caption': caption,
+                    'parse_mode': 'HTML',
+                    'reply_markup': json.dumps(reply_markup)
+                }
+                res = requests.post(doc_url, files=files, data=data, timeout=90)
                 return res.status_code == 200, res.text
         else:
-            # Kirim pesan teks jika file tidak dilampirkan
             msg_url = f"https://api.telegram.org/bot{token}/sendMessage"
-            payload = {'chat_id': chat_id, 'text': caption, 'parse_mode': 'HTML'}
+            payload = {
+                'chat_id': chat_id,
+                'text': caption,
+                'parse_mode': 'HTML',
+                'reply_markup': reply_markup
+            }
             res = requests.post(msg_url, json=payload, timeout=10)
             return res.status_code == 200, res.text
     except Exception as e:
         logger.error(f"[Bot 2 Backup] Gagal kirim laporan backup: {e}")
         return False, str(e)
+
+
+def handle_notif_callback(app, callback_query):
+    """
+    Memproses aksi saat tombol inline di Bot 2 (Notifikasi & Backup) ditekan.
+    Mendukung verifikasi otorisasi dan 1-Click Restore database ke VPS.
+    """
+    token, allowed_chat = get_bot_notif_credentials()
+    if not token:
+        return
+
+    query_id = callback_query.get('id')
+    message = callback_query.get('message', {})
+    chat_id = str(message.get('chat', {}).get('id', ''))
+    message_id = message.get('message_id')
+    data = callback_query.get('data', '')
+
+    admin_chat = clean_str(os.getenv('BOT_ADMIN_CHAT_ID'))
+    # Validasi otorisasi admin (boleh dari NOTIF_CHAT_ID atau ADMIN_CHAT_ID)
+    if (allowed_chat and chat_id != str(allowed_chat)) and (admin_chat and chat_id != str(admin_chat)):
+        _answer_callback(token, query_id, "Akses ditolak! Anda bukan Admin terdaftar.")
+        return
+
+    if data == 'restore_confirm_prompt':
+        _answer_callback(token, query_id, "Menyiapkan verifikasi restore...")
+        confirm_text = (
+            "⚠️ <b>KONFIRMASI RESTORE DATABASE KE VPS INI</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "Apakah Anda yakin ingin memulihkan database dari file cadangan terbaru ini?\n\n"
+            "⚠️ <b>PERINGATAN:</b>\n"
+            "• Database saat ini di VPS akan ditimpa dengan data backup ini.\n"
+            "• Layanan server web GarudaTel akan otomatis direstart.\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "Pilih tindakan Anda di bawah ini:"
+        )
+        confirm_markup = {
+            "inline_keyboard": [
+                [
+                    {"text": "✅ YA, RESTORE SEKARANG", "callback_data": "restore_do_execute"},
+                    {"text": "❌ BATAL", "callback_data": "restore_cancel"}
+                ]
+            ]
+        }
+        _send_message(token, chat_id, confirm_text, reply_markup=confirm_markup)
+
+    elif data == 'restore_cancel':
+        _answer_callback(token, query_id, "Pemulihan dibatalkan.")
+        cancel_text = (
+            "❌ <b>PEMULIHAN DATABASE DIBATALKAN</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "Operasi pemulihan database tidak dijalankan. Database aktif Anda tetap aman."
+        )
+        _edit_message(token, chat_id, message_id, cancel_text, None)
+
+    elif data == 'restore_do_execute':
+        _answer_callback(token, query_id, "Sedang memulihkan database...")
+        _edit_message(token, chat_id, message_id, "⏳ <i>Sedang memulihkan database dari latest_backup.zip dan merestart server... Harap tunggu sebentar.</i>", None)
+
+        from app.core.backup.backup_engine import BackupEngine
+        engine = BackupEngine()
+        ok, msg = engine.restore_from_latest_backup()
+
+        wib_time = format_wib(fmt='%Y-%m-%d %H:%M:%S WIB')
+        if ok:
+            # Restart service web agar koneksi db baru termuat
+            try:
+                import subprocess
+                subprocess.run(["sudo", "systemctl", "restart", "garudatel"], check=False, timeout=15)
+            except Exception as e:
+                logger.warning(f"Gagal restart service web via subprocess: {e}")
+
+            success_text = (
+                "✅ <b>RESTORE DATABASE BERHASIL!</b>\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n"
+                "Database GarudaTel telah berhasil dipulihkan dari backup terbaru.\n"
+                "Layanan web server telah direstart dan berjalan normal kembali.\n\n"
+                f"⏰ <b>Waktu:</b> {wib_time}\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n"
+                "🌐 <i>Website aktif kembali dan siap melayani transaksi.</i>"
+            )
+            _edit_message(token, chat_id, message_id, success_text, None)
+        else:
+            fail_text = (
+                "🚨 <b>RESTORE DATABASE GAGAL!</b>\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"Keterangan kendala:\n<code>{msg}</code>\n\n"
+                f"⏰ <b>Waktu:</b> {wib_time}\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n"
+                "Database aktif telah dipulihkan ke kondisi sebelum restore (Safety Rollback)."
+            )
+            _edit_message(token, chat_id, message_id, fail_text, None)
 
 
 # ==============================================================================
@@ -500,14 +640,16 @@ def handle_admin_callback(app, callback_query):
                     "━━━━━━━━━━━━━━━━━━━━━━\n"
                     f"• <b>Saldo Tersedia:</b> <code>Rp {bal:,.0f}</code>\n"
                     f"• <b>Status API:</b> Terhubung Normal (200 OK)\n"
-                    f"• <b>Update:</b> {datetime.now().strftime('%d/%m/%Y %H:%M:%S WIB')}"
+                    f"• <b>Update:</b> {format_wib(fmt='%d/%m/%Y %H:%M:%S WIB')}"
                 )
             else:
                 text = f"🚨 <b>GAGAL CEK SALDO:</b>\n{msg}"
             _edit_message(token, chat_id, message_id, text, get_back_button())
 
         elif data == 'cmd_stats':
-            today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+            wib_now = get_wib_now()
+            today_start_wib = wib_now.replace(hour=0, minute=0, second=0, microsecond=0)
+            today_start = today_start_wib.astimezone(timezone.utc).replace(tzinfo=None)
             total_trx_today = Transaction.query.filter(Transaction.created_at >= today_start).count()
             success_today = Transaction.query.filter(Transaction.created_at >= today_start, Transaction.status == 'SUCCESS').count()
             pending_today = Transaction.query.filter(Transaction.created_at >= today_start, Transaction.status == 'PENDING').count()
@@ -535,7 +677,7 @@ def handle_admin_callback(app, callback_query):
                 "━━━━━━━━━━━━━━━━━━━━━━\n"
                 f"👥 <b>Total Member:</b> {total_users} orang\n"
                 f"💳 <b>Total Saldo Member:</b> Rp {total_balance:,.0f}\n"
-                f"⏰ <i>Waktu: {datetime.now().strftime('%d/%m/%Y %H:%M WIB')}</i>"
+                f"⏰ <i>Waktu: {format_wib(fmt='%d/%m/%Y %H:%M WIB')}</i>"
             )
             _edit_message(token, chat_id, message_id, text, get_back_button())
 
@@ -546,7 +688,7 @@ def handle_admin_callback(app, callback_query):
             else:
                 lines = ["⏳ <b>DAFTAR TRANSAKSI PENDING TERKINI:</b>", "━━━━━━━━━━━━━━━━━━━━━━"]
                 for p in pendings:
-                    t_time = p.created_at.strftime('%H:%M') if p.created_at else '-'
+                    t_time = format_wib(p.created_at, '%H:%M') if p.created_at else '-'
                     lines.append(
                         f"• <code>{p.ref_id}</code> | Rp {p.amount:,.0f}\n"
                         f"  Produk: {p.product_name or '-'}\n"
@@ -593,25 +735,27 @@ def handle_admin_callback(app, callback_query):
             _edit_message(token, chat_id, message_id, text, get_back_button())
 
         elif data == 'cmd_backup':
-            _edit_message(token, chat_id, message_id, "⏳ <i>Sedang membuat snapshot cadangan database SQLite...</i>", None)
+            _edit_message(token, chat_id, message_id, "⏳ <i>Sedang membuat paket backup portabel GarudaTel...</i>", None)
             try:
-                backup_path = perform_database_backup()
-                f_size = os.path.getsize(backup_path) / 1024
+                from app.core.backup.backup_engine import BackupEngine
+                engine = BackupEngine()
+                backup_path, display_name = engine.create_full_portable_backup()
+                f_size = os.path.getsize(backup_path) / (1024 * 1024)
                 caption = (
-                    f"💾 <b>BACKUP DATABASE INSTAN BERHASIL</b>\n"
+                    f"💾 <b>BACKUP PORTABEL INSTAN BERHASIL</b>\n"
                     f"━━━━━━━━━━━━━━━━━━━━━━\n"
-                    f"📁 <b>File:</b> <code>{os.path.basename(backup_path)}</code>\n"
-                    f"📦 <b>Ukuran:</b> {f_size:.2f} KB\n"
-                    f"⏰ <b>Waktu:</b> {datetime.now().strftime('%d/%m/%Y %H:%M:%S WIB')}\n\n"
+                    f"📁 <b>File:</b> <code>{display_name}</code>\n"
+                    f"📦 <b>Ukuran:</b> {f_size:.2f} MB\n"
+                    f"⏰ <b>Waktu:</b> {format_wib(fmt='%d/%m/%Y %H:%M:%S WIB')}\n\n"
                     f"File cadangan dilampirkan langsung di bawah ini:"
                 )
                 doc_url = f"https://api.telegram.org/bot{token}/sendDocument"
                 with open(backup_path, 'rb') as f:
-                    requests.post(doc_url, files={'document': f}, data={'chat_id': chat_id, 'caption': caption, 'parse_mode': 'HTML'}, timeout=60)
+                    requests.post(doc_url, files={'document': (display_name, f, 'application/zip')}, data={'chat_id': chat_id, 'caption': caption, 'parse_mode': 'HTML'}, timeout=90)
                 
-                # Kirim juga salinan laporan ke Bot 2 Notifikasi
-                send_backup_notification(backup_path, status="SUKSES", details="Manual trigger via Bot 3 Admin Telegram")
-                _edit_message(token, chat_id, message_id, "✅ Backup database berhasil dan file telah dikirimkan ke chat ini!", get_back_button())
+                # Kirim juga salinan laporan ke Bot 2 Notifikasi (dengan tombol restore)
+                send_backup_notification(backup_path, status="SUKSES", details="Trigger instan via Bot 3 Admin Telegram", display_filename=display_name)
+                _edit_message(token, chat_id, message_id, "✅ Backup portabel berhasil dan file telah dikirimkan ke Bot 3 dan Bot 2!", get_back_button())
             except Exception as e:
                 _edit_message(token, chat_id, message_id, f"🚨 Gagal membuat backup: {str(e)}", get_back_button())
 
@@ -630,7 +774,7 @@ def handle_admin_callback(app, callback_query):
                 f"🏷️ <b>Total Produk Aktif:</b> {Product.query.filter_by(is_active=True).count():,} item\n"
                 f"👥 <b>Total Pengguna:</b> {User.query.count():,} member\n"
                 f"📋 <b>Total Transaksi:</b> {Transaction.query.count():,} data\n"
-                f"⏰ <b>Waktu Server:</b> {datetime.now().strftime('%d/%m/%Y %H:%M:%S WIB')}\n"
+                f"⏰ <b>Waktu Server:</b> {format_wib(fmt='%d/%m/%Y %H:%M:%S WIB')}\n"
                 "━━━━━━━━━━━━━━━━━━━━━━\n"
                 "🟢 <i>Status: Berjalan Normal (Healthy)</i>"
             )

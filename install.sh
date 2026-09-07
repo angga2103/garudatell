@@ -288,6 +288,11 @@ systemctl enable garudatel-bot-admin.service
 systemctl restart garudatel-bot-admin.service
 echo -e "${GREEN}[✔] Service garudatel-bot-admin.service aktif.${NC}"
 
+# Setup Auto-Backup 30 Menit ke Bot 2 Telegram
+echo -e "${BLUE}[*] Mendaftarkan jadwal auto-backup 30 menit ke Bot 2 Telegram...${NC}"
+chmod +x "$PROJECT_DIR/tools/setup_auto_backup.sh" 2>/dev/null || true
+bash "$PROJECT_DIR/tools/setup_auto_backup.sh" enable 2>/dev/null || true
+
 # Registrasi Perintah Global CLI 'garudatell'
 echo -e "${BLUE}[*] Mendaftarkan perintah global 'garudatell' ke /usr/local/bin/garudatell...${NC}"
 chmod +x "$PROJECT_DIR/garudatell"
