@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Kasir {{ device.device_name }} - {{ store_name }}</title>
+    <title>POS Kasir {{ device.device_name }} - {{ store_name }}</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -11,6 +11,7 @@
         :root {
             --primary: #008779;
             --primary-dark: #006b5f;
+            --primary-light: #e6f4f2;
             --bg: #f8fafc;
             --card-bg: #ffffff;
             --text-dark: #0f172a;
@@ -24,25 +25,27 @@
             min-height: 100vh;
         }
         .pos-container {
-            max-width: 650px;
+            max-width: 680px;
             margin: 0 auto;
-            padding: 12px 14px 80px 14px;
+            padding: 12px 14px 85px 14px;
         }
+
+        /* HEADER */
         .pos-header {
-            background: linear-gradient(135deg, #008779 0%, #005f56 100%);
+            background: linear-gradient(135deg, #008779 0%, #00564d 100%);
             color: white;
-            border-radius: 20px;
-            padding: 18px;
-            margin-bottom: 14px;
-            box-shadow: 0 8px 20px rgba(0, 135, 121, 0.2);
+            border-radius: 22px;
+            padding: 16px 18px;
+            margin-bottom: 12px;
+            box-shadow: 0 8px 24px rgba(0, 135, 121, 0.22);
         }
         .header-top {
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
-        .branch-tag {
-            background: rgba(255, 255, 255, 0.2);
+        .branch-badge {
+            background: rgba(255, 255, 255, 0.18);
             padding: 4px 10px;
             border-radius: 12px;
             font-size: 0.75rem;
@@ -51,26 +54,121 @@
             align-items: center;
             gap: 6px;
         }
-        .btn-shift {
-            background: rgba(0, 0, 0, 0.25);
-            color: white;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 10px;
-            padding: 6px 12px;
+        .shift-badge {
+            background: rgba(245, 158, 11, 0.25);
+            border: 1px solid rgba(245, 158, 11, 0.45);
+            color: #fef08a;
+            padding: 4px 10px;
+            border-radius: 12px;
             font-size: 0.72rem;
             font-weight: 800;
-            cursor: pointer;
-            text-decoration: none;
             display: inline-flex;
             align-items: center;
             gap: 5px;
         }
+        .header-bal-box {
+            margin-top: 14px;
+            background: rgba(0, 0, 0, 0.18);
+            border-radius: 16px;
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .bal-title {
+            font-size: 0.72rem;
+            font-weight: 700;
+            opacity: 0.88;
+            margin-bottom: 2px;
+        }
+        .bal-val {
+            font-size: 1.35rem;
+            font-weight: 900;
+            color: #6ee7b7;
+            letter-spacing: 0.5px;
+        }
+        .btn-top-req {
+            background: #f59e0b;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 7px 12px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 4px 10px rgba(245, 158, 11, 0.35);
+            transition: all 0.15s;
+        }
+        .btn-top-req:active { transform: scale(0.96); }
+
+        /* TAB NAVIGATION */
+        .pos-tabs {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .tab-btn {
+            background: white;
+            border: 1.5px solid #e2e8f0;
+            color: #64748b;
+            border-radius: 14px;
+            padding: 10px 6px;
+            font-size: 0.78rem;
+            font-weight: 800;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        .tab-btn.active {
+            background: #008779;
+            color: white;
+            border-color: #008779;
+            box-shadow: 0 4px 12px rgba(0, 135, 121, 0.2);
+        }
+
+        /* LIVE SEARCH BAR */
+        .search-box {
+            position: relative;
+            margin-bottom: 12px;
+        }
+        .search-box i {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #94a3b8;
+            font-size: 1rem;
+        }
+        .search-input {
+            width: 100%;
+            background: white;
+            border: 1.5px solid #cbd5e1;
+            border-radius: 14px;
+            padding: 11px 14px 11px 40px;
+            font-size: 0.88rem;
+            font-weight: 700;
+            outline: none;
+            transition: all 0.2s;
+        }
+        .search-input:focus {
+            border-color: #008779;
+            box-shadow: 0 0 0 3px rgba(0, 135, 121, 0.12);
+        }
+
+        /* CATEGORY SCROLL */
         .cat-scroll {
             display: flex;
             gap: 8px;
             overflow-x: auto;
-            padding-bottom: 8px;
-            margin-bottom: 14px;
+            padding-bottom: 6px;
+            margin-bottom: 10px;
             scrollbar-width: none;
         }
         .cat-scroll::-webkit-scrollbar { display: none; }
@@ -81,54 +179,87 @@
             border: 1.5px solid #e2e8f0;
             color: #475569;
             font-weight: 800;
-            font-size: 0.8rem;
+            font-size: 0.78rem;
             cursor: pointer;
             white-space: nowrap;
             display: flex;
             align-items: center;
             gap: 6px;
-            transition: all 0.2s;
+            transition: all 0.15s;
+            flex-shrink: 0;
         }
         .cat-pill.active {
             background: #008779;
             color: white;
             border-color: #008779;
-            box-shadow: 0 4px 12px rgba(0, 135, 121, 0.25);
+            box-shadow: 0 4px 10px rgba(0, 135, 121, 0.2);
         }
+
+        /* SUB-BRAND SCROLL */
+        .brand-scroll {
+            display: none;
+            gap: 6px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            margin-bottom: 10px;
+            scrollbar-width: none;
+        }
+        .brand-scroll::-webkit-scrollbar { display: none; }
+        .brand-pill {
+            padding: 5px 12px;
+            border-radius: 10px;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            color: #475569;
+            font-weight: 800;
+            font-size: 0.72rem;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.15s;
+            flex-shrink: 0;
+        }
+        .brand-pill.active {
+            background: #0f172a;
+            color: white;
+            border-color: #0f172a;
+        }
+
+        /* INPUT CARD */
         .input-card {
             background: white;
             border-radius: 16px;
-            padding: 16px;
+            padding: 14px;
             border: 1.5px solid #e2e8f0;
-            margin-bottom: 14px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+            margin-bottom: 12px;
         }
         .phone-input {
             width: 100%;
             border: 1.5px solid #cbd5e1;
             border-radius: 12px;
-            padding: 12px 14px;
-            font-size: 1.1rem;
+            padding: 11px 13px;
+            font-size: 1.05rem;
             font-weight: 800;
             outline: none;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
         }
         .phone-input:focus {
             border-color: #008779;
-            box-shadow: 0 0 0 3px rgba(0, 135, 121, 0.15);
+            box-shadow: 0 0 0 3px rgba(0, 135, 121, 0.12);
         }
         .brand-indicator {
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            font-size: 0.75rem;
+            font-size: 0.72rem;
             font-weight: 800;
             padding: 3px 8px;
             border-radius: 8px;
             background: #f1f5f9;
             color: #475569;
-            margin-top: 8px;
+            margin-top: 6px;
         }
+
+        /* PRODUCTS GRID */
         .products-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -145,10 +276,7 @@
             text-align: left;
             position: relative;
         }
-        .prod-card:hover {
-            border-color: #008779;
-            transform: translateY(-2px);
-        }
+        .prod-card:hover { border-color: #008779; transform: translateY(-2px); }
         .prod-card.selected {
             border-color: #008779;
             background: #f0fdfa;
@@ -156,30 +284,31 @@
         }
         .prod-name {
             font-weight: 800;
-            font-size: 0.85rem;
+            font-size: 0.83rem;
             color: #0f172a;
             margin-bottom: 4px;
+            line-height: 1.3;
         }
         .prod-price {
             font-weight: 900;
             font-size: 0.95rem;
             color: #008779;
         }
+
+        /* BOTTOM BAR */
         .pos-bottom-bar {
             position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
+            bottom: 0; left: 0; right: 0;
             background: white;
             border-top: 1px solid #e2e8f0;
             padding: 12px 16px;
             display: flex;
             justify-content: center;
-            box-shadow: 0 -4px 15px rgba(0,0,0,0.05);
+            box-shadow: 0 -4px 15px rgba(0,0,0,0.06);
             z-index: 100;
         }
         .btn-checkout {
-            max-width: 600px;
+            max-width: 650px;
             width: 100%;
             padding: 13px;
             background: #008779;
@@ -200,8 +329,9 @@
             box-shadow: none;
             cursor: not-allowed;
         }
-        /* MODAL STRUK CETAK */
-        .receipt-modal {
+
+        /* MODALS */
+        .pos-modal {
             display: none;
             position: fixed;
             inset: 0;
@@ -210,6 +340,14 @@
             align-items: center;
             justify-content: center;
             padding: 16px;
+        }
+        .pos-modal-card {
+            background: white;
+            border-radius: 20px;
+            max-width: 440px;
+            width: 100%;
+            padding: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
         }
         .receipt-paper {
             background: white;
@@ -225,112 +363,208 @@
 <body>
 
 <div class="pos-container">
-    
+
     <!-- POS HEADER -->
     <div class="pos-header">
         <div class="header-top">
-            <div class="branch-tag">
-                <i class="fas fa-store"></i> {{ device.device_name }}
+            <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
+                <div class="branch-badge">
+                    <i class="fas fa-store"></i> {{ device.device_name }}
+                </div>
+                <div class="shift-badge">
+                    <i class="fas fa-user-clock"></i> {{ shift_name }}
+                </div>
             </div>
-            <div style="display: flex; gap: 8px;">
-                <button type="button" onclick="openShiftHistory()" class="btn-shift">
-                    <i class="fas fa-history"></i> Riwayat Shift
-                </button>
-                <a href="/kasir/logout" class="btn-shift" style="background: rgba(220, 38, 38, 0.4); border-color: rgba(220, 38, 38, 0.6);">
-                    <i class="fas fa-sign-out-alt"></i> Tutup Shift
-                </a>
-            </div>
+            <a href="/kasir/logout" style="background: rgba(220, 38, 38, 0.35); border: 1px solid rgba(220, 38, 38, 0.5); color: white; border-radius: 10px; padding: 5px 10px; font-size: 0.72rem; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+                <i class="fas fa-sign-out-alt"></i> Tutup Shift
+            </a>
         </div>
 
-        <div style="margin-top: 14px; display: flex; justify-content: space-between; align-items: flex-end;">
+        <div class="header-bal-box">
             <div>
-                <div style="font-size: 0.72rem; opacity: 0.85; font-weight: 700;">STATUS KASIR</div>
-                <div style="font-size: 1.1rem; font-weight: 900;">
-                    <i class="fas fa-check-circle" style="color: #6ee7b7;"></i> Siap Transaksi
+                <div class="bal-title">SALDO KASIR CABANG INI</div>
+                <div class="bal-val">Rp <span id="posBranchBalDisplay">{{ "{:,.0f}".format(branch_balance).replace(',', '.') }}</span></div>
+            </div>
+            <button type="button" class="btn-top-req" onclick="openRequestDepositModal()">
+                <i class="fab fa-whatsapp"></i> Minta Saldo ke Bos
+            </button>
+        </div>
+    </div>
+
+    <!-- TAB NAVIGATION -->
+    <div class="pos-tabs">
+        <button type="button" class="tab-btn active" id="tabBtnPos" onclick="switchMainTab('pos')">
+            <i class="fas fa-shopping-cart"></i> Kasir POS
+        </button>
+        <button type="button" class="tab-btn" id="tabBtnHistory" onclick="switchMainTab('history')">
+            <i class="fas fa-receipt"></i> Riwayat Shift
+        </button>
+        <button type="button" class="tab-btn" id="tabBtnMutations" onclick="switchMainTab('mutations')">
+            <i class="fas fa-exchange-alt"></i> Mutasi Saldo
+        </button>
+    </div>
+
+    <!-- TAB 1: KASIR POS -->
+    <div id="tabContentPos">
+        <!-- LIVE SEARCH BAR -->
+        <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" id="posSearchInput" class="search-input" placeholder="Cari nama produk, kuota, voucher, game..." oninput="handleSearch(this.value)">
+        </div>
+
+        <!-- KATEGORI PRODUK SCROLL -->
+        <div class="cat-scroll" id="catScrollContainer">
+            <button type="button" class="cat-pill active" onclick="selectCategory('PULSA', this)">
+                <i class="fas fa-mobile-alt"></i> Pulsa
+            </button>
+            <button type="button" class="cat-pill" onclick="selectCategory('DATA', this)">
+                <i class="fas fa-wifi"></i> Paket Data
+            </button>
+            <button type="button" class="cat-pill" onclick="selectCategory('TELPSMS', this)">
+                <i class="fas fa-phone-volume"></i> Telp & SMS
+            </button>
+            <button type="button" class="cat-pill" onclick="selectCategory('MASAAKTIF', this)">
+                <i class="fas fa-calendar-check"></i> Masa Aktif
+            </button>
+            <button type="button" class="cat-pill" onclick="selectCategory('PLN', this)">
+                <i class="fas fa-bolt"></i> Token PLN
+            </button>
+            <button type="button" class="cat-pill" onclick="selectCategory('EMONEY', this)">
+                <i class="fas fa-wallet"></i> E-Wallet
+            </button>
+            <button type="button" class="cat-pill" onclick="selectCategory('GAMES', this)">
+                <i class="fas fa-gamepad"></i> Game
+            </button>
+            <button type="button" class="cat-pill" onclick="selectCategory('TV', this)">
+                <i class="fas fa-tv"></i> TV & Stream
+            </button>
+            <button type="button" class="cat-pill" onclick="selectCategory('ALL', this)">
+                <i class="fas fa-th-large"></i> Semua Produk
+            </button>
+        </div>
+
+        <!-- SUB-BRAND SELECTOR PILLS -->
+        <div class="brand-scroll" id="brandScrollContainer">
+            <!-- Dimuat dinamis via JS -->
+        </div>
+
+        <!-- FORM INPUT NOMOR TUJUAN -->
+        <div class="input-card">
+            <label id="targetLabel" style="display: block; font-size: 0.75rem; font-weight: 800; color: #475569; margin-bottom: 5px;">
+                NOMOR HANDPHONE PELANGGAN:
+            </label>
+            <input type="tel" id="targetNumber" class="phone-input" placeholder="08xxxxxxxxxx" oninput="handlePhoneInput(this.value)">
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+                <div id="operatorBadge" class="brand-indicator">
+                    <i class="fas fa-sim-card"></i> Menunggu Nomor...
+                </div>
+                <div style="font-size: 0.72rem; color: #94a3b8; font-weight: 700;" id="inputHint">
+                    Otomatis deteksi operator
                 </div>
             </div>
+        </div>
 
-            <div style="text-align: right;">
-                <div style="font-size: 0.72rem; opacity: 0.85; font-weight: 700;">
-                    {% if remaining_limit >= 0 %}SISA LIMIT HARI INI{% else %}STATUS SALDO TOKO{% endif %}
-                </div>
-                <div style="font-size: 1rem; font-weight: 900; color: #a7f3d0;">
-                    {% if remaining_limit >= 0 %}
-                    Rp {{ "{:,.0f}".format(remaining_limit).replace(',', '.') }}
-                    {% else %}
-                    ● Saldo Tersedia
-                    {% endif %}
-                </div>
+        <!-- DAFTAR PILIHAN PRODUK -->
+        <div style="font-size: 0.8rem; font-weight: 800; color: #475569; margin-bottom: 8px; display: flex; justify-content: space-between;">
+            <span>PILIH NOMINAL / PRODUK:</span>
+            <span id="productCount" style="color: #94a3b8;">0 Produk</span>
+        </div>
+
+        <div class="products-grid" id="productsContainer">
+            <div style="grid-column: span 2; text-align: center; padding: 25px; color: #94a3b8; font-size: 0.85rem;">
+                <i class="fas fa-keyboard" style="font-size: 26px; margin-bottom: 8px; display: block; opacity: 0.4;"></i>
+                Masukkan nomor pelanggan atau ketik pencarian di atas untuk memuat produk.
             </div>
         </div>
     </div>
 
-    <!-- KATEGORI PRODUK CEPAT -->
-    <div class="cat-scroll">
-        <button type="button" class="cat-pill active" onclick="switchCategory('PULSA', this)">
-            <i class="fas fa-mobile-alt"></i> Pulsa
-        </button>
-        <button type="button" class="cat-pill" onclick="switchCategory('DATA', this)">
-            <i class="fas fa-wifi"></i> Paket Data
-        </button>
-        <button type="button" class="cat-pill" onclick="switchCategory('PLN', this)">
-            <i class="fas fa-bolt"></i> Token PLN
-        </button>
-        <button type="button" class="cat-pill" onclick="switchCategory('EMONEY', this)">
-            <i class="fas fa-wallet"></i> E-Wallet
-        </button>
-        <button type="button" class="cat-pill" onclick="switchCategory('GAMES', this)">
-            <i class="fas fa-gamepad"></i> Game
-        </button>
-    </div>
-
-    <!-- FORM INPUT NOMOR TUJUAN -->
-    <div class="input-card">
-        <label id="targetLabel" style="display: block; font-size: 0.78rem; font-weight: 800; color: #475569; margin-bottom: 6px;">
-            NOMOR HANDPHONE PELANGGAN:
-        </label>
-        <input type="tel" id="targetNumber" class="phone-input" placeholder="08xxxxxxxxxx" oninput="handlePhoneInput(this.value)">
-        
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
-            <div id="operatorBadge" class="brand-indicator">
-                <i class="fas fa-sim-card"></i> Menunggu Nomor...
-            </div>
-            <div style="font-size: 0.72rem; color: #94a3b8; font-weight: 700;">
-                Otomatis deteksi operator
-            </div>
+    <!-- TAB 2: RIWAYAT SHIFT -->
+    <div id="tabContentHistory" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <span style="font-size: 0.85rem; font-weight: 800; color: #334155;">Riwayat Transaksi Shift Ini:</span>
+            <button type="button" onclick="loadShiftHistory()" style="background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 4px 8px; font-size: 0.75rem; font-weight: 700; cursor: pointer;">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+        </div>
+        <div id="historyListContainer" style="display: flex; flex-direction: column; gap: 8px;">
+            <!-- Dimuat via JS -->
         </div>
     </div>
 
-    <!-- DAFTAR PILIHAN PRODUK / DENOM -->
-    <div style="font-size: 0.8rem; font-weight: 800; color: #475569; margin-bottom: 8px; display: flex; justify-content: space-between;">
-        <span>PILIH NOMINAL PRODUK:</span>
-        <span id="productCount" style="color: #94a3b8;">0 Produk</span>
-    </div>
-
-    <div class="products-grid" id="productsContainer">
-        <!-- Dimuat via JavaScript -->
-        <div style="grid-column: span 2; text-align: center; padding: 30px; color: #94a3b8; font-size: 0.85rem;">
-            <i class="fas fa-keyboard" style="font-size: 28px; margin-bottom: 8px; display: block; opacity: 0.4;"></i>
-            Masukkan nomor pelanggan di atas untuk memuat daftar nominal.
+    <!-- TAB 3: MUTASI SALDO -->
+    <div id="tabContentMutations" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <span style="font-size: 0.85rem; font-weight: 800; color: #334155;">Catatan Saldo Masuk & Keluar:</span>
+            <button type="button" onclick="loadMutations()" style="background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 4px 8px; font-size: 0.75rem; font-weight: 700; cursor: pointer;">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+        </div>
+        <div id="mutationsListContainer" style="display: flex; flex-direction: column; gap: 8px;">
+            <!-- Dimuat via JS -->
         </div>
     </div>
 
 </div>
 
 <!-- BOTTOM BAR CHECKOUT -->
-<div class="pos-bottom-bar">
+<div class="pos-bottom-bar" id="posBottomBar">
     <button type="button" id="btnCheckout" class="btn-checkout" disabled onclick="confirmSale()">
         <i class="fas fa-shopping-cart"></i> <span>Pilih Produk Terlebih Dahulu</span>
     </button>
 </div>
 
+<!-- MODAL MINTA SALDO KE BOS -->
+<div id="requestDepositModal" class="pos-modal">
+    <div class="pos-modal-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">
+            <div style="font-weight: 900; font-size: 1rem; color: #0f172a;">
+                <i class="fab fa-whatsapp" style="color: #25d366; font-size: 1.2rem;"></i> Minta Tambah Saldo ke Bos
+            </div>
+            <button type="button" onclick="closeRequestDepositModal()" style="background: transparent; border: none; font-size: 20px; color: #94a3b8; cursor: pointer;">&times;</button>
+        </div>
+
+        <p style="font-size: 0.78rem; color: #64748b; margin-top: 0; line-height: 1.4;">
+            Kirim permohonan deposit saldo otomatis ke WhatsApp Owner toko. Saldo saat ini: <b>Rp <span id="modalCurrentBal">0</span></b>.
+        </p>
+
+        <div style="margin-bottom: 12px;">
+            <label style="display: block; font-size: 0.75rem; font-weight: 800; color: #334155; margin-bottom: 4px;">Pilih Nominal Deposit Cepat:</label>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;">
+                <button type="button" onclick="setReqAmount(100000)" style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 10px; background: #f8fafc; font-weight: 800; font-size: 0.75rem; cursor: pointer;">100 Ribu</button>
+                <button type="button" onclick="setReqAmount(200000)" style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 10px; background: #f8fafc; font-weight: 800; font-size: 0.75rem; cursor: pointer;">200 Ribu</button>
+                <button type="button" onclick="setReqAmount(500000)" style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 10px; background: #f8fafc; font-weight: 800; font-size: 0.75rem; cursor: pointer;">500 Ribu</button>
+            </div>
+        </div>
+
+        <div style="margin-bottom: 12px;">
+            <label style="display: block; font-size: 0.75rem; font-weight: 800; color: #334155; margin-bottom: 4px;">Atau Ketik Nominal Manual (Rp):</label>
+            <input type="number" id="reqAmountInput" placeholder="Contoh: 300000" style="width: 100%; padding: 10px 12px; border: 1.5px solid #cbd5e1; border-radius: 12px; font-weight: 800; font-size: 1rem; outline: none;">
+        </div>
+
+        <div style="margin-bottom: 16px;">
+            <label style="display: block; font-size: 0.75rem; font-weight: 800; color: #334155; margin-bottom: 4px;">Catatan Singkat (Opsional):</label>
+            <input type="text" id="reqNoteInput" placeholder="Contoh: Saldo menipis banyak yang antre" style="width: 100%; padding: 9px 12px; border: 1.5px solid #cbd5e1; border-radius: 12px; font-size: 0.85rem; font-weight: 700; outline: none;">
+        </div>
+
+        <div style="display: flex; gap: 8px;">
+            <button type="button" onclick="closeRequestDepositModal()" style="flex: 1; padding: 11px; background: #f1f5f9; color: #475569; border: none; border-radius: 12px; font-weight: 800; font-size: 0.85rem; cursor: pointer;">
+                Batal
+            </button>
+            <button type="button" onclick="submitRequestDeposit()" style="flex: 2; padding: 11px; background: #25d366; color: white; border: none; border-radius: 12px; font-weight: 800; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                <i class="fab fa-whatsapp"></i> Kirim ke Bos
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- MODAL CETAK STRUK PEMBELIAN -->
-<div id="receiptModal" class="receipt-modal">
+<div id="receiptModal" class="pos-modal">
     <div class="receipt-paper">
         <div style="text-align: center; margin-bottom: 12px; border-bottom: 1px dashed #cbd5e1; padding-bottom: 10px;">
             <div style="font-weight: 900; font-size: 1.1rem; text-transform: uppercase;">{{ store_name }}</div>
             <div style="font-size: 0.75rem; color: #64748b;">{{ device.device_name }}</div>
-            <div style="font-size: 0.7rem; color: #94a3b8;" id="rcptTime">08-09-2026 10:30</div>
+            <div style="font-size: 0.7rem; color: #94a3b8;" id="rcptTime">-</div>
         </div>
 
         <div style="font-size: 0.78rem; line-height: 1.6; margin-bottom: 12px; border-bottom: 1px dashed #cbd5e1; padding-bottom: 10px;">
@@ -350,7 +584,7 @@
                 <span>SN:</span>
                 <span id="rcptSn" style="font-weight: 800; word-break: break-all;">-</span>
             </div>
-            <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-top: 6px;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.92rem; margin-top: 6px;">
                 <span>TOTAL:</span>
                 <span id="rcptTotal" style="font-weight: 900; color: #008779;">Rp 0</span>
             </div>
@@ -371,28 +605,16 @@
     </div>
 </div>
 
-<!-- MODAL RIWAYAT SHIFT -->
-<div id="historyModal" class="receipt-modal">
-    <div style="background: white; border-radius: 20px; max-width: 450px; width: 100%; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.3);">
-        <div style="padding: 16px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
-            <div style="font-weight: 800; font-size: 0.95rem; color: #0f172a;">
-                <i class="fas fa-history" style="color: #008779;"></i> Riwayat Transaksi Shift Ini
-            </div>
-            <button type="button" onclick="closeShiftHistory()" style="background: transparent; border: none; font-size: 20px; cursor: pointer; color: #94a3b8;">&times;</button>
-        </div>
-        <div id="historyList" style="padding: 14px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 8px;">
-            <div style="text-align: center; color: #94a3b8; font-size: 0.8rem;">Memuat riwayat...</div>
-        </div>
-    </div>
-</div>
-
 <script>
 let currentCategory = 'PULSA';
+let activeBrand = '';
+let searchQuery = '';
 let detectedBrand = '';
 let selectedProduct = null;
-let allProducts = [];
+let currentBranchBalance = {{ branch_balance or 0.0 }};
+let searchDebounce = null;
 
-// Prefix Operator Indonesia
+// Prefix Operator Seluler Indonesia
 const prefixMap = {
     '0811': 'TELKOMSEL', '0812': 'TELKOMSEL', '0813': 'TELKOMSEL', '0821': 'TELKOMSEL', '0822': 'TELKOMSEL', '0852': 'TELKOMSEL', '0853': 'TELKOMSEL', '0823': 'TELKOMSEL',
     '0814': 'INDOSAT', '0815': 'INDOSAT', '0816': 'INDOSAT', '0855': 'INDOSAT', '0856': 'INDOSAT', '0857': 'INDOSAT', '0858': 'INDOSAT',
@@ -402,42 +624,120 @@ const prefixMap = {
     '0881': 'SMARTFREN', '0882': 'SMARTFREN', '0883': 'SMARTFREN', '0884': 'SMARTFREN', '0885': 'SMARTFREN', '0886': 'SMARTFREN', '0887': 'SMARTFREN', '0888': 'SMARTFREN', '0889': 'SMARTFREN'
 };
 
-function switchCategory(cat, btn) {
-    currentCategory = cat;
-    document.querySelectorAll('.cat-pill').forEach(p => p.classList.remove('active'));
-    btn.classList.add('active');
+function formatRupiah(num) {
+    return Number(num || 0).toLocaleString('id-ID');
+}
 
-    // Ubah label input
+// 1. SWITCH TAB
+function switchMainTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tabContentPos').style.display = 'none';
+    document.getElementById('tabContentHistory').style.display = 'none';
+    document.getElementById('tabContentMutations').style.display = 'none';
+    document.getElementById('posBottomBar').style.display = 'none';
+
+    if (tab === 'pos') {
+        document.getElementById('tabBtnPos').classList.add('active');
+        document.getElementById('tabContentPos').style.display = 'block';
+        document.getElementById('posBottomBar').style.display = 'flex';
+    } else if (tab === 'history') {
+        document.getElementById('tabBtnHistory').classList.add('active');
+        document.getElementById('tabContentHistory').style.display = 'block';
+        loadShiftHistory();
+    } else if (tab === 'mutations') {
+        document.getElementById('tabBtnMutations').classList.add('active');
+        document.getElementById('tabContentMutations').style.display = 'block';
+        loadMutations();
+    }
+}
+
+// 2. KATEGORI & BRAND
+function selectCategory(cat, btn) {
+    currentCategory = cat;
+    activeBrand = '';
+    document.querySelectorAll('.cat-pill').forEach(p => p.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+
     const targetLabel = document.getElementById('targetLabel');
     const targetInput = document.getElementById('targetNumber');
+    const inputHint = document.getElementById('inputHint');
+
     if (cat === 'PLN') {
         targetLabel.innerText = 'NOMOR METER / ID PELANGGAN PLN:';
-        targetInput.placeholder = 'Contoh: 14xxxxxxxx atau 32xxxxxxxx';
-        detectedBrand = 'PLN';
+        targetInput.placeholder = 'Contoh: 14xxxxxxxx / 32xxxxxxxx';
+        inputHint.innerText = 'Token Listrik Prabayar';
         updateOperatorBadge('PLN');
+        loadBrandPills('PLN');
         loadProducts();
     } else if (cat === 'EMONEY') {
-        targetLabel.innerText = 'NOMOR HP AKUN E-WALLET:';
+        targetLabel.innerText = 'NOMOR HP / ID AKUN E-WALLET:';
         targetInput.placeholder = '08xxxxxxxxxx';
-        detectedBrand = '';
-        updateOperatorBadge('E-Money');
+        inputHint.innerText = 'Pilih provider di bawah';
+        updateOperatorBadge('E-Wallet');
+        loadBrandPills('EMONEY');
         loadProducts();
     } else if (cat === 'GAMES') {
         targetLabel.innerText = 'USER ID / ZONE ID GAME:';
         targetInput.placeholder = 'Contoh: 12345678 (2020)';
-        detectedBrand = '';
-        updateOperatorBadge('Voucher Game');
+        inputHint.innerText = 'Pilih game di bawah';
+        updateOperatorBadge('Game Voucher');
+        loadBrandPills('GAMES');
+        loadProducts();
+    } else if (cat === 'TV') {
+        targetLabel.innerText = 'NOMOR PELANGGAN / ID SMARTCARD TV:';
+        targetInput.placeholder = 'Contoh: No. Pelanggan K-Vision / Nex';
+        inputHint.innerText = 'Pilih TV streaming di bawah';
+        updateOperatorBadge('TV Berlangganan');
+        loadBrandPills('TV');
+        loadProducts();
+    } else if (cat === 'ALL') {
+        targetLabel.innerText = 'NOMOR TUJUAN / PELANGGAN:';
+        targetInput.placeholder = 'Ketik nomor / ID tujuan';
+        inputHint.innerText = 'Seluruh produk toko';
+        updateOperatorBadge('Semua Produk');
+        document.getElementById('brandScrollContainer').style.display = 'none';
         loadProducts();
     } else {
         targetLabel.innerText = 'NOMOR HANDPHONE PELANGGAN:';
         targetInput.placeholder = '08xxxxxxxxxx';
+        inputHint.innerText = 'Otomatis deteksi operator';
+        document.getElementById('brandScrollContainer').style.display = 'none';
         handlePhoneInput(targetInput.value);
     }
 }
 
+function loadBrandPills(cat) {
+    const container = document.getElementById('brandScrollContainer');
+    fetch(`/kasir/brands?category=${cat}`)
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'success' && data.brands.length > 0) {
+            let html = `<button type="button" class="brand-pill active" onclick="selectBrand('', this)">Semua</button>`;
+            data.brands.forEach(b => {
+                html += `<button type="button" class="brand-pill" onclick="selectBrand('${b}', this)">${b}</button>`;
+            });
+            container.innerHTML = html;
+            container.style.display = 'flex';
+        } else {
+            container.style.display = 'none';
+        }
+    })
+    .catch(() => {
+        container.style.display = 'none';
+    });
+}
+
+function selectBrand(brand, btn) {
+    activeBrand = brand;
+    document.querySelectorAll('.brand-pill').forEach(p => p.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    loadProducts();
+}
+
+// 3. DETEKSI NOMOR HP
 function handlePhoneInput(val) {
     const clean = val.replace(/\D/g, '');
-    if (currentCategory === 'PLN' || currentCategory === 'GAMES') {
+    if (['PLN', 'GAMES', 'TV'].includes(currentCategory)) {
         return;
     }
 
@@ -446,7 +746,7 @@ function handlePhoneInput(val) {
         const brand = prefixMap[p4] || '';
         if (brand !== detectedBrand) {
             detectedBrand = brand;
-            updateOperatorBadge(brand || 'Lainnya');
+            updateOperatorBadge(brand || 'Operator Lain');
             loadProducts();
         }
     } else {
@@ -459,22 +759,32 @@ function handlePhoneInput(val) {
 }
 
 function updateOperatorBadge(name) {
-    const badge = document.getElementById('operatorBadge');
-    badge.innerHTML = `<i class="fas fa-sim-card"></i> ${name}`;
+    document.getElementById('operatorBadge').innerHTML = `<i class="fas fa-sim-card"></i> ${name}`;
 }
 
+// 4. LIVE SEARCH
+function handleSearch(val) {
+    searchQuery = val.trim();
+    if (searchDebounce) clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(() => {
+        loadProducts();
+    }, 250);
+}
+
+// 5. LOAD PRODUK KATALOG
+let loadedProducts = [];
 function loadProducts() {
     let url = `/kasir/products?category=${currentCategory}`;
-    if (detectedBrand && currentCategory !== 'EMONEY' && currentCategory !== 'GAMES') {
-        url += `&brand=${detectedBrand}`;
-    }
+    const effectiveBrand = activeBrand || (['PULSA', 'DATA', 'TELPSMS', 'MASAAKTIF'].includes(currentCategory) ? detectedBrand : '');
+    if (effectiveBrand) url += `&brand=${encodeURIComponent(effectiveBrand)}`;
+    if (searchQuery) url += `&q=${encodeURIComponent(searchQuery)}`;
 
     fetch(url)
     .then(res => res.json())
     .then(data => {
         if (data.status === 'success') {
-            allProducts = data.products || [];
-            renderProducts(allProducts);
+            loadedProducts = data.products || [];
+            renderProducts(loadedProducts);
         }
     })
     .catch(() => {});
@@ -482,13 +792,12 @@ function loadProducts() {
 
 function renderProducts(prods) {
     const container = document.getElementById('productsContainer');
-    const countBadge = document.getElementById('productCount');
-    countBadge.innerText = `${prods.length} Produk`;
+    document.getElementById('productCount').innerText = `${prods.length} Produk`;
 
     if (prods.length === 0) {
         container.innerHTML = `
             <div style="grid-column: span 2; text-align: center; padding: 25px; color: #94a3b8; font-size: 0.85rem;">
-                Tidak ada produk yang cocok dengan nomor tujuan ini.
+                Tidak ada produk yang cocok dengan nomor atau pencarian ini.
             </div>`;
         resetSelectedProduct();
         return;
@@ -507,7 +816,7 @@ function renderProducts(prods) {
 }
 
 function selectProduct(idx) {
-    selectedProduct = allProducts[idx];
+    selectedProduct = loadedProducts[idx];
     document.querySelectorAll('.prod-card').forEach(c => c.classList.remove('selected'));
     const el = document.getElementById(`pcard_${idx}`);
     if (el) el.classList.add('selected');
@@ -524,43 +833,54 @@ function resetSelectedProduct() {
     btn.innerHTML = '<i class="fas fa-shopping-cart"></i> <span>Pilih Produk Terlebih Dahulu</span>';
 }
 
-function formatRupiah(num) {
-    return Number(num).toLocaleString('id-ID');
-}
-
+// 6. CHECKOUT PENJUALAN
 function confirmSale() {
     const target = document.getElementById('targetNumber').value.trim();
     if (!target || target.length < 4) {
-        Swal.fire({ icon: 'warning', title: 'Nomor Tujuan Belum Diisi', text: 'Masukkan nomor HP / ID Pelanggan terlebih dahulu.' });
+        Swal.fire({ icon: 'warning', title: 'Nomor Tujuan Belum Diisi', text: 'Masukkan nomor HP atau ID pelanggan terlebih dahulu.' });
         return;
     }
     if (!selectedProduct) return;
 
+    if (currentBranchBalance < selectedProduct.price) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Saldo Kasir Tidak Cukup',
+            html: `Sisa saldo cabang ini: <b>Rp ${formatRupiah(currentBranchBalance)}</b>.<br>Harga produk: <b>Rp ${formatRupiah(selectedProduct.price)}</b>.<br><br>Ingin minta penambahan saldo ke Bos sekarang?`,
+            showCancelButton: true,
+            confirmButtonColor: '#f59e0b',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Minta Saldo ke Bos',
+            cancelButtonText: 'Batal'
+        }).then(res => {
+            if (res.isConfirmed) openRequestDepositModal(selectedProduct.price);
+        });
+        return;
+    }
+
     Swal.fire({
-        title: 'Konfirmasi Transaksi Kasir',
+        title: 'Konfirmasi Penjualan',
         html: `
             <div style="text-align: left; background: #f8fafc; padding: 14px; border-radius: 12px; font-size: 0.88rem; line-height: 1.6;">
                 <div><b>Produk:</b> ${selectedProduct.name}</div>
                 <div><b>Tujuan:</b> ${target}</div>
-                <div><b>Harga Modal Toko:</b> <span style="color: #008779; font-weight: 800;">Rp ${formatRupiah(selectedProduct.price)}</span></div>
+                <div><b>Harga Modal:</b> <span style="color: #008779; font-weight: 800;">Rp ${formatRupiah(selectedProduct.price)}</span></div>
             </div>`,
         icon: 'question',
         showCancelButton: true,
         confirmButtonColor: '#008779',
         cancelButtonColor: '#64748b',
-        confirmButtonText: 'Bayar dengan Saldo Toko',
+        confirmButtonText: 'Bayar dengan Saldo Kasir',
         cancelButtonText: 'Batal'
     }).then(res => {
-        if (res.isConfirmed) {
-            executeCheckout(target, selectedProduct.sku_code);
-        }
+        if (res.isConfirmed) executeCheckout(target, selectedProduct.sku_code);
     });
 }
 
 function executeCheckout(target, sku) {
     Swal.fire({
         title: 'Memproses Transaksi...',
-        text: 'Mengirim permintaan ke provider...',
+        text: 'Mengirim ke provider...',
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading()
     });
@@ -573,20 +893,22 @@ function executeCheckout(target, sku) {
     .then(res => res.json())
     .then(data => {
         if (data.status === 'success') {
-            const trx = data.trx;
             Swal.close();
-            // Tampilkan Struk
-            showReceipt(trx);
+            if (data.remaining_branch_balance !== undefined) {
+                currentBranchBalance = data.remaining_branch_balance;
+                document.getElementById('posBranchBalDisplay').innerText = formatRupiah(currentBranchBalance);
+            }
+            showReceipt(data.trx);
         } else {
             Swal.fire({
                 icon: 'error',
-                title: 'Transaksi Ditolak',
+                title: 'Transaksi Gagal',
                 text: data.message || 'Terjadi kesalahan transaksi.'
             });
         }
     })
     .catch(() => {
-        Swal.fire({ icon: 'error', title: 'Error Koneksi', text: 'Gagal menghubungi server kasir.' });
+        Swal.fire({ icon: 'error', title: 'Error Koneksi', text: 'Gagal terhubung ke server kasir.' });
     });
 }
 
@@ -607,45 +929,146 @@ function closeReceipt() {
     renderProducts([]);
 }
 
-function openShiftHistory() {
-    const modal = document.getElementById('historyModal');
-    const list = document.getElementById('historyList');
-    modal.style.display = 'flex';
-    list.innerHTML = '<div style="text-align: center; color: #94a3b8; font-size: 0.8rem;"><i class="fas fa-spinner fa-spin"></i> Memuat riwayat shift...</div>';
+// 7. RIWAYAT SHIFT
+function loadShiftHistory() {
+    const container = document.getElementById('historyListContainer');
+    container.innerHTML = '<div style="text-align: center; color: #94a3b8; font-size: 0.8rem; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Memuat riwayat...</div>';
 
-    fetch('/kasir/history')
+    fetch('/kasir/history?limit=50')
     .then(res => res.json())
     .then(data => {
         if (data.status === 'success' && data.history.length > 0) {
             let html = '';
             data.history.forEach(t => {
+                const isSuccess = t.status === 'SUCCESS';
+                const badgeColor = isSuccess ? '#dcfce7; color: #166534;' : (t.status === 'PROCESSING' ? '#fef3c7; color: #92400e;' : '#fee2e2; color: #991b1b;');
                 html += `
-                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 12px; font-size: 0.78rem; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="background: white; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 12px; font-size: 0.82rem; display: flex; justify-content: space-between; align-items: center;">
                         <div>
                             <div style="font-weight: 800; color: #0f172a;">${t.product_name}</div>
-                            <div style="font-size: 0.7rem; color: #64748b;">${t.target_number} • ${t.time}</div>
+                            <div style="font-size: 0.72rem; color: #64748b; margin-top: 2px;">${t.target_number} • ${t.time}</div>
+                            <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">Ref: ${t.ref_id}</div>
                         </div>
                         <div style="text-align: right;">
-                            <div style="font-weight: 800; color: #008779;">Rp ${formatRupiah(t.amount)}</div>
-                            <span style="font-size: 0.65rem; font-weight: 800; padding: 2px 6px; border-radius: 6px; background: ${t.status === 'SUCCESS' ? '#dcfce7; color: #166534;' : '#fef3c7; color: #92400e;'}">${t.status}</span>
+                            <div style="font-weight: 900; color: #008779; font-size: 0.95rem;">Rp ${formatRupiah(t.amount)}</div>
+                            <span style="display: inline-block; font-size: 0.65rem; font-weight: 800; padding: 2px 8px; border-radius: 6px; background: ${badgeColor}; margin-top: 4px;">${t.status}</span>
+                            <div style="margin-top: 4px;">
+                                <button type="button" onclick='showReceipt(${JSON.stringify(t)})' style="background: none; border: 1px solid #cbd5e1; border-radius: 6px; padding: 2px 6px; font-size: 0.68rem; font-weight: 700; cursor: pointer; color: #475569;">
+                                    <i class="fas fa-print"></i> Struk
+                                </button>
+                            </div>
                         </div>
                     </div>`;
             });
-            list.innerHTML = html;
+            container.innerHTML = html;
         } else {
-            list.innerHTML = '<div style="text-align: center; color: #94a3b8; font-size: 0.8rem; padding: 20px;">Belum ada transaksi pada shift ini.</div>';
+            container.innerHTML = '<div style="text-align: center; color: #94a3b8; font-size: 0.8rem; padding: 30px;">Belum ada transaksi pada shift ini.</div>';
         }
     })
     .catch(() => {
-        list.innerHTML = '<div style="text-align: center; color: #ef4444; font-size: 0.8rem;">Gagal memuat riwayat.</div>';
+        container.innerHTML = '<div style="text-align: center; color: #ef4444; font-size: 0.8rem; padding: 20px;">Gagal memuat riwayat transaksi.</div>';
     });
 }
 
-function closeShiftHistory() {
-    document.getElementById('historyModal').style.display = 'none';
+// 8. MUTASI SALDO
+function loadMutations() {
+    const container = document.getElementById('mutationsListContainer');
+    container.innerHTML = '<div style="text-align: center; color: #94a3b8; font-size: 0.8rem; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Memuat mutasi...</div>';
+
+    fetch('/kasir/mutations')
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'success' && data.mutations.length > 0) {
+            let html = '';
+            data.mutations.forEach(m => {
+                const isPlus = ['TOPUP_FROM_OWNER', 'REFUND'].includes(m.type);
+                const sign = isPlus ? '+' : '-';
+                const signColor = isPlus ? '#059669' : '#dc2626';
+                const icon = m.type === 'TOPUP_FROM_OWNER' ? 'fa-arrow-down' : (m.type === 'SALE' ? 'fa-shopping-cart' : 'fa-undo');
+
+                html += `
+                    <div style="background: white; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 12px; font-size: 0.82rem; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 6px;">
+                                <i class="fas ${icon}" style="color: ${signColor};"></i> ${m.description}
+                            </div>
+                            <div style="font-size: 0.72rem; color: #64748b; margin-top: 3px;">
+                                Shift: <b>${m.shift_name}</b> • ${m.time}
+                            </div>
+                            <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">
+                                Sisa saldo setelahnya: Rp ${formatRupiah(m.balance_after)}
+                            </div>
+                        </div>
+                        <div style="text-align: right; font-weight: 900; font-size: 1rem; color: ${signColor}; white-space: nowrap;">
+                            ${sign} Rp ${formatRupiah(m.amount)}
+                        </div>
+                    </div>`;
+            });
+            container.innerHTML = html;
+        } else {
+            container.innerHTML = '<div style="text-align: center; color: #94a3b8; font-size: 0.8rem; padding: 30px;">Belum ada catatan mutasi saldo.</div>';
+        }
+    })
+    .catch(() => {
+        container.innerHTML = '<div style="text-align: center; color: #ef4444; font-size: 0.8rem; padding: 20px;">Gagal memuat mutasi saldo.</div>';
+    });
+}
+
+// 9. PERMINTAAN SALDO KE BOS
+function openRequestDepositModal(suggestedAmount) {
+    document.getElementById('modalCurrentBal').innerText = formatRupiah(currentBranchBalance);
+    document.getElementById('reqAmountInput').value = suggestedAmount ? Math.ceil(suggestedAmount / 50000) * 50000 : '';
+    document.getElementById('requestDepositModal').style.display = 'flex';
+}
+
+function closeRequestDepositModal() {
+    document.getElementById('requestDepositModal').style.display = 'none';
+}
+
+function setReqAmount(amt) {
+    document.getElementById('reqAmountInput').value = amt;
+}
+
+function submitRequestDeposit() {
+    const amt = document.getElementById('reqAmountInput').value;
+    const note = document.getElementById('reqNoteInput').value.trim();
+
+    if (!amt || Number(amt) <= 0) {
+        Swal.fire({ icon: 'warning', title: 'Nominal Kosong', text: 'Masukkan nominal saldo yang diminta.' });
+        return;
+    }
+
+    Swal.fire({
+        title: 'Mengirim Permintaan...',
+        text: 'Menghubungi WhatsApp Owner...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    fetch('/kasir/request_deposit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: amt, note: note })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'success') {
+            closeRequestDepositModal();
+            Swal.fire({
+                icon: 'success',
+                title: 'Permintaan Terkirim! 🚀',
+                text: 'Bot WhatsApp telah mengirimkan permohonan saldo ke Owner toko Anda.',
+                confirmButtonColor: '#008779'
+            });
+        } else {
+            Swal.fire({ icon: 'error', title: 'Gagal Mengirim', text: data.message });
+        }
+    })
+    .catch(() => {
+        Swal.fire({ icon: 'error', title: 'Error Koneksi', text: 'Gagal terhubung ke server kasir.' });
+    });
 }
 </script>
 
 </body>
 </html>
-

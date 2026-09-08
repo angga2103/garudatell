@@ -114,6 +114,14 @@
     <h2 style="margin: 0 0 6px 0; font-size: 1.3rem; font-weight: 900;">Buka Shift Kasir</h2>
     <p style="margin: 0; font-size: 0.8rem; color: #94a3b8;">Masukkan PIN Kasir Cabang untuk memulai transaksi.</p>
 
+    <!-- NAMA KASIR / SHIFT -->
+    <div style="margin: 16px 0 10px 0; text-align: left;">
+        <label style="font-size: 0.72rem; font-weight: 800; color: #94a3b8; display: block; margin-bottom: 5px;">
+            <i class="fas fa-user-clock" style="color: #10b981;"></i> NAMA KASIR / SHIFT BERTUGAS:
+        </label>
+        <input type="text" id="shiftNameInput" placeholder="Contoh: Budi (Shift Pagi)" value="Kasir 1 (Pagi)" style="width: 100%; background: rgba(255,255,255,0.08); border: 1.5px solid rgba(255,255,255,0.15); border-radius: 12px; padding: 9px 12px; color: white; font-weight: 700; font-size: 0.88rem; outline: none; box-sizing: border-box;">
+    </div>
+
     <!-- PIN DOTS -->
     <div class="pin-dots" id="pinDots">
         <div class="dot" id="dot1"></div>
@@ -184,6 +192,10 @@ function clearPin() {
 
 // Support Physical Keyboard
 document.addEventListener('keydown', function(e) {
+    if (e.target && e.target.tagName === 'INPUT') {
+        // Jangan intercept jika sedang mengetik di input nama shift
+        return;
+    }
     if (e.key >= '0' && e.key <= '9') {
         pressKey(e.key);
     } else if (e.key === 'Backspace') {
@@ -200,11 +212,13 @@ function submitPin() {
         return;
     }
 
+    const shiftName = document.getElementById('shiftNameInput').value.trim() || 'Kasir Toko';
+
     // Tampilkan loading singkat
     fetch('/kasir/login_pin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin: pinBuffer })
+        body: JSON.stringify({ pin: pinBuffer, shift_name: shiftName })
     })
     .then(res => res.json())
     .then(data => {

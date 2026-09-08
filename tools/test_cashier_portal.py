@@ -231,7 +231,7 @@ class TestCashierPortal(unittest.TestCase):
         res_index2 = self.client.get('/kasir/')
         self.assertEqual(res_index2.status_code, 200)
         self.assertIn("Cabang Utama", res_index2.data.decode('utf-8'))
-        self.assertIn("Siap Transaksi", res_index2.data.decode('utf-8'))
+        self.assertIn("Kasir POS", res_index2.data.decode('utf-8'))
 
     def test_08_cashier_products_catalog(self):
         """Memastikan endpoint /kasir/products mengembalikan harga VIP toko."""
@@ -261,10 +261,12 @@ class TestCashierPortal(unittest.TestCase):
         )
         test_uuid = "uuid_sudirman"
         activate_cashier_device(dev.activation_token, test_uuid)
+        dev.branch_balance = 100000.0
+        db.session.commit()
         self.client.set_cookie('gt_device_token', test_uuid, domain='localhost')
-        self.client.post('/kasir/login_pin', json={'pin': '778899'})
+        self.client.post('/kasir/login_pin', json={'pin': '778899', 'shift_name': 'Budi (Shift Pagi)'})
 
-        initial_balance = self.vip_owner.balance
+        initial_branch_balance = dev.branch_balance
 
         # Eksekusi checkout
         res = self.client.post('/kasir/checkout', json={
@@ -277,9 +279,9 @@ class TestCashierPortal(unittest.TestCase):
         self.assertEqual(data['trx']['branch_name'], "Cabang Sudirman")
         self.assertEqual(data['trx']['sn'], "SN-KASIR-12345")
 
-        # Cek saldo Owner terpotong
-        updated_owner = db.session.get(User, self.vip_owner.id)
-        self.assertLess(updated_owner.balance, initial_balance)
+        # Cek saldo cabang kasir terpotong
+        updated_dev = db.session.get(TrustedDevice, dev.id)
+        self.assertLess(updated_dev.branch_balance, initial_branch_balance)
 
         # Cek transaksi tercatat di database dengan device_id
         trx = Transaction.query.filter_by(ref_id=data['trx']['ref_id']).first()
@@ -299,6 +301,8 @@ class TestCashierPortal(unittest.TestCase):
         )
         test_uuid = "uuid_limit_test"
         activate_cashier_device(dev.activation_token, test_uuid)
+        dev.branch_balance = 50000.0
+        db.session.commit()
         self.client.set_cookie('gt_device_token', test_uuid, domain='localhost')
         self.client.post('/kasir/login_pin', json={'pin': '1234'})
 

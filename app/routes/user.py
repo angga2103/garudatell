@@ -2016,6 +2016,9 @@ def vip_devices():
     if current_device_uuid:
         current_device = TrustedDevice.query.filter_by(user_id=current_user.id, device_uuid=current_device_uuid).first()
 
+    # Total saldo yang sedang dialokasikan di seluruh cabang kasir
+    total_branch_balance = sum((d.branch_balance or 0.0) for d in devices if d.status == 'approved')
+
     return render_template(
         'user/devices.html',
         devices=devices,
@@ -2023,7 +2026,8 @@ def vip_devices():
         period=period,
         current_device=current_device,
         current_device_uuid=current_device_uuid,
-        is_lock_enabled=bool(current_user.is_device_lock_enabled)
+        is_lock_enabled=bool(current_user.is_device_lock_enabled),
+        total_branch_balance=total_branch_balance
     )
 
 
@@ -2241,6 +2245,45 @@ def get_activation_link_route(device_id):
         return jsonify({'status': 'success', 'activation_url': act_url, 'message': msg}), 200
     else:
         return jsonify({'status': 'error', 'message': msg}), 400
+
+
+@user_bp.route('/vip/device/transfer-balance', methods=['POST'])
+@login_required
+@csrf.exempt
+def transfer_balance_to_branch_route():
+    """Owner mentransfer saldo utama ke saldo kasir cabang."""
+    if not current_user.is_vip_active():
+        return jsonify({'status': 'error', 'message': 'Hanya akun VIP aktif yang dapat mentransfer saldo cabang.'}), 403
+
+    data = request.get_json(silent=True) or request.form.to_dict() or {}
+    device_id = data.get('device_id')
+    amount = data.get('amount')
+    shift_name = data.get('shift_name')
+
+    from app.services.device_service import transfer_balance_to_branch
+    ok, msg = transfer_balance_to_branch(current_user.id, device_id, amount, shift_name=shift_name)
+    if ok:
+        return jsonify({'status': 'success', 'message': msg, 'owner_balance': current_user.balance}), 200
+    return jsonify({'status': 'error', 'message': msg}), 400
+
+
+@user_bp.route('/vip/device/withdraw-balance', methods=['POST'])
+@login_required
+@csrf.exempt
+def withdraw_balance_from_branch_route():
+    """Owner menarik saldo cabang kembali ke saldo utama Owner."""
+    if not current_user.is_vip_active():
+        return jsonify({'status': 'error', 'message': 'Hanya akun VIP aktif yang dapat menarik saldo cabang.'}), 403
+
+    data = request.get_json(silent=True) or request.form.to_dict() or {}
+    device_id = data.get('device_id')
+    amount = data.get('amount')
+
+    from app.services.device_service import withdraw_balance_from_branch
+    ok, msg = withdraw_balance_from_branch(current_user.id, device_id, amount)
+    if ok:
+        return jsonify({'status': 'success', 'message': msg, 'owner_balance': current_user.balance}), 200
+    return jsonify({'status': 'error', 'message': msg}), 400
 
 
 

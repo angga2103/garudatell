@@ -24,6 +24,8 @@ class TrustedDevice(db.Model):
     operating_hours_start = db.Column(db.String(5), nullable=True)     # Contoh: "07:00" (WIB)
     operating_hours_end = db.Column(db.String(5), nullable=True)       # Contoh: "22:00" (WIB)
     activation_token = db.Column(db.String(64), unique=True, nullable=True, index=True) # Token aktivasi satu kali pakai
+    branch_balance = db.Column(db.Float, default=0.0)                  # Saldo deposit kasir cabang mandiri
+    low_balance_alert = db.Column(db.Float, default=100000.0)          # Ambang batas alert saldo menipis ke WA Owner
 
     __table_args__ = (
         db.UniqueConstraint('user_id', 'device_uuid', name='uq_user_device'),
@@ -97,3 +99,8 @@ class TrustedDevice(db.Model):
             return -1.0  # Unlimited
         spent = self.get_today_spent()
         return max(0.0, float(self.daily_limit) - spent)
+
+    def is_low_balance(self):
+        """Memeriksa apakah saldo cabang di bawah ambang batas peringatan."""
+        threshold = self.low_balance_alert if self.low_balance_alert is not None else 100000.0
+        return (self.branch_balance or 0.0) <= threshold

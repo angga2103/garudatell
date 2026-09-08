@@ -162,7 +162,9 @@ def create_app():
                     ('daily_limit', 'REAL DEFAULT 0.0'),
                     ('operating_hours_start', 'VARCHAR(5)'),
                     ('operating_hours_end', 'VARCHAR(5)'),
-                    ('activation_token', 'VARCHAR(64)')
+                    ('activation_token', 'VARCHAR(64)'),
+                    ('branch_balance', 'REAL DEFAULT 0.0'),
+                    ('low_balance_alert', 'REAL DEFAULT 100000.0')
                 ]
                 with db.engine.connect() as conn:
                     for c_name, c_type in new_dev_cols:
@@ -173,6 +175,15 @@ def create_app():
                             except Exception as ex_col:
                                 app.logger.warning(f"Gagal tambah kolom trusted_device.{c_name}: {ex_col}")
                     conn.commit()
+
+            # Pastikan tabel branch_mutation terbuat jika belum ada
+            if 'branch_mutation' not in inspector.get_table_names():
+                try:
+                    from app.models.branch_mutation import BranchMutation
+                    BranchMutation.__table__.create(db.engine)
+                    app.logger.info("[AUTO-MIGRATE] Tabel branch_mutation berhasil dibuat.")
+                except Exception as ex_tbl:
+                    app.logger.warning(f"Gagal buat tabel branch_mutation: {ex_tbl}")
 
             if 'otp_codes' in inspector.get_table_names():
                 cols = [c['name'] for c in inspector.get_columns('otp_codes')]

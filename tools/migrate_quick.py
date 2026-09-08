@@ -100,7 +100,9 @@ new_dev_cols = [
     ("daily_limit", "REAL DEFAULT 0.0"),
     ("operating_hours_start", "VARCHAR(5)"),
     ("operating_hours_end", "VARCHAR(5)"),
-    ("activation_token", "VARCHAR(64)")
+    ("activation_token", "VARCHAR(64)"),
+    ("branch_balance", "REAL DEFAULT 0.0"),
+    ("low_balance_alert", "REAL DEFAULT 100000.0")
 ]
 
 for col_name, col_type in new_dev_cols:
@@ -112,6 +114,25 @@ for col_name, col_type in new_dev_cols:
             print(f"  [!] Gagal tambah kolom trusted_device.{col_name}: {e}")
     else:
         print(f"  [i] Kolom 'trusted_device.{col_name}' sudah ada.")
+
+# 5. Buat tabel branch_mutation jika belum ada
+cur.execute("""
+CREATE TABLE IF NOT EXISTS branch_mutation (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    device_id INTEGER NOT NULL REFERENCES trusted_device(id),
+    user_id INTEGER NOT NULL REFERENCES user(id),
+    type VARCHAR(30) NOT NULL,
+    amount REAL NOT NULL,
+    balance_before REAL DEFAULT 0.0,
+    balance_after REAL DEFAULT 0.0,
+    description VARCHAR(255),
+    shift_name VARCHAR(100) DEFAULT 'Kasir',
+    created_at DATETIME
+);
+""")
+cur.execute("CREATE INDEX IF NOT EXISTS idx_bmut_dev_created ON branch_mutation (device_id, created_at);")
+cur.execute("CREATE INDEX IF NOT EXISTS idx_bmut_user_created ON branch_mutation (user_id, created_at);")
+cur.execute("CREATE INDEX IF NOT EXISTS idx_bmut_type ON branch_mutation (type);")
 
 cur.execute("CREATE INDEX IF NOT EXISTS idx_device_user ON trusted_device (user_id);")
 cur.execute("CREATE INDEX IF NOT EXISTS idx_device_uuid ON trusted_device (device_uuid);")

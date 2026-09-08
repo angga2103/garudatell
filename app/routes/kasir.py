@@ -8,6 +8,7 @@ from app.models.user import User
 from app.models.product import Product
 from app.models.transaction import Transaction
 from app.models.trusted_device import TrustedDevice
+from app.models.branch_mutation import BranchMutation
 from app.services.device_service import (
     activate_cashier_device,
     login_cashier_pin,
@@ -53,6 +54,7 @@ def index():
         
         remaining_limit = active_device.get_remaining_daily_limit()
         today_spent = active_device.get_today_spent()
+        shift_name = session.get('cashier_shift_name', 'Kasir Utama')
 
         return render_template(
             'kasir/pos.html',
@@ -60,7 +62,9 @@ def index():
             device=active_device,
             owner=owner,
             remaining_limit=remaining_limit,
-            today_spent=today_spent
+            today_spent=today_spent,
+            branch_balance=float(active_device.branch_balance or 0.0),
+            shift_name=shift_name
         )
 
     # 2. Cek Token Perangkat di Cookie
@@ -157,9 +161,12 @@ def login_pin():
     if not ok:
         return jsonify({'status': 'error', 'message': msg}), 400
 
+    shift_name = str(data.get('shift_name', '')).strip() or 'Kasir Toko'
+
     # Simpan sesi kasir
     session['cashier_device_id'] = device.id
     session['cashier_user_id'] = owner.id
+    session['cashier_shift_name'] = shift_name
 
     return jsonify({
         'status': 'success',
@@ -173,6 +180,7 @@ def logout():
     """Tutup sesi kasir / ganti shift (kembali ke layar input PIN)."""
     session.pop('cashier_device_id', None)
     session.pop('cashier_user_id', None)
+    session.pop('cashier_shift_name', None)
     return redirect('/kasir')
 
 
@@ -186,21 +194,57 @@ def get_products():
     owner = User.query.get(active_device.user_id)
     category = request.args.get('category', '').strip().upper()
     brand = request.args.get('brand', '').strip().upper()
+    search_q = request.args.get('q', '').strip()
 
     query = Product.query.filter_by(is_active=True)
 
-    if category:
-        if category in ['PULSA', 'DATA', 'PLN', 'GAMES']:
-            query = query.filter(Product.category.ilike(f"%{category}%"))
+    if category and category != 'ALL':
+        if category == 'PULSA':
+            query = query.filter(Product.category.ilike("%pulsa%"))
+        elif category == 'DATA':
+            query = query.filter(
+                (Product.category.ilike('%data%')) | 
+                (Product.category.ilike('%kuota%')) | 
+                (Product.category.ilike('%internet%'))
+            )
+        elif category in ['TELPSMS', 'TELP_SMS', 'TELP']:
+            query = query.filter(
+                (Product.category.ilike('%telp%')) | 
+                (Product.category.ilike('%sms%'))
+            )
+        elif category in ['MASAAKTIF', 'MASA_AKTIF']:
+            query = query.filter(Product.category.ilike("%masa%"))
+        elif category == 'PLN':
+            query = query.filter(Product.category.ilike("%pln%"))
         elif category == 'EMONEY':
             query = query.filter(
-                (Product.category.ilike('%E-MONEY%')) | 
-                (Product.category.ilike('%WALLET%')) | 
-                (Product.category.ilike('%EMONEY%'))
+                (Product.category.ilike('%e-money%')) | 
+                (Product.category.ilike('%wallet%')) | 
+                (Product.category.ilike('%emoney%'))
             )
+        elif category in ['GAMES', 'GAME']:
+            query = query.filter(
+                (Product.category.ilike('%game%')) | 
+                (Product.category.ilike('%voucher%'))
+            )
+        elif category in ['TV', 'STREAMING']:
+            query = query.filter(
+                (Product.category.ilike('%tv%')) | 
+                (Product.category.ilike('%parabola%')) | 
+                (Product.category.ilike('%streaming%'))
+            )
+        else:
+            query = query.filter(Product.category.ilike(f"%{category}%"))
 
     if brand:
         query = query.filter(Product.brand.ilike(f"%{brand}%"))
+
+    if search_q:
+        query = query.filter(
+            (Product.name.ilike(f"%{search_q}%")) | 
+            (Product.sku_code.ilike(f"%{search_q}%")) | 
+            (Product.brand.ilike(f"%{search_q}%"))
+        )
 
     products = query.order_by(Product.sell_price.asc()).all()
 
@@ -224,34 +268,81 @@ def get_products():
     }), 200
 
 
+@kasir_bp.route('/brands', methods=['GET'])
+def get_brands():
+    """Mengambil daftar brand unik untuk kategori tertentu."""
+    category = request.args.get('category', '').strip().upper()
+    query = Product.query.filter_by(is_active=True)
+
+    if category == 'EMONEY':
+        query = query.filter(
+            (Product.category.ilike('%e-money%')) | 
+            (Product.category.ilike('%wallet%')) | 
+            (Product.category.ilike('%emoney%'))
+        )
+    elif category in ['GAMES', 'GAME']:
+        query = query.filter(
+            (Product.category.ilike('%game%')) | 
+            (Product.category.ilike('%voucher%'))
+        )
+    elif category in ['TV', 'STREAMING']:
+        query = query.filter(
+            (Product.category.ilike('%tv%')) | 
+            (Product.category.ilike('%parabola%')) | 
+            (Product.category.ilike('%streaming%'))
+        )
+    elif category == 'PULSA':
+        query = query.filter(Product.category.ilike('%pulsa%'))
+    elif category == 'DATA':
+        query = query.filter(
+            (Product.category.ilike('%data%')) | 
+            (Product.category.ilike('%kuota%')) | 
+            (Product.category.ilike('%internet%'))
+        )
+    elif category in ['TELPSMS', 'TELP_SMS']:
+        query = query.filter(
+            (Product.category.ilike('%telp%')) | 
+            (Product.category.ilike('%sms%'))
+        )
+    elif category in ['MASAAKTIF', 'MASA_AKTIF']:
+        query = query.filter(Product.category.ilike('%masa%'))
+
+    raw_brands = [b[0].strip() for b in query.with_entities(Product.brand).distinct().order_by(Product.brand.asc()).all() if b[0]]
+    clean_brands = []
+    for b in raw_brands:
+        cb = b.replace('VIP-', '').strip()
+        if cb and cb not in clean_brands:
+            clean_brands.append(cb)
+
+    return jsonify({'status': 'success', 'brands': clean_brands}), 200
+
+
 @kasir_bp.route('/checkout', methods=['POST'])
 @csrf.exempt
 @limiter.limit("30 per minute")
 def checkout():
     """
-    Eksekusi Transaksi Penjualan dari Portal Kasir menggunakan Saldo Toko Owner.
-    Menerapkan validasi limit harian dan jam operasional cabang.
+    Eksekusi Transaksi Penjualan dari Portal Kasir menggunakan Saldo Khusus Cabang Ini.
+    Menerapkan validasi saldo cabang, limit harian, dan jam operasional cabang.
     """
     active_device = get_current_cashier_device()
     if not active_device:
         return jsonify({'status': 'error', 'message': 'Sesi kasir telah berakhir. Masukkan PIN kembali.'}), 401
 
-    owner = db.session.query(User).filter_by(id=active_device.user_id).with_for_update().first()
+    owner = db.session.query(User).filter_by(id=active_device.user_id).first()
     if not owner or not owner.is_vip_active():
-        db.session.rollback()
         return jsonify({'status': 'error', 'message': 'Akun VIP toko tidak aktif atau telah kedaluwarsa.'}), 403
 
     req_data = request.get_json(silent=True) or request.form.to_dict() or {}
     sku_code = str(req_data.get('sku_code', '')).strip()
     target_number = str(req_data.get('target_number', '')).strip()
+    shift_name = session.get('cashier_shift_name', 'Kasir Toko')
 
     if not sku_code or not target_number:
-        db.session.rollback()
         return jsonify({'status': 'error', 'message': 'Produk dan Nomor Tujuan wajib diisi!'}), 400
 
     product = Product.query.filter_by(sku_code=sku_code, is_active=True).first()
     if not product:
-        db.session.rollback()
         return jsonify({'status': 'error', 'message': 'Produk tidak ditemukan atau sedang dinonaktifkan.'}), 404
 
     # Harga modal VIP untuk toko
@@ -260,19 +351,22 @@ def checkout():
     # 1. Validasi Batasan Operasional & Limit Harian Cabang
     lim_ok, lim_err = verify_cashier_transaction_limits(active_device, amount)
     if not lim_ok:
-        db.session.rollback()
         return jsonify({'status': 'error', 'message': lim_err}), 400
 
-    # 2. Validasi Saldo Akun Toko
-    if owner.balance < amount:
-        db.session.rollback()
+    # 2. Validasi Saldo Khusus Cabang Ini (Branch Balance)
+    cur_branch_bal = float(active_device.branch_balance or 0.0)
+    if cur_branch_bal < amount:
         return jsonify({
             'status': 'error',
-            'message': 'Saldo Toko tidak mencukupi untuk melakukan transaksi ini. Hubungi Owner untuk isi deposit toko.'
+            'is_low_balance': True,
+            'message': f'Saldo kasir cabang tidak mencukupi (Sisa: Rp {cur_branch_bal:,.0f}, Diperlukan: Rp {amount:,.0f}). Silakan gunakan tombol "Minta Tambah Saldo ke Bos".'
         }), 400
 
-    # 3. Potong Saldo Toko & Catat Transaksi
-    owner.balance -= amount
+    # 3. Potong Saldo Cabang & Catat Transaksi + Mutasi
+    bal_before = cur_branch_bal
+    active_device.branch_balance = bal_before - amount
+    bal_after = float(active_device.branch_balance)
+
     ref_id = f"KASIR-{int(time.time()*1000)}{random.randint(10, 99)}"
 
     new_trx = Transaction(
@@ -290,12 +384,25 @@ def checkout():
         device_name=active_device.device_name
     )
     db.session.add(new_trx)
+
+    # Catat mutasi cabang
+    mut_sale = BranchMutation(
+        device_id=active_device.id,
+        user_id=owner.id,
+        type='SALE',
+        amount=amount,
+        balance_before=bal_before,
+        balance_after=bal_after,
+        description=f"Penjualan {product.name} ({target_number})",
+        shift_name=shift_name,
+        created_at=datetime.utcnow()
+    )
+    db.session.add(mut_sale)
     active_device.last_used_at = datetime.utcnow()
     db.session.commit()
 
     # 4. Eksekusi ke Provider (Digiflazz / VIP-Reseller)
     is_vip_provider = 'VIP' in (product.brand or '').upper() or 'VOUCHER' in (product.category or '').upper()
-    provider_msg = "Transaksi sedang diproses..."
 
     if is_vip_provider:
         from app.services.vip_reseller import VIPReseller
@@ -308,9 +415,21 @@ def checkout():
             new_trx.status = 'PROCESSING'
             db.session.commit()
         else:
-            # Gagal di provider -> Refund
+            # Gagal di provider -> Refund ke saldo cabang
             raw_msg = str(order_res.get('message', 'Ditolak API Provider'))
-            owner.balance += amount
+            active_device.branch_balance += amount
+            mut_ref = BranchMutation(
+                device_id=active_device.id,
+                user_id=owner.id,
+                type='REFUND',
+                amount=amount,
+                balance_before=bal_after,
+                balance_after=bal_after + amount,
+                description=f"Refund transaksi gagal ({raw_msg})",
+                shift_name=shift_name,
+                created_at=datetime.utcnow()
+            )
+            db.session.add(mut_ref)
             new_trx.status = 'FAILED'
             new_trx.sn = raw_msg
             db.session.commit()
@@ -323,16 +442,34 @@ def checkout():
             new_trx.sn = d_data.get('sn')
             db.session.commit()
         else:
-            # Gagal di digiflazz -> Refund
-            owner.balance += amount
+            # Gagal di digiflazz -> Refund ke saldo cabang
+            raw_msg = str(msg_digi or 'Ditolak Digiflazz')
+            active_device.branch_balance += amount
+            mut_ref = BranchMutation(
+                device_id=active_device.id,
+                user_id=owner.id,
+                type='REFUND',
+                amount=amount,
+                balance_before=bal_after,
+                balance_after=bal_after + amount,
+                description=f"Refund transaksi gagal ({raw_msg})",
+                shift_name=shift_name,
+                created_at=datetime.utcnow()
+            )
+            db.session.add(mut_ref)
             new_trx.status = 'FAILED'
-            new_trx.sn = msg_digi
+            new_trx.sn = raw_msg
             db.session.commit()
-            return jsonify({'status': 'error', 'message': f'Gagal di server provider: {msg_digi}'}), 400
+            return jsonify({'status': 'error', 'message': f'Gagal di server provider: {raw_msg}'}), 400
+
+    # 5. Cek Peringatan Saldo Menipis (Alert otomatis WhatsApp ke Owner jika < Rp 100.000)
+    from app.services.device_service import check_and_notify_low_balance
+    check_and_notify_low_balance(active_device, shift_name=shift_name, base_url=request.host_url)
 
     return jsonify({
         'status': 'success',
         'message': 'Transaksi Kasir Berhasil Diproses!',
+        'remaining_branch_balance': float(active_device.branch_balance or 0.0),
         'trx': {
             'ref_id': new_trx.ref_id,
             'product_name': new_trx.product_name,
@@ -348,12 +485,13 @@ def checkout():
 
 @kasir_bp.route('/history')
 def history():
-    """Mengambil 30 riwayat transaksi khusus cabang kasir ini."""
+    """Mengambil riwayat transaksi khusus cabang kasir ini."""
     active_device = get_current_cashier_device()
     if not active_device:
         return jsonify({'status': 'error', 'message': 'Sesi kasir tidak aktif'}), 401
 
-    trxs = get_branch_cashier_history(active_device.id, limit=30)
+    limit = int(request.args.get('limit', 50))
+    trxs = get_branch_cashier_history(active_device.id, limit=limit)
     data = []
     for t in trxs:
         data.append({
@@ -366,5 +504,67 @@ def history():
             'time': t.created_at_wib
         })
 
-    return jsonify({'status': 'success', 'history': data}), 200
+    return jsonify({
+        'status': 'success',
+        'history': data,
+        'current_balance': float(active_device.branch_balance or 0.0)
+    }), 200
+
+
+@kasir_bp.route('/mutations')
+def mutations():
+    """Mengambil riwayat mutasi saldo masuk/keluar cabang kasir."""
+    active_device = get_current_cashier_device()
+    if not active_device:
+        return jsonify({'status': 'error', 'message': 'Sesi kasir tidak aktif'}), 401
+
+    from app.services.device_service import get_branch_mutations
+    muts = get_branch_mutations(active_device.id, limit=50)
+    data = []
+    for m in muts:
+        data.append({
+            'id': m.id,
+            'type': m.type,
+            'amount': m.amount,
+            'balance_before': m.balance_before,
+            'balance_after': m.balance_after,
+            'description': m.description or '',
+            'shift_name': m.shift_name or 'Kasir Toko',
+            'time': m.created_at_wib,
+            'date': m.date_wib,
+            'clock': m.time_wib
+        })
+
+    return jsonify({
+        'status': 'success',
+        'mutations': data,
+        'current_balance': float(active_device.branch_balance or 0.0)
+    }), 200
+
+
+@kasir_bp.route('/request_deposit', methods=['POST'])
+@csrf.exempt
+@limiter.limit("10 per minute")
+def request_deposit():
+    """Kasir cabang mengirimkan permohonan saldo ke WhatsApp Owner."""
+    active_device = get_current_cashier_device()
+    if not active_device:
+        return jsonify({'status': 'error', 'message': 'Sesi kasir tidak aktif'}), 401
+
+    data = request.get_json(silent=True) or request.form.to_dict() or {}
+    requested_amount = data.get('amount')
+    note = data.get('note', '')
+    shift_name = session.get('cashier_shift_name', 'Kasir Toko')
+
+    from app.services.device_service import request_branch_deposit_via_wa
+    ok, msg = request_branch_deposit_via_wa(
+        device_id=active_device.id,
+        requested_amount=requested_amount,
+        shift_name=shift_name,
+        note=note,
+        base_url=request.host_url
+    )
+    if ok:
+        return jsonify({'status': 'success', 'message': msg}), 200
+    return jsonify({'status': 'error', 'message': msg}), 400
 

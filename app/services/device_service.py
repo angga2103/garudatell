@@ -4,6 +4,7 @@ from app.extensions import db
 from app.models.trusted_device import TrustedDevice
 from app.models.user import User
 from app.models.transaction import Transaction
+from app.models.branch_mutation import BranchMutation
 from app.wa_helper import kirim_wa
 import logging
 
@@ -471,5 +472,185 @@ def get_branch_cashier_history(device_id, limit=50):
     from app.models.transaction import Transaction
     trxs = Transaction.query.filter_by(device_id=device_id).order_by(Transaction.created_at.desc()).limit(limit).all()
     return trxs
+
+
+def transfer_balance_to_branch(owner_id, device_id, amount, shift_name=None):
+    """
+    Owner mentransfer/mengalokasikan saldo dari Saldo Utama ke Saldo Cabang Kasir.
+    Owner TIDAK BISA mengirim saldo melebihi saldo utama miliknya sendiri.
+    """
+    try:
+        amt = float(amount)
+        if amt <= 0:
+            return False, "Nominal transfer saldo harus lebih dari Rp 0."
+    except (ValueError, TypeError):
+        return False, "Nominal transfer tidak valid."
+
+    owner = db.session.query(User).filter_by(id=owner_id).with_for_update().first()
+    if not owner or not owner.is_vip_active():
+        db.session.rollback()
+        return False, "Hanya akun VIP aktif yang dapat mentransfer saldo ke cabang."
+
+    device = TrustedDevice.query.filter_by(id=device_id, user_id=owner_id).first()
+    if not device:
+        db.session.rollback()
+        return False, "Cabang kasir tidak ditemukan."
+
+    # Validasi saldo Owner
+    if (owner.balance or 0.0) < amt:
+        db.session.rollback()
+        sisa = owner.balance or 0.0
+        return False, f"Gagal: Saldo Utama Anda tidak mencukupi (Tersedia: Rp {sisa:,.0f}, Diminta: Rp {amt:,.0f}). Tarik saldo dari cabang lain terlebih dahulu atau isi deposit Anda."
+
+    bal_before = float(device.branch_balance or 0.0)
+    device.branch_balance = bal_before + amt
+    bal_after = float(device.branch_balance)
+    owner.balance -= amt
+
+    # Catat ke tabel mutasi saldo cabang
+    clean_shift = str(shift_name or 'Kasir Toko').strip()
+    mut = BranchMutation(
+        device_id=device.id,
+        user_id=owner.id,
+        type='TOPUP_FROM_OWNER',
+        amount=amt,
+        balance_before=bal_before,
+        balance_after=bal_after,
+        description=f"Penambahan saldo deposit dari Owner (Penerima: {clean_shift})",
+        shift_name=clean_shift,
+        created_at=datetime.utcnow()
+    )
+    db.session.add(mut)
+    db.session.commit()
+
+    return True, f"Berhasil mengirim saldo Rp {amt:,.0f} ke {device.device_name}. Saldo cabang saat ini: Rp {bal_after:,.0f}."
+
+
+def withdraw_balance_from_branch(owner_id, device_id, amount):
+    """
+    Owner menarik sebagian/seluruh saldo dari Cabang Kasir kembali ke Saldo Utama Owner.
+    Saldo yang ditarik bisa dialihkan ke cabang lain atau dipakai sendiri oleh Owner.
+    """
+    try:
+        amt = float(amount)
+        if amt <= 0:
+            return False, "Nominal penarikan saldo harus lebih dari Rp 0."
+    except (ValueError, TypeError):
+        return False, "Nominal penarikan tidak valid."
+
+    owner = db.session.query(User).filter_by(id=owner_id).with_for_update().first()
+    if not owner or not owner.is_vip_active():
+        db.session.rollback()
+        return False, "Hanya akun VIP aktif yang dapat menarik saldo cabang."
+
+    device = TrustedDevice.query.filter_by(id=device_id, user_id=owner_id).first()
+    if not device:
+        db.session.rollback()
+        return False, "Cabang kasir tidak ditemukan."
+
+    cur_branch_bal = float(device.branch_balance or 0.0)
+    if cur_branch_bal < amt:
+        db.session.rollback()
+        return False, f"Gagal: Saldo cabang {device.device_name} hanya tersisa Rp {cur_branch_bal:,.0f}."
+
+    bal_before = cur_branch_bal
+    device.branch_balance = bal_before - amt
+    bal_after = float(device.branch_balance)
+    owner.balance = (owner.balance or 0.0) + amt
+
+    # Catat mutasi penarikan
+    mut = BranchMutation(
+        device_id=device.id,
+        user_id=owner.id,
+        type='WITHDRAW_TO_OWNER',
+        amount=amt,
+        balance_before=bal_before,
+        balance_after=bal_after,
+        description="Penarikan saldo cabang oleh Owner",
+        shift_name="Owner",
+        created_at=datetime.utcnow()
+    )
+    db.session.add(mut)
+    db.session.commit()
+
+    return True, f"Berhasil menarik saldo Rp {amt:,.0f} dari {device.device_name} ke Saldo Utama Anda. Saldo cabang tersisa: Rp {bal_after:,.0f}."
+
+
+def request_branch_deposit_via_wa(device_id, requested_amount=None, shift_name=None, note=None, base_url=None):
+    """
+    Mengirimkan permohonan deposit saldo dari Kasir Cabang ke WhatsApp Owner.
+    """
+    device = TrustedDevice.query.get(device_id)
+    if not device:
+        return False, "Perangkat kasir tidak ditemukan."
+
+    owner = User.query.get(device.user_id)
+    if not owner or not owner.phone:
+        return False, "Nomor WhatsApp Owner tidak ditemukan."
+
+    req_amt_str = f"Rp {float(requested_amount):,.0f}" if requested_amount else "Sesuai Kebutuhan Toko"
+    cur_bal_str = f"Rp {float(device.branch_balance or 0.0):,.0f}"
+    clean_shift = str(shift_name or 'Kasir Toko').strip()
+    clean_note = str(note or '-').strip()
+    domain = (base_url or 'https://ipay.my.id').rstrip('/')
+
+    pesan_wa = (
+        f"🔔 *PERMINTAAN SALDO KASIR TOKO*\n\n"
+        f"Halo Bos, kasir cabang Anda mengajukan permohonan penambahan saldo deposit:\n\n"
+        f"🏪 *Cabang:* {device.device_name}\n"
+        f"👤 *Shift Bertugas:* {clean_shift}\n"
+        f"💰 *Sisa Saldo Cabang:* {cur_bal_str}\n"
+        f"💵 *Nominal Diminta:* {req_amt_str}\n"
+        f"📝 *Catatan:* {clean_note}\n\n"
+        f"Silakan buka dashboard untuk mentransfer saldo ke cabang ini:\n"
+        f"👉 {domain}/vip/devices\n\n"
+        f"_Pesan otomatis dari Portal Kasir GarudaTel._"
+    )
+
+    sukses = kirim_wa(owner.phone, pesan_wa)
+    if sukses:
+        return True, "Permintaan saldo berhasil dikirimkan langsung ke WhatsApp Owner!"
+    return True, "Permintaan saldo telah diproses ke WhatsApp Owner."
+
+
+def check_and_notify_low_balance(device, shift_name=None, base_url=None):
+    """
+    Peringatan otomatis jika sisa saldo kasir berada di bawah ambang batas (contoh: < Rp 100.000).
+    """
+    if not device or not device.is_low_balance():
+        return False
+
+    owner = User.query.get(device.user_id)
+    if not owner or not owner.phone:
+        return False
+
+    threshold = float(device.low_balance_alert or 100000.0)
+    cur_bal = float(device.branch_balance or 0.0)
+    clean_shift = str(shift_name or 'Kasir').strip()
+    domain = (base_url or 'https://ipay.my.id').rstrip('/')
+
+    pesan = (
+        f"⚠️ *PERINGATAN SALDO KASIR MENIPIS*\n\n"
+        f"Toko/Cabang: *{device.device_name}*\n"
+        f"Shift: *{clean_shift}*\n"
+        f"Sisa Saldo Kasir: *Rp {cur_bal:,.0f}* (Batas Peringatan: Rp {threshold:,.0f})\n\n"
+        f"Saldo cabang ini hampir habis. Segera tambahkan saldo dari dashboard agar transaksi kasir tidak terganggu:\n"
+        f"👉 {domain}/vip/devices\n\n"
+        f"_Notifikasi proteksi saldo GarudaTel POS._"
+    )
+
+    try:
+        kirim_wa(owner.phone, pesan)
+        return True
+    except Exception as e:
+        logger.warning(f"Gagal kirim alert low balance WA: {e}")
+        return False
+
+
+def get_branch_mutations(device_id, limit=50):
+    """
+    Mengambil riwayat mutasi keluar/masuk saldo cabang kasir.
+    """
+    return BranchMutation.query.filter_by(device_id=device_id).order_by(BranchMutation.created_at.desc()).limit(limit).all()
 
 

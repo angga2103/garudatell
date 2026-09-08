@@ -21,7 +21,7 @@
     </div>
 
     <!-- TITLE CARD -->
-    <div style="background: linear-gradient(135deg, #065f46 0%, #047857 50%, #059669 100%); border-radius: 20px; padding: 22px; color: white; margin-bottom: 18px; box-shadow: 0 10px 25px rgba(5, 150, 105, 0.25); position: relative; overflow: hidden;">
+    <div style="background: linear-gradient(135deg, #065f46 0%, #047857 50%, #059669 100%); border-radius: 20px; padding: 22px; color: white; margin-bottom: 14px; box-shadow: 0 10px 25px rgba(5, 150, 105, 0.25); position: relative; overflow: hidden;">
         <div style="position: absolute; right: -15px; bottom: -15px; opacity: 0.12; font-size: 130px;">
             <i class="fas fa-store"></i>
         </div>
@@ -33,8 +33,35 @@
                 Manajemen Kasir & Multi-Cabang
             </h1>
             <p style="margin: 0; font-size: 0.82rem; color: #ecfdf5; line-height: 1.4;">
-                Kasir cabang buka shift cukup dengan <b>PIN 4 Digit</b> tanpa perlu minta OTP WhatsApp ke Owner. 1 Deposit saldo bersama untuk banyak toko cabang.
+                Kelola toko cabang dengan alokasi saldo mandiri per kasir. Transaksi kasir cabang memotong saldo cabangnya masing-masing secara transparan.
             </p>
+        </div>
+    </div>
+
+    <!-- KARTU RINGKASAN SALDO OWNER VS CABANG -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px;">
+        <div style="background: white; border: 1.5px solid #bbf7d0; border-radius: 16px; padding: 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.03);">
+            <div style="display: flex; align-items: center; gap: 6px; font-size: 0.72rem; font-weight: 800; color: #047857; text-transform: uppercase;">
+                <i class="fas fa-wallet" style="color: #059669;"></i> Saldo Utama Bos
+            </div>
+            <div style="font-size: 1.2rem; font-weight: 900; color: #064e3b; margin-top: 4px;">
+                Rp {{ "{:,.0f}".format(current_user.balance or 0).replace(',', '.') }}
+            </div>
+            <div style="font-size: 0.68rem; color: #64748b; margin-top: 2px;">
+                Saldo siap kirim ke cabang
+            </div>
+        </div>
+
+        <div style="background: white; border: 1.5px solid #bfdbfe; border-radius: 16px; padding: 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.03);">
+            <div style="display: flex; align-items: center; gap: 6px; font-size: 0.72rem; font-weight: 800; color: #1d4ed8; text-transform: uppercase;">
+                <i class="fas fa-store-alt" style="color: #2563eb;"></i> Saldo di Cabang
+            </div>
+            <div style="font-size: 1.2rem; font-weight: 900; color: #1e3a8a; margin-top: 4px;">
+                Rp {{ "{:,.0f}".format(total_branch_balance or 0).replace(',', '.') }}
+            </div>
+            <div style="font-size: 0.68rem; color: #64748b; margin-top: 2px;">
+                Tersebar di {{ devices|selectattr('status', 'equalto', 'approved')|list|length }} kasir cabang
+            </div>
         </div>
     </div>
 
@@ -133,6 +160,34 @@
                         <span style="background: #fee2e2; color: #991b1b; font-weight: 800; font-size: 0.7rem; padding: 3px 8px; border-radius: 8px;">
                             Dicabut
                         </span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- ALOKASI SALDO CABANG -->
+                <div style="margin: 10px 0; background: {% if (dev.branch_balance or 0) < (dev.low_balance_alert or 100000) %}#fff1f2{% else %}#f0fdf4{% endif %}; border: 1.5px solid {% if (dev.branch_balance or 0) < (dev.low_balance_alert or 100000) %}#fecdd3{% else %}#bbf7d0{% endif %}; border-radius: 12px; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
+                    <div>
+                        <div style="font-size: 0.7rem; font-weight: 700; color: #64748b; display: flex; align-items: center; gap: 4px;">
+                            <i class="fas fa-coins" style="color: {% if (dev.branch_balance or 0) < (dev.low_balance_alert or 100000) %}#e11d48{% else %}#059669{% endif %};"></i> Saldo Kasir Toko:
+                            {% if (dev.branch_balance or 0) < (dev.low_balance_alert or 100000) %}
+                            <span style="font-size: 0.65rem; background: #fee2e2; color: #991b1b; padding: 1px 6px; border-radius: 6px; font-weight: 800;">
+                                ⚠️ Saldo Menipis (&lt; 100rb)
+                            </span>
+                            {% endif %}
+                        </div>
+                        <div style="font-size: 1.1rem; font-weight: 900; color: {% if (dev.branch_balance or 0) < (dev.low_balance_alert or 100000) %}#be123c{% else %}#065f46{% endif %}; margin-top: 1px;">
+                            Rp {{ "{:,.0f}".format(dev.branch_balance or 0).replace(',', '.') }}
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 6px;">
+                        <button type="button" onclick="openTransferModal({{ dev.id }}, '{{ dev.device_name }}', {{ dev.branch_balance or 0 }})" style="background: #008779; color: white; border: none; border-radius: 8px; padding: 6px 12px; font-size: 0.74rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 6px rgba(0, 135, 121, 0.2);">
+                            <i class="fas fa-plus-circle"></i> Kirim Saldo
+                        </button>
+                        {% if (dev.branch_balance or 0) > 0 %}
+                        <button type="button" onclick="openWithdrawModal({{ dev.id }}, '{{ dev.device_name }}', {{ dev.branch_balance or 0 }})" style="background: #f1f5f9; color: #334155; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 6px 10px; font-size: 0.74rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;">
+                            <i class="fas fa-arrow-down"></i> Tarik
+                        </button>
                         {% endif %}
                     </div>
                 </div>
@@ -396,6 +451,123 @@
         </div>
     </div>
 </div>
+
+<!-- MODAL KIRIM SALDO KE CABANG -->
+<div id="transferBalanceModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 9999; align-items: center; justify-content: center; padding: 16px; backdrop-filter: blur(4px);">
+    <div style="background: white; border-radius: 20px; max-width: 440px; width: 100%; padding: 22px; box-shadow: 0 20px 30px rgba(0,0,0,0.25); position: relative;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <div style="font-weight: 800; color: #0f172a; font-size: 1.05rem; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-paper-plane" style="color: #008779;"></i> Kirim Saldo ke Cabang
+            </div>
+            <button type="button" onclick="closeTransferModal()" style="background: transparent; border: none; font-size: 20px; color: #94a3b8; cursor: pointer;">&times;</button>
+        </div>
+
+        <input type="hidden" id="transferDeviceId">
+
+        <!-- INFO TARGET CABANG -->
+        <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 12px; margin-bottom: 14px;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 4px;">
+                <span style="color: #64748b;">Target Toko Cabang:</span>
+                <span style="font-weight: 800; color: #0f172a;" id="transferBranchName">-</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 4px;">
+                <span style="color: #64748b;">Saldo Cabang Saat Ini:</span>
+                <span style="font-weight: 800; color: #059669;" id="transferCurrentBranchBalance">Rp 0</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; border-top: 1px dashed #cbd5e1; padding-top: 6px; margin-top: 6px;">
+                <span style="color: #64748b;">Saldo Utama Bos:</span>
+                <span style="font-weight: 900; color: #008779;">Rp {{ "{:,.0f}".format(current_user.balance or 0).replace(',', '.') }}</span>
+            </div>
+        </div>
+
+        <div style="margin-bottom: 16px;">
+            <label style="display: block; font-size: 0.75rem; font-weight: 800; color: #334155; margin-bottom: 6px;">
+                Pilih Nominal Cepat:
+            </label>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px;">
+                <button type="button" onclick="setTransferAmount(50000)" style="padding: 7px; background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 8px; font-weight: 800; font-size: 0.75rem; color: #166534; cursor: pointer;">50.000</button>
+                <button type="button" onclick="setTransferAmount(100000)" style="padding: 7px; background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 8px; font-weight: 800; font-size: 0.75rem; color: #166534; cursor: pointer;">100.000</button>
+                <button type="button" onclick="setTransferAmount(200000)" style="padding: 7px; background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 8px; font-weight: 800; font-size: 0.75rem; color: #166534; cursor: pointer;">200.000</button>
+                <button type="button" onclick="setTransferAmount(500000)" style="padding: 7px; background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 8px; font-weight: 800; font-size: 0.75rem; color: #166534; cursor: pointer;">500.000</button>
+                <button type="button" onclick="setTransferAmount(1000000)" style="padding: 7px; background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 8px; font-weight: 800; font-size: 0.75rem; color: #166534; cursor: pointer;">1.000.000</button>
+                <button type="button" onclick="setTransferAmount({{ current_user.balance or 0 }})" style="padding: 7px; background: #e0f2fe; border: 1.5px solid #bae6fd; border-radius: 8px; font-weight: 800; font-size: 0.75rem; color: #0369a1; cursor: pointer;">Semua Saldo</button>
+            </div>
+
+            <label style="display: block; font-size: 0.75rem; font-weight: 800; color: #334155; margin-bottom: 4px;">
+                Atau Ketik Nominal Sendiri (Rp): <span style="color: #ef4444;">*</span>
+            </label>
+            <input type="number" id="transferAmount" placeholder="Contoh: 250000" style="width: 100%; padding: 10px 12px; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 0.95rem; font-weight: 800; color: #0f172a; outline: none; box-sizing: border-box;">
+
+            <div style="font-size: 0.72rem; color: #64748b; margin-top: 6px; line-height: 1.3;">
+                <i class="fas fa-info-circle" style="color: #0284c7;"></i> Saldo utama Bos akan terpotong dan langsung tercatat di mutasi kasir cabang penerima.
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 8px;">
+            <button type="button" onclick="closeTransferModal()" style="flex: 1; padding: 11px; background: #f1f5f9; color: #475569; border: none; border-radius: 12px; font-weight: 800; font-size: 0.85rem; cursor: pointer;">
+                Batal
+            </button>
+            <button type="button" onclick="submitTransferBalance()" style="flex: 2; padding: 11px; background: #008779; color: white; border: none; border-radius: 12px; font-weight: 800; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                <i class="fas fa-check-circle"></i> Kirim Saldo Sekarang
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL TARIK SALDO DARI CABANG -->
+<div id="withdrawBalanceModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 9999; align-items: center; justify-content: center; padding: 16px; backdrop-filter: blur(4px);">
+    <div style="background: white; border-radius: 20px; max-width: 440px; width: 100%; padding: 22px; box-shadow: 0 20px 30px rgba(0,0,0,0.25); position: relative;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <div style="font-weight: 800; color: #0f172a; font-size: 1.05rem; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-undo-alt" style="color: #0f766e;"></i> Tarik Saldo dari Cabang
+            </div>
+            <button type="button" onclick="closeWithdrawModal()" style="background: transparent; border: none; font-size: 20px; color: #94a3b8; cursor: pointer;">&times;</button>
+        </div>
+
+        <input type="hidden" id="withdrawDeviceId">
+
+        <!-- INFO CABANG -->
+        <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 12px; margin-bottom: 14px;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 4px;">
+                <span style="color: #64748b;">Sumber Toko Cabang:</span>
+                <span style="font-weight: 800; color: #0f172a;" id="withdrawBranchName">-</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.8rem;">
+                <span style="color: #64748b;">Saldo Tersedia untuk Ditarik:</span>
+                <span style="font-weight: 900; color: #0f766e;" id="withdrawMaxAmount">Rp 0</span>
+            </div>
+        </div>
+
+        <div style="margin-bottom: 16px;">
+            <label style="display: block; font-size: 0.75rem; font-weight: 800; color: #334155; margin-bottom: 6px;">
+                Pilihan Nominal:
+            </label>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px;">
+                <button type="button" onclick="setWithdrawAmount(50000)" style="padding: 7px; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 8px; font-weight: 800; font-size: 0.75rem; color: #334155; cursor: pointer;">50.000</button>
+                <button type="button" onclick="setWithdrawAmount(100000)" style="padding: 7px; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 8px; font-weight: 800; font-size: 0.75rem; color: #334155; cursor: pointer;">100.000</button>
+                <button type="button" onclick="setWithdrawAll()" style="padding: 7px; background: #fef2f2; border: 1.5px solid #fecaca; border-radius: 8px; font-weight: 800; font-size: 0.75rem; color: #dc2626; cursor: pointer;">Tarik Semua</button>
+            </div>
+
+            <label style="display: block; font-size: 0.75rem; font-weight: 800; color: #334155; margin-bottom: 4px;">
+                Nominal Penarikan (Rp): <span style="color: #ef4444;">*</span>
+            </label>
+            <input type="number" id="withdrawAmount" placeholder="Contoh: 100000" style="width: 100%; padding: 10px 12px; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 0.95rem; font-weight: 800; color: #0f172a; outline: none; box-sizing: border-box;">
+
+            <div style="font-size: 0.72rem; color: #64748b; margin-top: 6px; line-height: 1.3;">
+                <i class="fas fa-info-circle" style="color: #0284c7;"></i> Saldo yang ditarik akan langsung masuk ke Saldo Utama Bos dan bisa dipindahkan ke cabang lain.
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 8px;">
+            <button type="button" onclick="closeWithdrawModal()" style="flex: 1; padding: 11px; background: #f1f5f9; color: #475569; border: none; border-radius: 12px; font-weight: 800; font-size: 0.85rem; cursor: pointer;">
+                Batal
+            </button>
+            <button type="button" onclick="submitWithdrawBalance()" style="flex: 2; padding: 11px; background: #0f766e; color: white; border: none; border-radius: 12px; font-weight: 800; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                <i class="fas fa-arrow-down"></i> Tarik ke Saldo Utama
+            </button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -572,6 +744,157 @@ function revokeDevice(id, name) {
             .then(data => {
                 Swal.fire({ icon: 'success', title: 'Akses Dicabut', text: data.message, timer: 1500, showConfirmButton: false })
                 .then(() => window.location.reload());
+            });
+        }
+    });
+}
+
+// ==========================================
+// ALOKASI SALDO CABANG (KIRIM & TARIK SALDO)
+// ==========================================
+const currentOwnerBalance = {{ current_user.balance or 0 }};
+
+function openTransferModal(deviceId, branchName, currentBranchBalance) {
+    document.getElementById('transferDeviceId').value = deviceId;
+    document.getElementById('transferBranchName').innerText = branchName;
+    document.getElementById('transferCurrentBranchBalance').innerText = 'Rp ' + Number(currentBranchBalance || 0).toLocaleString('id-ID');
+    document.getElementById('transferAmount').value = '';
+    document.getElementById('transferBalanceModal').style.display = 'flex';
+}
+
+function closeTransferModal() {
+    document.getElementById('transferBalanceModal').style.display = 'none';
+}
+
+function setTransferAmount(val) {
+    document.getElementById('transferAmount').value = Math.floor(val);
+}
+
+function submitTransferBalance() {
+    const deviceId = document.getElementById('transferDeviceId').value;
+    const amount = parseFloat(document.getElementById('transferAmount').value);
+
+    if (!amount || amount <= 0) {
+        Swal.fire({ icon: 'warning', title: 'Nominal Tidak Valid', text: 'Masukkan nominal transfer yang valid.' });
+        return;
+    }
+
+    if (amount > currentOwnerBalance) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Saldo Utama Tidak Cukup',
+            text: `Saldo utama Bos (Rp ${Number(currentOwnerBalance).toLocaleString('id-ID')}) tidak mencukupi untuk transfer Rp ${Number(amount).toLocaleString('id-ID')}. Tarik saldo dari cabang lain atau lakukan deposit terlebih dahulu.`
+        });
+        return;
+    }
+
+    Swal.fire({
+        title: 'Konfirmasi Kirim Saldo',
+        text: `Kirim saldo Rp ${Number(amount).toLocaleString('id-ID')} ke kasir cabang?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#008779',
+        confirmButtonText: 'Ya, Kirim Saldo',
+        cancelButtonText: 'Batal'
+    }).then(res => {
+        if (res.isConfirmed) {
+            Swal.fire({ title: 'Memproses Transfer...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            fetch('/vip/device/transfer-balance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    device_id: deviceId,
+                    amount: amount,
+                    shift_name: 'Owner (Transfer Langsung)'
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    Swal.fire({ icon: 'success', title: 'Saldo Terkirim!', text: data.message, timer: 1500, showConfirmButton: false })
+                    .then(() => window.location.reload());
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Gagal', text: data.message });
+                }
+            })
+            .catch(() => {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Terjadi gangguan koneksi.' });
+            });
+        }
+    });
+}
+
+function openWithdrawModal(deviceId, branchName, currentBranchBalance) {
+    document.getElementById('withdrawDeviceId').value = deviceId;
+    document.getElementById('withdrawBranchName').innerText = branchName;
+    document.getElementById('withdrawMaxAmount').innerText = 'Rp ' + Number(currentBranchBalance || 0).toLocaleString('id-ID');
+    document.getElementById('withdrawAmount').value = '';
+    document.getElementById('withdrawAmount').dataset.max = currentBranchBalance || 0;
+    document.getElementById('withdrawBalanceModal').style.display = 'flex';
+}
+
+function closeWithdrawModal() {
+    document.getElementById('withdrawBalanceModal').style.display = 'none';
+}
+
+function setWithdrawAmount(val) {
+    document.getElementById('withdrawAmount').value = Math.floor(val);
+}
+
+function setWithdrawAll() {
+    const maxVal = parseFloat(document.getElementById('withdrawAmount').dataset.max || 0);
+    document.getElementById('withdrawAmount').value = Math.floor(maxVal);
+}
+
+function submitWithdrawBalance() {
+    const deviceId = document.getElementById('withdrawDeviceId').value;
+    const amount = parseFloat(document.getElementById('withdrawAmount').value);
+    const maxVal = parseFloat(document.getElementById('withdrawAmount').dataset.max || 0);
+
+    if (!amount || amount <= 0) {
+        Swal.fire({ icon: 'warning', title: 'Nominal Tidak Valid', text: 'Masukkan nominal penarikan yang valid.' });
+        return;
+    }
+
+    if (amount > maxVal) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Saldo Cabang Tidak Cukup',
+            text: `Saldo cabang hanya Rp ${Number(maxVal).toLocaleString('id-ID')}. Anda tidak bisa menarik lebih dari saldo cabang.`
+        });
+        return;
+    }
+
+    Swal.fire({
+        title: 'Konfirmasi Tarik Saldo',
+        text: `Tarik saldo Rp ${Number(amount).toLocaleString('id-ID')} kembali ke Saldo Utama Bos?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#0f766e',
+        confirmButtonText: 'Ya, Tarik Saldo',
+        cancelButtonText: 'Batal'
+    }).then(res => {
+        if (res.isConfirmed) {
+            Swal.fire({ title: 'Memproses Penarikan...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            fetch('/vip/device/withdraw-balance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    device_id: deviceId,
+                    amount: amount
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    Swal.fire({ icon: 'success', title: 'Saldo Ditarik!', text: data.message, timer: 1500, showConfirmButton: false })
+                    .then(() => window.location.reload());
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Gagal', text: data.message });
+                }
+            })
+            .catch(() => {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Terjadi gangguan koneksi.' });
             });
         }
     });
