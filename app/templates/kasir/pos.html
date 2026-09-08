@@ -636,6 +636,8 @@ function switchMainTab(tab) {
     document.getElementById('tabContentMutations').style.display = 'none';
     document.getElementById('posBottomBar').style.display = 'none';
 
+    stopHistoryPolling();
+
     if (tab === 'pos') {
         document.getElementById('tabBtnPos').classList.add('active');
         document.getElementById('tabContentPos').style.display = 'block';
@@ -644,6 +646,7 @@ function switchMainTab(tab) {
         document.getElementById('tabBtnHistory').classList.add('active');
         document.getElementById('tabContentHistory').style.display = 'block';
         loadShiftHistory();
+        startHistoryPolling();
     } else if (tab === 'mutations') {
         document.getElementById('tabBtnMutations').classList.add('active');
         document.getElementById('tabContentMutations').style.display = 'block';
@@ -661,13 +664,14 @@ function selectCategory(cat, btn) {
     const targetLabel = document.getElementById('targetLabel');
     const targetInput = document.getElementById('targetNumber');
     const inputHint = document.getElementById('inputHint');
+    const brandScroll = document.getElementById('brandScrollContainer');
 
     if (cat === 'PLN') {
         targetLabel.innerText = 'NOMOR METER / ID PELANGGAN PLN:';
         targetInput.placeholder = 'Contoh: 14xxxxxxxx / 32xxxxxxxx';
         inputHint.innerText = 'Token Listrik Prabayar';
         updateOperatorBadge('PLN');
-        loadBrandPills('PLN');
+        brandScroll.style.display = 'none'; // Sembunyikan brand pills karena hanya Token PLN
         loadProducts();
     } else if (cat === 'EMONEY') {
         targetLabel.innerText = 'NOMOR HP / ID AKUN E-WALLET:';
@@ -695,14 +699,24 @@ function selectCategory(cat, btn) {
         targetInput.placeholder = 'Ketik nomor / ID tujuan';
         inputHint.innerText = 'Seluruh produk toko';
         updateOperatorBadge('Semua Produk');
-        document.getElementById('brandScrollContainer').style.display = 'none';
+        brandScroll.style.display = 'none';
         loadProducts();
     } else {
+        // PULSA, DATA, TELPSMS, MASAAKTIF
         targetLabel.innerText = 'NOMOR HANDPHONE PELANGGAN:';
         targetInput.placeholder = '08xxxxxxxxxx';
         inputHint.innerText = 'Otomatis deteksi operator';
-        document.getElementById('brandScrollContainer').style.display = 'none';
-        handlePhoneInput(targetInput.value);
+        brandScroll.style.display = 'none';
+
+        // Deteksi operator nomor yang sudah diinput jika ada
+        const clean = targetInput.value.replace(/\D/g, '');
+        if (clean.length >= 4) {
+            const p4 = clean.substring(0, 4);
+            detectedBrand = prefixMap[p4] || '';
+            updateOperatorBadge(detectedBrand || 'Operator Seluler');
+        }
+        // Pastikan loadProducts() SELALU dieksekusi saat kategori berganti (misal Pulsa ke Paket Data)
+        loadProducts();
     }
 }
 
@@ -768,22 +782,32 @@ function handleSearch(val) {
     if (searchDebounce) clearTimeout(searchDebounce);
     searchDebounce = setTimeout(() => {
         loadProducts();
-    }, 250);
+    }, 200);
 }
 
-// 5. LOAD PRODUK KATALOG
+// 5. LOAD PRODUK KATALOG (DENGAN CLIENT-SIDE CACHING AGAR RINGAN & INSTAN)
 let loadedProducts = [];
+const productsCache = {};
+
 function loadProducts() {
     let url = `/kasir/products?category=${currentCategory}`;
     const effectiveBrand = activeBrand || (['PULSA', 'DATA', 'TELPSMS', 'MASAAKTIF'].includes(currentCategory) ? detectedBrand : '');
     if (effectiveBrand) url += `&brand=${encodeURIComponent(effectiveBrand)}`;
     if (searchQuery) url += `&q=${encodeURIComponent(searchQuery)}`;
 
+    const cacheKey = `${currentCategory}_${effectiveBrand}_${searchQuery}`;
+    if (productsCache[cacheKey]) {
+        loadedProducts = productsCache[cacheKey];
+        renderProducts(loadedProducts);
+        return;
+    }
+
     fetch(url)
     .then(res => res.json())
     .then(data => {
         if (data.status === 'success') {
             loadedProducts = data.products || [];
+            productsCache[cacheKey] = loadedProducts;
             renderProducts(loadedProducts);
         }
     })
@@ -878,6 +902,10 @@ function confirmSale() {
 }
 
 function executeCheckout(target, sku) {
+    const btn = document.getElementById('btnCheckout');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memproses Transaksi...';
+
     Swal.fire({
         title: 'Memproses Transaksi...',
         text: 'Mengirim ke provider...',
@@ -905,10 +933,12 @@ function executeCheckout(target, sku) {
                 title: 'Transaksi Gagal',
                 text: data.message || 'Terjadi kesalahan transaksi.'
             });
+            resetSelectedProduct();
         }
     })
     .catch(() => {
         Swal.fire({ icon: 'error', title: 'Error Koneksi', text: 'Gagal terhubung ke server kasir.' });
+        resetSelectedProduct();
     });
 }
 
@@ -929,44 +959,80 @@ function closeReceipt() {
     renderProducts([]);
 }
 
-// 7. RIWAYAT SHIFT
-function loadShiftHistory() {
+// 7. RIWAYAT SHIFT (DENGAN REAL-TIME AUTO-POLLING)
+let historyPollTimer = null;
+
+function startHistoryPolling() {
+    if (historyPollTimer) clearInterval(historyPollTimer);
+    historyPollTimer = setInterval(() => {
+        const histContent = document.getElementById('tabContentHistory');
+        if (histContent && histContent.style.display !== 'none') {
+            loadShiftHistory(true);
+        }
+    }, 4000);
+}
+
+function stopHistoryPolling() {
+    if (historyPollTimer) {
+        clearInterval(historyPollTimer);
+        historyPollTimer = null;
+    }
+}
+
+function loadShiftHistory(silent = false) {
     const container = document.getElementById('historyListContainer');
-    container.innerHTML = '<div style="text-align: center; color: #94a3b8; font-size: 0.8rem; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Memuat riwayat...</div>';
+    if (!silent) {
+        container.innerHTML = '<div style="text-align: center; color: #94a3b8; font-size: 0.8rem; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Menyinkronkan riwayat & status...</div>';
+    }
 
     fetch('/kasir/history?limit=50')
     .then(res => res.json())
     .then(data => {
-        if (data.status === 'success' && data.history.length > 0) {
-            let html = '';
-            data.history.forEach(t => {
-                const isSuccess = t.status === 'SUCCESS';
-                const badgeColor = isSuccess ? '#dcfce7; color: #166534;' : (t.status === 'PROCESSING' ? '#fef3c7; color: #92400e;' : '#fee2e2; color: #991b1b;');
-                html += `
-                    <div style="background: white; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 12px; font-size: 0.82rem; display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <div style="font-weight: 800; color: #0f172a;">${t.product_name}</div>
-                            <div style="font-size: 0.72rem; color: #64748b; margin-top: 2px;">${t.target_number} • ${t.time}</div>
-                            <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">Ref: ${t.ref_id}</div>
-                        </div>
-                        <div style="text-align: right;">
-                            <div style="font-weight: 900; color: #008779; font-size: 0.95rem;">Rp ${formatRupiah(t.amount)}</div>
-                            <span style="display: inline-block; font-size: 0.65rem; font-weight: 800; padding: 2px 8px; border-radius: 6px; background: ${badgeColor}; margin-top: 4px;">${t.status}</span>
-                            <div style="margin-top: 4px;">
-                                <button type="button" onclick='showReceipt(${JSON.stringify(t)})' style="background: none; border: 1px solid #cbd5e1; border-radius: 6px; padding: 2px 6px; font-size: 0.68rem; font-weight: 700; cursor: pointer; color: #475569;">
-                                    <i class="fas fa-print"></i> Struk
-                                </button>
+        if (data.status === 'success') {
+            if (data.current_balance !== undefined) {
+                currentBranchBalance = data.current_balance;
+                document.getElementById('posBranchBalDisplay').innerText = formatRupiah(currentBranchBalance);
+            }
+
+            if (data.history.length > 0) {
+                let html = '';
+                data.history.forEach(t => {
+                    const isSuccess = t.status === 'SUCCESS';
+                    const isFailed = t.status === 'FAILED';
+                    const badgeColor = isSuccess ? '#dcfce7; color: #166534;' : (isFailed ? '#fee2e2; color: #991b1b;' : '#fef3c7; color: #92400e;');
+                    const statusIcon = isSuccess ? 'fa-check-circle' : (isFailed ? 'fa-times-circle' : 'fa-hourglass-half fa-spin');
+
+                    html += `
+                        <div style="background: white; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 12px; font-size: 0.82rem; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s;">
+                            <div>
+                                <div style="font-weight: 800; color: #0f172a;">${t.product_name}</div>
+                                <div style="font-size: 0.72rem; color: #64748b; margin-top: 2px;">${t.target_number} • ${t.time}</div>
+                                <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">Ref: ${t.ref_id}</div>
+                                ${t.sn && t.sn !== '-' ? `<div style="font-size: 0.68rem; color: #059669; font-weight: 700; margin-top: 2px; word-break: break-all;">SN: ${t.sn}</div>` : ''}
                             </div>
-                        </div>
-                    </div>`;
-            });
-            container.innerHTML = html;
-        } else {
-            container.innerHTML = '<div style="text-align: center; color: #94a3b8; font-size: 0.8rem; padding: 30px;">Belum ada transaksi pada shift ini.</div>';
+                            <div style="text-align: right;">
+                                <div style="font-weight: 900; color: #008779; font-size: 0.95rem;">Rp ${formatRupiah(t.amount)}</div>
+                                <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.65rem; font-weight: 800; padding: 3px 8px; border-radius: 6px; background: ${badgeColor}; margin-top: 4px;">
+                                    <i class="fas ${statusIcon}"></i> ${t.status}
+                                </span>
+                                <div style="margin-top: 4px;">
+                                    <button type="button" onclick='showReceipt(${JSON.stringify(t)})' style="background: none; border: 1px solid #cbd5e1; border-radius: 6px; padding: 2px 6px; font-size: 0.68rem; font-weight: 700; cursor: pointer; color: #475569;">
+                                        <i class="fas fa-print"></i> Struk
+                                    </button>
+                                </div>
+                            </div>
+                        </div>`;
+                });
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = '<div style="text-align: center; color: #94a3b8; font-size: 0.8rem; padding: 30px;">Belum ada transaksi pada shift ini.</div>';
+            }
         }
     })
     .catch(() => {
-        container.innerHTML = '<div style="text-align: center; color: #ef4444; font-size: 0.8rem; padding: 20px;">Gagal memuat riwayat transaksi.</div>';
+        if (!silent) {
+            container.innerHTML = '<div style="text-align: center; color: #ef4444; font-size: 0.8rem; padding: 20px;">Gagal memuat riwayat transaksi.</div>';
+        }
     });
 }
 

@@ -292,16 +292,28 @@ def get_products():
 
     products = query.order_by(Product.sell_price.asc()).all()
 
+    # Optimasi performa: Baca diskon VIP/Reseller 1x di luar loop (mengeliminasi ratusan query DB berulang)
+    from app.services.tier_service import get_setting_float
+    role = owner.get_effective_role() if hasattr(owner, 'get_effective_role') else getattr(owner, 'role', 'user')
+    vip_discount = get_setting_float('discount_vip', 200.0) if role == 'vip' else (get_setting_float('discount_reseller', 100.0) if role == 'reseller' else 0.0)
+
     prods_data = []
     for p in products:
-        vip_price = get_user_product_price(owner, p)
+        s_price = float(p.sell_price or 0.0)
+        b_price = float(getattr(p, 'base_price', 0.0) or 0.0)
+        if role in ['vip', 'reseller'] and vip_discount > 0:
+            floor = (b_price + 100.0) if b_price > 0 else (s_price - vip_discount)
+            final_price = round(max(floor, s_price - vip_discount), 2)
+        else:
+            final_price = s_price
+
         prods_data.append({
             'sku_code': p.sku_code,
             'name': p.name,
             'brand': p.brand,
             'category': p.category,
-            'price': vip_price,
-            'normal_price': float(p.sell_price or 0.0),
+            'price': final_price,
+            'normal_price': s_price,
             'desc': getattr(p, 'desc', '') or ''
         })
 
@@ -318,7 +330,9 @@ def get_brands():
     category = request.args.get('category', '').strip().upper()
     query = Product.query.filter_by(is_active=True)
 
-    if category == 'EMONEY':
+    if category == 'PLN':
+        query = query.filter(Product.category.ilike('%pln%'))
+    elif category == 'EMONEY':
         query = query.filter(
             (Product.category.ilike('%e-money%')) | 
             (Product.category.ilike('%wallet%')) | 
@@ -530,13 +544,23 @@ def checkout():
 
 @kasir_bp.route('/history')
 def history():
-    """Mengambil riwayat transaksi khusus cabang kasir ini."""
+    """Mengambil riwayat transaksi khusus cabang kasir ini dan menyinkronkan status secara real-time."""
     active_device = get_current_cashier_device()
     if not active_device:
         return jsonify({'status': 'error', 'message': 'Sesi kasir tidak aktif'}), 401
 
+    # Sinkronkan otomatis transaksi yang masih PROCESSING / PENDING ke server provider secara real-time
+    from app.services.device_service import sync_pending_cashier_transactions
+    try:
+        sync_pending_cashier_transactions(active_device.id)
+    except Exception:
+        pass
+
+    # Ambil ulang data fresh dari DB untuk memastikan status & saldo cabang akurat jika terjadi refund
+    fresh_device = TrustedDevice.query.get(active_device.id) or active_device
+
     limit = int(request.args.get('limit', 50))
-    trxs = get_branch_cashier_history(active_device.id, limit=limit)
+    trxs = get_branch_cashier_history(fresh_device.id, limit=limit)
     data = []
     for t in trxs:
         data.append({
@@ -552,7 +576,7 @@ def history():
     return jsonify({
         'status': 'success',
         'history': data,
-        'current_balance': float(active_device.branch_balance or 0.0)
+        'current_balance': float(fresh_device.branch_balance or 0.0)
     }), 200
 
 

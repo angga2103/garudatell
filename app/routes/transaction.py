@@ -4,6 +4,7 @@ from app.extensions import db, csrf, limiter
 from app.models.transaction import Transaction
 from app.models.product import Product
 from app.models.user import User
+from datetime import datetime
 import time
 import random
 import os
@@ -764,9 +765,29 @@ def sync_single_transaction(trx):
                 elif v_status in ['error', 'failed', 'gagal']:
                     from app.services.provider_helper import sanitize_public_sn_message, is_provider_balance_error
                     if old_status != 'FAILED' and trx.payment_status == 'PAID' and trx.payment_method == 'SALDO':
-                        user = User.query.filter_by(id=trx.user_id).first()
-                        if user:
-                            user.balance += trx.amount
+                        if trx.device_id:
+                            from app.models.trusted_device import TrustedDevice
+                            from app.models.branch_mutation import BranchMutation
+                            b_dev = TrustedDevice.query.filter_by(id=trx.device_id).first()
+                            if b_dev:
+                                b_before = float(b_dev.branch_balance or 0.0)
+                                b_dev.branch_balance = b_before + float(trx.amount or 0.0)
+                                mut_rf = BranchMutation(
+                                    device_id=b_dev.id,
+                                    user_id=trx.user_id,
+                                    type='REFUND',
+                                    amount=float(trx.amount or 0.0),
+                                    balance_before=b_before,
+                                    balance_after=b_dev.branch_balance,
+                                    description=f"Refund transaksi gagal ({trx.ref_id})",
+                                    shift_name="Sistem Sync",
+                                    created_at=datetime.utcnow()
+                                )
+                                db.session.add(mut_rf)
+                        else:
+                            user = User.query.filter_by(id=trx.user_id).first()
+                            if user:
+                                user.balance += trx.amount
                     trx.status = 'FAILED'
                     raw_v_note = v_data.get('note', 'Gagal di server VIP')
                     trx.sn = sanitize_public_sn_message(raw_v_note)
@@ -799,9 +820,29 @@ def sync_single_transaction(trx):
                 elif 'gagal' in d_status or 'failed' in d_status or rc in ['01', '41', '42', '50', '52']:
                     from app.services.provider_helper import sanitize_public_sn_message
                     if old_status != 'FAILED' and trx.payment_status == 'PAID' and trx.payment_method == 'SALDO':
-                        user = User.query.filter_by(id=trx.user_id).first()
-                        if user:
-                            user.balance += trx.amount
+                        if trx.device_id:
+                            from app.models.trusted_device import TrustedDevice
+                            from app.models.branch_mutation import BranchMutation
+                            b_dev = TrustedDevice.query.filter_by(id=trx.device_id).first()
+                            if b_dev:
+                                b_before = float(b_dev.branch_balance or 0.0)
+                                b_dev.branch_balance = b_before + float(trx.amount or 0.0)
+                                mut_rf = BranchMutation(
+                                    device_id=b_dev.id,
+                                    user_id=trx.user_id,
+                                    type='REFUND',
+                                    amount=float(trx.amount or 0.0),
+                                    balance_before=b_before,
+                                    balance_after=b_dev.branch_balance,
+                                    description=f"Refund transaksi gagal ({trx.ref_id})",
+                                    shift_name="Sistem Sync",
+                                    created_at=datetime.utcnow()
+                                )
+                                db.session.add(mut_rf)
+                        else:
+                            user = User.query.filter_by(id=trx.user_id).first()
+                            if user:
+                                user.balance += trx.amount
                     trx.status = 'FAILED'
                     raw_d_msg = sn or d_data.get('message', msg)
                     trx.sn = sanitize_public_sn_message(raw_d_msg, rc=rc)

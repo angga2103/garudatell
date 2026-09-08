@@ -2004,8 +2004,11 @@ def vip_devices():
     if period not in ['today', 'month', 'all']:
         period = 'today'
 
-    # Daftar semua perangkat terdaftar
-    devices = TrustedDevice.query.filter_by(user_id=current_user.id).order_by(TrustedDevice.created_at.desc()).all()
+    # Daftar semua perangkat terdaftar (kecuali yang telah dihapus)
+    devices = TrustedDevice.query.filter(
+        TrustedDevice.user_id == current_user.id,
+        TrustedDevice.status != 'deleted'
+    ).order_by(TrustedDevice.created_at.desc()).all()
 
     # Laporan pemakaian saldo per cabang
     report = get_branch_usage_report(current_user.id, period=period)
@@ -2284,6 +2287,22 @@ def withdraw_balance_from_branch_route():
     if ok:
         return jsonify({'status': 'success', 'message': msg, 'owner_balance': current_user.balance}), 200
     return jsonify({'status': 'error', 'message': msg}), 400
+
+
+@user_bp.route('/vip/device/delete/<int:device_id>', methods=['POST'])
+@login_required
+@csrf.exempt
+def delete_device_route(device_id):
+    """Menghapus cabang kasir secara aman (soft-delete) oleh Owner VIP."""
+    if not current_user.is_vip_active():
+        return jsonify({'status': 'error', 'message': 'Hanya akun VIP aktif yang dapat menghapus cabang kasir.'}), 403
+
+    from app.services.device_service import delete_branch_cashier
+    ok, msg = delete_branch_cashier(current_user.id, device_id)
+    if ok:
+        return jsonify({'status': 'success', 'message': msg, 'owner_balance': current_user.balance}), 200
+    return jsonify({'status': 'error', 'message': msg}), 400
+
 
 
 

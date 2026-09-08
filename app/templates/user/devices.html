@@ -210,6 +210,9 @@
                             <i class="fas fa-ban"></i> Cabut
                         </button>
                         {% endif %}
+                        <button type="button" onclick="deleteBranch({{ dev.id }}, '{{ dev.device_name }}', {{ dev.branch_balance or 0 }})" style="background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 8px; padding: 4px 8px; font-size: 0.7rem; font-weight: 800; cursor: pointer;">
+                            <i class="fas fa-trash-alt"></i> Hapus
+                        </button>
                     </div>
                 </div>
             </div>
@@ -917,6 +920,42 @@ function submitWithdrawBalance() {
             })
             .catch(() => {
                 Swal.fire({ icon: 'error', title: 'Error', text: 'Terjadi gangguan koneksi.' });
+            });
+        }
+    });
+}
+
+function deleteBranch(deviceId, branchName, balance) {
+    let balWarning = balance > 0 
+        ? `<br><br><div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; padding:10px; font-size:0.85rem; color:#166534; text-align:left;"><b>💰 Pengembalian Saldo:</b><br>Sisa saldo cabang sebesar <b>Rp ${Number(balance).toLocaleString('id-ID')}</b> akan otomatis dikembalikan utuh ke Saldo Utama Anda.</div>`
+        : '';
+    Swal.fire({
+        icon: 'warning',
+        title: `Hapus Cabang ${branchName}?`,
+        html: `Apakah Anda yakin ingin menghapus cabang <b>${branchName}</b> secara permanen? Perangkat kasir di cabang ini tidak akan bisa login lagi.${balWarning}`,
+        showCancelButton: true,
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Ya, Hapus Cabang',
+        cancelButtonText: 'Batal'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.fire({ title: 'Menghapus Cabang...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            fetch(`/vip/device/delete/${deviceId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    Swal.fire({ icon: 'success', title: 'Cabang Terhapus!', text: data.message, timer: 2000, showConfirmButton: false })
+                    .then(() => window.location.reload());
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Gagal', text: data.message });
+                }
+            })
+            .catch(() => {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Gagal terhubung ke server.' });
             });
         }
     });

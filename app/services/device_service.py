@@ -702,12 +702,16 @@ def check_and_notify_low_balance(device, shift_name=None, base_url=None):
         f"_Notifikasi proteksi saldo GarudaTel POS._"
     )
 
-    try:
-        kirim_wa(owner.phone, pesan)
-        return True
-    except Exception as e:
-        logger.warning(f"Gagal kirim alert low balance WA: {e}")
-        return False
+    import threading
+    def _send_wa():
+        try:
+            kirim_wa(owner.phone, pesan)
+        except Exception as e:
+            logger.warning(f"Gagal kirim alert low balance WA: {e}")
+
+    # Kirim secara asynchronous agar tidak membebani kecepatan transaksi checkout kasir
+    threading.Thread(target=_send_wa, daemon=True).start()
+    return True
 
 
 def get_branch_mutations(device_id, limit=50):
@@ -715,5 +719,78 @@ def get_branch_mutations(device_id, limit=50):
     Mengambil riwayat mutasi keluar/masuk saldo cabang kasir.
     """
     return BranchMutation.query.filter_by(device_id=device_id).order_by(BranchMutation.created_at.desc()).limit(limit).all()
+
+
+def delete_branch_cashier(user_id, device_id):
+    """
+    Menghapus cabang kasir secara aman (soft-delete).
+    Jika masih terdapat saldo cabang, otomatis dikembalikan utuh ke Saldo Utama Owner.
+    """
+    device = TrustedDevice.query.filter_by(id=device_id, user_id=user_id).first()
+    if not device:
+        return False, "Cabang kasir tidak ditemukan."
+
+    owner = db.session.query(User).filter_by(id=user_id).with_for_update().first()
+    if not owner:
+        return False, "Akun Owner tidak ditemukan."
+
+    refund_amount = float(device.branch_balance or 0.0)
+    if refund_amount > 0:
+        owner.balance += refund_amount
+        device.branch_balance = 0.0
+        mut = BranchMutation(
+            device_id=device.id,
+            user_id=owner.id,
+            type='WITHDRAW_TO_OWNER',
+            amount=refund_amount,
+            balance_before=refund_amount,
+            balance_after=0.0,
+            description=f"Pengembalian saldo penutupan cabang '{device.device_name}' ke Saldo Utama",
+            shift_name="Sistem",
+            created_at=datetime.utcnow()
+        )
+        db.session.add(mut)
+
+    branch_name = device.device_name
+    device.status = 'deleted'
+    device.activation_token = None
+    device.approval_token = None
+    device.device_uuid = f"deleted_{secrets.token_hex(12)}"
+    device.revoke_active_sessions()
+
+    db.session.commit()
+
+    msg = f"Cabang '{branch_name}' berhasil dihapus!"
+    if refund_amount > 0:
+        msg += f" Sisa saldo Rp {refund_amount:,.0f} telah otomatis dikembalikan ke Saldo Utama Bos."
+    return True, msg
+
+
+def sync_pending_cashier_transactions(device_id):
+    """
+    Menyinkronkan transaksi kasir cabang yang masih PROCESSING / PENDING ke provider secara real-time.
+    Jika transaksi dinyatakan GAGAL, otomatis refund ke saldo cabang dan catat mutasi.
+    """
+    device = TrustedDevice.query.filter_by(id=device_id).first()
+    if not device:
+        return []
+
+    pending_trxs = Transaction.query.filter(
+        Transaction.device_id == device_id,
+        Transaction.status.in_(['PROCESSING', 'PENDING', 'PROSES'])
+    ).order_by(Transaction.created_at.desc()).limit(10).all()
+
+    if not pending_trxs:
+        return []
+
+    from app.routes.transaction import sync_single_transaction
+
+    for trx in pending_trxs:
+        try:
+            sync_single_transaction(trx)
+        except Exception as e:
+            logger.error(f"[-] Error sync single cashier trx {trx.ref_id}: {e}")
+
+    return pending_trxs
 
 
