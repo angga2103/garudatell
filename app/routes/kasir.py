@@ -142,17 +142,59 @@ def index():
     )
 
 
+def is_crawler_or_bot(user_agent_str):
+    """Mendeteksi apakah request berasal dari bot preview tautan (WhatsApp, Telegram, Facebook, dll)."""
+    if not user_agent_str:
+        return False
+    ua = user_agent_str.lower()
+    crawlers = [
+        'whatsapp', 'facebookexternalhit', 'facebot', 'meta-externalagent',
+        'telegrambot', 'twitterbot', 'slackbot', 'discordbot', 'linkedinbot',
+        'googlebot', 'bingbot', 'applebot', 'yandex', 'duckduckbot',
+        'crawler', 'spider', 'preview', 'curl', 'wget', 'python-requests', 'bytespider'
+    ]
+    return any(c in ua for c in crawlers)
+
+
 @kasir_bp.route('/aktivasi/<token>')
 def aktivasi(token):
     """
     Tautan aktivasi kasir satu kali pakai yang diklik oleh karyawan di komputer toko.
+    Dilengkapi proteksi crawler (WhatsApp, Facebook, dll) dan pemulihan otomatis jika perangkat sudah aktif.
     """
     store_name = get_store_name()
-    # Buat token identitas perangkat baru yang unik
-    device_token = f"gt_pos_{secrets.token_hex(16)}"
+    user_agent = request.user_agent.string or ''
 
+    # 1. Deteksi & Amankan Tautan dari Link Preview Bot (WhatsApp, Telegram, Facebot, dll)
+    # Bot / crawler HANYA disajikan preview meta tag tanpa membakar/menghanguskan token aktivasi!
+    if is_crawler_or_bot(user_agent):
+        device_preview = TrustedDevice.query.filter_by(activation_token=token).first()
+        branch_name = device_preview.device_name if device_preview else 'Cabang Toko'
+        return render_template(
+            'kasir/preview_bot.html',
+            store_name=store_name,
+            branch_name=branch_name
+        )
+
+    # 2. Cek apakah browser ini SUDAH memiliki cookie kasir aktif sebelumnya
+    cookie_token = request.cookies.get('gt_device_token')
+    if cookie_token:
+        existing_dev = TrustedDevice.query.filter_by(device_uuid=cookie_token, status='approved').first()
+        if existing_dev:
+            return make_response(render_template(
+                'kasir/not_registered.html',
+                store_name=store_name,
+                title="Perangkat Kasir Sudah Terhubung! 🎉",
+                message=f"Browser / komputer ini sudah terdaftar resmi sebagai Kasir: '{existing_dev.device_name}'. Anda dapat langsung membuka layar kasir.",
+                is_success=True,
+                device_token=cookie_token
+            ))
+
+    # 3. Eksekusi Aktivasi untuk Browser Nyata
+    device_token = f"gt_pos_{secrets.token_hex(16)}"
     ip_address = request.headers.get('X-Forwarded-For', request.remote_addr)
-    user_agent = request.user_agent.string
+    if ip_address and ',' in ip_address:
+        ip_address = ip_address.split(',')[0].strip()
 
     ok, device, msg = activate_cashier_device(
         token=token,

@@ -59,7 +59,13 @@ class TrustedDevice(db.Model):
         """Memeriksa apakah tautan aktivasi cabang telah kedaluwarsa."""
         if not self.activation_expires_at:
             return False
-        return datetime.utcnow() > self.activation_expires_at
+        try:
+            exp = self.activation_expires_at
+            if isinstance(exp, str):
+                exp = datetime.fromisoformat(exp)
+            return datetime.utcnow() > exp
+        except Exception:
+            return False
 
     def revoke_active_sessions(self):
         """Memutus seketika seluruh sesi kasir yang sedang aktif di browser manapun."""

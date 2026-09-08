@@ -307,18 +307,18 @@ def create_branch_cashier(user, branch_name, pin, daily_limit=0.0, hours_start=N
     if not pin_str.isdigit() or len(pin_str) < 4 or len(pin_str) > 6:
         return False, None, None, "PIN Kasir wajib berupa 4 hingga 6 digit angka."
 
-    # Cek duplikasi nama cabang untuk user ini (kecuali yang sudah dicabut/revoked)
+    # Cek duplikasi nama cabang untuk user ini (hanya cabang yang masih aktif/pending)
     existing_branch = TrustedDevice.query.filter(
         TrustedDevice.user_id == user.id,
         func.lower(TrustedDevice.device_name) == clean_name.lower(),
-        TrustedDevice.status != 'revoked'
+        TrustedDevice.status.in_(['approved', 'pending'])
     ).first()
     if existing_branch:
         return False, None, None, f"Nama cabang '{clean_name}' sudah terdaftar dan masih aktif. Gunakan nama cabang lain."
 
-    # Generate token aktivasi (berlaku 2 jam) & UUID sementara
+    # Generate token aktivasi (berlaku 24 jam) & UUID sementara
     activation_token = secrets.token_urlsafe(32)
-    activation_expires_at = datetime.utcnow() + timedelta(hours=2)
+    activation_expires_at = datetime.utcnow() + timedelta(hours=24)
     temp_uuid = f"pending_act_{secrets.token_hex(12)}"
 
     device = TrustedDevice(
@@ -492,7 +492,7 @@ def regenerate_activation_link(user_id, device_id, base_url=None):
 
     new_token = secrets.token_urlsafe(32)
     device.activation_token = new_token
-    device.activation_expires_at = datetime.utcnow() + timedelta(hours=2)
+    device.activation_expires_at = datetime.utcnow() + timedelta(hours=24)
 
     # Lepas ikatan identitas browser lama secara instan agar browser lama langsung tertendang
     device.device_uuid = f"pending_act_{secrets.token_hex(12)}"
