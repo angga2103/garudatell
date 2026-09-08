@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Buka Shift Kasir - {{ device.device_name }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        * { box-sizing: border-box; font-family: 'Nunito', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body {
+            margin: 0;
+            padding: 16px;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        .pos-auth-card {
+            background: rgba(30, 41, 59, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1.5px solid rgba(255, 255, 255, 0.1);
+            border-radius: 28px;
+            max-width: 380px;
+            width: 100%;
+            padding: 30px 22px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            text-align: center;
+        }
+        .branch-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            color: #34d399;
+            padding: 5px 14px;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 800;
+            margin-bottom: 16px;
+        }
+        .pin-dots {
+            display: flex;
+            justify-content: center;
+            gap: 14px;
+            margin: 22px 0 26px 0;
+        }
+        .dot {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 2px solid #64748b;
+            transition: all 0.2s;
+        }
+        .dot.filled {
+            background: #10b981;
+            border-color: #10b981;
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.6);
+            transform: scale(1.15);
+        }
+        .keypad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            max-width: 280px;
+            margin: 0 auto;
+        }
+        .key-btn {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: white;
+            font-size: 1.5rem;
+            font-weight: 800;
+            padding: 16px 0;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.15s;
+            user-select: none;
+        }
+        .key-btn:active {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(0.95);
+        }
+        .key-btn.action {
+            font-size: 1.1rem;
+            color: #94a3b8;
+        }
+        .key-btn.submit {
+            background: #10b981;
+            color: white;
+            border: none;
+            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+        }
+        .key-btn.submit:active {
+            background: #059669;
+        }
+    </style>
+</head>
+<body>
+
+<div class="pos-auth-card">
+    <div style="width: 54px; height: 54px; border-radius: 16px; background: rgba(16, 185, 129, 0.2); color: #10b981; display: flex; align-items: center; justify-content: center; font-size: 24px; margin: 0 auto 14px auto;">
+        <i class="fas fa-cash-register"></i>
+    </div>
+
+    <div class="branch-badge">
+        <i class="fas fa-store"></i> {{ device.device_name }}
+    </div>
+
+    <h2 style="margin: 0 0 6px 0; font-size: 1.3rem; font-weight: 900;">Buka Shift Kasir</h2>
+    <p style="margin: 0; font-size: 0.8rem; color: #94a3b8;">Masukkan PIN Kasir Cabang untuk memulai transaksi.</p>
+
+    <!-- PIN DOTS -->
+    <div class="pin-dots" id="pinDots">
+        <div class="dot" id="dot1"></div>
+        <div class="dot" id="dot2"></div>
+        <div class="dot" id="dot3"></div>
+        <div class="dot" id="dot4"></div>
+    </div>
+
+    <input type="hidden" id="pinValue" value="">
+
+    <!-- NUMERIC KEYPAD -->
+    <div class="keypad">
+        <button type="button" class="key-btn" onclick="pressKey('1')">1</button>
+        <button type="button" class="key-btn" onclick="pressKey('2')">2</button>
+        <button type="button" class="key-btn" onclick="pressKey('3')">3</button>
+        <button type="button" class="key-btn" onclick="pressKey('4')">4</button>
+        <button type="button" class="key-btn" onclick="pressKey('5')">5</button>
+        <button type="button" class="key-btn" onclick="pressKey('6')">6</button>
+        <button type="button" class="key-btn" onclick="pressKey('7')">7</button>
+        <button type="button" class="key-btn" onclick="pressKey('8')">8</button>
+        <button type="button" class="key-btn" onclick="pressKey('9')">9</button>
+        <button type="button" class="key-btn action" onclick="clearPin()"><i class="fas fa-times"></i></button>
+        <button type="button" class="key-btn" onclick="pressKey('0')">0</button>
+        <button type="button" class="key-btn action" onclick="backspacePin()"><i class="fas fa-backspace"></i></button>
+    </div>
+
+    <div style="margin-top: 24px; font-size: 0.72rem; color: #64748b; line-height: 1.4;">
+        <i class="fas fa-lock" style="color: #10b981;"></i> Perangkat Resmi Terverifikasi. Bebas OTP WhatsApp.
+    </div>
+</div>
+
+<script>
+let pinBuffer = "";
+
+function updateDots() {
+    for (let i = 1; i <= 4; i++) {
+        const dot = document.getElementById('dot' + i);
+        if (pinBuffer.length >= i) {
+            dot.classList.add('filled');
+        } else {
+            dot.classList.remove('filled');
+        }
+    }
+}
+
+function pressKey(num) {
+    if (pinBuffer.length < 6) {
+        pinBuffer += num;
+        updateDots();
+        if (pinBuffer.length === 4) {
+            // Auto submit saat 4 digit
+            setTimeout(submitPin, 150);
+        }
+    }
+}
+
+function backspacePin() {
+    if (pinBuffer.length > 0) {
+        pinBuffer = pinBuffer.slice(0, -1);
+        updateDots();
+    }
+}
+
+function clearPin() {
+    pinBuffer = "";
+    updateDots();
+}
+
+// Support Physical Keyboard
+document.addEventListener('keydown', function(e) {
+    if (e.key >= '0' && e.key <= '9') {
+        pressKey(e.key);
+    } else if (e.key === 'Backspace') {
+        backspacePin();
+    } else if (e.key === 'Escape') {
+        clearPin();
+    } else if (e.key === 'Enter') {
+        if (pinBuffer.length >= 4) submitPin();
+    }
+});
+
+function submitPin() {
+    if (pinBuffer.length < 4) {
+        return;
+    }
+
+    // Tampilkan loading singkat
+    fetch('/kasir/login_pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin: pinBuffer })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'success') {
+            window.location.href = data.redirect || '/kasir';
+        } else {
+            clearPin();
+            Swal.fire({
+                icon: 'error',
+                title: 'Akses Ditolak',
+                text: data.message || 'PIN Kasir salah!',
+                background: '#1e293b',
+                color: '#fff',
+                confirmButtonColor: '#10b981',
+                timer: 2000,
+                showConfirmButton: false
+            });
+        }
+    })
+    .catch(() => {
+        clearPin();
+        Swal.fire({
+            icon: 'error',
+            title: 'Koneksi Error',
+            text: 'Gagal terhubung ke server kasir.',
+            background: '#1e293b',
+            color: '#fff',
+            confirmButtonColor: '#10b981'
+        });
+    });
+}
+</script>
+
+</body>
+</html>
+

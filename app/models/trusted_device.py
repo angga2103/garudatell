@@ -1,5 +1,6 @@
 from app.extensions import db
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+from werkzeug.security import generate_password_hash, check_password_hash
 
 class TrustedDevice(db.Model):
     __tablename__ = 'trusted_device'
@@ -17,6 +18,13 @@ class TrustedDevice(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_used_at = db.Column(db.DateTime, nullable=True)
 
+    # Kolom Baru untuk Mode Kasir Mandiri & Pembatasan
+    pin_hash = db.Column(db.String(200), nullable=True)                # Hash PIN Kasir 4-6 digit
+    daily_limit = db.Column(db.Float, default=0.0)                     # Limit belanja harian (0 = tanpa limit)
+    operating_hours_start = db.Column(db.String(5), nullable=True)     # Contoh: "07:00" (WIB)
+    operating_hours_end = db.Column(db.String(5), nullable=True)       # Contoh: "22:00" (WIB)
+    activation_token = db.Column(db.String(64), unique=True, nullable=True, index=True) # Token aktivasi satu kali pakai
+
     __table_args__ = (
         db.UniqueConstraint('user_id', 'device_uuid', name='uq_user_device'),
         db.Index('idx_user_dev_status', 'user_id', 'status'),
@@ -24,7 +32,6 @@ class TrustedDevice(db.Model):
 
     @property
     def created_at_wib(self):
-        from datetime import timedelta
         if self.created_at:
             wib = self.created_at + timedelta(hours=7)
             return wib.strftime('%d-%m-%Y %H:%M')
@@ -32,7 +39,6 @@ class TrustedDevice(db.Model):
 
     @property
     def last_used_at_wib(self):
-        from datetime import timedelta
         if self.last_used_at:
             wib = self.last_used_at + timedelta(hours=7)
             return wib.strftime('%d-%m-%Y %H:%M')
@@ -43,3 +49,51 @@ class TrustedDevice(db.Model):
             return True
         return datetime.utcnow() > self.approval_expires_at
 
+    def set_pin(self, pin):
+        """Menyimpan hash PIN kasir."""
+        if pin:
+            self.pin_hash = generate_password_hash(str(pin).strip())
+        else:
+            self.pin_hash = None
+
+    def check_pin(self, pin):
+        """Memvalidasi PIN kasir."""
+        if not self.pin_hash:
+            return False
+        return check_password_hash(self.pin_hash, str(pin).strip())
+
+    def is_within_operating_hours(self):
+        """Memeriksa apakah saat ini berada dalam jam operasional kasir (WIB)."""
+        if not self.operating_hours_start or not self.operating_hours_end:
+            return True  # 24 jam jika tidak diatur
+        
+        try:
+            wib_now = datetime.now(timezone(timedelta(hours=7))).replace(tzinfo=None)
+            cur_time_str = wib_now.strftime('%H:%M')
+            return self.operating_hours_start <= cur_time_str <= self.operating_hours_end
+        except Exception:
+            return True
+
+    def get_today_spent(self):
+        """Menghitung akumulasi pemakaian saldo cabang pada hari ini (WIB)."""
+        from app.models.transaction import Transaction
+        wib_now = datetime.now(timezone(timedelta(hours=7))).replace(tzinfo=None)
+        wib_today_start = wib_now.replace(hour=0, minute=0, second=0, microsecond=0)
+        utc_today_start = wib_today_start - timedelta(hours=7)
+
+        trxs = Transaction.query.filter(
+            Transaction.user_id == self.user_id,
+            Transaction.device_id == self.id,
+            Transaction.payment_method == 'SALDO',
+            Transaction.status.in_(['SUCCESS', 'PROCESSING', 'PENDING']),
+            Transaction.created_at >= utc_today_start
+        ).all()
+
+        return sum(float(t.amount or 0.0) for t in trxs)
+
+    def get_remaining_daily_limit(self):
+        """Mengembalikan sisa limit harian kasir. Nilai -1 berarti tanpa limit (unlimited)."""
+        if not self.daily_limit or self.daily_limit <= 0:
+            return -1.0  # Unlimited
+        spent = self.get_today_spent()
+        return max(0.0, float(self.daily_limit) - spent)

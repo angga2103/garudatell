@@ -83,13 +83,41 @@ CREATE TABLE IF NOT EXISTS trusted_device (
     approved_at DATETIME,
     created_at DATETIME,
     last_used_at DATETIME,
+    pin_hash VARCHAR(200),
+    daily_limit REAL DEFAULT 0.0,
+    operating_hours_start VARCHAR(5),
+    operating_hours_end VARCHAR(5),
+    activation_token VARCHAR(64) UNIQUE,
     CONSTRAINT uq_user_device UNIQUE (user_id, device_uuid)
 );
 """)
+
+# Cek kolom baru pada trusted_device jika tabel sudah ada sebelumnya
+cur.execute("PRAGMA table_info(trusted_device);")
+dev_cols = [row[1] for row in cur.fetchall()]
+new_dev_cols = [
+    ("pin_hash", "VARCHAR(200)"),
+    ("daily_limit", "REAL DEFAULT 0.0"),
+    ("operating_hours_start", "VARCHAR(5)"),
+    ("operating_hours_end", "VARCHAR(5)"),
+    ("activation_token", "VARCHAR(64)")
+]
+
+for col_name, col_type in new_dev_cols:
+    if col_name not in dev_cols:
+        try:
+            cur.execute(f"ALTER TABLE trusted_device ADD COLUMN {col_name} {col_type};")
+            print(f"  [+] Kolom 'trusted_device.{col_name}' berhasil ditambahkan.")
+        except Exception as e:
+            print(f"  [!] Gagal tambah kolom trusted_device.{col_name}: {e}")
+    else:
+        print(f"  [i] Kolom 'trusted_device.{col_name}' sudah ada.")
+
 cur.execute("CREATE INDEX IF NOT EXISTS idx_device_user ON trusted_device (user_id);")
 cur.execute("CREATE INDEX IF NOT EXISTS idx_device_uuid ON trusted_device (device_uuid);")
 cur.execute("CREATE INDEX IF NOT EXISTS idx_device_status ON trusted_device (status);")
 cur.execute("CREATE INDEX IF NOT EXISTS idx_device_token ON trusted_device (approval_token);")
+cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_device_activation ON trusted_device (activation_token);")
 cur.execute("CREATE INDEX IF NOT EXISTS idx_trx_device ON `transaction` (device_id);")
 cur.execute("CREATE INDEX IF NOT EXISTS idx_trx_device_name ON `transaction` (device_name);")
 

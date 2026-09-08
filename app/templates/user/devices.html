@@ -3,32 +3,37 @@
 {% block title %}Kunci Kasir & Multi-Cabang Toko - GarudaTel VIP{% endblock %}
 
 {% block content %}
-<div style="padding: 16px 12px 90px 12px; max-width: 600px; margin: 0 auto;">
+<div style="padding: 16px 12px 90px 12px; max-width: 650px; margin: 0 auto;">
     
     <!-- HEADER -->
     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
         <a href="/profil" style="display: inline-flex; align-items: center; gap: 8px; color: #1e293b; text-decoration: none; font-weight: 700; font-size: 0.9rem;">
             <i class="fas fa-arrow-left" style="color: #008779;"></i> Kembali ke Profil
         </a>
-        <div style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 800; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);">
-            <i class="fas fa-crown"></i> VIP EXCLUSIVE
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <a href="/kasir" target="_blank" style="padding: 6px 12px; background: #0f766e; color: white; border-radius: 12px; font-weight: 800; font-size: 0.75rem; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(15, 118, 110, 0.25);">
+                <i class="fas fa-cash-register"></i> Buka Portal Kasir (/kasir)
+            </a>
+            <div style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 800; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);">
+                <i class="fas fa-crown"></i> VIP
+            </div>
         </div>
     </div>
 
     <!-- TITLE CARD -->
     <div style="background: linear-gradient(135deg, #065f46 0%, #047857 50%, #059669 100%); border-radius: 20px; padding: 22px; color: white; margin-bottom: 18px; box-shadow: 0 10px 25px rgba(5, 150, 105, 0.25); position: relative; overflow: hidden;">
         <div style="position: absolute; right: -15px; bottom: -15px; opacity: 0.12; font-size: 130px;">
-            <i class="fas fa-shield-alt"></i>
+            <i class="fas fa-store"></i>
         </div>
         <div style="position: relative; z-index: 1;">
             <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: #a7f3d0; font-weight: 800; margin-bottom: 4px;">
-                Keamanan Konter & Toko 2 Shift
+                Mode Kasir Cabang Mandiri
             </div>
-            <h1 style="margin: 0 0 8px 0; font-size: 1.4rem; font-weight: 800; line-height: 1.2;">
-                Kunci Perangkat Kasir & Cabang
+            <h1 style="margin: 0 0 8px 0; font-size: 1.35rem; font-weight: 800; line-height: 1.2;">
+                Manajemen Kasir & Multi-Cabang
             </h1>
             <p style="margin: 0; font-size: 0.82rem; color: #ecfdf5; line-height: 1.4;">
-                1 Akun Induk & 1 Saldo Deposit dapat dipakai di banyak cabang toko. Amankan saldo toko Anda dari transaksi ilegal karyawan di luar jam shift.
+                Kasir cabang buka shift cukup dengan <b>PIN 4 Digit</b> tanpa perlu minta OTP WhatsApp ke Owner. 1 Deposit saldo bersama untuk banyak toko cabang.
             </p>
         </div>
     </div>
@@ -65,65 +70,102 @@
         
         <div style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed #e2e8f0; font-size: 0.75rem; color: #64748b; line-height: 1.4;">
             <i class="fas fa-info-circle" style="color: #0284c7;"></i>
-            Saat aktif, setiap transaksi menggunakan <b>Saldo Toko</b> akan diverifikasi. HP pribadi staf di rumah yang tidak terdaftar otomatis <b>diblokir 100%</b>.
+            Saat aktif, transaksi saldo di luar toko (dari HP pribadi staf di rumah) otomatis <b>diblokir 100%</b>.
         </div>
     </div>
 
-    <!-- STATUS PERANGKAT BROWSER SAAT INI -->
+    <!-- DAFTAR SEMUA PERANGKAT & CABANG KASIR -->
     <div style="background: white; border-radius: 18px; padding: 18px; margin-bottom: 18px; border: 1.5px solid #e2e8f0; box-shadow: 0 4px 15px rgba(0,0,0,0.03);">
-        <div style="font-size: 0.8rem; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;">
-            <span><i class="fas fa-desktop" style="color: #008779;"></i> Perangkat Browser Ini</span>
-            <span id="deviceBadge">
-                {% if current_device and current_device.status == 'approved' %}
-                <span style="background: #d1fae5; color: #065f46; padding: 3px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 800;">
-                    <i class="fas fa-check-circle"></i> Kasir Resmi
-                </span>
-                {% elif current_device and current_device.status == 'pending' %}
-                <span style="background: #fef3c7; color: #92400e; padding: 3px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 800;">
-                    <i class="fas fa-clock"></i> Menunggu Persetujuan
-                </span>
-                {% elif current_device and current_device.status == 'revoked' %}
-                <span style="background: #fee2e2; color: #991b1b; padding: 3px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 800;">
-                    <i class="fas fa-ban"></i> Akses Dicabut
-                </span>
-                {% else %}
-                <span style="background: #f1f5f9; color: #475569; padding: 3px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 800;">
-                    Belum Terdaftar
-                </span>
-                {% endif %}
-            </span>
-        </div>
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+            <div>
+                <div style="font-weight: 800; color: #0f172a; font-size: 0.95rem;">
+                    🏪 Toko Cabang & Kasir Resmi ({{ devices|length }})
+                </div>
+                <div style="font-size: 0.75rem; color: #64748b;">
+                    Kelola PIN kasir, limit harian, dan tautan aktivasi cabang
+                </div>
+            </div>
 
-        <div id="currentDeviceDetails" style="background: #f8fafc; border-radius: 14px; padding: 14px; margin-bottom: 12px;">
-            {% if current_device and current_device.status == 'approved' %}
-            <div style="font-weight: 800; color: #0f172a; font-size: 0.95rem; display: flex; align-items: center; gap: 8px;">
-                <i class="fas fa-store" style="color: #059669;"></i> {{ current_device.device_name }}
-            </div>
-            <div style="font-size: 0.76rem; color: #64748b; margin-top: 4px;">
-                Terakhir aktif transaksi: <b>{{ current_device.last_used_at_wib }}</b>
-            </div>
-            {% elif current_device and current_device.status == 'pending' %}
-            <div style="font-weight: 800; color: #92400e; font-size: 0.92rem; display: flex; align-items: center; gap: 8px;">
-                <i class="fas fa-spinner fa-spin"></i> Menunggu Persetujuan Owner Toko
-            </div>
-            <div style="font-size: 0.76rem; color: #78350f; margin-top: 4px;">
-                Tautan persetujuan telah dikirim ke WhatsApp Owner ({{ current_user.phone[:4] }}****{{ current_user.phone[-3:] }}). Halaman ini akan otomatis aktif begitu disetujui.
-            </div>
-            {% else %}
-            <div style="font-size: 0.85rem; color: #334155; font-weight: 700;">
-                Browser ini belum didaftarkan sebagai Perangkat Kasir Cabang.
-            </div>
-            <div style="font-size: 0.75rem; color: #64748b; margin-top: 4px;">
-                Jika komputer/HP ini digunakan sebagai kasir toko, klik tombol di bawah untuk mendaftarkan nama cabang toko Anda.
-            </div>
-            {% endif %}
-        </div>
-
-        <div style="display: flex; gap: 10px;">
-            <button type="button" onclick="openRegisterModal()" style="flex: 1; padding: 11px 16px; background: #008779; color: white; border: none; border-radius: 12px; font-weight: 800; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(0, 135, 121, 0.25);">
-                <i class="fas fa-plus-circle"></i> Daftarkan Perangkat Ini sebagai Kasir
+            <!-- TOMBOL TAMBAH CABANG BARU -->
+            <button type="button" onclick="openCreateBranchModal()" style="padding: 8px 14px; background: #008779; color: white; border: none; border-radius: 12px; font-weight: 800; font-size: 0.78rem; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(0, 135, 121, 0.25);">
+                <i class="fas fa-plus"></i> Tambah Cabang Baru
             </button>
         </div>
+
+        {% if devices %}
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+            {% for dev in devices %}
+            <div style="border: 1.5px solid {% if dev.status == 'approved' %}#bbf7d0{% elif dev.status == 'pending' %}#fde68a{% else %}#e2e8f0{% endif %}; border-radius: 14px; padding: 14px; background: {% if dev.status == 'approved' %}#fafffd{% elif dev.status == 'pending' %}#fffdf7{% else %}#f8fafc{% endif %};">
+                
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                    <div>
+                        <div style="font-weight: 800; color: #0f172a; font-size: 0.95rem; display: flex; align-items: center; gap: 6px;">
+                            <i class="fas fa-store" style="color: #008779;"></i> {{ dev.device_name }}
+                            {% if current_device_uuid == dev.device_uuid %}
+                            <span style="font-size: 0.65rem; background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 6px; font-weight: 800;">
+                                Device Ini
+                            </span>
+                            {% endif %}
+                        </div>
+                        
+                        <div style="font-size: 0.74rem; color: #64748b; margin-top: 4px; display: flex; gap: 12px; flex-wrap: wrap;">
+                            <span>
+                                <i class="fas fa-clock" style="color: #0284c7;"></i> Jam: 
+                                <b>{% if dev.operating_hours_start %}{{ dev.operating_hours_start }} - {{ dev.operating_hours_end }} WIB{% else %}24 Jam{% endif %}</b>
+                            </span>
+                            <span>
+                                <i class="fas fa-shield-alt" style="color: #059669;"></i> Limit: 
+                                <b>{% if dev.daily_limit and dev.daily_limit > 0 %}Rp {{ "{:,.0f}".format(dev.daily_limit).replace(',', '.') }}/hari{% else %}Tanpa Limit{% endif %}</b>
+                            </span>
+                        </div>
+                    </div>
+
+                    <div>
+                        {% if dev.status == 'approved' %}
+                        <span style="background: #dcfce7; color: #166534; font-weight: 800; font-size: 0.7rem; padding: 3px 8px; border-radius: 8px;">
+                            <i class="fas fa-check"></i> Kasir Aktif
+                        </span>
+                        {% elif dev.status == 'pending' %}
+                        <span style="background: #fef3c7; color: #92400e; font-weight: 800; font-size: 0.7rem; padding: 3px 8px; border-radius: 8px;">
+                            <i class="fas fa-clock"></i> Belum Aktivasi
+                        </span>
+                        {% elif dev.status == 'revoked' %}
+                        <span style="background: #fee2e2; color: #991b1b; font-weight: 800; font-size: 0.7rem; padding: 3px 8px; border-radius: 8px;">
+                            Dicabut
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- AKSI CABANG -->
+                <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1px dashed #e2e8f0; font-size: 0.72rem; color: #64748b; flex-wrap: wrap; gap: 8px;">
+                    <div>
+                        Terakhir transaksi: <b>{{ dev.last_used_at_wib }}</b>
+                    </div>
+                    
+                    <div style="display: flex; gap: 6px;">
+                        <button type="button" onclick="getActivationLink({{ dev.id }})" style="background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; border-radius: 8px; padding: 4px 8px; font-size: 0.7rem; font-weight: 800; cursor: pointer;">
+                            <i class="fas fa-key"></i> Link Aktivasi
+                        </button>
+                        <button type="button" onclick="openEditBranchModal({{ dev.id }}, '{{ dev.device_name }}', {{ dev.daily_limit or 0 }}, '{{ dev.operating_hours_start or '' }}', '{{ dev.operating_hours_end or '' }}')" style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; border-radius: 8px; padding: 4px 8px; font-size: 0.7rem; font-weight: 800; cursor: pointer;">
+                            <i class="fas fa-edit"></i> Edit / PIN
+                        </button>
+                        {% if dev.status != 'revoked' %}
+                        <button type="button" onclick="revokeDevice({{ dev.id }}, '{{ dev.device_name }}')" style="background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; border-radius: 8px; padding: 4px 8px; font-size: 0.7rem; font-weight: 800; cursor: pointer;">
+                            <i class="fas fa-ban"></i> Cabut
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div style="text-align: center; padding: 30px 20px; background: #f8fafc; border-radius: 14px; color: #94a3b8;">
+            <i class="fas fa-store-slash" style="font-size: 34px; margin-bottom: 8px; display: block; opacity: 0.35;"></i>
+            Belum ada cabang kasir yang dibuat. Klik tombol <b>+ Tambah Cabang Baru</b> di atas untuk mendaftarkan konter/cabang pertama Anda.
+        </div>
+        {% endif %}
     </div>
 
     <!-- LAPORAN PEMAKAIAN SALDO MULTI-CABANG -->
@@ -134,7 +176,7 @@
                     📊 Laporan Pemakaian Saldo Cabang
                 </div>
                 <div style="font-size: 0.75rem; color: #64748b;">
-                    Transparansi pemakaian saldo deposit per toko
+                    Rekap transaksi per toko cabang fisik
                 </div>
             </div>
 
@@ -209,164 +251,147 @@
             Belum ada data pemakaian saldo pada periode ini.
         </div>
         {% endif %}
-
-        <!-- RIWAYAT TRANSAKSI SALDO TERAKHIR -->
-        {% if report.recent_transactions %}
-        <div style="font-size: 0.8rem; font-weight: 800; color: #334155; margin-bottom: 8px;">
-            Riwayat Transaksi Saldo Terakhir:
-        </div>
-        <div style="max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;">
-            {% for trx in report.recent_transactions %}
-            <div style="background: white; border: 1px solid #f1f5f9; border-radius: 10px; padding: 9px 12px; font-size: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <div style="font-weight: 800; color: #1e293b;">
-                        {{ trx.product_name }}
-                    </div>
-                    <div style="color: #64748b; font-size: 0.7rem; display: flex; align-items: center; gap: 6px;">
-                        <span><i class="fas fa-store" style="color: #008779;"></i> {{ trx.device_name or 'Utama' }}</span>
-                        <span>•</span>
-                        <span>{{ trx.target_number }}</span>
-                        <span>•</span>
-                        <span>{{ trx.created_at_wib }}</span>
-                    </div>
-                </div>
-                <div style="text-align: right;">
-                    <div style="font-weight: 800; color: #0f172a;">
-                        Rp {{ "{:,.0f}".format(trx.amount).replace(',', '.') }}
-                    </div>
-                    <span style="font-size: 0.65rem; font-weight: 800; padding: 2px 6px; border-radius: 6px; 
-                        {% if trx.status == 'SUCCESS' %}background: #dcfce7; color: #15803d;
-                        {% elif trx.status in ['PENDING', 'PROCESSING'] %}background: #fef9c3; color: #854d0e;
-                        {% else %}background: #fee2e2; color: #991b1b;{% endif %}">
-                        {{ trx.status }}
-                    </span>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-        {% endif %}
-    </div>
-
-    <!-- DAFTAR SEMUA PERANGKAT KASIR TOKO -->
-    <div style="background: white; border-radius: 18px; padding: 18px; margin-bottom: 18px; border: 1.5px solid #e2e8f0; box-shadow: 0 4px 15px rgba(0,0,0,0.03);">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
-            <div>
-                <div style="font-weight: 800; color: #0f172a; font-size: 0.95rem;">
-                    📱 Perangkat Kasir Terdaftar ({{ devices|length }})
-                </div>
-                <div style="font-size: 0.75rem; color: #64748b;">
-                    Komputer & HP yang memiliki izin akses saldo toko
-                </div>
-            </div>
-        </div>
-
-        {% if devices %}
-        <div style="display: flex; flex-direction: column; gap: 10px;">
-            {% for dev in devices %}
-            <div style="border: 1.5px solid {% if dev.status == 'approved' %}#bbf7d0{% elif dev.status == 'pending' %}#fde68a{% else %}#e2e8f0{% endif %}; border-radius: 14px; padding: 12px 14px; background: {% if dev.status == 'approved' %}#fafffd{% elif dev.status == 'pending' %}#fffdf7{% else %}#f8fafc{% endif %};">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
-                    <div>
-                        <div style="font-weight: 800; color: #0f172a; font-size: 0.9rem; display: flex; align-items: center; gap: 6px;">
-                            <i class="fas fa-store" style="color: #008779;"></i> {{ dev.device_name }}
-                            {% if current_device_uuid == dev.device_uuid %}
-                            <span style="font-size: 0.65rem; background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 6px; font-weight: 800;">
-                                Device Ini
-                            </span>
-                            {% endif %}
-                        </div>
-                        <div style="font-size: 0.73rem; color: #64748b; margin-top: 2px;">
-                            <i class="fas fa-info-circle"></i> {{ dev.device_info[:45] }}...
-                        </div>
-                    </div>
-
-                    <div>
-                        {% if dev.status == 'approved' %}
-                        <span style="background: #dcfce7; color: #166534; font-weight: 800; font-size: 0.7rem; padding: 3px 8px; border-radius: 8px;">
-                            <i class="fas fa-check"></i> Disetujui
-                        </span>
-                        {% elif dev.status == 'pending' %}
-                        <span style="background: #fef3c7; color: #92400e; font-weight: 800; font-size: 0.7rem; padding: 3px 8px; border-radius: 8px;">
-                            <i class="fas fa-clock"></i> Menunggu
-                        </span>
-                        {% elif dev.status == 'rejected' %}
-                        <span style="background: #fee2e2; color: #991b1b; font-weight: 800; font-size: 0.7rem; padding: 3px 8px; border-radius: 8px;">
-                            Ditolak
-                        </span>
-                        {% elif dev.status == 'revoked' %}
-                        <span style="background: #f1f5f9; color: #64748b; font-weight: 800; font-size: 0.7rem; padding: 3px 8px; border-radius: 8px;">
-                            Dicabut
-                        </span>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px dashed #e2e8f0; font-size: 0.72rem; color: #64748b;">
-                    <div>
-                        Terakhir aktif: <b>{{ dev.last_used_at_wib }}</b>
-                    </div>
-                    
-                    <div style="display: flex; gap: 6px;">
-                        {% if dev.status == 'pending' %}
-                        <button type="button" onclick="approveManual({{ dev.id }})" style="background: #059669; color: white; border: none; border-radius: 8px; padding: 4px 8px; font-size: 0.7rem; font-weight: 800; cursor: pointer;">
-                            <i class="fas fa-check"></i> Setujui
-                        </button>
-                        {% endif %}
-
-                        {% if dev.status == 'approved' %}
-                        <button type="button" onclick="revokeDevice({{ dev.id }}, '{{ dev.device_name }}')" style="background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; border-radius: 8px; padding: 4px 8px; font-size: 0.7rem; font-weight: 800; cursor: pointer;">
-                            <i class="fas fa-ban"></i> Cabut Akses
-                        </button>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-        {% else %}
-        <div style="text-align: center; padding: 25px; background: #f8fafc; border-radius: 12px; color: #94a3b8; font-size: 0.82rem;">
-            <i class="fas fa-cash-register" style="font-size: 32px; margin-bottom: 8px; display: block; opacity: 0.4;"></i>
-            Belum ada perangkat kasir yang terdaftar. Klik tombol <b>Daftarkan Perangkat Ini sebagai Kasir</b> di atas untuk mulai menambahkan cabang.
-        </div>
-        {% endif %}
     </div>
 
 </div>
 
-<!-- MODAL DAFTAR PERANGKAT KASIR -->
-<div id="registerModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 9999; align-items: center; justify-content: center; padding: 16px; backdrop-filter: blur(4px);">
+<!-- MODAL TAMBAH CABANG KASIR BARU -->
+<div id="createBranchModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 9999; align-items: center; justify-content: center; padding: 16px; backdrop-filter: blur(4px);">
     <div style="background: white; border-radius: 20px; max-width: 440px; width: 100%; padding: 22px; box-shadow: 0 20px 30px rgba(0,0,0,0.25); position: relative;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
             <div style="font-weight: 800; color: #0f172a; font-size: 1.05rem; display: flex; align-items: center; gap: 8px;">
-                <i class="fas fa-store" style="color: #008779;"></i> Daftarkan Perangkat Kasir
+                <i class="fas fa-store" style="color: #008779;"></i> Tambah Cabang Kasir Baru
             </div>
-            <button type="button" onclick="closeRegisterModal()" style="background: transparent; border: none; font-size: 20px; color: #94a3b8; cursor: pointer;">&times;</button>
+            <button type="button" onclick="closeCreateBranchModal()" style="background: transparent; border: none; font-size: 20px; color: #94a3b8; cursor: pointer;">&times;</button>
         </div>
 
-        <p style="margin: 0 0 14px 0; font-size: 0.8rem; color: #64748b; line-height: 1.4;">
-            Beri nama untuk mengidentifikasi perangkat kasir atau toko cabang ini (misal: <i>Cabang 1 - Pasar Baru</i> atau <i>Laptop Kasir Utama</i>).
-        </p>
+        <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px;">
+            <div>
+                <label style="display: block; font-size: 0.75rem; font-weight: 800; color: #334155; margin-bottom: 4px;">
+                    Nama Cabang / Toko: <span style="color: #ef4444;">*</span>
+                </label>
+                <input type="text" id="newBranchName" placeholder="Contoh: Cabang 1 - Pasar Baru" style="width: 100%; padding: 10px 12px; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 0.88rem; font-weight: 700; outline: none; box-sizing: border-box;">
+            </div>
 
-        <div style="margin-bottom: 16px;">
-            <label style="display: block; font-size: 0.78rem; font-weight: 800; color: #334155; margin-bottom: 6px;">
-                Nama Cabang / Perangkat Toko:
-            </label>
-            <input type="text" id="inputDeviceName" placeholder="Contoh: Cabang 1 - Pasar Baru" value="{% if current_device %}{{ current_device.device_name }}{% endif %}" style="width: 100%; padding: 12px 14px; border: 1.5px solid #cbd5e1; border-radius: 12px; font-size: 0.9rem; font-weight: 700; box-sizing: border-box; outline: none;">
-        </div>
+            <div>
+                <label style="display: block; font-size: 0.75rem; font-weight: 800; color: #334155; margin-bottom: 4px;">
+                    PIN Kasir Cabang (4-6 Digit Angka): <span style="color: #ef4444;">*</span>
+                </label>
+                <input type="password" id="newBranchPin" maxlength="6" placeholder="Contoh: 1234" style="width: 100%; padding: 10px 12px; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 0.88rem; font-weight: 700; outline: none; box-sizing: border-box;">
+                <div style="font-size: 0.7rem; color: #64748b; margin-top: 2px;">PIN ini dipakai kasir untuk buka shift (bebas OTP WhatsApp).</div>
+            </div>
 
-        <div id="modalWaitingArea" style="display: none; background: #fffbeb; border: 1.5px solid #fde68a; border-radius: 12px; padding: 12px; margin-bottom: 16px; text-align: center;">
-            <i class="fas fa-spinner fa-spin" style="color: #d97706; font-size: 24px; margin-bottom: 8px;"></i>
-            <div style="font-weight: 800; color: #92400e; font-size: 0.85rem;">Menunggu Persetujuan WhatsApp Owner...</div>
-            <div style="font-size: 0.72rem; color: #b45309; margin-top: 4px;">
-                Owner toko sedang membuka link persetujuan di WhatsApp. Halaman ini akan otomatis menyegarkan status begitu disetujui.
+            <div>
+                <label style="display: block; font-size: 0.75rem; font-weight: 800; color: #334155; margin-bottom: 4px;">
+                    Limit Belanja Harian (Opsional):
+                </label>
+                <input type="number" id="newDailyLimit" placeholder="0 = Tanpa Batas (Unlimited)" style="width: 100%; padding: 10px 12px; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 0.88rem; font-weight: 700; outline: none; box-sizing: border-box;">
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <div>
+                    <label style="display: block; font-size: 0.75rem; font-weight: 800; color: #334155; margin-bottom: 4px;">
+                        Jam Buka (WIB):
+                    </label>
+                    <input type="time" id="newHoursStart" value="07:00" style="width: 100%; padding: 8px 10px; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 0.85rem; font-weight: 700; outline: none; box-sizing: border-box;">
+                </div>
+                <div>
+                    <label style="display: block; font-size: 0.75rem; font-weight: 800; color: #334155; margin-bottom: 4px;">
+                        Jam Tutup (WIB):
+                    </label>
+                    <input type="time" id="newHoursEnd" value="22:00" style="width: 100%; padding: 8px 10px; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 0.85rem; font-weight: 700; outline: none; box-sizing: border-box;">
+                </div>
             </div>
         </div>
 
-        <div style="display: flex; gap: 10px;">
-            <button type="button" onclick="closeRegisterModal()" style="flex: 1; padding: 11px; background: #f1f5f9; color: #475569; border: none; border-radius: 12px; font-weight: 800; font-size: 0.85rem; cursor: pointer;">
+        <div style="display: flex; gap: 8px;">
+            <button type="button" onclick="closeCreateBranchModal()" style="flex: 1; padding: 11px; background: #f1f5f9; color: #475569; border: none; border-radius: 12px; font-weight: 800; font-size: 0.85rem; cursor: pointer;">
                 Batal
             </button>
-            <button type="button" id="btnSubmitRegister" onclick="submitRegisterDevice()" style="flex: 2; padding: 11px; background: #008779; color: white; border: none; border-radius: 12px; font-weight: 800; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 4px 12px rgba(0, 135, 121, 0.25);">
-                <i class="fab fa-whatsapp"></i> Minta Izin via WhatsApp
+            <button type="button" onclick="submitCreateBranch()" style="flex: 2; padding: 11px; background: #008779; color: white; border: none; border-radius: 12px; font-weight: 800; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                <i class="fas fa-check"></i> Simpan & Buat Link
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL TAMPILKAN LINK AKTIVASI CABANG -->
+<div id="activationLinkModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 9999; align-items: center; justify-content: center; padding: 16px; backdrop-filter: blur(4px);">
+    <div style="background: white; border-radius: 20px; max-width: 440px; width: 100%; padding: 22px; box-shadow: 0 20px 30px rgba(0,0,0,0.25); text-align: center;">
+        <div style="width: 56px; height: 56px; border-radius: 50%; background: #d1fae5; color: #059669; display: flex; align-items: center; justify-content: center; font-size: 26px; margin: 0 auto 12px auto;">
+            <i class="fas fa-link"></i>
+        </div>
+        
+        <h3 style="margin: 0 0 6px 0; font-size: 1.15rem; font-weight: 800; color: #0f172a;">Tautan Aktivasi Cabang</h3>
+        <p style="margin: 0 0 14px 0; font-size: 0.8rem; color: #64748b; line-height: 1.4;">
+            Kirimkan tautan ini ke staf toko untuk dibuka di <b>komputer/HP kasir cabang</b>. Tautan ini hanya berlaku untuk 1 kali aktivasi perangkat.
+        </p>
+
+        <div style="background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 12px; padding: 12px; font-size: 0.78rem; word-break: break-all; font-weight: 700; color: #0f766e; margin-bottom: 16px;" id="actUrlText">
+            https://ipay.my.id/kasir/aktivasi/...
+        </div>
+
+        <div style="display: flex; gap: 8px;">
+            <button type="button" onclick="copyActivationUrl()" style="flex: 1; padding: 11px; background: #008779; color: white; border: none; border-radius: 12px; font-weight: 800; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                <i class="fas fa-copy"></i> Salin Link
+            </button>
+            <a id="waShareBtn" href="#" target="_blank" style="flex: 1; padding: 11px; background: #25d366; color: white; border: none; border-radius: 12px; font-weight: 800; font-size: 0.85rem; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                <i class="fab fa-whatsapp"></i> Kirim ke WA
+            </a>
+        </div>
+        
+        <button type="button" onclick="closeActivationModal()" style="width: 100%; margin-top: 10px; padding: 9px; background: transparent; border: none; color: #64748b; font-weight: 700; font-size: 0.8rem; cursor: pointer;">
+            Selesai
+        </button>
+    </div>
+</div>
+
+<!-- MODAL EDIT CABANG & RESET PIN -->
+<div id="editBranchModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 9999; align-items: center; justify-content: center; padding: 16px; backdrop-filter: blur(4px);">
+    <div style="background: white; border-radius: 20px; max-width: 440px; width: 100%; padding: 22px; box-shadow: 0 20px 30px rgba(0,0,0,0.25);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <div style="font-weight: 800; color: #0f172a; font-size: 1.05rem; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-edit" style="color: #008779;"></i> Pengaturan & Reset PIN Kasir
+            </div>
+            <button type="button" onclick="closeEditBranchModal()" style="background: transparent; border: none; font-size: 20px; color: #94a3b8; cursor: pointer;">&times;</button>
+        </div>
+
+        <input type="hidden" id="editDeviceId">
+
+        <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px;">
+            <div>
+                <label style="display: block; font-size: 0.75rem; font-weight: 800; color: #334155; margin-bottom: 4px;">Nama Cabang:</label>
+                <input type="text" id="editBranchName" style="width: 100%; padding: 10px 12px; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 0.88rem; font-weight: 700; box-sizing: border-box;">
+            </div>
+
+            <div>
+                <label style="display: block; font-size: 0.75rem; font-weight: 800; color: #334155; margin-bottom: 4px;">Reset PIN Kasir (Kosongkan jika tidak diubah):</label>
+                <input type="password" id="editNewPin" maxlength="6" placeholder="Masukkan 4-6 digit angka baru" style="width: 100%; padding: 10px 12px; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 0.88rem; font-weight: 700; box-sizing: border-box;">
+            </div>
+
+            <div>
+                <label style="display: block; font-size: 0.75rem; font-weight: 800; color: #334155; margin-bottom: 4px;">Limit Belanja Harian (Rp):</label>
+                <input type="number" id="editDailyLimit" style="width: 100%; padding: 10px 12px; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 0.88rem; font-weight: 700; box-sizing: border-box;">
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <div>
+                    <label style="display: block; font-size: 0.75rem; font-weight: 800; color: #334155; margin-bottom: 4px;">Jam Buka:</label>
+                    <input type="time" id="editHoursStart" style="width: 100%; padding: 8px 10px; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 0.85rem; font-weight: 700; box-sizing: border-box;">
+                </div>
+                <div>
+                    <label style="display: block; font-size: 0.75rem; font-weight: 800; color: #334155; margin-bottom: 4px;">Jam Tutup:</label>
+                    <input type="time" id="editHoursEnd" style="width: 100%; padding: 8px 10px; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 0.85rem; font-weight: 700; box-sizing: border-box;">
+                </div>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 8px;">
+            <button type="button" onclick="closeEditBranchModal()" style="flex: 1; padding: 11px; background: #f1f5f9; color: #475569; border: none; border-radius: 12px; font-weight: 800; font-size: 0.85rem; cursor: pointer;">
+                Batal
+            </button>
+            <button type="button" onclick="submitEditBranch()" style="flex: 2; padding: 11px; background: #008779; color: white; border: none; border-radius: 12px; font-weight: 800; font-size: 0.85rem; cursor: pointer;">
+                Simpan Perubahan
             </button>
         </div>
     </div>
@@ -375,145 +400,7 @@
 
 {% block scripts %}
 <script>
-// 1. Manajer Identitas Perangkat Kasir (LocalStorage & Cookie)
-function getOrCreateDeviceUUID() {
-    let uuid = localStorage.getItem('gt_device_token');
-    if (!uuid) {
-        // Generate UUID v4 random token
-        uuid = 'gt_' + 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-            var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-            return v.toString(16);
-        });
-        localStorage.setItem('gt_device_token', uuid);
-    }
-    // Pastikan cookie selalu sinkron
-    document.cookie = "gt_device_token=" + encodeURIComponent(uuid) + "; path=/; max-age=31536000; SameSite=Lax";
-    return uuid;
-}
-
-const currentUUID = getOrCreateDeviceUUID();
-
-// 2. Buka & Tutup Modal Registrasi
-function openRegisterModal() {
-    document.getElementById('registerModal').style.display = 'flex';
-    document.getElementById('inputDeviceName').focus();
-}
-
-function closeRegisterModal() {
-    document.getElementById('registerModal').style.display = 'none';
-}
-
-// 3. Kirim Permintaan Registrasi ke Backend
-let pollingInterval = null;
-
-function submitRegisterDevice() {
-    const devName = document.getElementById('inputDeviceName').value.trim();
-    if (!devName) {
-        Swal.fire({
-            icon: 'warning',
-            title: 'Nama Toko Wajib Diisi',
-            text: 'Masukkan nama cabang atau identitas perangkat kasir Anda.',
-            confirmButtonColor: '#008779'
-        });
-        return;
-    }
-
-    const btn = document.getElementById('btnSubmitRegister');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengirim WA...';
-
-    fetch('/vip/device/register', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            device_uuid: currentUUID,
-            device_name: devName,
-            device_info: navigator.userAgent
-        })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.status === 'success') {
-            document.getElementById('modalWaitingArea').style.display = 'block';
-            btn.style.display = 'none';
-
-            Swal.fire({
-                icon: 'success',
-                title: 'Permintaan Terkirim!',
-                text: 'Notifikasi persetujuan telah dikirim ke WhatsApp Owner Toko. Menunggu Owner mengklik Setujui...',
-                timer: 4000,
-                showConfirmButton: false
-            });
-
-            // Mulai Polling Status Tiap 3 Detik
-            startPollingStatus(currentUUID);
-        } else {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fab fa-whatsapp"></i> Minta Izin via WhatsApp';
-            Swal.fire({
-                icon: 'error',
-                title: 'Gagal Mengajukan',
-                text: data.message || 'Terjadi kesalahan sistem.',
-                confirmButtonColor: '#008779'
-            });
-        }
-    })
-    .catch(err => {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fab fa-whatsapp"></i> Minta Izin via WhatsApp';
-        Swal.fire({
-            icon: 'error',
-            title: 'Error Koneksi',
-            text: 'Gagal terhubung ke server.',
-            confirmButtonColor: '#008779'
-        });
-    });
-}
-
-// 4. Polling Status Persetujuan
-function startPollingStatus(uuid) {
-    if (pollingInterval) clearInterval(pollingInterval);
-
-    pollingInterval = setInterval(() => {
-        fetch(`/vip/device/check-status/${uuid}`)
-        .then(res => res.json())
-        .then(data => {
-            if (data.is_approved) {
-                clearInterval(pollingInterval);
-                closeRegisterModal();
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Perangkat Resmi Disetujui! 🎉',
-                    text: `Cabang "${data.device_name}" kini sah bertransaksi menggunakan Saldo Toko.`,
-                    confirmButtonColor: '#008779'
-                }).then(() => {
-                    window.location.reload();
-                });
-            } else if (data.status === 'rejected') {
-                clearInterval(pollingInterval);
-                closeRegisterModal();
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Permintaan Ditolak',
-                    text: 'Owner menolak pendaftaran perangkat kasir ini.',
-                    confirmButtonColor: '#008779'
-                }).then(() => {
-                    window.location.reload();
-                });
-            }
-        })
-        .catch(() => {});
-    }, 3000);
-}
-
-// Jika perangkat saat ini berstatus pending, jalankan polling di latar belakang
-{% if current_device and current_device.status == 'pending' %}
-startPollingStatus(currentUUID);
-{% endif %}
-
-// 5. Toggle Sakelar Proteksi Kasir
+// Toggle Master Sakelar Kunci Kasir
 function toggleLockMode(isChecked) {
     fetch('/vip/device/toggle-lock', {
         method: 'POST',
@@ -524,7 +411,6 @@ function toggleLockMode(isChecked) {
     .then(data => {
         if (data.status === 'success') {
             const isLocked = data.is_locked;
-            // Update UI
             document.getElementById('sliderBg').style.backgroundColor = isLocked ? '#059669' : '#cbd5e1';
             document.getElementById('sliderDot').style.left = isLocked ? '28px' : '4px';
             document.getElementById('lockIconBox').style.backgroundColor = isLocked ? '#d1fae5' : '#f1f5f9';
@@ -540,97 +426,155 @@ function toggleLockMode(isChecked) {
                 timer: 2000,
                 showConfirmButton: false
             });
-        } else {
-            // Revert switch state
-            document.getElementById('toggleLockSwitch').checked = !isChecked;
-            Swal.fire({
-                icon: 'error',
-                title: 'Gagal Mengubah Pengaturan',
-                text: data.message,
-                confirmButtonColor: '#008779'
-            });
         }
+    });
+}
+
+// Modal Tambah Cabang
+function openCreateBranchModal() {
+    document.getElementById('createBranchModal').style.display = 'flex';
+    document.getElementById('newBranchName').focus();
+}
+
+function closeCreateBranchModal() {
+    document.getElementById('createBranchModal').style.display = 'none';
+}
+
+function submitCreateBranch() {
+    const name = document.getElementById('newBranchName').value.trim();
+    const pin = document.getElementById('newBranchPin').value.trim();
+    const limit = document.getElementById('newDailyLimit').value;
+    const hStart = document.getElementById('newHoursStart').value;
+    const hEnd = document.getElementById('newHoursEnd').value;
+
+    if (!name || !pin) {
+        Swal.fire({ icon: 'warning', title: 'Data Belum Lengkap', text: 'Nama Cabang dan PIN Kasir wajib diisi.' });
+        return;
+    }
+
+    fetch('/vip/device/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            branch_name: name,
+            pin: pin,
+            daily_limit: limit,
+            hours_start: hStart,
+            hours_end: hEnd
+        })
     })
-    .catch(() => {
-        document.getElementById('toggleLockSwitch').checked = !isChecked;
-        Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: 'Gagal terhubung ke server.',
-            confirmButtonColor: '#008779'
-        });
-    });
-}
-
-// 6. Setujui Manual Langsung oleh Owner
-function approveManual(deviceId) {
-    Swal.fire({
-        title: 'Setujui Perangkat Ini?',
-        text: 'Perangkat kasir ini akan diizinkan melakukan transaksi menggunakan Saldo Toko Anda.',
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonColor: '#059669',
-        cancelButtonColor: '#64748b',
-        confirmButtonText: 'Ya, Setujui Kasir',
-        cancelButtonText: 'Batal'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            fetch(`/vip/device/approve-manual/${deviceId}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Berhasil Disetujui',
-                        text: data.message,
-                        timer: 1500,
-                        showConfirmButton: false
-                    }).then(() => window.location.reload());
-                } else {
-                    Swal.fire({ icon: 'error', title: 'Gagal', text: data.message });
-                }
-            });
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'success') {
+            closeCreateBranchModal();
+            showActivationUrl(data.activation_url, name);
+        } else {
+            Swal.fire({ icon: 'error', title: 'Gagal', text: data.message });
         }
     });
 }
 
-// 7. Cabut Akses Perangkat Kasir
-function revokeDevice(deviceId, devName) {
+// Modal Tampilkan Link Aktivasi
+let currentActUrl = '';
+function showActivationUrl(url, branchName) {
+    currentActUrl = url;
+    document.getElementById('actUrlText').innerText = url;
+    const waText = encodeURIComponent(`Halo, berikut tautan aktivasi resmi untuk komputer kasir toko *${branchName}*:\n\n${url}\n\nBuka link ini di browser komputer kasir untuk mengaktifkan.`);
+    document.getElementById('waShareBtn').href = `https://api.whatsapp.com/send?text=${waText}`;
+    document.getElementById('activationLinkModal').style.display = 'flex';
+}
+
+function closeActivationModal() {
+    document.getElementById('activationLinkModal').style.display = 'none';
+    window.location.reload();
+}
+
+function copyActivationUrl() {
+    navigator.clipboard.writeText(currentActUrl).then(() => {
+        Swal.fire({ icon: 'success', title: 'Tersalin!', text: 'Tautan aktivasi berhasil disalin ke clipboard.', timer: 1500, showConfirmButton: false });
+    });
+}
+
+function getActivationLink(deviceId) {
+    fetch(`/vip/device/activation-link/${deviceId}`)
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'success') {
+            showActivationUrl(data.activation_url, 'Kasir Toko');
+        } else {
+            Swal.fire({ icon: 'error', title: 'Gagal', text: data.message });
+        }
+    });
+}
+
+// Modal Edit Cabang
+function openEditBranchModal(id, name, limit, hStart, hEnd) {
+    document.getElementById('editDeviceId').value = id;
+    document.getElementById('editBranchName').value = name;
+    document.getElementById('editNewPin').value = '';
+    document.getElementById('editDailyLimit').value = limit || 0;
+    document.getElementById('editHoursStart').value = hStart || '07:00';
+    document.getElementById('editHoursEnd').value = hEnd || '22:00';
+    document.getElementById('editBranchModal').style.display = 'flex';
+}
+
+function closeEditBranchModal() {
+    document.getElementById('editBranchModal').style.display = 'none';
+}
+
+function submitEditBranch() {
+    const id = document.getElementById('editDeviceId').value;
+    const name = document.getElementById('editBranchName').value.trim();
+    const pin = document.getElementById('editNewPin').value.trim();
+    const limit = document.getElementById('editDailyLimit').value;
+    const hStart = document.getElementById('editHoursStart').value;
+    const hEnd = document.getElementById('editHoursEnd').value;
+
+    fetch(`/vip/device/update/${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            branch_name: name,
+            new_pin: pin || null,
+            daily_limit: limit,
+            hours_start: hStart,
+            hours_end: hEnd
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'success') {
+            Swal.fire({ icon: 'success', title: 'Berhasil', text: data.message, timer: 1500, showConfirmButton: false })
+            .then(() => window.location.reload());
+        } else {
+            Swal.fire({ icon: 'error', title: 'Gagal', text: data.message });
+        }
+    });
+}
+
+// Cabut Akses Perangkat
+function revokeDevice(id, name) {
     Swal.fire({
-        title: `Cabut Izin ${devName}?`,
-        text: 'Perangkat ini tidak akan dapat bertransaksi saldo toko lagi.',
+        title: `Cabut Akses ${name}?`,
+        text: 'Komputer cabang ini tidak akan bisa bertransaksi kasir lagi sampai diaktivasi ulang.',
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#dc2626',
-        cancelButtonColor: '#64748b',
         confirmButtonText: 'Ya, Cabut Akses',
         cancelButtonText: 'Batal'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            fetch(`/vip/device/revoke/${deviceId}`, {
+    }).then(res => {
+        if (res.isConfirmed) {
+            fetch(`/vip/device/revoke/${id}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
             })
             .then(res => res.json())
             .then(data => {
-                if (data.status === 'success') {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Akses Dicabut',
-                        text: data.message,
-                        timer: 1500,
-                        showConfirmButton: false
-                    }).then(() => window.location.reload());
-                } else {
-                    Swal.fire({ icon: 'error', title: 'Gagal', text: data.message });
-                }
+                Swal.fire({ icon: 'success', title: 'Akses Dicabut', text: data.message, timer: 1500, showConfirmButton: false })
+                .then(() => window.location.reload());
             });
         }
     });
 }
 </script>
 {% endblock %}
-

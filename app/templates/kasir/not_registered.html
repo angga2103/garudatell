@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>{{ title or 'Status Perangkat Kasir' }} - {{ store_name }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; font-family: 'Nunito', sans-serif; }
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #f1f5f9;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .card {
+            background: white;
+            border-radius: 24px;
+            max-width: 440px;
+            width: 100%;
+            padding: 32px 24px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+            text-align: center;
+            border: 1.5px solid #e2e8f0;
+        }
+        .icon-box {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 38px;
+            margin: 0 auto 20px auto;
+        }
+        .icon-success {
+            background: #dcfce7;
+            color: #15803d;
+            box-shadow: 0 4px 15px rgba(22, 163, 74, 0.2);
+        }
+        .icon-warning {
+            background: #fef3c7;
+            color: #d97706;
+            box-shadow: 0 4px 15px rgba(217, 119, 6, 0.2);
+        }
+        .title {
+            font-size: 1.3rem;
+            font-weight: 800;
+            color: #0f172a;
+            margin-bottom: 10px;
+        }
+        .desc {
+            font-size: 0.9rem;
+            color: #64748b;
+            line-height: 1.5;
+            margin-bottom: 24px;
+        }
+        .btn-action {
+            display: block;
+            width: 100%;
+            padding: 13px;
+            background: #008779;
+            color: white;
+            border: none;
+            border-radius: 14px;
+            font-weight: 800;
+            font-size: 0.95rem;
+            text-decoration: none;
+            box-shadow: 0 4px 15px rgba(0, 135, 121, 0.25);
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    {% if is_success %}
+    <div class="icon-box icon-success">
+        <i class="fas fa-check-circle"></i>
+    </div>
+    <div class="title">{{ title }}</div>
+    <div class="desc">{{ message }}</div>
+
+    <a href="/kasir" class="btn-action">
+        <i class="fas fa-cash-register"></i> Buka Layar Kasir Sekarang
+    </a>
+
+    {% if device_token %}
+    <script>
+        // Simpan token ke localStorage sebagai cadangan ganda
+        try {
+            localStorage.setItem('gt_device_token', '{{ device_token }}');
+        } catch(e) {}
+    </script>
+    {% endif %}
+
+    {% else %}
+    <div class="icon-box icon-warning">
+        <i class="fas fa-shield-alt"></i>
+    </div>
+    <div class="title">{{ title }}</div>
+    <div class="desc">{{ message }}</div>
+
+    <a href="/" class="btn-action" style="background: #334155; box-shadow: none;">
+        <i class="fas fa-home"></i> Kembali ke Beranda Utama
+    </a>
+    {% endif %}
+</div>
+
+</body>
+</html>
+

@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kasir {{ device.device_name }} - {{ store_name }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        :root {
+            --primary: #008779;
+            --primary-dark: #006b5f;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text-dark: #0f172a;
+        }
+        * { box-sizing: border-box; font-family: 'Nunito', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body {
+            margin: 0;
+            padding: 0;
+            background: var(--bg);
+            color: var(--text-dark);
+            min-height: 100vh;
+        }
+        .pos-container {
+            max-width: 650px;
+            margin: 0 auto;
+            padding: 12px 14px 80px 14px;
+        }
+        .pos-header {
+            background: linear-gradient(135deg, #008779 0%, #005f56 100%);
+            color: white;
+            border-radius: 20px;
+            padding: 18px;
+            margin-bottom: 14px;
+            box-shadow: 0 8px 20px rgba(0, 135, 121, 0.2);
+        }
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .branch-tag {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-shift {
+            background: rgba(0, 0, 0, 0.25);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 6px 12px;
+            font-size: 0.72rem;
+            font-weight: 800;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .cat-scroll {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            margin-bottom: 14px;
+            scrollbar-width: none;
+        }
+        .cat-scroll::-webkit-scrollbar { display: none; }
+        .cat-pill {
+            padding: 8px 14px;
+            border-radius: 12px;
+            background: white;
+            border: 1.5px solid #e2e8f0;
+            color: #475569;
+            font-weight: 800;
+            font-size: 0.8rem;
+            cursor: pointer;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        .cat-pill.active {
+            background: #008779;
+            color: white;
+            border-color: #008779;
+            box-shadow: 0 4px 12px rgba(0, 135, 121, 0.25);
+        }
+        .input-card {
+            background: white;
+            border-radius: 16px;
+            padding: 16px;
+            border: 1.5px solid #e2e8f0;
+            margin-bottom: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+        }
+        .phone-input {
+            width: 100%;
+            border: 1.5px solid #cbd5e1;
+            border-radius: 12px;
+            padding: 12px 14px;
+            font-size: 1.1rem;
+            font-weight: 800;
+            outline: none;
+            letter-spacing: 1px;
+        }
+        .phone-input:focus {
+            border-color: #008779;
+            box-shadow: 0 0 0 3px rgba(0, 135, 121, 0.15);
+        }
+        .brand-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            padding: 3px 8px;
+            border-radius: 8px;
+            background: #f1f5f9;
+            color: #475569;
+            margin-top: 8px;
+        }
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .prod-card {
+            background: white;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-align: left;
+            position: relative;
+        }
+        .prod-card:hover {
+            border-color: #008779;
+            transform: translateY(-2px);
+        }
+        .prod-card.selected {
+            border-color: #008779;
+            background: #f0fdfa;
+            box-shadow: 0 4px 14px rgba(0, 135, 121, 0.15);
+        }
+        .prod-name {
+            font-weight: 800;
+            font-size: 0.85rem;
+            color: #0f172a;
+            margin-bottom: 4px;
+        }
+        .prod-price {
+            font-weight: 900;
+            font-size: 0.95rem;
+            color: #008779;
+        }
+        .pos-bottom-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid #e2e8f0;
+            padding: 12px 16px;
+            display: flex;
+            justify-content: center;
+            box-shadow: 0 -4px 15px rgba(0,0,0,0.05);
+            z-index: 100;
+        }
+        .btn-checkout {
+            max-width: 600px;
+            width: 100%;
+            padding: 13px;
+            background: #008779;
+            color: white;
+            border: none;
+            border-radius: 14px;
+            font-weight: 800;
+            font-size: 0.95rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(0, 135, 121, 0.3);
+        }
+        .btn-checkout:disabled {
+            background: #94a3b8;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+        /* MODAL STRUK CETAK */
+        .receipt-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            z-index: 999;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        .receipt-paper {
+            background: white;
+            max-width: 340px;
+            width: 100%;
+            border-radius: 18px;
+            padding: 22px 18px;
+            font-family: 'Courier New', Courier, monospace;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body>
+
+<div class="pos-container">
+    
+    <!-- POS HEADER -->
+    <div class="pos-header">
+        <div class="header-top">
+            <div class="branch-tag">
+                <i class="fas fa-store"></i> {{ device.device_name }}
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button type="button" onclick="openShiftHistory()" class="btn-shift">
+                    <i class="fas fa-history"></i> Riwayat Shift
+                </button>
+                <a href="/kasir/logout" class="btn-shift" style="background: rgba(220, 38, 38, 0.4); border-color: rgba(220, 38, 38, 0.6);">
+                    <i class="fas fa-sign-out-alt"></i> Tutup Shift
+                </a>
+            </div>
+        </div>
+
+        <div style="margin-top: 14px; display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+                <div style="font-size: 0.72rem; opacity: 0.85; font-weight: 700;">STATUS KASIR</div>
+                <div style="font-size: 1.1rem; font-weight: 900;">
+                    <i class="fas fa-check-circle" style="color: #6ee7b7;"></i> Siap Transaksi
+                </div>
+            </div>
+
+            <div style="text-align: right;">
+                <div style="font-size: 0.72rem; opacity: 0.85; font-weight: 700;">
+                    {% if remaining_limit >= 0 %}SISA LIMIT HARI INI{% else %}STATUS SALDO TOKO{% endif %}
+                </div>
+                <div style="font-size: 1rem; font-weight: 900; color: #a7f3d0;">
+                    {% if remaining_limit >= 0 %}
+                    Rp {{ "{:,.0f}".format(remaining_limit).replace(',', '.') }}
+                    {% else %}
+                    ● Saldo Tersedia
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- KATEGORI PRODUK CEPAT -->
+    <div class="cat-scroll">
+        <button type="button" class="cat-pill active" onclick="switchCategory('PULSA', this)">
+            <i class="fas fa-mobile-alt"></i> Pulsa
+        </button>
+        <button type="button" class="cat-pill" onclick="switchCategory('DATA', this)">
+            <i class="fas fa-wifi"></i> Paket Data
+        </button>
+        <button type="button" class="cat-pill" onclick="switchCategory('PLN', this)">
+            <i class="fas fa-bolt"></i> Token PLN
+        </button>
+        <button type="button" class="cat-pill" onclick="switchCategory('EMONEY', this)">
+            <i class="fas fa-wallet"></i> E-Wallet
+        </button>
+        <button type="button" class="cat-pill" onclick="switchCategory('GAMES', this)">
+            <i class="fas fa-gamepad"></i> Game
+        </button>
+    </div>
+
+    <!-- FORM INPUT NOMOR TUJUAN -->
+    <div class="input-card">
+        <label id="targetLabel" style="display: block; font-size: 0.78rem; font-weight: 800; color: #475569; margin-bottom: 6px;">
+            NOMOR HANDPHONE PELANGGAN:
+        </label>
+        <input type="tel" id="targetNumber" class="phone-input" placeholder="08xxxxxxxxxx" oninput="handlePhoneInput(this.value)">
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+            <div id="operatorBadge" class="brand-indicator">
+                <i class="fas fa-sim-card"></i> Menunggu Nomor...
+            </div>
+            <div style="font-size: 0.72rem; color: #94a3b8; font-weight: 700;">
+                Otomatis deteksi operator
+            </div>
+        </div>
+    </div>
+
+    <!-- DAFTAR PILIHAN PRODUK / DENOM -->
+    <div style="font-size: 0.8rem; font-weight: 800; color: #475569; margin-bottom: 8px; display: flex; justify-content: space-between;">
+        <span>PILIH NOMINAL PRODUK:</span>
+        <span id="productCount" style="color: #94a3b8;">0 Produk</span>
+    </div>
+
+    <div class="products-grid" id="productsContainer">
+        <!-- Dimuat via JavaScript -->
+        <div style="grid-column: span 2; text-align: center; padding: 30px; color: #94a3b8; font-size: 0.85rem;">
+            <i class="fas fa-keyboard" style="font-size: 28px; margin-bottom: 8px; display: block; opacity: 0.4;"></i>
+            Masukkan nomor pelanggan di atas untuk memuat daftar nominal.
+        </div>
+    </div>
+
+</div>
+
+<!-- BOTTOM BAR CHECKOUT -->
+<div class="pos-bottom-bar">
+    <button type="button" id="btnCheckout" class="btn-checkout" disabled onclick="confirmSale()">
+        <i class="fas fa-shopping-cart"></i> <span>Pilih Produk Terlebih Dahulu</span>
+    </button>
+</div>
+
+<!-- MODAL CETAK STRUK PEMBELIAN -->
+<div id="receiptModal" class="receipt-modal">
+    <div class="receipt-paper">
+        <div style="text-align: center; margin-bottom: 12px; border-bottom: 1px dashed #cbd5e1; padding-bottom: 10px;">
+            <div style="font-weight: 900; font-size: 1.1rem; text-transform: uppercase;">{{ store_name }}</div>
+            <div style="font-size: 0.75rem; color: #64748b;">{{ device.device_name }}</div>
+            <div style="font-size: 0.7rem; color: #94a3b8;" id="rcptTime">08-09-2026 10:30</div>
+        </div>
+
+        <div style="font-size: 0.78rem; line-height: 1.6; margin-bottom: 12px; border-bottom: 1px dashed #cbd5e1; padding-bottom: 10px;">
+            <div style="display: flex; justify-content: space-between;">
+                <span>No. Ref:</span>
+                <span id="rcptRef" style="font-weight: 800;">-</span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+                <span>Tujuan:</span>
+                <span id="rcptTarget" style="font-weight: 800;">-</span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+                <span>Produk:</span>
+                <span id="rcptProduct" style="font-weight: 800;">-</span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+                <span>SN:</span>
+                <span id="rcptSn" style="font-weight: 800; word-break: break-all;">-</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-top: 6px;">
+                <span>TOTAL:</span>
+                <span id="rcptTotal" style="font-weight: 900; color: #008779;">Rp 0</span>
+            </div>
+        </div>
+
+        <div style="text-align: center; font-size: 0.7rem; color: #64748b; margin-bottom: 14px;">
+            Terima kasih atas kunjungan Anda.<br>Simpan struk ini sebagai bukti pembayaran yang sah.
+        </div>
+
+        <div style="display: flex; gap: 8px; font-family: 'Nunito', sans-serif;">
+            <button type="button" onclick="closeReceipt()" style="flex: 1; padding: 10px; border: 1px solid #cbd5e1; background: white; border-radius: 10px; font-weight: 800; font-size: 0.8rem; cursor: pointer;">
+                Tutup
+            </button>
+            <button type="button" onclick="window.print()" style="flex: 1.5; padding: 10px; border: none; background: #008779; color: white; border-radius: 10px; font-weight: 800; font-size: 0.8rem; cursor: pointer;">
+                <i class="fas fa-print"></i> Cetak Struk
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL RIWAYAT SHIFT -->
+<div id="historyModal" class="receipt-modal">
+    <div style="background: white; border-radius: 20px; max-width: 450px; width: 100%; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.3);">
+        <div style="padding: 16px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+            <div style="font-weight: 800; font-size: 0.95rem; color: #0f172a;">
+                <i class="fas fa-history" style="color: #008779;"></i> Riwayat Transaksi Shift Ini
+            </div>
+            <button type="button" onclick="closeShiftHistory()" style="background: transparent; border: none; font-size: 20px; cursor: pointer; color: #94a3b8;">&times;</button>
+        </div>
+        <div id="historyList" style="padding: 14px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 8px;">
+            <div style="text-align: center; color: #94a3b8; font-size: 0.8rem;">Memuat riwayat...</div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentCategory = 'PULSA';
+let detectedBrand = '';
+let selectedProduct = null;
+let allProducts = [];
+
+// Prefix Operator Indonesia
+const prefixMap = {
+    '0811': 'TELKOMSEL', '0812': 'TELKOMSEL', '0813': 'TELKOMSEL', '0821': 'TELKOMSEL', '0822': 'TELKOMSEL', '0852': 'TELKOMSEL', '0853': 'TELKOMSEL', '0823': 'TELKOMSEL',
+    '0814': 'INDOSAT', '0815': 'INDOSAT', '0816': 'INDOSAT', '0855': 'INDOSAT', '0856': 'INDOSAT', '0857': 'INDOSAT', '0858': 'INDOSAT',
+    '0817': 'XL', '0818': 'XL', '0819': 'XL', '0859': 'XL', '0877': 'XL', '0878': 'XL',
+    '0831': 'AXIS', '0832': 'AXIS', '0833': 'AXIS', '0838': 'AXIS',
+    '0895': 'TRI', '0896': 'TRI', '0897': 'TRI', '0898': 'TRI', '0899': 'TRI',
+    '0881': 'SMARTFREN', '0882': 'SMARTFREN', '0883': 'SMARTFREN', '0884': 'SMARTFREN', '0885': 'SMARTFREN', '0886': 'SMARTFREN', '0887': 'SMARTFREN', '0888': 'SMARTFREN', '0889': 'SMARTFREN'
+};
+
+function switchCategory(cat, btn) {
+    currentCategory = cat;
+    document.querySelectorAll('.cat-pill').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+
+    // Ubah label input
+    const targetLabel = document.getElementById('targetLabel');
+    const targetInput = document.getElementById('targetNumber');
+    if (cat === 'PLN') {
+        targetLabel.innerText = 'NOMOR METER / ID PELANGGAN PLN:';
+        targetInput.placeholder = 'Contoh: 14xxxxxxxx atau 32xxxxxxxx';
+        detectedBrand = 'PLN';
+        updateOperatorBadge('PLN');
+        loadProducts();
+    } else if (cat === 'EMONEY') {
+        targetLabel.innerText = 'NOMOR HP AKUN E-WALLET:';
+        targetInput.placeholder = '08xxxxxxxxxx';
+        detectedBrand = '';
+        updateOperatorBadge('E-Money');
+        loadProducts();
+    } else if (cat === 'GAMES') {
+        targetLabel.innerText = 'USER ID / ZONE ID GAME:';
+        targetInput.placeholder = 'Contoh: 12345678 (2020)';
+        detectedBrand = '';
+        updateOperatorBadge('Voucher Game');
+        loadProducts();
+    } else {
+        targetLabel.innerText = 'NOMOR HANDPHONE PELANGGAN:';
+        targetInput.placeholder = '08xxxxxxxxxx';
+        handlePhoneInput(targetInput.value);
+    }
+}
+
+function handlePhoneInput(val) {
+    const clean = val.replace(/\D/g, '');
+    if (currentCategory === 'PLN' || currentCategory === 'GAMES') {
+        return;
+    }
+
+    if (clean.length >= 4) {
+        const p4 = clean.substring(0, 4);
+        const brand = prefixMap[p4] || '';
+        if (brand !== detectedBrand) {
+            detectedBrand = brand;
+            updateOperatorBadge(brand || 'Lainnya');
+            loadProducts();
+        }
+    } else {
+        if (detectedBrand !== '') {
+            detectedBrand = '';
+            updateOperatorBadge('Menunggu Nomor...');
+            renderProducts([]);
+        }
+    }
+}
+
+function updateOperatorBadge(name) {
+    const badge = document.getElementById('operatorBadge');
+    badge.innerHTML = `<i class="fas fa-sim-card"></i> ${name}`;
+}
+
+function loadProducts() {
+    let url = `/kasir/products?category=${currentCategory}`;
+    if (detectedBrand && currentCategory !== 'EMONEY' && currentCategory !== 'GAMES') {
+        url += `&brand=${detectedBrand}`;
+    }
+
+    fetch(url)
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'success') {
+            allProducts = data.products || [];
+            renderProducts(allProducts);
+        }
+    })
+    .catch(() => {});
+}
+
+function renderProducts(prods) {
+    const container = document.getElementById('productsContainer');
+    const countBadge = document.getElementById('productCount');
+    countBadge.innerText = `${prods.length} Produk`;
+
+    if (prods.length === 0) {
+        container.innerHTML = `
+            <div style="grid-column: span 2; text-align: center; padding: 25px; color: #94a3b8; font-size: 0.85rem;">
+                Tidak ada produk yang cocok dengan nomor tujuan ini.
+            </div>`;
+        resetSelectedProduct();
+        return;
+    }
+
+    let html = '';
+    prods.forEach((p, idx) => {
+        html += `
+            <div class="prod-card" id="pcard_${idx}" onclick="selectProduct(${idx})">
+                <div class="prod-name">${p.name}</div>
+                <div class="prod-price">Rp ${formatRupiah(p.price)}</div>
+            </div>`;
+    });
+    container.innerHTML = html;
+    resetSelectedProduct();
+}
+
+function selectProduct(idx) {
+    selectedProduct = allProducts[idx];
+    document.querySelectorAll('.prod-card').forEach(c => c.classList.remove('selected'));
+    const el = document.getElementById(`pcard_${idx}`);
+    if (el) el.classList.add('selected');
+
+    const btn = document.getElementById('btnCheckout');
+    btn.disabled = false;
+    btn.innerHTML = `<i class="fas fa-shopping-cart"></i> Jual: ${selectedProduct.name} (Rp ${formatRupiah(selectedProduct.price)})`;
+}
+
+function resetSelectedProduct() {
+    selectedProduct = null;
+    const btn = document.getElementById('btnCheckout');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-shopping-cart"></i> <span>Pilih Produk Terlebih Dahulu</span>';
+}
+
+function formatRupiah(num) {
+    return Number(num).toLocaleString('id-ID');
+}
+
+function confirmSale() {
+    const target = document.getElementById('targetNumber').value.trim();
+    if (!target || target.length < 4) {
+        Swal.fire({ icon: 'warning', title: 'Nomor Tujuan Belum Diisi', text: 'Masukkan nomor HP / ID Pelanggan terlebih dahulu.' });
+        return;
+    }
+    if (!selectedProduct) return;
+
+    Swal.fire({
+        title: 'Konfirmasi Transaksi Kasir',
+        html: `
+            <div style="text-align: left; background: #f8fafc; padding: 14px; border-radius: 12px; font-size: 0.88rem; line-height: 1.6;">
+                <div><b>Produk:</b> ${selectedProduct.name}</div>
+                <div><b>Tujuan:</b> ${target}</div>
+                <div><b>Harga Modal Toko:</b> <span style="color: #008779; font-weight: 800;">Rp ${formatRupiah(selectedProduct.price)}</span></div>
+            </div>`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#008779',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Bayar dengan Saldo Toko',
+        cancelButtonText: 'Batal'
+    }).then(res => {
+        if (res.isConfirmed) {
+            executeCheckout(target, selectedProduct.sku_code);
+        }
+    });
+}
+
+function executeCheckout(target, sku) {
+    Swal.fire({
+        title: 'Memproses Transaksi...',
+        text: 'Mengirim permintaan ke provider...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    fetch('/kasir/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target_number: target, sku_code: sku })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'success') {
+            const trx = data.trx;
+            Swal.close();
+            // Tampilkan Struk
+            showReceipt(trx);
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Transaksi Ditolak',
+                text: data.message || 'Terjadi kesalahan transaksi.'
+            });
+        }
+    })
+    .catch(() => {
+        Swal.fire({ icon: 'error', title: 'Error Koneksi', text: 'Gagal menghubungi server kasir.' });
+    });
+}
+
+function showReceipt(trx) {
+    document.getElementById('rcptTime').innerText = trx.time;
+    document.getElementById('rcptRef').innerText = trx.ref_id;
+    document.getElementById('rcptTarget').innerText = trx.target_number;
+    document.getElementById('rcptProduct').innerText = trx.product_name;
+    document.getElementById('rcptSn').innerText = trx.sn;
+    document.getElementById('rcptTotal').innerText = 'Rp ' + formatRupiah(trx.amount);
+    document.getElementById('receiptModal').style.display = 'flex';
+}
+
+function closeReceipt() {
+    document.getElementById('receiptModal').style.display = 'none';
+    document.getElementById('targetNumber').value = '';
+    resetSelectedProduct();
+    renderProducts([]);
+}
+
+function openShiftHistory() {
+    const modal = document.getElementById('historyModal');
+    const list = document.getElementById('historyList');
+    modal.style.display = 'flex';
+    list.innerHTML = '<div style="text-align: center; color: #94a3b8; font-size: 0.8rem;"><i class="fas fa-spinner fa-spin"></i> Memuat riwayat shift...</div>';
+
+    fetch('/kasir/history')
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'success' && data.history.length > 0) {
+            let html = '';
+            data.history.forEach(t => {
+                html += `
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 12px; font-size: 0.78rem; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-weight: 800; color: #0f172a;">${t.product_name}</div>
+                            <div style="font-size: 0.7rem; color: #64748b;">${t.target_number} • ${t.time}</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-weight: 800; color: #008779;">Rp ${formatRupiah(t.amount)}</div>
+                            <span style="font-size: 0.65rem; font-weight: 800; padding: 2px 6px; border-radius: 6px; background: ${t.status === 'SUCCESS' ? '#dcfce7; color: #166534;' : '#fef3c7; color: #92400e;'}">${t.status}</span>
+                        </div>
+                    </div>`;
+            });
+            list.innerHTML = html;
+        } else {
+            list.innerHTML = '<div style="text-align: center; color: #94a3b8; font-size: 0.8rem; padding: 20px;">Belum ada transaksi pada shift ini.</div>';
+        }
+    })
+    .catch(() => {
+        list.innerHTML = '<div style="text-align: center; color: #ef4444; font-size: 0.8rem;">Gagal memuat riwayat.</div>';
+    });
+}
+
+function closeShiftHistory() {
+    document.getElementById('historyModal').style.display = 'none';
+}
+</script>
+
+</body>
+</html>
+

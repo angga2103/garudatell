@@ -80,12 +80,14 @@ def create_app():
     from app.routes.admin import admin_bp
     from app.routes.auth import auth_bp
     from app.routes.transaction import trx_bp
+    from app.routes.kasir import kasir_bp
     
     # Daftarkan Blueprint
     app.register_blueprint(user_bp) 
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(trx_bp, url_prefix='/trx')
+    app.register_blueprint(kasir_bp, url_prefix='/kasir')
 
     # Daftarkan Alias Route Webhook Callback (/api/callback/... & /callback/...)
     from app.routes.transaction import callback_digiflazz, callback_paymentkita, callback_pakasir, callback_vipreseller
@@ -150,6 +152,26 @@ def create_app():
                                 app.logger.info(f"[AUTO-MIGRATE] Kolom transaction.{c_name} berhasil ditambahkan ke database.")
                             except Exception as ex_col:
                                 app.logger.warning(f"Gagal tambah kolom transaction.{c_name}: {ex_col}")
+                    conn.commit()
+
+            # Auto-migrate kolom baru tabel trusted_device jika belum ada
+            if 'trusted_device' in inspector.get_table_names():
+                dev_cols = [c['name'] for c in inspector.get_columns('trusted_device')]
+                new_dev_cols = [
+                    ('pin_hash', 'VARCHAR(200)'),
+                    ('daily_limit', 'REAL DEFAULT 0.0'),
+                    ('operating_hours_start', 'VARCHAR(5)'),
+                    ('operating_hours_end', 'VARCHAR(5)'),
+                    ('activation_token', 'VARCHAR(64)')
+                ]
+                with db.engine.connect() as conn:
+                    for c_name, c_type in new_dev_cols:
+                        if c_name not in dev_cols:
+                            try:
+                                conn.execute(db.text(f'ALTER TABLE trusted_device ADD COLUMN {c_name} {c_type}'))
+                                app.logger.info(f"[AUTO-MIGRATE] Kolom trusted_device.{c_name} berhasil ditambahkan ke database.")
+                            except Exception as ex_col:
+                                app.logger.warning(f"Gagal tambah kolom trusted_device.{c_name}: {ex_col}")
                     conn.commit()
 
             if 'otp_codes' in inspector.get_table_names():

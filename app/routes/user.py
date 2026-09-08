@@ -2156,4 +2156,91 @@ def approve_device_manual_route(device_id):
     return redirect(url_for('user.vip_devices'))
 
 
+@user_bp.route('/vip/device/create', methods=['POST'])
+@login_required
+@csrf.exempt
+def create_branch_cashier_route():
+    """Owner VIP membuat cabang kasir baru beserta PIN dan link aktivasi."""
+    if not current_user.is_vip_active():
+        return jsonify({'status': 'error', 'message': 'Hanya akun VIP aktif yang dapat membuat Cabang Kasir.'}), 403
+
+    data = request.get_json(silent=True) or request.form.to_dict() or {}
+    branch_name = data.get('branch_name', '').strip()
+    pin = data.get('pin', '').strip()
+    daily_limit = data.get('daily_limit', 0)
+    hours_start = data.get('hours_start') or None
+    hours_end = data.get('hours_end') or None
+    base_url = request.host_url
+
+    from app.services.device_service import create_branch_cashier
+    ok, dev, act_url, msg = create_branch_cashier(
+        user=current_user,
+        branch_name=branch_name,
+        pin=pin,
+        daily_limit=daily_limit,
+        hours_start=hours_start,
+        hours_end=hours_end,
+        base_url=base_url
+    )
+
+    if ok:
+        return jsonify({
+            'status': 'success',
+            'message': msg,
+            'device_id': dev.id,
+            'device_name': dev.device_name,
+            'activation_url': act_url
+        }), 200
+    else:
+        return jsonify({'status': 'error', 'message': msg}), 400
+
+
+@user_bp.route('/vip/device/update/<int:device_id>', methods=['POST'])
+@login_required
+@csrf.exempt
+def update_branch_settings_route(device_id):
+    """Owner VIP mengubah nama cabang, reset PIN, atau mengubah limit harian/jam kerja."""
+    if not current_user.is_vip_active():
+        return jsonify({'status': 'error', 'message': 'Hanya akun VIP aktif yang dapat mengatur Cabang Kasir.'}), 403
+
+    data = request.get_json(silent=True) or request.form.to_dict() or {}
+    branch_name = data.get('branch_name')
+    new_pin = data.get('new_pin')
+    daily_limit = data.get('daily_limit')
+    hours_start = data.get('hours_start')
+    hours_end = data.get('hours_end')
+
+    from app.services.device_service import update_branch_settings
+    ok, msg = update_branch_settings(
+        user_id=current_user.id,
+        device_id=device_id,
+        branch_name=branch_name,
+        new_pin=new_pin,
+        daily_limit=daily_limit,
+        hours_start=hours_start,
+        hours_end=hours_end
+    )
+
+    if ok:
+        return jsonify({'status': 'success', 'message': msg}), 200
+    else:
+        return jsonify({'status': 'error', 'message': msg}), 400
+
+
+@user_bp.route('/vip/device/activation-link/<int:device_id>', methods=['GET'])
+@login_required
+def get_activation_link_route(device_id):
+    """Menghasilkan link aktivasi baru untuk cabang kasir."""
+    if not current_user.is_vip_active():
+        return jsonify({'status': 'error', 'message': 'Hanya akun VIP aktif yang dapat mengakses tautan ini.'}), 403
+
+    from app.services.device_service import regenerate_activation_link
+    ok, act_url, msg = regenerate_activation_link(current_user.id, device_id, base_url=request.host_url)
+
+    if ok:
+        return jsonify({'status': 'success', 'activation_url': act_url, 'message': msg}), 200
+    else:
+        return jsonify({'status': 'error', 'message': msg}), 400
+
+
 

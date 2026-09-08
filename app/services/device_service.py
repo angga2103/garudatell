@@ -278,3 +278,198 @@ def get_branch_usage_report(user_id, period='today'):
         'recent_transactions': transactions[:30]
     }
 
+
+# ==============================================================================
+# METODE MODE KASIR CABANG MANDIRI (DEDICATED CASHIER POS VIA PIN)
+# ==============================================================================
+
+def create_branch_cashier(user, branch_name, pin, daily_limit=0.0, hours_start=None, hours_end=None, base_url=None):
+    """
+    Owner VIP membuat profil cabang kasir baru lengkap dengan PIN 4-6 digit dan batasan operasional.
+    Menghasilkan tautan aktivasi satu kali pakai untuk dipasang di komputer cabang.
+    """
+    if not user or not user.is_vip_active():
+        return False, None, None, "Hanya akun VIP aktif yang dapat membuat dan mengelola Cabang Kasir."
+
+    clean_name = str(branch_name or '').strip()
+    if not clean_name:
+        return False, None, None, "Nama Cabang Toko wajib diisi (contoh: Cabang 1 - Pasar Baru)."
+
+    pin_str = str(pin or '').strip()
+    if not pin_str.isdigit() or len(pin_str) < 4 or len(pin_str) > 6:
+        return False, None, None, "PIN Kasir wajib berupa 4 hingga 6 digit angka."
+
+    # Generate token aktivasi & UUID sementara
+    activation_token = secrets.token_urlsafe(32)
+    temp_uuid = f"pending_act_{secrets.token_hex(12)}"
+
+    device = TrustedDevice(
+        user_id=user.id,
+        device_uuid=temp_uuid,
+        device_name=clean_name,
+        status='pending',
+        daily_limit=float(daily_limit or 0.0),
+        operating_hours_start=str(hours_start).strip() if hours_start else None,
+        operating_hours_end=str(hours_end).strip() if hours_end else None,
+        activation_token=activation_token,
+        created_at=datetime.utcnow()
+    )
+    device.set_pin(pin_str)
+    db.session.add(device)
+
+    # Pastikan sakelar lock kasir akun aktif
+    if not user.is_device_lock_enabled:
+        user.is_device_lock_enabled = True
+
+    db.session.commit()
+
+    domain = (base_url or 'https://ipay.my.id').rstrip('/')
+    activation_url = f"{domain}/kasir/aktivasi/{activation_token}"
+
+    return True, device, activation_url, "Cabang kasir berhasil dibuat! Bagikan tautan aktivasi ke komputer cabang toko."
+
+
+def activate_cashier_device(token, device_uuid, user_agent=None, ip_address=None):
+    """
+    Mengikat (bind) komputer cabang toko secara permanen via link aktivasi satu kali pakai.
+    """
+    if not token or not str(token).strip():
+        return False, None, "Tautan aktivasi tidak valid."
+
+    device = TrustedDevice.query.filter_by(activation_token=token).first()
+    if not device:
+        return False, None, "Tautan aktivasi tidak valid atau sudah pernah digunakan sebelumnya."
+
+    # Ikat identitas browser
+    device.device_uuid = str(device_uuid).strip()
+    device.device_info = str(user_agent or 'Komputer Toko')[:250]
+    device.ip_address = str(ip_address or '-')[:50]
+    device.status = 'approved'
+    device.approved_at = datetime.utcnow()
+    device.last_used_at = datetime.utcnow()
+    device.activation_token = None  # Hanguskan token setelah dipakai (one-time use)
+
+    # Pastikan status owner aktif
+    owner = User.query.get(device.user_id)
+    if owner and not owner.is_device_lock_enabled:
+        owner.is_device_lock_enabled = True
+
+    db.session.commit()
+    return True, device, f"Komputer kasir berhasil diaktivasi sebagai Kasir Resmi: {device.device_name}!"
+
+
+def login_cashier_pin(device_uuid, pin, user_agent=None):
+    """
+    Otentikasi Kasir Cabang di komputer toko menggunakan PIN Kasir (100% BEBAS OTP WA OWNER).
+    """
+    if not device_uuid or not str(device_uuid).strip():
+        return False, None, None, "Perangkat ini belum terikat sebagai kasir resmi toko."
+
+    device = TrustedDevice.query.filter_by(device_uuid=device_uuid).first()
+    if not device:
+        return False, None, None, "Perangkat belum terdaftar. Buka tautan aktivasi dari Owner untuk mendaftar."
+
+    if device.status == 'pending':
+        return False, None, None, "Perangkat kasir ini masih menunggu aktivasi resmi oleh Owner."
+    if device.status != 'approved':
+        return False, None, None, f"Izin akses perangkat kasir ini berstatus [{device.status}]. Hubungi Owner."
+
+    # Cek status akun VIP Owner
+    owner = User.query.get(device.user_id)
+    if not owner or not owner.is_vip_active():
+        return False, None, None, "Akun Toko VIP belum aktif atau masa aktif langganan telah habis."
+
+    # Cek jam kerja toko
+    if not device.is_within_operating_hours():
+        return False, None, None, f"Kasir berada di luar jam operasional toko ({device.operating_hours_start} - {device.operating_hours_end} WIB)."
+
+    # Cek PIN Kasir
+    if not device.check_pin(pin):
+        return False, None, None, "PIN Kasir salah! Silakan coba lagi atau hubungi Owner."
+
+    # Perbarui aktivitas terakhir
+    device.last_used_at = datetime.utcnow()
+    db.session.commit()
+
+    return True, device, owner, "Login Kasir berhasil! Selamat bertransaksi."
+
+
+def update_branch_settings(user_id, device_id, branch_name=None, new_pin=None, daily_limit=None, hours_start=None, hours_end=None):
+    """
+    Memperbarui nama cabang, PIN kasir, limit harian, atau jam operasional oleh Owner.
+    """
+    device = TrustedDevice.query.filter_by(id=device_id, user_id=user_id).first()
+    if not device:
+        return False, "Cabang kasir tidak ditemukan."
+
+    if branch_name and str(branch_name).strip():
+        device.device_name = str(branch_name).strip()
+
+    if new_pin and str(new_pin).strip():
+        pin_str = str(new_pin).strip()
+        if not pin_str.isdigit() or len(pin_str) < 4 or len(pin_str) > 6:
+            return False, "PIN Kasir baru wajib berupa 4 hingga 6 digit angka."
+        device.set_pin(pin_str)
+
+    if daily_limit is not None:
+        try:
+            device.daily_limit = max(0.0, float(daily_limit))
+        except (ValueError, TypeError):
+            pass
+
+    if hours_start is not None:
+        device.operating_hours_start = str(hours_start).strip() if str(hours_start).strip() else None
+
+    if hours_end is not None:
+        device.operating_hours_end = str(hours_end).strip() if str(hours_end).strip() else None
+
+    db.session.commit()
+    return True, f"Pengaturan cabang kasir '{device.device_name}' berhasil diperbarui."
+
+
+def regenerate_activation_link(user_id, device_id, base_url=None):
+    """
+    Menghasilkan link aktivasi baru jika komputer cabang ganti PC atau instal ulang browser.
+    """
+    device = TrustedDevice.query.filter_by(id=device_id, user_id=user_id).first()
+    if not device:
+        return False, None, "Cabang kasir tidak ditemukan."
+
+    new_token = secrets.token_urlsafe(32)
+    device.activation_token = new_token
+    device.status = 'pending'
+    db.session.commit()
+
+    domain = (base_url or 'https://ipay.my.id').rstrip('/')
+    activation_url = f"{domain}/kasir/aktivasi/{new_token}"
+    return True, activation_url, "Tautan aktivasi baru berhasil dibuat! Buka di komputer cabang toko."
+
+
+def verify_cashier_transaction_limits(device, amount):
+    """
+    Memvalidasi jam operasional dan plafon belanja harian cabang kasir sebelum checkout.
+    """
+    if not device:
+        return False, "Perangkat kasir tidak teridentifikasi."
+
+    if not device.is_within_operating_hours():
+        return False, f"Transaksi ditolak: Di luar jam kerja kasir ({device.operating_hours_start} - {device.operating_hours_end} WIB)."
+
+    if device.daily_limit and device.daily_limit > 0:
+        spent = device.get_today_spent()
+        if spent + float(amount) > float(device.daily_limit):
+            sisa = max(0.0, float(device.daily_limit) - spent)
+            return False, f"Transaksi ditolak: Batas limit harian cabang ini telah tercapai. Sisa kuota hari ini: Rp {sisa:,.0f} (Maksimal: Rp {device.daily_limit:,.0f}/hari)."
+
+    return True, None
+
+
+def get_branch_cashier_history(device_id, limit=50):
+    """
+    Mengambil riwayat transaksi khusus cabang kasir ini (terisolasi dari transaksi cabang lain).
+    """
+    from app.models.transaction import Transaction
+    trxs = Transaction.query.filter_by(device_id=device_id).order_by(Transaction.created_at.desc()).limit(limit).all()
+    return trxs
+
+
