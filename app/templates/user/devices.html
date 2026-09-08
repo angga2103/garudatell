@@ -199,7 +199,7 @@
                     </div>
                     
                     <div style="display: flex; gap: 6px;">
-                        <button type="button" onclick="getActivationLink({{ dev.id }})" style="background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; border-radius: 8px; padding: 4px 8px; font-size: 0.7rem; font-weight: 800; cursor: pointer;">
+                        <button type="button" onclick="getActivationLink({{ dev.id }}, '{{ dev.device_name }}', '{{ dev.status }}')" style="background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; border-radius: 8px; padding: 4px 8px; font-size: 0.7rem; font-weight: 800; cursor: pointer;">
                             <i class="fas fa-key"></i> Link Aktivasi
                         </button>
                         <button type="button" onclick="openEditBranchModal({{ dev.id }}, '{{ dev.device_name }}', {{ dev.daily_limit or 0 }}, '{{ dev.operating_hours_start or '' }}', '{{ dev.operating_hours_end or '' }}')" style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; border-radius: 8px; padding: 4px 8px; font-size: 0.7rem; font-weight: 800; cursor: pointer;">
@@ -667,12 +667,34 @@ function copyActivationUrl() {
     });
 }
 
-function getActivationLink(deviceId) {
+function getActivationLink(deviceId, branchName, status) {
+    const bName = branchName || 'Cabang Kasir';
+    if (status === 'approved') {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Buat Link Baru & Cabut Perangkat Lama?',
+            html: `Membuat tautan baru untuk <b>${bName}</b> akan <b>MENCABUT & MEMUTUS AKSES</b> komputer kasir yang saat ini sedang aktif.<br><br><span style="color:#ef4444; font-size:0.85rem; font-weight:700;">Perangkat/browser lama akan seketika tertendang keluar dan tidak bisa bertransaksi lagi!</span><br><br>Apakah Anda yakin ingin melanjutkan?`,
+            showCancelButton: true,
+            confirmButtonColor: '#008779',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Ya, Buat Link Baru',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                fetchActivationLink(deviceId, bName);
+            }
+        });
+    } else {
+        fetchActivationLink(deviceId, bName);
+    }
+}
+
+function fetchActivationLink(deviceId, branchName) {
     fetch(`/vip/device/activation-link/${deviceId}`)
     .then(res => res.json())
     .then(data => {
         if (data.status === 'success') {
-            showActivationUrl(data.activation_url, 'Kasir Toko');
+            showActivationUrl(data.activation_url, branchName);
         } else {
             Swal.fire({ icon: 'error', title: 'Gagal', text: data.message });
         }

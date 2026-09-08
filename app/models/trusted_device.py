@@ -24,6 +24,10 @@ class TrustedDevice(db.Model):
     operating_hours_start = db.Column(db.String(5), nullable=True)     # Contoh: "07:00" (WIB)
     operating_hours_end = db.Column(db.String(5), nullable=True)       # Contoh: "22:00" (WIB)
     activation_token = db.Column(db.String(64), unique=True, nullable=True, index=True) # Token aktivasi satu kali pakai
+    activation_expires_at = db.Column(db.DateTime, nullable=True)      # Waktu kedaluwarsa tautan aktivasi (misal 2 jam)
+    session_version = db.Column(db.Integer, default=1, nullable=False) # Nomor versi sesi (naik setiap re-aktivasi / revoke)
+    active_session_token = db.Column(db.String(64), nullable=True)     # Token sesi tunggal aktif (mencegah login paralel/kloning)
+    device_fingerprint = db.Column(db.String(128), nullable=True)      # Hash sidik jari hardware browser (anti-copy cookie)
     branch_balance = db.Column(db.Float, default=0.0)                  # Saldo deposit kasir cabang mandiri
     low_balance_alert = db.Column(db.Float, default=100000.0)          # Ambang batas alert saldo menipis ke WA Owner
 
@@ -50,6 +54,23 @@ class TrustedDevice(db.Model):
         if not self.approval_expires_at:
             return True
         return datetime.utcnow() > self.approval_expires_at
+
+    def is_activation_expired(self):
+        """Memeriksa apakah tautan aktivasi cabang telah kedaluwarsa."""
+        if not self.activation_expires_at:
+            return False
+        return datetime.utcnow() > self.activation_expires_at
+
+    def revoke_active_sessions(self):
+        """Memutus seketika seluruh sesi kasir yang sedang aktif di browser manapun."""
+        self.session_version = (self.session_version or 0) + 1
+        self.active_session_token = None
+
+    def check_fingerprint(self, client_fp):
+        """Validasi kecocokan sidik jari hardware browser."""
+        if not self.device_fingerprint or not client_fp:
+            return True  # Toleransi jika fingerprint belum terekam
+        return str(self.device_fingerprint).strip() == str(client_fp).strip()
 
     def set_pin(self, pin):
         """Menyimpan hash PIN kasir."""

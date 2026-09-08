@@ -22,11 +22,44 @@ from app.services.setting_service import get_store_name
 kasir_bp = Blueprint('kasir', __name__)
 
 def get_current_cashier_device():
-    """Mengambil objek TrustedDevice kasir yang sedang aktif pada sesi ini."""
+    """
+    Mengambil dan memverifikasi objek TrustedDevice kasir yang sedang aktif pada sesi ini.
+    Menerapkan validasi keamanan ketat:
+    1. device_id sesi wajib ada dan berstatus 'approved'.
+    2. Cookie 'gt_device_token' wajib cocok dengan device.device_uuid saat ini.
+    3. Nomor versi sesi ('cashier_session_version') wajib cocok dengan device.session_version.
+    4. Token sesi tunggal ('cashier_session_token') wajib cocok dengan device.active_session_token.
+    Jika ada ketidaksesuaian (misal owner regenerate link baru, atau cookie dicopy ke browser lain),
+    seluruh sesi dibatalkan seketika dan mengembalikan None.
+    """
     device_id = session.get('cashier_device_id')
     if not device_id:
         return None
-    return TrustedDevice.query.filter_by(id=device_id, status='approved').first()
+
+    device = TrustedDevice.query.filter_by(id=device_id, status='approved').first()
+    if not device:
+        session.clear()
+        return None
+
+    # 1. Validasi Token Identitas Perangkat Hardware (Cookie vs DB)
+    cookie_token = request.cookies.get('gt_device_token')
+    if not cookie_token or cookie_token != device.device_uuid:
+        session.clear()
+        return None
+
+    # 2. Validasi Nomor Versi Sesi (Mencegah sesi lama tetap jalan saat owner minta link baru)
+    session_ver = session.get('cashier_session_version')
+    if session_ver is None or session_ver != device.session_version:
+        session.clear()
+        return None
+
+    # 3. Validasi Token Sesi Aktif Tunggal (Mencegah duplikasi login / sesi paralel)
+    session_tok = session.get('cashier_session_token')
+    if device.active_session_token and session_tok != device.active_session_token:
+        session.clear()
+        return None
+
+    return device
 
 @kasir_bp.route('/')
 def index():
@@ -44,7 +77,7 @@ def index():
     if active_device:
         owner = User.query.get(active_device.user_id)
         if not owner or not owner.is_vip_active():
-            session.pop('cashier_device_id', None)
+            session.clear()
             return render_template(
                 'kasir/not_registered.html',
                 store_name=store_name,
@@ -115,9 +148,8 @@ def aktivasi(token):
     Tautan aktivasi kasir satu kali pakai yang diklik oleh karyawan di komputer toko.
     """
     store_name = get_store_name()
-    device_token = request.cookies.get('gt_device_token')
-    if not device_token or len(device_token) < 16:
-        device_token = f"gt_pos_{secrets.token_hex(16)}"
+    # Buat token identitas perangkat baru yang unik
+    device_token = f"gt_pos_{secrets.token_hex(16)}"
 
     ip_address = request.headers.get('X-Forwarded-For', request.remote_addr)
     user_agent = request.user_agent.string
@@ -139,7 +171,8 @@ def aktivasi(token):
     ))
 
     if ok:
-        resp.set_cookie('gt_device_token', device_token, max_age=31536000, samesite='Lax', path='/')
+        # Pasang cookie HttpOnly=True agar aman dari intipan JS (F12 Inspect Element)
+        resp.set_cookie('gt_device_token', device_token, max_age=31536000, httponly=True, samesite='Lax', path='/')
     return resp
 
 
@@ -149,24 +182,33 @@ def aktivasi(token):
 def login_pin():
     """
     Verifikasi PIN Kasir Cabang (100% BEBAS OTP WHATSAPP OWNER).
+    Menerapkan validasi sidik jari perangkat dan token sesi tunggal aktif.
     """
     data = request.get_json(silent=True) or request.form.to_dict() or {}
     pin_input = str(data.get('pin', '')).strip()
+    fingerprint_input = str(data.get('fingerprint', '')).strip() or None
 
     device_token = request.cookies.get('gt_device_token') or data.get('device_uuid')
     if not device_token:
         return jsonify({'status': 'error', 'message': 'Perangkat ini belum terikat sebagai kasir resmi.'}), 400
 
-    ok, device, owner, msg = login_cashier_pin(device_token, pin_input, user_agent=request.user_agent.string)
+    ok, device, owner, msg = login_cashier_pin(
+        device_uuid=device_token,
+        pin=pin_input,
+        user_agent=request.user_agent.string,
+        fingerprint=fingerprint_input
+    )
     if not ok:
         return jsonify({'status': 'error', 'message': msg}), 400
 
     shift_name = str(data.get('shift_name', '')).strip() or 'Kasir Toko'
 
-    # Simpan sesi kasir
+    # Simpan sesi kasir beserta nomor versi sesi dan token sesi aktif tunggal
     session['cashier_device_id'] = device.id
     session['cashier_user_id'] = owner.id
     session['cashier_shift_name'] = shift_name
+    session['cashier_session_version'] = device.session_version
+    session['cashier_session_token'] = device.active_session_token
 
     return jsonify({
         'status': 'success',
@@ -181,6 +223,8 @@ def logout():
     session.pop('cashier_device_id', None)
     session.pop('cashier_user_id', None)
     session.pop('cashier_shift_name', None)
+    session.pop('cashier_session_version', None)
+    session.pop('cashier_session_token', None)
     return redirect('/kasir')
 
 
@@ -354,7 +398,8 @@ def checkout():
         return jsonify({'status': 'error', 'message': lim_err}), 400
 
     # 2. Validasi Saldo Khusus Cabang Ini (Branch Balance)
-    cur_branch_bal = float(active_device.branch_balance or 0.0)
+    locked_device = db.session.query(TrustedDevice).filter_by(id=active_device.id).with_for_update().first() or active_device
+    cur_branch_bal = float(locked_device.branch_balance or 0.0)
     if cur_branch_bal < amount:
         return jsonify({
             'status': 'error',
@@ -364,8 +409,8 @@ def checkout():
 
     # 3. Potong Saldo Cabang & Catat Transaksi + Mutasi
     bal_before = cur_branch_bal
-    active_device.branch_balance = bal_before - amount
-    bal_after = float(active_device.branch_balance)
+    locked_device.branch_balance = bal_before - amount
+    bal_after = float(locked_device.branch_balance)
 
     ref_id = f"KASIR-{int(time.time()*1000)}{random.randint(10, 99)}"
 
@@ -380,14 +425,14 @@ def checkout():
         payment_status='PAID',
         status='PROCESSING',
         is_prepaid=True,
-        device_id=active_device.id,
-        device_name=active_device.device_name
+        device_id=locked_device.id,
+        device_name=locked_device.device_name
     )
     db.session.add(new_trx)
 
     # Catat mutasi cabang
     mut_sale = BranchMutation(
-        device_id=active_device.id,
+        device_id=locked_device.id,
         user_id=owner.id,
         type='SALE',
         amount=amount,
@@ -398,7 +443,7 @@ def checkout():
         created_at=datetime.utcnow()
     )
     db.session.add(mut_sale)
-    active_device.last_used_at = datetime.utcnow()
+    locked_device.last_used_at = datetime.utcnow()
     db.session.commit()
 
     # 4. Eksekusi ke Provider (Digiflazz / VIP-Reseller)
@@ -417,9 +462,9 @@ def checkout():
         else:
             # Gagal di provider -> Refund ke saldo cabang
             raw_msg = str(order_res.get('message', 'Ditolak API Provider'))
-            active_device.branch_balance += amount
+            locked_device.branch_balance += amount
             mut_ref = BranchMutation(
-                device_id=active_device.id,
+                device_id=locked_device.id,
                 user_id=owner.id,
                 type='REFUND',
                 amount=amount,
@@ -444,9 +489,9 @@ def checkout():
         else:
             # Gagal di digiflazz -> Refund ke saldo cabang
             raw_msg = str(msg_digi or 'Ditolak Digiflazz')
-            active_device.branch_balance += amount
+            locked_device.branch_balance += amount
             mut_ref = BranchMutation(
-                device_id=active_device.id,
+                device_id=locked_device.id,
                 user_id=owner.id,
                 type='REFUND',
                 amount=amount,

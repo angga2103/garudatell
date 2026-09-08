@@ -101,6 +101,10 @@ new_dev_cols = [
     ("operating_hours_start", "VARCHAR(5)"),
     ("operating_hours_end", "VARCHAR(5)"),
     ("activation_token", "VARCHAR(64)"),
+    ("activation_expires_at", "DATETIME"),
+    ("session_version", "INTEGER DEFAULT 1"),
+    ("active_session_token", "VARCHAR(64)"),
+    ("device_fingerprint", "VARCHAR(128)"),
     ("branch_balance", "REAL DEFAULT 0.0"),
     ("low_balance_alert", "REAL DEFAULT 100000.0")
 ]

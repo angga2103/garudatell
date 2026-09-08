@@ -43,3 +43,4 @@ class BranchMutation(db.Model):
 
     device = db.relationship('TrustedDevice', backref=db.backref('mutations', lazy='dynamic', cascade='all, delete-orphan'))
     user = db.relationship('User', backref=db.backref('branch_mutations', lazy='dynamic'))
+

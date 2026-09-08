@@ -430,6 +430,122 @@ class TestCashierPortal(unittest.TestCase):
         with self.client.session_transaction() as sess:
             self.assertIsNone(sess.get('cashier_device_id'))
 
+    def test_15_concurrent_browser_hijack_prevention(self):
+        """
+        RCA BUG: Browser 1 aktif, Owner buat link baru, Browser 2 aktif.
+        Browser 1 HARUS OTOMATIS TERTENDANG dan TIDAK BISA TRANSAKSI.
+        """
+        ok, dev, act_url1, msg = create_branch_cashier(self.vip_owner, "Cabang RCA Bug", "1234")
+        dev.branch_balance = 200000.0
+        db.session.commit()
+
+        # Browser 1 aktivasi dan login
+        b1_client = self.app.test_client()
+        b1_token = "browser1_uuid_token"
+        activate_cashier_device(dev.activation_token, b1_token)
+        b1_client.set_cookie('gt_device_token', b1_token, domain='localhost')
+        res_l1 = b1_client.post('/kasir/login_pin', json={'pin': '1234', 'shift_name': 'Shift 1'})
+        self.assertEqual(res_l1.status_code, 200)
+
+        # Browser 1 bisa checkout transaksi pertama
+        res_c1 = b1_client.post('/kasir/checkout', json={'sku_code': 'TLKM5', 'target_number': '081234567890'})
+        self.assertEqual(res_c1.status_code, 200)
+
+        # OWNER MENGHASILKAN LINK AKTIVASI KEDUA
+        ok_reg, new_act_url, _ = regenerate_activation_link(self.vip_owner.id, dev.id, "http://localhost")
+        self.assertTrue(ok_reg)
+
+        # VERIFIKASI: Browser 1 langsung tertendang seketika
+        res_b1_after_reg = b1_client.get('/kasir/products')
+        self.assertEqual(res_b1_after_reg.status_code, 401)
+
+        res_b1_checkout_fail = b1_client.post('/kasir/checkout', json={'sku_code': 'TLKM5', 'target_number': '081234567890'})
+        self.assertEqual(res_b1_checkout_fail.status_code, 401)
+
+        # Browser 2 aktivasi link kedua dan login
+        dev_fresh = db.session.get(TrustedDevice, dev.id)
+        b2_client = self.app.test_client()
+        b2_token = "browser2_uuid_token"
+        ok_act2, _, _ = activate_cashier_device(dev_fresh.activation_token, b2_token)
+        self.assertTrue(ok_act2)
+
+        b2_client.set_cookie('gt_device_token', b2_token, domain='localhost')
+        res_l2 = b2_client.post('/kasir/login_pin', json={'pin': '1234', 'shift_name': 'Shift 2'})
+        self.assertEqual(res_l2.status_code, 200)
+
+        # Browser 2 berhasil transaksi
+        res_c2 = b2_client.post('/kasir/checkout', json={'sku_code': 'TLKM5', 'target_number': '081234567891'})
+        self.assertEqual(res_c2.status_code, 200)
+
+        # VERIFIKASI FATAL: Browser 1 TETAP TIDAK BISA TRANSAKSI (Permanen terblokir)
+        res_b1_final = b1_client.post('/kasir/checkout', json={'sku_code': 'TLKM5', 'target_number': '081234567892'})
+        self.assertEqual(res_b1_final.status_code, 401)
+
+    def test_16_activation_link_expiration_2_hours(self):
+        """Memastikan tautan aktivasi kedaluwarsa setelah 2 jam."""
+        ok, dev, act_url, _ = create_branch_cashier(self.vip_owner, "Cabang Kadaluwarsa", "1234")
+        self.assertTrue(ok)
+        
+        # Simulasikan waktu sudah lewat 2 jam
+        dev.activation_expires_at = datetime.utcnow() - timedelta(minutes=10)
+        db.session.commit()
+
+        ok_act, _, err_msg = activate_cashier_device(dev.activation_token, "uuid_expired")
+        self.assertFalse(ok_act)
+        self.assertIn("kedaluwarsa", err_msg.lower())
+
+    def test_17_duplicate_branch_name_prevention(self):
+        """Memastikan nama cabang aktif tidak boleh duplikat untuk owner yang sama."""
+        ok1, dev1, _, _ = create_branch_cashier(self.vip_owner, "Toko Sentral Jaya", "1234")
+        self.assertTrue(ok1)
+
+        # Coba buat nama yang sama (huruf kecil)
+        ok2, dev2, _, err_msg = create_branch_cashier(self.vip_owner, "toko sentral jaya", "5678")
+        self.assertFalse(ok2)
+        self.assertIn("sudah terdaftar", err_msg.lower())
+
+    def test_18_hardware_fingerprint_mismatch_blocks_hijacker(self):
+        """Memastikan pencurian cookie ke device lain diblokir oleh hardware fingerprint."""
+        ok, dev, _, _ = create_branch_cashier(self.vip_owner, "Cabang Anti Hijack", "1234")
+        pc_token = "pos_official_device_token"
+        activate_cashier_device(dev.activation_token, pc_token)
+
+        # Login sah dari PC Toko (1920x1080 Windows)
+        ok_l1, dev_l1, _, msg_l1 = login_cashier_pin(pc_token, "1234", fingerprint="fp_win_1920x1080")
+        self.assertTrue(ok_l1)
+
+        # Karyawan copy cookie ke HP di rumah (390x844 Android)
+        ok_hijack, _, _, msg_h = login_cashier_pin(pc_token, "1234", fingerprint="fp_android_390x844")
+        self.assertFalse(ok_hijack)
+        self.assertIn("sidik jari", msg_h.lower())
+
+    def test_19_single_active_session_token_invalidates_cloned_session(self):
+        """Memastikan token sesi tunggal aktif mematikan sesi paralel jika ada kloning."""
+        ok, dev, _, _ = create_branch_cashier(self.vip_owner, "Cabang Single Session", "1234")
+        pc_token = "pos_single_token"
+        activate_cashier_device(dev.activation_token, pc_token)
+
+        # Client A login
+        client_a = self.app.test_client()
+        client_a.set_cookie('gt_device_token', pc_token, domain='localhost')
+        res_a = client_a.post('/kasir/login_pin', json={'pin': '1234', 'fingerprint': 'fp_device_1'})
+        self.assertEqual(res_a.status_code, 200)
+
+        # Client A akses products -> OK
+        self.assertEqual(client_a.get('/kasir/products').status_code, 200)
+
+        # Client B login dengan cookie yang sama dan fingerprint yang sama
+        client_b = self.app.test_client()
+        client_b.set_cookie('gt_device_token', pc_token, domain='localhost')
+        res_b = client_b.post('/kasir/login_pin', json={'pin': '1234', 'fingerprint': 'fp_device_1'})
+        self.assertEqual(res_b.status_code, 200)
+
+        # Client B akses products -> OK
+        self.assertEqual(client_b.get('/kasir/products').status_code, 200)
+
+        # Client A akses products lagi -> HARUS 401 karena active_session_token sudah di-rotate oleh Client B
+        self.assertEqual(client_a.get('/kasir/products').status_code, 401)
+
 
 if __name__ == '__main__':
     unittest.main()

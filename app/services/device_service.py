@@ -1,5 +1,6 @@
 import secrets
 from datetime import datetime, timezone, timedelta
+from sqlalchemy import func
 from app.extensions import db
 from app.models.trusted_device import TrustedDevice
 from app.models.user import User
@@ -158,6 +159,7 @@ def approve_device_manual(user_id, device_id):
 def revoke_device(user_id, device_id):
     """
     Mencabut izin perangkat kasir oleh Owner dari dashboard.
+    Secara instan MENCABUT dan MEMUTUS akses transaksi dari perangkat tersebut.
     """
     device = TrustedDevice.query.filter_by(id=device_id, user_id=user_id).first()
     if not device:
@@ -165,6 +167,11 @@ def revoke_device(user_id, device_id):
 
     device.status = 'revoked'
     device.approval_token = None
+    device.activation_token = None
+    device.activation_expires_at = None
+    device.device_uuid = f"revoked_{secrets.token_hex(12)}"
+    device.device_fingerprint = None
+    device.revoke_active_sessions()
     db.session.commit()
     return True, f"Akses transaksi untuk '{device.device_name}' berhasil dicabut."
 
@@ -300,8 +307,18 @@ def create_branch_cashier(user, branch_name, pin, daily_limit=0.0, hours_start=N
     if not pin_str.isdigit() or len(pin_str) < 4 or len(pin_str) > 6:
         return False, None, None, "PIN Kasir wajib berupa 4 hingga 6 digit angka."
 
-    # Generate token aktivasi & UUID sementara
+    # Cek duplikasi nama cabang untuk user ini (kecuali yang sudah dicabut/revoked)
+    existing_branch = TrustedDevice.query.filter(
+        TrustedDevice.user_id == user.id,
+        func.lower(TrustedDevice.device_name) == clean_name.lower(),
+        TrustedDevice.status != 'revoked'
+    ).first()
+    if existing_branch:
+        return False, None, None, f"Nama cabang '{clean_name}' sudah terdaftar dan masih aktif. Gunakan nama cabang lain."
+
+    # Generate token aktivasi (berlaku 2 jam) & UUID sementara
     activation_token = secrets.token_urlsafe(32)
+    activation_expires_at = datetime.utcnow() + timedelta(hours=2)
     temp_uuid = f"pending_act_{secrets.token_hex(12)}"
 
     device = TrustedDevice(
@@ -313,6 +330,8 @@ def create_branch_cashier(user, branch_name, pin, daily_limit=0.0, hours_start=N
         operating_hours_start=str(hours_start).strip() if hours_start else None,
         operating_hours_end=str(hours_end).strip() if hours_end else None,
         activation_token=activation_token,
+        activation_expires_at=activation_expires_at,
+        session_version=1,
         created_at=datetime.utcnow()
     )
     device.set_pin(pin_str)
@@ -330,9 +349,10 @@ def create_branch_cashier(user, branch_name, pin, daily_limit=0.0, hours_start=N
     return True, device, activation_url, "Cabang kasir berhasil dibuat! Bagikan tautan aktivasi ke komputer cabang toko."
 
 
-def activate_cashier_device(token, device_uuid, user_agent=None, ip_address=None):
+def activate_cashier_device(token, device_uuid, user_agent=None, ip_address=None, fingerprint=None):
     """
     Mengikat (bind) komputer cabang toko secara permanen via link aktivasi satu kali pakai.
+    Memutuskan seketika sesi apapun dari komputer/browser sebelumnya.
     """
     if not token or not str(token).strip():
         return False, None, "Tautan aktivasi tidak valid."
@@ -341,14 +361,24 @@ def activate_cashier_device(token, device_uuid, user_agent=None, ip_address=None
     if not device:
         return False, None, "Tautan aktivasi tidak valid atau sudah pernah digunakan sebelumnya."
 
-    # Ikat identitas browser
+    # Periksa batas kedaluwarsa tautan aktivasi (2 jam)
+    if device.is_activation_expired():
+        return False, device, "Tautan aktivasi telah kedaluwarsa (maksimal 2 jam sejak dibuat). Hubungi Owner untuk membuat tautan baru."
+
+    # Ikat identitas browser & hardware fingerprint
     device.device_uuid = str(device_uuid).strip()
     device.device_info = str(user_agent or 'Komputer Toko')[:250]
     device.ip_address = str(ip_address or '-')[:50]
+    if fingerprint:
+        device.device_fingerprint = str(fingerprint).strip()[:128]
     device.status = 'approved'
     device.approved_at = datetime.utcnow()
     device.last_used_at = datetime.utcnow()
     device.activation_token = None  # Hanguskan token setelah dipakai (one-time use)
+    device.activation_expires_at = None
+
+    # Putuskan seluruh sesi browser sebelumnya
+    device.revoke_active_sessions()
 
     # Pastikan status owner aktif
     owner = User.query.get(device.user_id)
@@ -359,9 +389,10 @@ def activate_cashier_device(token, device_uuid, user_agent=None, ip_address=None
     return True, device, f"Komputer kasir berhasil diaktivasi sebagai Kasir Resmi: {device.device_name}!"
 
 
-def login_cashier_pin(device_uuid, pin, user_agent=None):
+def login_cashier_pin(device_uuid, pin, user_agent=None, fingerprint=None):
     """
     Otentikasi Kasir Cabang di komputer toko menggunakan PIN Kasir (100% BEBAS OTP WA OWNER).
+    Menerapkan validasi sidik jari perangkat dan token sesi tunggal aktif (anti-kloning).
     """
     if not device_uuid or not str(device_uuid).strip():
         return False, None, None, "Perangkat ini belum terikat sebagai kasir resmi toko."
@@ -388,7 +419,18 @@ def login_cashier_pin(device_uuid, pin, user_agent=None):
     if not device.check_pin(pin):
         return False, None, None, "PIN Kasir salah! Silakan coba lagi atau hubungi Owner."
 
-    # Perbarui aktivitas terakhir
+    # Validasi Sidik Jari Perangkat (Hardware Fingerprint Anti-Hijacking)
+    if fingerprint:
+        if device.device_fingerprint:
+            if not device.check_fingerprint(fingerprint):
+                return False, None, None, "Sidik jari perangkat/browser tidak sesuai dengan data aktivasi kasir toko. Hubungi Owner jika mengganti perangkat."
+        else:
+            # Bind fingerprint jika baru pertama kali terekam
+            device.device_fingerprint = str(fingerprint).strip()[:128]
+
+    # Buat token sesi tunggal aktif (mencegah login paralel/kloning)
+    new_session_token = secrets.token_hex(16)
+    device.active_session_token = new_session_token
     device.last_used_at = datetime.utcnow()
     db.session.commit()
 
@@ -404,7 +446,18 @@ def update_branch_settings(user_id, device_id, branch_name=None, new_pin=None, d
         return False, "Cabang kasir tidak ditemukan."
 
     if branch_name and str(branch_name).strip():
-        device.device_name = str(branch_name).strip()
+        clean_name = str(branch_name).strip()
+        # Cek duplikasi jika nama berubah
+        if clean_name.lower() != device.device_name.lower():
+            dup = TrustedDevice.query.filter(
+                TrustedDevice.user_id == user_id,
+                TrustedDevice.id != device_id,
+                func.lower(TrustedDevice.device_name) == clean_name.lower(),
+                TrustedDevice.status != 'revoked'
+            ).first()
+            if dup:
+                return False, f"Nama cabang '{clean_name}' sudah digunakan oleh cabang lain."
+        device.device_name = clean_name
 
     if new_pin and str(new_pin).strip():
         pin_str = str(new_pin).strip()
@@ -431,6 +484,7 @@ def update_branch_settings(user_id, device_id, branch_name=None, new_pin=None, d
 def regenerate_activation_link(user_id, device_id, base_url=None):
     """
     Menghasilkan link aktivasi baru jika komputer cabang ganti PC atau instal ulang browser.
+    Secara instan MENCABUT dan MEMUTUS akses dari komputer/browser kasir cabang sebelumnya.
     """
     device = TrustedDevice.query.filter_by(id=device_id, user_id=user_id).first()
     if not device:
@@ -438,12 +492,21 @@ def regenerate_activation_link(user_id, device_id, base_url=None):
 
     new_token = secrets.token_urlsafe(32)
     device.activation_token = new_token
+    device.activation_expires_at = datetime.utcnow() + timedelta(hours=2)
+
+    # Lepas ikatan identitas browser lama secara instan agar browser lama langsung tertendang
+    device.device_uuid = f"pending_act_{secrets.token_hex(12)}"
     device.status = 'pending'
+    device.device_fingerprint = None
+
+    # Putuskan dan batalkan seluruh sesi aktif di browser lama
+    device.revoke_active_sessions()
+
     db.session.commit()
 
     domain = (base_url or 'https://ipay.my.id').rstrip('/')
     activation_url = f"{domain}/kasir/aktivasi/{new_token}"
-    return True, activation_url, "Tautan aktivasi baru berhasil dibuat! Buka di komputer cabang toko."
+    return True, activation_url, "Tautan aktivasi baru berhasil dibuat! Akses kasir sebelumnya telah dicabut. Buka tautan baru ini di komputer kasir toko."
 
 
 def verify_cashier_transaction_limits(device, amount):

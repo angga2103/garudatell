@@ -207,18 +207,41 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
+function getHardwareFingerprint() {
+    try {
+        const parts = [
+            screen.width + 'x' + screen.height + 'x' + screen.colorDepth,
+            navigator.platform || '',
+            navigator.userAgentData ? (navigator.userAgentData.platform || '') : '',
+            navigator.hardwareConcurrency || '1',
+            new Date().getTimezoneOffset(),
+            Intl.DateTimeFormat().resolvedOptions().timeZone || ''
+        ];
+        let str = parts.join('###');
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            hash = ((hash << 5) - hash) + str.charCodeAt(i);
+            hash |= 0;
+        }
+        return 'fp_' + Math.abs(hash) + '_' + (screen.width + 'x' + screen.height);
+    } catch(e) {
+        return 'fp_basic_' + (screen.width + 'x' + screen.height);
+    }
+}
+
 function submitPin() {
     if (pinBuffer.length < 4) {
         return;
     }
 
     const shiftName = document.getElementById('shiftNameInput').value.trim() || 'Kasir Toko';
+    const fp = getHardwareFingerprint();
 
     // Tampilkan loading singkat
     fetch('/kasir/login_pin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin: pinBuffer, shift_name: shiftName })
+        body: JSON.stringify({ pin: pinBuffer, shift_name: shiftName, fingerprint: fp })
     })
     .then(res => res.json())
     .then(data => {

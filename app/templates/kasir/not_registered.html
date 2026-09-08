@@ -89,15 +89,6 @@
         <i class="fas fa-cash-register"></i> Buka Layar Kasir Sekarang
     </a>
 
-    {% if device_token %}
-    <script>
-        // Simpan token ke localStorage sebagai cadangan ganda
-        try {
-            localStorage.setItem('gt_device_token', '{{ device_token }}');
-        } catch(e) {}
-    </script>
-    {% endif %}
-
     {% else %}
     <div class="icon-box icon-warning">
         <i class="fas fa-shield-alt"></i>
