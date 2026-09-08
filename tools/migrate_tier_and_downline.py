@@ -53,6 +53,14 @@ def run_migration():
         # 2. Buat tabel commission_logs via SQLAlchemy
         db.create_all()
         print("  [+] Tabel 'commission_logs' terverifikasi dan siap digunakan.")
+        
+        # 3. Jalankan migrasi kolom & tabel kasir multi-cabang (branch_balance, branch_mutation)
+        try:
+            from tools.migrate_quick import run_migration as run_quick
+            run_quick()
+        except Exception as e:
+            print(f"  [!] Peringatan migrasi quick: {e}")
+
         print("[SUCCESS] Migrasi database berhasil diselesaikan 100%!\n")
 
 if __name__ == '__main__':

@@ -466,6 +466,7 @@ menu_check_update() {
             echo -e "${BLUE}[3/5] Menjalankan verifikasi database seeder & migrasi tabel/kolom baru...${NC}"
             $VENV_PYTHON "$PROJECT_DIR/tools/init_app.py" >/dev/null 2>&1 || true
             $VENV_PYTHON "$PROJECT_DIR/tools/migrate_tier_and_downline.py" >/dev/null 2>&1 || true
+            $VENV_PYTHON "$PROJECT_DIR/tools/migrate_quick.py" >/dev/null 2>&1 || true
 
             echo -e "${BLUE}[4/5] Merestart layanan GarudaTel & Bot Admin...${NC}"
             sudo systemctl restart garudatel 2>/dev/null || true
