@@ -291,7 +291,7 @@ def get_branch_usage_report(user_id, period='today'):
 # METODE MODE KASIR CABANG MANDIRI (DEDICATED CASHIER POS VIA PIN)
 # ==============================================================================
 
-def create_branch_cashier(user, branch_name, pin, daily_limit=0.0, hours_start=None, hours_end=None, base_url=None):
+def create_branch_cashier(user, branch_name, pin, daily_limit=0.0, hours_start=None, hours_end=None, is_24_hours=False, base_url=None):
     """
     Owner VIP membuat profil cabang kasir baru lengkap dengan PIN 4-6 digit dan batasan operasional.
     Menghasilkan tautan aktivasi satu kali pakai untuk dipasang di komputer cabang.
@@ -321,14 +321,18 @@ def create_branch_cashier(user, branch_name, pin, daily_limit=0.0, hours_start=N
     activation_expires_at = datetime.utcnow() + timedelta(hours=24)
     temp_uuid = f"pending_act_{secrets.token_hex(12)}"
 
+    # Pengaturan jam operasional (24 Jam vs Custom Hours)
+    clean_h_start = None if is_24_hours else (str(hours_start).strip() if hours_start and str(hours_start).strip() else None)
+    clean_h_end = None if is_24_hours else (str(hours_end).strip() if hours_end and str(hours_end).strip() else None)
+
     device = TrustedDevice(
         user_id=user.id,
         device_uuid=temp_uuid,
         device_name=clean_name,
         status='pending',
         daily_limit=float(daily_limit or 0.0),
-        operating_hours_start=str(hours_start).strip() if hours_start else None,
-        operating_hours_end=str(hours_end).strip() if hours_end else None,
+        operating_hours_start=clean_h_start,
+        operating_hours_end=clean_h_end,
         activation_token=activation_token,
         activation_expires_at=activation_expires_at,
         session_version=1,
@@ -437,9 +441,10 @@ def login_cashier_pin(device_uuid, pin, user_agent=None, fingerprint=None):
     return True, device, owner, "Login Kasir berhasil! Selamat bertransaksi."
 
 
-def update_branch_settings(user_id, device_id, branch_name=None, new_pin=None, daily_limit=None, hours_start=None, hours_end=None):
+def update_branch_settings(user_id, device_id, branch_name=None, new_pin=None, daily_limit=None, hours_start=None, hours_end=None, is_24_hours=None):
     """
     Memperbarui nama cabang, PIN kasir, limit harian, atau jam operasional oleh Owner.
+    Mendukung opsi peralihan ke '24 Jam Nonstop' (is_24_hours=True).
     """
     device = TrustedDevice.query.filter_by(id=device_id, user_id=user_id).first()
     if not device:
@@ -453,7 +458,7 @@ def update_branch_settings(user_id, device_id, branch_name=None, new_pin=None, d
                 TrustedDevice.user_id == user_id,
                 TrustedDevice.id != device_id,
                 func.lower(TrustedDevice.device_name) == clean_name.lower(),
-                TrustedDevice.status != 'revoked'
+                TrustedDevice.status.in_(['approved', 'pending'])
             ).first()
             if dup:
                 return False, f"Nama cabang '{clean_name}' sudah digunakan oleh cabang lain."
@@ -471,11 +476,17 @@ def update_branch_settings(user_id, device_id, branch_name=None, new_pin=None, d
         except (ValueError, TypeError):
             pass
 
-    if hours_start is not None:
-        device.operating_hours_start = str(hours_start).strip() if str(hours_start).strip() else None
+    if is_24_hours is True:
+        device.operating_hours_start = None
+        device.operating_hours_end = None
+    else:
+        if hours_start is not None:
+            clean_s = str(hours_start).strip()
+            device.operating_hours_start = clean_s if clean_s and clean_s != 'None' else None
 
-    if hours_end is not None:
-        device.operating_hours_end = str(hours_end).strip() if str(hours_end).strip() else None
+        if hours_end is not None:
+            clean_e = str(hours_end).strip()
+            device.operating_hours_end = clean_e if clean_e and clean_e != 'None' else None
 
     db.session.commit()
     return True, f"Pengaturan cabang kasir '{device.device_name}' berhasil diperbarui."

@@ -2175,8 +2175,10 @@ def create_branch_cashier_route():
     branch_name = data.get('branch_name', '').strip()
     pin = data.get('pin', '').strip()
     daily_limit = data.get('daily_limit', 0)
-    hours_start = data.get('hours_start') or None
-    hours_end = data.get('hours_end') or None
+    is_24_raw = data.get('is_24_hours')
+    is_24_hours = (str(is_24_raw).lower() in ['true', '1', 'yes']) if is_24_raw is not None else False
+    hours_start = None if is_24_hours else (data.get('hours_start') or None)
+    hours_end = None if is_24_hours else (data.get('hours_end') or None)
     base_url = request.host_url
 
     from app.services.device_service import create_branch_cashier
@@ -2187,6 +2189,7 @@ def create_branch_cashier_route():
         daily_limit=daily_limit,
         hours_start=hours_start,
         hours_end=hours_end,
+        is_24_hours=is_24_hours,
         base_url=base_url
     )
 
@@ -2214,8 +2217,15 @@ def update_branch_settings_route(device_id):
     branch_name = data.get('branch_name')
     new_pin = data.get('new_pin')
     daily_limit = data.get('daily_limit')
-    hours_start = data.get('hours_start')
-    hours_end = data.get('hours_end')
+    
+    is_24_raw = data.get('is_24_hours')
+    if is_24_raw is not None:
+        is_24_hours = str(is_24_raw).lower() in ['true', '1', 'yes']
+    else:
+        is_24_hours = None
+
+    hours_start = None if is_24_hours else data.get('hours_start')
+    hours_end = None if is_24_hours else data.get('hours_end')
 
     from app.services.device_service import update_branch_settings
     ok, msg = update_branch_settings(
@@ -2225,7 +2235,8 @@ def update_branch_settings_route(device_id):
         new_pin=new_pin,
         daily_limit=daily_limit,
         hours_start=hours_start,
-        hours_end=hours_end
+        hours_end=hours_end,
+        is_24_hours=is_24_hours
     )
 
     if ok:

@@ -135,10 +135,18 @@
                             {% endif %}
                         </div>
                         
-                        <div style="font-size: 0.74rem; color: #64748b; margin-top: 4px; display: flex; gap: 12px; flex-wrap: wrap;">
+                        <div style="font-size: 0.74rem; color: #64748b; margin-top: 4px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
                             <span>
                                 <i class="fas fa-clock" style="color: #0284c7;"></i> Jam: 
-                                <b>{% if dev.operating_hours_start %}{{ dev.operating_hours_start }} - {{ dev.operating_hours_end }} WIB{% else %}24 Jam{% endif %}</b>
+                                <b>
+                                    {% if dev.is_24_hours %}
+                                    <span style="background: #e0f2fe; color: #0369a1; padding: 2px 7px; border-radius: 6px; font-weight: 800; font-size: 0.72rem; display: inline-flex; align-items: center; gap: 4px;">
+                                        <i class="fas fa-bolt" style="color: #0284c7;"></i> 24 Jam Nonstop
+                                    </span>
+                                    {% else %}
+                                    {{ dev.operating_hours_start }} - {{ dev.operating_hours_end }} WIB
+                                    {% endif %}
+                                </b>
                             </span>
                             <span>
                                 <i class="fas fa-shield-alt" style="color: #059669;"></i> Limit: 
@@ -346,7 +354,18 @@
                 <input type="number" id="newDailyLimit" placeholder="0 = Tanpa Batas (Unlimited)" style="width: 100%; padding: 10px 12px; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 0.88rem; font-weight: 700; outline: none; box-sizing: border-box;">
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <!-- OPSI BUKA TOKO 24 JAM -->
+            <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 10px 14px; margin-top: 2px;">
+                <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; margin: 0;">
+                    <span style="font-size: 0.8rem; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 7px;">
+                        <i class="fas fa-bolt" style="color: #0284c7;"></i> Buka Toko 24 Jam Nonstop
+                    </span>
+                    <input type="checkbox" id="newIs24Hours" onchange="toggleHoursInputs('new')" style="width: 18px; height: 18px; accent-color: #008779; cursor: pointer;">
+                </label>
+            </div>
+
+            <!-- INPUT JAM BUKA & TUTUP -->
+            <div id="newHoursInputsContainer" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
                 <div>
                     <label style="display: block; font-size: 0.75rem; font-weight: 800; color: #334155; margin-bottom: 4px;">
                         Jam Buka (WIB):
@@ -359,6 +378,10 @@
                     </label>
                     <input type="time" id="newHoursEnd" value="22:00" style="width: 100%; padding: 8px 10px; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 0.85rem; font-weight: 700; outline: none; box-sizing: border-box;">
                 </div>
+            </div>
+
+            <div id="newHoursNotice24" style="display: none; background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 10px; padding: 9px 12px; font-size: 0.75rem; color: #0369a1; font-weight: 700; line-height: 1.35;">
+                <i class="fas fa-check-circle"></i> <b>Mode 24 Jam Aktif:</b> Kasir cabang dapat login & melayani transaksi setiap saat tanpa batasan jam buka/tutup.
             </div>
         </div>
 
@@ -432,15 +455,30 @@
                 <input type="number" id="editDailyLimit" style="width: 100%; padding: 10px 12px; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 0.88rem; font-weight: 700; box-sizing: border-box;">
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <!-- OPSI BUKA TOKO 24 JAM -->
+            <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 10px 14px; margin-top: 2px;">
+                <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; margin: 0;">
+                    <span style="font-size: 0.8rem; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 7px;">
+                        <i class="fas fa-bolt" style="color: #0284c7;"></i> Buka Toko 24 Jam Nonstop
+                    </span>
+                    <input type="checkbox" id="editIs24Hours" onchange="toggleHoursInputs('edit')" style="width: 18px; height: 18px; accent-color: #008779; cursor: pointer;">
+                </label>
+            </div>
+
+            <!-- INPUT JAM BUKA & TUTUP -->
+            <div id="editHoursInputsContainer" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
                 <div>
-                    <label style="display: block; font-size: 0.75rem; font-weight: 800; color: #334155; margin-bottom: 4px;">Jam Buka:</label>
+                    <label style="display: block; font-size: 0.75rem; font-weight: 800; color: #334155; margin-bottom: 4px;">Jam Buka (WIB):</label>
                     <input type="time" id="editHoursStart" style="width: 100%; padding: 8px 10px; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 0.85rem; font-weight: 700; box-sizing: border-box;">
                 </div>
                 <div>
-                    <label style="display: block; font-size: 0.75rem; font-weight: 800; color: #334155; margin-bottom: 4px;">Jam Tutup:</label>
+                    <label style="display: block; font-size: 0.75rem; font-weight: 800; color: #334155; margin-bottom: 4px;">Jam Tutup (WIB):</label>
                     <input type="time" id="editHoursEnd" style="width: 100%; padding: 8px 10px; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 0.85rem; font-weight: 700; box-sizing: border-box;">
                 </div>
+            </div>
+
+            <div id="editHoursNotice24" style="display: none; background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 10px; padding: 9px 12px; font-size: 0.75rem; color: #0369a1; font-weight: 700; line-height: 1.35;">
+                <i class="fas fa-check-circle"></i> <b>Mode 24 Jam Aktif:</b> Kasir cabang dapat login & melayani transaksi setiap saat tanpa batasan jam buka/tutup.
             </div>
         </div>
 
@@ -605,8 +643,30 @@ function toggleLockMode(isChecked) {
     });
 }
 
+// Helper Toggle Jam Operasional 24 Jam
+function toggleHoursInputs(prefix) {
+    const chk = document.getElementById(prefix + 'Is24Hours');
+    const is24 = chk ? chk.checked : false;
+    const container = document.getElementById(prefix + 'HoursInputsContainer');
+    const notice = document.getElementById(prefix + 'HoursNotice24');
+    if (container) {
+        container.style.display = is24 ? 'none' : 'grid';
+    }
+    if (notice) {
+        notice.style.display = is24 ? 'block' : 'none';
+    }
+}
+
 // Modal Tambah Cabang
 function openCreateBranchModal() {
+    document.getElementById('newBranchName').value = '';
+    document.getElementById('newBranchPin').value = '';
+    document.getElementById('newDailyLimit').value = '';
+    const chk = document.getElementById('newIs24Hours');
+    if (chk) {
+        chk.checked = false;
+        toggleHoursInputs('new');
+    }
     document.getElementById('createBranchModal').style.display = 'flex';
     document.getElementById('newBranchName').focus();
 }
@@ -619,8 +679,9 @@ function submitCreateBranch() {
     const name = document.getElementById('newBranchName').value.trim();
     const pin = document.getElementById('newBranchPin').value.trim();
     const limit = document.getElementById('newDailyLimit').value;
-    const hStart = document.getElementById('newHoursStart').value;
-    const hEnd = document.getElementById('newHoursEnd').value;
+    const is24 = document.getElementById('newIs24Hours') ? document.getElementById('newIs24Hours').checked : false;
+    const hStart = is24 ? null : document.getElementById('newHoursStart').value;
+    const hEnd = is24 ? null : document.getElementById('newHoursEnd').value;
 
     if (!name || !pin) {
         Swal.fire({ icon: 'warning', title: 'Data Belum Lengkap', text: 'Nama Cabang dan PIN Kasir wajib diisi.' });
@@ -634,6 +695,7 @@ function submitCreateBranch() {
             branch_name: name,
             pin: pin,
             daily_limit: limit,
+            is_24_hours: is24,
             hours_start: hStart,
             hours_end: hEnd
         })
@@ -710,8 +772,16 @@ function openEditBranchModal(id, name, limit, hStart, hEnd) {
     document.getElementById('editBranchName').value = name;
     document.getElementById('editNewPin').value = '';
     document.getElementById('editDailyLimit').value = limit || 0;
-    document.getElementById('editHoursStart').value = hStart || '07:00';
-    document.getElementById('editHoursEnd').value = hEnd || '22:00';
+
+    const is24 = (!hStart || hStart === 'None' || hStart === '' || !hEnd || hEnd === 'None' || hEnd === '');
+    const chk = document.getElementById('editIs24Hours');
+    if (chk) {
+        chk.checked = is24;
+    }
+    document.getElementById('editHoursStart').value = (!is24 && hStart) ? hStart : '07:00';
+    document.getElementById('editHoursEnd').value = (!is24 && hEnd) ? hEnd : '22:00';
+    toggleHoursInputs('edit');
+
     document.getElementById('editBranchModal').style.display = 'flex';
 }
 
@@ -724,8 +794,9 @@ function submitEditBranch() {
     const name = document.getElementById('editBranchName').value.trim();
     const pin = document.getElementById('editNewPin').value.trim();
     const limit = document.getElementById('editDailyLimit').value;
-    const hStart = document.getElementById('editHoursStart').value;
-    const hEnd = document.getElementById('editHoursEnd').value;
+    const is24 = document.getElementById('editIs24Hours') ? document.getElementById('editIs24Hours').checked : false;
+    const hStart = is24 ? null : document.getElementById('editHoursStart').value;
+    const hEnd = is24 ? null : document.getElementById('editHoursEnd').value;
 
     fetch(`/vip/device/update/${id}`, {
         method: 'POST',
@@ -734,6 +805,7 @@ function submitEditBranch() {
             branch_name: name,
             new_pin: pin || null,
             daily_limit: limit,
+            is_24_hours: is24,
             hours_start: hStart,
             hours_end: hEnd
         })

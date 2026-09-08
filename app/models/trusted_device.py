@@ -91,15 +91,44 @@ class TrustedDevice(db.Model):
             return False
         return check_password_hash(self.pin_hash, str(pin).strip())
 
-    def is_within_operating_hours(self):
-        """Memeriksa apakah saat ini berada dalam jam operasional kasir (WIB)."""
+    @property
+    def is_24_hours(self):
+        """Cek apakah cabang beroperasi 24 jam nonstop."""
         if not self.operating_hours_start or not self.operating_hours_end:
-            return True  # 24 jam jika tidak diatur
+            return True
+        s = str(self.operating_hours_start).strip()
+        e = str(self.operating_hours_end).strip()
+        return not s or not e or (s == '00:00' and (e == '00:00' or e == '23:59'))
+
+    @property
+    def operating_hours_display(self):
+        """Format tampilan jam operasional yang ramah pengguna."""
+        if self.is_24_hours:
+            return "24 Jam Nonstop"
+        return f"{self.operating_hours_start} - {self.operating_hours_end} WIB"
+
+    def is_within_operating_hours(self):
+        """
+        Memeriksa apakah saat ini berada dalam jam operasional kasir (WIB).
+        Mendukung jam operasional reguler dan jam lintas tengah malam (misal: 18:00 - 04:00 WIB).
+        """
+        if self.is_24_hours:
+            return True  # 24 jam jika tidak diatur atau 00:00 - 23:59
         
+        start = str(self.operating_hours_start).strip()
+        end = str(self.operating_hours_end).strip()
+
         try:
             wib_now = datetime.now(timezone(timedelta(hours=7))).replace(tzinfo=None)
             cur_time_str = wib_now.strftime('%H:%M')
-            return self.operating_hours_start <= cur_time_str <= self.operating_hours_end
+            if start == end:
+                return True
+            if start < end:
+                # Shift reguler (misal: 07:00 s/d 22:00 WIB)
+                return start <= cur_time_str <= end
+            else:
+                # Shift lintas tengah malam (misal: 18:00 s/d 04:00 WIB)
+                return cur_time_str >= start or cur_time_str <= end
         except Exception:
             return True
 
