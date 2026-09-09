@@ -1,6 +1,7 @@
 import time
 import random
 import secrets
+import logging
 from datetime import datetime, timezone, timedelta
 from flask import Blueprint, request, jsonify, render_template, redirect, url_for, session, make_response
 from app.extensions import db, csrf, limiter
@@ -20,6 +21,7 @@ from app.services.tier_service import get_user_product_price
 from app.services.setting_service import get_store_name
 
 kasir_bp = Blueprint('kasir', __name__)
+logger = logging.getLogger(__name__)
 
 def get_current_cashier_device():
     """
@@ -537,40 +539,65 @@ def checkout():
             return jsonify({'status': 'error', 'message': f'Gagal di server provider: {raw_msg}'}), 400
     else:
         from app.services.digiflazz import create_transaction
-        ok_digi, d_data, msg_digi = create_transaction(sku_code, target_number, ref_id)
-        if ok_digi and d_data:
-            new_trx.status = str(d_data.get('status', 'PROCESSING')).upper()
-            new_trx.sn = d_data.get('sn')
+        from app.services.provider_helper import sanitize_public_sn_message
+        try:
+            digi_res = create_transaction(sku_code, target_number, ref_id)
+            digi_data = digi_res.get('data', {}) if isinstance(digi_res, dict) else {}
+            digi_status = str(digi_data.get('status', '')).lower()
+            rc = str(digi_data.get('rc', '')).strip()
+            raw_msg = digi_data.get('message') or 'Respon operator tidak diketahui'
+
+            if 'sukses' in digi_status or 'success' in digi_status or rc == '00':
+                new_trx.status = 'SUCCESS'
+                new_trx.sn = digi_data.get('sn') or '-'
+                from app.routes.transaction import award_transaction_points
+                award_transaction_points(owner.id, ref_id)
+                db.session.commit()
+            elif 'gagal' in digi_status or 'failed' in digi_status or rc in ['01', '41', '42', '50', '52']:
+                # Penolakan pasti oleh operator -> Kembalikan saldo ke kasir cabang
+                locked_device.branch_balance += amount
+                mut_ref = BranchMutation(
+                    device_id=locked_device.id,
+                    user_id=owner.id,
+                    type='REFUND',
+                    amount=amount,
+                    balance_before=bal_after,
+                    balance_after=bal_after + amount,
+                    description=f"Refund transaksi gagal ({raw_msg})",
+                    shift_name=shift_name,
+                    created_at=datetime.utcnow()
+                )
+                db.session.add(mut_ref)
+                new_trx.status = 'FAILED'
+                new_trx.sn = sanitize_public_sn_message(raw_msg, rc=rc)
+                db.session.commit()
+                return jsonify({
+                    'status': 'error',
+                    'message': f'Transaksi gagal di server operator: {raw_msg}. Saldo kasir telah dikembalikan.',
+                    'remaining_branch_balance': float(locked_device.branch_balance or 0.0)
+                }), 400
+            else:
+                # Transaksi sedang diproses operator (Pending / RC 03 / RC 46 / timeout respon)
+                new_trx.status = 'PROCESSING'
+                if digi_data.get('sn'):
+                    new_trx.sn = digi_data.get('sn')
+                db.session.commit()
+        except Exception as e_digi:
+            logger.error(f"Error Digiflazz cashier trx {ref_id}: {e_digi}")
+            new_trx.status = 'PROCESSING'
             db.session.commit()
-        else:
-            # Gagal di digiflazz -> Refund ke saldo cabang
-            raw_msg = str(msg_digi or 'Ditolak Digiflazz')
-            locked_device.branch_balance += amount
-            mut_ref = BranchMutation(
-                device_id=locked_device.id,
-                user_id=owner.id,
-                type='REFUND',
-                amount=amount,
-                balance_before=bal_after,
-                balance_after=bal_after + amount,
-                description=f"Refund transaksi gagal ({raw_msg})",
-                shift_name=shift_name,
-                created_at=datetime.utcnow()
-            )
-            db.session.add(mut_ref)
-            new_trx.status = 'FAILED'
-            new_trx.sn = raw_msg
-            db.session.commit()
-            return jsonify({'status': 'error', 'message': f'Gagal di server provider: {raw_msg}'}), 400
 
     # 5. Cek Peringatan Saldo Menipis (Alert otomatis WhatsApp ke Owner jika < Rp 100.000)
     from app.services.device_service import check_and_notify_low_balance
-    check_and_notify_low_balance(active_device, shift_name=shift_name, base_url=request.host_url)
+    check_and_notify_low_balance(locked_device, shift_name=shift_name, base_url=request.host_url)
+
+    msg_success = 'Transaksi Kasir Berhasil!' if new_trx.status == 'SUCCESS' else 'Transaksi Sedang Diproses Operator...'
 
     return jsonify({
         'status': 'success',
-        'message': 'Transaksi Kasir Berhasil Diproses!',
-        'remaining_branch_balance': float(active_device.branch_balance or 0.0),
+        'trx_status': new_trx.status,
+        'message': msg_success,
+        'remaining_branch_balance': float(locked_device.branch_balance or 0.0),
         'trx': {
             'ref_id': new_trx.ref_id,
             'product_name': new_trx.product_name,
@@ -578,7 +605,7 @@ def checkout():
             'amount': new_trx.amount,
             'status': new_trx.status,
             'sn': new_trx.sn or '-',
-            'branch_name': active_device.device_name,
+            'branch_name': locked_device.device_name,
             'time': new_trx.created_at_wib
         }
     }), 200

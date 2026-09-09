@@ -604,9 +604,13 @@
                 <span>Produk:</span>
                 <span id="rcptProduct" style="font-weight: 800;">-</span>
             </div>
-            <div style="display: flex; justify-content: space-between;">
-                <span>SN:</span>
-                <span id="rcptSn" style="font-weight: 800; word-break: break-all;">-</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2px;">
+                <span>Status:</span>
+                <span id="rcptStatus" style="font-weight: 800; font-size: 0.72rem; padding: 2px 6px; border-radius: 4px; background: #dcfce7; color: #15803d;">BERHASIL</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-top: 2px;">
+                <span style="flex-shrink: 0;">SN:</span>
+                <span id="rcptSn" style="font-weight: 800; word-break: break-all; text-align: right; max-width: 75%; font-family: monospace; font-size: 0.72rem; color: #059669;">-</span>
             </div>
             <div style="display: flex; justify-content: space-between; font-size: 0.92rem; margin-top: 6px;">
                 <span>TOTAL:</span>
@@ -927,12 +931,14 @@ function confirmSale() {
 
 function executeCheckout(target, sku) {
     const btn = document.getElementById('btnCheckout');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memproses Transaksi...';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memproses Transaksi...';
+    }
 
     Swal.fire({
         title: 'Memproses Transaksi...',
-        text: 'Mengirim ke provider...',
+        html: '<div style="font-size: 0.9rem; color: #64748b;">Mengirim pesanan ke operator provider...<br><small style="color: #94a3b8;">Mohon tunggu sebentar, jangan refresh halaman.</small></div>',
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading()
     });
@@ -942,37 +948,92 @@ function executeCheckout(target, sku) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ target_number: target, sku_code: sku })
     })
-    .then(res => res.json())
+    .then(async res => {
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+            const errMsg = (data && data.message) ? data.message : `HTTP ${res.status}: Gagal memproses transaksi kasir.`;
+            return Promise.reject({ isBackendError: true, message: errMsg, data: data });
+        }
+        return data;
+    })
     .then(data => {
-        if (data.status === 'success') {
-            Swal.close();
-            if (data.remaining_branch_balance !== undefined) {
-                currentBranchBalance = data.remaining_branch_balance;
-                document.getElementById('posBranchBalDisplay').innerText = formatRupiah(currentBranchBalance);
-            }
+        Swal.close();
+        if (data && data.remaining_branch_balance !== undefined) {
+            currentBranchBalance = data.remaining_branch_balance;
+            const balDisp = document.getElementById('posBranchBalDisplay');
+            if (balDisp) balDisp.innerText = formatRupiah(currentBranchBalance);
+        }
+
+        if (data && data.status === 'success') {
             showReceipt(data.trx);
         } else {
             Swal.fire({
                 icon: 'error',
                 title: 'Transaksi Gagal',
-                text: data.message || 'Terjadi kesalahan transaksi.'
+                text: (data && data.message) || 'Terjadi kesalahan transaksi.'
             });
             resetSelectedProduct();
         }
     })
-    .catch(() => {
-        Swal.fire({ icon: 'error', title: 'Error Koneksi', text: 'Gagal terhubung ke server kasir.' });
-        resetSelectedProduct();
+    .catch(err => {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-paper-plane"></i> Bayar Sekarang';
+        }
+
+        if (err && err.isBackendError) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Transaksi Ditolak',
+                text: err.message || 'Transaksi gagal diproses oleh server atau provider.'
+            });
+            if (err.data && err.data.remaining_branch_balance !== undefined) {
+                currentBranchBalance = err.data.remaining_branch_balance;
+                const balDisp = document.getElementById('posBranchBalDisplay');
+                if (balDisp) balDisp.innerText = formatRupiah(currentBranchBalance);
+            }
+            resetSelectedProduct();
+        } else {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Koneksi Terganggu / Timeout',
+                html: '<div style="font-size: 0.9rem; line-height: 1.5; color: #475569;">Respon dari server kasir mengalami keterlambatan atau gangguan jaringan.<br><br><b style="color: #b91c1c;">PENTING:</b> Mohon periksa tab <b>"Riwayat Shift"</b> terlebih dahulu untuk memastikan status transaksi sebelum mengulang pembayaran.</div>',
+                showCancelButton: true,
+                confirmButtonText: '<i class="fas fa-history"></i> Buka Riwayat Shift',
+                cancelButtonText: 'Tutup',
+                confirmButtonColor: '#008779',
+                cancelButtonColor: '#64748b'
+            }).then(result => {
+                if (result.isConfirmed) {
+                    switchTab('history');
+                }
+            });
+            resetSelectedProduct();
+        }
     });
 }
 
 function showReceipt(trx) {
-    document.getElementById('rcptTime').innerText = trx.time;
-    document.getElementById('rcptRef').innerText = trx.ref_id;
-    document.getElementById('rcptTarget').innerText = trx.target_number;
-    document.getElementById('rcptProduct').innerText = trx.product_name;
-    document.getElementById('rcptSn').innerText = trx.sn;
-    document.getElementById('rcptTotal').innerText = 'Rp ' + formatRupiah(trx.amount);
+    if (!trx) return;
+    document.getElementById('rcptTime').innerText = trx.time || '-';
+    document.getElementById('rcptRef').innerText = trx.ref_id || '-';
+    document.getElementById('rcptTarget').innerText = trx.target_number || '-';
+    document.getElementById('rcptProduct').innerText = trx.product_name || '-';
+    
+    const snElem = document.getElementById('rcptSn');
+    if (snElem) {
+        snElem.innerText = trx.sn || '-';
+    }
+
+    const statusElem = document.getElementById('rcptStatus');
+    if (statusElem) {
+        const isSuccess = (trx.status || '').toUpperCase() === 'SUCCESS';
+        statusElem.innerText = isSuccess ? 'BERHASIL' : 'SEDANG DIPROSES';
+        statusElem.style.background = isSuccess ? '#dcfce7' : '#fef3c7';
+        statusElem.style.color = isSuccess ? '#15803d' : '#b45309';
+    }
+
+    document.getElementById('rcptTotal').innerText = 'Rp ' + formatRupiah(trx.amount || 0);
     document.getElementById('receiptModal').style.display = 'flex';
 }
 

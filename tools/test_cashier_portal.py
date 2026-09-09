@@ -30,7 +30,7 @@ class TestCashierPortal(unittest.TestCase):
         self.mock_kirim_wa = self.wa_patcher.start()
 
         # Mock provider calls
-        self.digi_patcher = patch('app.services.digiflazz.create_transaction', return_value=(True, {'status': 'SUCCESS', 'sn': 'SN-KASIR-12345'}, 'Sukses'))
+        self.digi_patcher = patch('app.services.digiflazz.create_transaction', return_value={'data': {'status': 'Sukses', 'rc': '00', 'sn': 'SN-KASIR-12345'}})
         self.mock_digi = self.digi_patcher.start()
 
         self.app = create_app()
@@ -545,6 +545,113 @@ class TestCashierPortal(unittest.TestCase):
 
         # Client A akses products lagi -> HARUS 401 karena active_session_token sudah di-rotate oleh Client B
         self.assertEqual(client_a.get('/kasir/products').status_code, 401)
+
+    def test_20_cashier_checkout_digiflazz_success(self):
+        """Memastikan transaksi kasir dengan respon Digiflazz Sukses (dict) berhasil dan status SUCCESS."""
+        ok, dev, _, _ = create_branch_cashier(self.vip_owner, "Cabang Transaksi Sukses", "1234")
+        dev.branch_balance = 50000.0
+        db.session.commit()
+
+        token = "token_trx_sukses"
+        activate_cashier_device(dev.activation_token, token)
+        self.client.set_cookie('gt_device_token', token, domain='localhost')
+        self.client.post('/kasir/login_pin', json={'pin': '1234', 'shift_name': 'Pagi'})
+
+        self.mock_digi.return_value = {
+            'data': {
+                'status': 'Sukses',
+                'rc': '00',
+                'sn': '2026090910121481030100166112977950959/1000/6281775700114',
+                'message': 'Transaksi Sukses'
+            }
+        }
+
+        res = self.client.post('/kasir/checkout', json={'sku_code': 'TLKM5', 'target_number': '081234567890'})
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertEqual(data['status'], 'success')
+        self.assertEqual(data['trx_status'], 'SUCCESS')
+        self.assertEqual(data['trx']['status'], 'SUCCESS')
+        self.assertEqual(data['trx']['sn'], '2026090910121481030100166112977950959/1000/6281775700114')
+
+        # Verifikasi saldo cabang terpotong
+        dev_refreshed = db.session.get(TrustedDevice, dev.id)
+        self.assertEqual(dev_refreshed.branch_balance, 50000.0 - 5300.0)
+
+    def test_21_cashier_checkout_digiflazz_pending(self):
+        """Memastikan transaksi kasir dengan respon Digiflazz Pending (rc 03) tetap 200 dengan status PROCESSING."""
+        ok, dev, _, _ = create_branch_cashier(self.vip_owner, "Cabang Transaksi Pending", "1234")
+        dev.branch_balance = 50000.0
+        db.session.commit()
+
+        token = "token_trx_pending"
+        activate_cashier_device(dev.activation_token, token)
+        self.client.set_cookie('gt_device_token', token, domain='localhost')
+        self.client.post('/kasir/login_pin', json={'pin': '1234', 'shift_name': 'Siang'})
+
+        self.mock_digi.return_value = {
+            'data': {
+                'status': 'Pending',
+                'rc': '03',
+                'sn': '',
+                'message': 'Sedang diproses'
+            }
+        }
+
+        res = self.client.post('/kasir/checkout', json={'sku_code': 'TLKM5', 'target_number': '081234567891'})
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertEqual(data['status'], 'success')
+        self.assertEqual(data['trx_status'], 'PROCESSING')
+        self.assertEqual(data['trx']['status'], 'PROCESSING')
+
+    def test_22_cashier_checkout_digiflazz_failed_auto_refund(self):
+        """Memastikan jika Digiflazz menolak (rc 01), saldo kasir otomatis di-refund kembali utuh."""
+        ok, dev, _, _ = create_branch_cashier(self.vip_owner, "Cabang Transaksi Gagal", "1234")
+        dev.branch_balance = 50000.0
+        db.session.commit()
+
+        token = "token_trx_gagal"
+        activate_cashier_device(dev.activation_token, token)
+        self.client.set_cookie('gt_device_token', token, domain='localhost')
+        self.client.post('/kasir/login_pin', json={'pin': '1234', 'shift_name': 'Malam'})
+
+        self.mock_digi.return_value = {
+            'data': {
+                'status': 'Gagal',
+                'rc': '01',
+                'message': 'Nomor tujuan salah atau tidak terdaftar'
+            }
+        }
+
+        res = self.client.post('/kasir/checkout', json={'sku_code': 'TLKM5', 'target_number': '089999999999'})
+        self.assertEqual(res.status_code, 400)
+        data = res.get_json()
+        self.assertEqual(data['status'], 'error')
+        self.assertIn('dikembalikan', data['message'])
+
+        # Saldo cabang kembali utuh
+        dev_refreshed = db.session.get(TrustedDevice, dev.id)
+        self.assertEqual(dev_refreshed.branch_balance, 50000.0)
+
+    def test_23_cashier_checkout_digiflazz_exception_safe(self):
+        """Memastikan jika Digiflazz melempar exception/timeout koneksi, backend tidak crash 500 melainkan status PROCESSING."""
+        ok, dev, _, _ = create_branch_cashier(self.vip_owner, "Cabang Transaksi Timeout", "1234")
+        dev.branch_balance = 50000.0
+        db.session.commit()
+
+        token = "token_trx_timeout"
+        activate_cashier_device(dev.activation_token, token)
+        self.client.set_cookie('gt_device_token', token, domain='localhost')
+        self.client.post('/kasir/login_pin', json={'pin': '1234', 'shift_name': 'Pagi'})
+
+        self.mock_digi.side_effect = Exception("ReadTimeout to api.digiflazz.com")
+
+        res = self.client.post('/kasir/checkout', json={'sku_code': 'TLKM5', 'target_number': '081234567899'})
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertEqual(data['status'], 'success')
+        self.assertEqual(data['trx_status'], 'PROCESSING')
 
 
 if __name__ == '__main__':

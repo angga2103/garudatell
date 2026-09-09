@@ -113,6 +113,9 @@
         border: 1px solid #e2e8f0;
         box-shadow: 0 2px 8px rgba(0,0,0,0.02);
         transition: transform 0.15s ease, border-color 0.15s ease;
+        overflow: hidden;
+        word-wrap: break-word;
+        box-sizing: border-box;
     }
     .trx-card:hover {
         border-color: #00877a;
@@ -152,11 +155,14 @@
         flex-direction: column;
         gap: 4px;
         margin-bottom: 12px;
+        width: 100%;
+        min-width: 0;
     }
     .trx-meta-item {
         display: flex;
         justify-content: space-between;
         align-items: center;
+        gap: 8px;
     }
     .trx-ref-id {
         font-family: monospace;
@@ -178,6 +184,24 @@
         justify-content: space-between;
         align-items: center;
         margin-top: 4px;
+        gap: 8px;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        overflow: hidden;
+        cursor: pointer;
+    }
+    .sn-box span {
+        word-break: break-all;
+        overflow-wrap: anywhere;
+        min-width: 0;
+        flex: 1;
+        line-height: 1.4;
+    }
+    .sn-box i {
+        flex-shrink: 0;
+        font-size: 11px;
+        opacity: 0.8;
     }
     .sn-box.sn-failed {
         background: #fff7ed;
