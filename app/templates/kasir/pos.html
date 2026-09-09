@@ -554,8 +554,14 @@
             <button type="button" class="cat-pill" onclick="selectCategory('GAMES', this)">
                 <i class="fas fa-gamepad"></i> Game
             </button>
+            <button type="button" class="cat-pill" onclick="selectCategory('VOUCHER', this)">
+                <i class="fas fa-ticket-alt"></i> Voucher
+            </button>
             <button type="button" class="cat-pill" onclick="selectCategory('TV', this)">
                 <i class="fas fa-tv"></i> TV & Stream
+            </button>
+            <button type="button" class="cat-pill" onclick="selectCategory('PASCABAYAR', this)">
+                <i class="fas fa-file-invoice-dollar"></i> Tagihan PPOB
             </button>
             <button type="button" class="cat-pill" onclick="selectCategory('ALL', this)">
                 <i class="fas fa-th-large"></i> Semua Produk
@@ -813,12 +819,26 @@ function selectCategory(cat, btn) {
         updateOperatorBadge('Game Voucher');
         loadBrandPills('GAMES');
         loadProducts();
+    } else if (cat === 'VOUCHER') {
+        targetLabel.innerText = 'NOMOR HANDPHONE / TUJUAN:';
+        targetInput.placeholder = '08xxxxxxxxxx';
+        inputHint.innerText = 'Pilih voucher fisik/digital di bawah';
+        updateOperatorBadge('Voucher');
+        loadBrandPills('VOUCHER');
+        loadProducts();
     } else if (cat === 'TV') {
         targetLabel.innerText = 'NOMOR PELANGGAN / ID SMARTCARD TV:';
         targetInput.placeholder = 'Contoh: No. Pelanggan K-Vision / Nex';
         inputHint.innerText = 'Pilih TV streaming di bawah';
         updateOperatorBadge('TV Berlangganan');
         loadBrandPills('TV');
+        loadProducts();
+    } else if (cat === 'PASCABAYAR') {
+        targetLabel.innerText = 'NOMOR PELANGGAN / ID TAGIHAN:';
+        targetInput.placeholder = 'Contoh: No Sambungan PDAM / No BPJS / ID Pelanggan';
+        inputHint.innerText = 'Pilih kategori tagihan di bawah';
+        updateOperatorBadge('Tagihan PPOB');
+        loadBrandPills('PASCABAYAR');
         loadProducts();
     } else if (cat === 'ALL') {
         targetLabel.innerText = 'NOMOR TUJUAN / PELANGGAN:';
@@ -877,7 +897,7 @@ function selectBrand(brand, btn) {
 // 3. DETEKSI NOMOR HP
 function handlePhoneInput(val) {
     const clean = val.replace(/\D/g, '');
-    if (['PLN', 'GAMES', 'TV'].includes(currentCategory)) {
+    if (['PLN', 'GAMES', 'TV', 'PASCABAYAR'].includes(currentCategory)) {
         return;
     }
 
@@ -955,10 +975,13 @@ function renderProducts(prods) {
 
     let html = '';
     prods.forEach((p, idx) => {
+        const isPasca = p.is_pasca;
+        const priceLabel = isPasca ? `Biaya Admin: Rp ${formatRupiah(p.price)}` : `Rp ${formatRupiah(p.price)}`;
+        const badgePasca = isPasca ? `<span style="font-size: 0.65rem; background: #e0f2fe; color: #0284c7; padding: 2px 6px; border-radius: 6px; font-weight: 800; margin-left: 4px;">PASCABAYAR</span>` : '';
         html += `
             <div class="prod-card" id="pcard_${idx}" onclick="selectProduct(${idx})">
-                <div class="prod-name">${p.name}</div>
-                <div class="prod-price">Rp ${formatRupiah(p.price)}</div>
+                <div class="prod-name">${p.name} ${badgePasca}</div>
+                <div class="prod-price">${priceLabel}</div>
             </div>`;
     });
     container.innerHTML = html;
@@ -973,7 +996,11 @@ function selectProduct(idx) {
 
     const btn = document.getElementById('btnCheckout');
     btn.disabled = false;
-    btn.innerHTML = `<i class="fas fa-shopping-cart"></i> Jual: ${selectedProduct.name} (Rp ${formatRupiah(selectedProduct.price)})`;
+    if (selectedProduct.is_pasca) {
+        btn.innerHTML = `<i class="fas fa-search-dollar"></i> Cek Tagihan: ${selectedProduct.name}`;
+    } else {
+        btn.innerHTML = `<i class="fas fa-shopping-cart"></i> Jual: ${selectedProduct.name} (Rp ${formatRupiah(selectedProduct.price)})`;
+    }
 }
 
 function resetSelectedProduct() {
@@ -991,6 +1018,11 @@ function confirmSale() {
         return;
     }
     if (!selectedProduct) return;
+
+    if (selectedProduct.is_pasca) {
+        inquiryPascaCashier(target);
+        return;
+    }
 
     if (currentBranchBalance < selectedProduct.price) {
         Swal.fire({
@@ -1027,7 +1059,131 @@ function confirmSale() {
     });
 }
 
-function executeCheckout(target, sku) {
+function inquiryPascaCashier(target) {
+    if (!target || target.length < 5) {
+        Swal.fire({ icon: 'warning', title: 'Nomor Pelanggan Belum Lengkap', text: 'Masukkan Nomor Pelanggan / ID Tagihan yang valid.' });
+        return;
+    }
+
+    Swal.fire({
+        title: 'Mengecek Tagihan...',
+        html: '<div style="font-size: 0.88rem; color: #64748b;">Menghubungkan ke server biller / Digiflazz...</div>',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    fetch('/kasir/inquiry_bill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sku_code: selectedProduct.sku_code, customer_no: target })
+    })
+    .then(async res => {
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+            const errMsg = (data && data.message) ? data.message : `HTTP ${res.status}: Gagal cek tagihan.`;
+            return Promise.reject({ message: errMsg });
+        }
+        return data;
+    })
+    .then(res => {
+        Swal.close();
+        if (res.status !== 'success') {
+            Swal.fire({ icon: 'error', title: 'Cek Tagihan Gagal', text: res.message || 'Gagal mengambil rincian tagihan.' });
+            return;
+        }
+
+        const bill = res;
+        const totalBayar = Number(bill.total_bayar || bill.total_amount || 0);
+
+        if (currentBranchBalance < totalBayar) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Saldo Kasir Tidak Cukup',
+                html: `
+                    <div style="text-align: left; background: #f8fafc; padding: 12px; border-radius: 10px; font-size: 0.85rem; margin-bottom: 12px;">
+                        <div><b>Pelanggan:</b> ${bill.customer_name} (${bill.customer_no})</div>
+                        <div><b>Total Tagihan:</b> <span style="color: #b91c1c; font-weight: 800;">Rp ${formatRupiah(totalBayar)}</span></div>
+                        <div><b>Sisa Saldo Kasir:</b> Rp ${formatRupiah(currentBranchBalance)}</div>
+                    </div>
+                    Saldo kasir cabang Anda kurang Rp ${formatRupiah(totalBayar - currentBranchBalance)}. Minta saldo ke Bos sekarang?`,
+                showCancelButton: true,
+                confirmButtonColor: '#f59e0b',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: '<i class="fab fa-whatsapp"></i> Minta Saldo ke Bos',
+                cancelButtonText: 'Batal'
+            }).then(r => {
+                if (r.isConfirmed) openRequestDepositModal(totalBayar);
+            });
+            return;
+        }
+
+        Swal.fire({
+            title: 'Rincian Tagihan PPOB',
+            html: `
+                <div style="text-align: left; background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 14px; font-size: 0.85rem; line-height: 1.7;">
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #cbd5e1; padding-bottom: 6px; margin-bottom: 6px;">
+                        <span style="color: #64748b;">Produk:</span>
+                        <b style="color: #0f172a;">${bill.product_name || selectedProduct.name}</b>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #64748b;">ID Pelanggan:</span>
+                        <b>${bill.customer_no}</b>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #64748b;">Nama Pelanggan:</span>
+                        <b style="color: #008779;">${bill.customer_name}</b>
+                    </div>
+                    ${(bill.tarif || bill.daya) ? `
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #64748b;">Tarif / Daya:</span>
+                        <b>${bill.tarif || ''} ${bill.daya ? bill.daya + ' VA' : ''}</b>
+                    </div>` : ''}
+                    ${bill.periode ? `
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #64748b;">Periode:</span>
+                        <b>${bill.periode}</b>
+                    </div>` : ''}
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #64748b;">Tagihan Pokok:</span>
+                        <span>Rp ${formatRupiah(bill.tagihan_pokok)}</span>
+                    </div>
+                    ${Number(bill.denda || 0) > 0 ? `
+                    <div style="display: flex; justify-content: space-between; color: #dc2626;">
+                        <span>Denda:</span>
+                        <span>Rp ${formatRupiah(bill.denda)}</span>
+                    </div>` : ''}
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #64748b;">Admin Toko:</span>
+                        <span>Rp ${formatRupiah(bill.admin_fee)}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; border-top: 1.5px solid #008779; margin-top: 8px; padding-top: 8px; font-size: 1.05rem;">
+                        <b>TOTAL BAYAR:</b>
+                        <b style="color: #008779;">Rp ${formatRupiah(totalBayar)}</b>
+                    </div>
+                </div>`,
+            icon: 'info',
+            showCancelButton: true,
+            confirmButtonColor: '#008779',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: '<i class="fas fa-check-circle"></i> Bayar Sekarang',
+            cancelButtonText: 'Tutup'
+        }).then(r => {
+            if (r.isConfirmed) {
+                executeCheckout(target, selectedProduct.sku_code, bill.ref_id);
+            }
+        });
+    })
+    .catch(err => {
+        Swal.close();
+        Swal.fire({
+            icon: 'error',
+            title: 'Tagihan Tidak Ditemukan / Gangguan',
+            text: err.message || 'Gagal menghubungi server tagihan. Pastikan nomor ID pelanggan benar.'
+        });
+    });
+}
+
+function executeCheckout(target, sku, inquiryRefId = null) {
     const btn = document.getElementById('btnCheckout');
     if (btn) {
         btn.disabled = true;
@@ -1044,10 +1200,15 @@ function executeCheckout(target, sku) {
         didOpen: () => Swal.showLoading()
     });
 
+    const payload = { target_number: target, sku_code: sku };
+    if (inquiryRefId) {
+        payload.inquiry_ref_id = inquiryRefId;
+    }
+
     fetch('/kasir/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ target_number: target, sku_code: sku })
+        body: JSON.stringify(payload)
     })
     .then(async res => {
         const data = await res.json().catch(() => null);

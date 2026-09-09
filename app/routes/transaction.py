@@ -76,8 +76,8 @@ def inquiry_bill():
         tarif = desc.get('tarif', '-')
         daya = desc.get('daya', '-')
         lembar_tagihan = desc.get('lembar_tagihan', 1)
-        tagihan_obj = desc.get('tagihan') or {}
-        details = tagihan_obj.get('detail') or []
+        tagihan_obj = desc.get('tagihan') if isinstance(desc.get('tagihan'), dict) else {}
+        details = desc.get('detail') or tagihan_obj.get('detail') or []
 
         tagihan_pokok = 0.0
         denda_total = 0.0

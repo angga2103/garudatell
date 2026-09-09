@@ -1,0 +1,1053 @@
+{% extends "base.html" %}
+{% block title %}Tagihan PPOB & Pascabayar - GarudaTel{% endblock %}
+
+{% block head %}
+<style>
+    /* HEADER KATEGORI */
+    .cat-header { 
+        background: linear-gradient(135deg, #00877a 0%, #00695c 100%); 
+        padding: 16px 14px 50px 14px; 
+        color: white; 
+        border-bottom-left-radius: 24px; 
+        border-bottom-right-radius: 24px; 
+    }
+    .top-bar { 
+        display: inline-flex; 
+        align-items: center; 
+        gap: 10px; 
+        font-size: 15px; 
+        font-weight: 800; 
+        margin-bottom: 16px; 
+        color: white; 
+        cursor: pointer; 
+        width: fit-content;
+        text-decoration: none;
+    }
+    .top-bar:hover { opacity: 0.85; }
+    .cat-title-area { 
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center; 
+        gap: 8px;
+    }
+    .cat-title-wrap { 
+        display: flex; 
+        align-items: center; 
+        gap: 12px; 
+        min-width: 0;
+        flex: 1;
+    }
+    .cat-icon { 
+        width: 42px; 
+        height: 42px; 
+        background: rgba(255,255,255,0.22); 
+        border-radius: 12px; 
+        display: flex; 
+        justify-content: center; 
+        align-items: center; 
+        font-size: 20px; 
+        flex-shrink: 0;
+    }
+    .cat-name { min-width: 0; flex: 1; }
+    .cat-name h2 { 
+        margin: 0; 
+        font-size: 18px; 
+        font-weight: 800; 
+        letter-spacing: 0.3px; 
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .cat-name p { 
+        margin: 2px 0 0 0; 
+        font-size: 11px; 
+        opacity: 0.9; 
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .wallet-badge {
+        background: rgba(255,255,255,0.22);
+        padding: 6px 12px;
+        border-radius: 12px;
+        font-size: 11.5px;
+        font-weight: 800;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        transition: 0.2s;
+        flex-shrink: 0;
+        white-space: nowrap;
+    }
+    .wallet-badge:hover { background: rgba(255,255,255,0.3); }
+
+    /* TAB NAVIGASI PPOB */
+    .ppob-tab-nav {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        padding: 0 12px 10px 12px;
+        margin-top: -30px;
+        scrollbar-width: none;
+    }
+    .ppob-tab-nav::-webkit-scrollbar { display: none; }
+    .ppob-tab-btn {
+        padding: 9px 16px;
+        border-radius: 20px;
+        background: white;
+        border: 1.5px solid #e2e8f0;
+        color: #475569;
+        font-weight: 800;
+        font-size: 12px;
+        cursor: pointer;
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+        transition: all 0.2s;
+        flex-shrink: 0;
+    }
+    .ppob-tab-btn.active {
+        background: #00877a;
+        color: white;
+        border-color: #00877a;
+        box-shadow: 0 6px 16px rgba(0,135,122,0.25);
+    }
+
+    /* CARD CONTAINER */
+    .form-card {
+        margin: 10px 12px 25px 12px;
+        background: white;
+        border-radius: 20px;
+        padding: 18px 16px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.05);
+        border: 1px solid #f1f5f9;
+    }
+
+    .form-label {
+        font-size: 12px;
+        font-weight: 800;
+        color: #334155;
+        margin-bottom: 6px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .custom-select-btn {
+        width: 100%;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 14px;
+        padding: 12px 14px;
+        background: #f8fafc;
+        font-size: 13.5px;
+        font-weight: 700;
+        color: #0f172a;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: pointer;
+        text-align: left;
+        margin-bottom: 14px;
+        transition: all 0.2s;
+    }
+    .custom-select-btn:hover {
+        border-color: #00877a;
+        background: white;
+    }
+
+    .input-box-row {
+        position: relative;
+        display: flex;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+    .ppob-input {
+        width: 100%;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 14px;
+        padding: 12px 42px 12px 14px;
+        font-size: 15px;
+        font-weight: 800;
+        color: #0f172a;
+        outline: none;
+        letter-spacing: 0.5px;
+        transition: all 0.2s;
+    }
+    .ppob-input:focus {
+        border-color: #00877a;
+        box-shadow: 0 0 0 3px rgba(0, 135, 122, 0.12);
+    }
+    .btn-paste-icon {
+        position: absolute;
+        right: 12px;
+        color: #00877a;
+        cursor: pointer;
+        font-size: 16px;
+        padding: 4px;
+    }
+
+    .info-box-tip {
+        background: #f0fdf4;
+        border-left: 4px solid #10b981;
+        padding: 10px 12px;
+        border-radius: 8px;
+        font-size: 11.5px;
+        color: #15803d;
+        line-height: 1.5;
+        margin-bottom: 16px;
+    }
+
+    .btn-cek-tagihan {
+        width: 100%;
+        background: linear-gradient(135deg, #00877a 0%, #00695c 100%);
+        color: white;
+        border: none;
+        border-radius: 14px;
+        padding: 14px;
+        font-size: 14px;
+        font-weight: 800;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        box-shadow: 0 8px 20px rgba(0, 135, 122, 0.25);
+        transition: all 0.2s;
+    }
+    .btn-cek-tagihan:active { transform: scale(0.98); }
+    .btn-cek-tagihan:disabled {
+        background: #94a3b8;
+        box-shadow: none;
+        cursor: not-allowed;
+    }
+
+    /* MODAL SEARCH DAERAH PDAM / WILAYAH */
+    .modal-pdam-sheet {
+        position: fixed;
+        bottom: -100%;
+        width: 100%;
+        max-width: 480px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: white;
+        border-top-left-radius: 24px;
+        border-top-right-radius: 24px;
+        padding: 20px 16px;
+        z-index: 10001;
+        transition: bottom 0.3s ease-in-out;
+        max-height: 85vh;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 -10px 30px rgba(0,0,0,0.15);
+    }
+    .modal-pdam-sheet.show { bottom: 0; }
+    .pdam-search-input {
+        width: 100%;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 12px;
+        padding: 10px 14px;
+        font-size: 13.5px;
+        font-weight: 700;
+        outline: none;
+        margin-bottom: 12px;
+    }
+    .pdam-search-input:focus { border-color: #00877a; }
+    .pdam-list-container {
+        overflow-y: auto;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+    .pdam-item-btn {
+        padding: 12px;
+        border-radius: 12px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        text-align: left;
+        font-size: 13px;
+        font-weight: 700;
+        color: #0f172a;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.15s;
+    }
+    .pdam-item-btn:hover { background: #f0fdfa; border-color: #00877a; color: #00877a; }
+
+    /* MODAL RINCIAN TAGIHAN RESMI */
+    .bill-modal-sheet {
+        position: fixed;
+        bottom: -100%;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 100%;
+        max-width: 480px;
+        background: white;
+        border-top-left-radius: 24px;
+        border-top-right-radius: 24px;
+        padding: 20px 18px 25px 18px;
+        z-index: 10002;
+        transition: bottom 0.3s ease-in-out;
+        box-shadow: 0 -10px 30px rgba(0,0,0,0.2);
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+    .bill-modal-sheet.show { bottom: 0; }
+    .bill-overlay {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(15, 23, 42, 0.6);
+        backdrop-filter: blur(3px);
+        z-index: 10000;
+        display: none;
+    }
+    .bill-overlay.show { display: block; }
+
+    .bill-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 12.5px;
+        padding: 6px 0;
+        border-bottom: 1px dashed #f1f5f9;
+    }
+    .bill-row .lbl { color: #64748b; font-weight: 600; }
+    .bill-row .val { color: #0f172a; font-weight: 800; text-align: right; }
+
+    /* PILIHAN METODE BAYAR DI MODAL */
+    .pay-opt-card {
+        border: 1.5px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 10px 12px;
+        margin-top: 8px;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.15s;
+    }
+    .pay-opt-card.selected {
+        border-color: #00877a;
+        background: #f0fdfa;
+    }
+
+    /* LOADING SPINNER OVERLAY */
+    .loading-overlay {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(15, 23, 42, 0.7);
+        backdrop-filter: blur(4px);
+        z-index: 99999;
+        display: none;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- 1. HEADER HALAMAN -->
+<div class="cat-header">
+    <a href="/dashboard" class="top-bar">
+        <i class="fas fa-arrow-left"></i>
+        <span>Kembali ke Beranda</span>
+    </a>
+    <div class="cat-title-area">
+        <div class="cat-title-wrap">
+            <div class="cat-icon" id="headerIcon">
+                <i class="fas fa-file-invoice-dollar"></i>
+            </div>
+            <div class="cat-name">
+                <h2 id="headerTitle">Tagihan PPOB</h2>
+                <p id="headerSubtitle">Bayar PDAM, BPJS, PLN Pasca & PBB Resmi</p>
+            </div>
+        </div>
+        <div class="wallet-badge" onclick="window.location.href='/deposit'" title="Isi Saldo">
+            <i class="fas fa-wallet" style="color: #6ee7b7;"></i>
+            <span>Rp {{ "{:,.0f}".format(user_balance).replace(',', '.') }}</span>
+        </div>
+    </div>
+</div>
+
+<!-- 2. TAB NAVIGASI LAYANAN PPOB -->
+<div class="ppob-tab-nav">
+    <button type="button" class="ppob-tab-btn {% if active_tab == 'pdam' %}active{% endif %}" onclick="switchPpobTab('pdam')">
+        <i class="fas fa-faucet" style="color: #0284c7;"></i> PDAM
+    </button>
+    <button type="button" class="ppob-tab-btn {% if active_tab == 'bpjs' %}active{% endif %}" onclick="switchPpobTab('bpjs')">
+        <i class="fas fa-heartbeat" style="color: #10b981;"></i> BPJS Kesehatan
+    </button>
+    <button type="button" class="ppob-tab-btn {% if active_tab == 'pln' %}active{% endif %}" onclick="switchPpobTab('pln')">
+        <i class="fas fa-bolt" style="color: #f59e0b;"></i> PLN Pasca
+    </button>
+    <button type="button" class="ppob-tab-btn {% if active_tab == 'pbb' %}active{% endif %}" onclick="switchPpobTab('pbb')">
+        <i class="fas fa-landmark" style="color: #6366f1;"></i> PBB
+    </button>
+    {% if other_products %}
+    <button type="button" class="ppob-tab-btn {% if active_tab == 'other' %}active{% endif %}" onclick="switchPpobTab('other')">
+        <i class="fas fa-receipt" style="color: #ec4899;"></i> Tagihan Lainnya
+    </button>
+    {% endif %}
+</div>
+
+<!-- 3. KONTEN FORMULIR INPUT -->
+<div class="form-card">
+    <!-- SUB-TAB 1: PDAM -->
+    <div id="tabContentPdam" style="display: {% if active_tab == 'pdam' %}block{% else %}none{% endif %};">
+        <div class="form-label">
+            <span>PILIH WILAYAH / KABUPATEN PDAM:</span>
+        </div>
+        <div class="custom-select-btn" onclick="bukaModalPdam()">
+            <span id="selectedPdamLabel">
+                <i class="fas fa-map-marker-alt" style="color: #00877a; margin-right: 6px;"></i>
+                <span id="pdamNameText">{{ pdam_products[0].name if pdam_products else 'PDAM Kabupaten Kediri' }}</span>
+            </span>
+            <i class="fas fa-chevron-right" style="color: #94a3b8; font-size: 12px;"></i>
+        </div>
+
+        <div class="form-label">
+            <span>NOMOR SAMBUNGAN / ID PELANGGAN PDAM:</span>
+        </div>
+        <div class="input-box-row">
+            <input type="tel" id="inputPdamNo" class="ppob-input" placeholder="Contoh: 10023456" oninput="validateInput('pdam')">
+            <i class="far fa-clipboard btn-paste-icon" onclick="pasteClipboard('inputPdamNo', 'pdam')" title="Tempel"></i>
+        </div>
+
+        <div class="info-box-tip">
+            <i class="fas fa-info-circle"></i> Pastikan nomor pelanggan PDAM benar sesuai struk bulan lalu. Tagihan akan ditampilkan lengkap dengan denda dan periode bulan tagihan.
+        </div>
+
+        <button type="button" id="btnCekPdam" class="btn-cek-tagihan" onclick="prosesInquiry('pdam')" disabled>
+            <i class="fas fa-search"></i> Cek Tagihan PDAM
+        </button>
+    </div>
+
+    <!-- SUB-TAB 2: BPJS KESEHATAN -->
+    <div id="tabContentBpjs" style="display: {% if active_tab == 'bpjs' %}block{% else %}none{% endif %};">
+        <div class="form-label">
+            <span>PRODUK LAYANAN:</span>
+        </div>
+        <div class="custom-select-btn" style="cursor: default; background: #f1f5f9;">
+            <span><i class="fas fa-shield-alt" style="color: #10b981; margin-right: 6px;"></i> BPJS Kesehatan</span>
+            <span style="font-size: 11px; color: #15803d; font-weight: 800;">RESMI</span>
+        </div>
+
+        <div class="form-label">
+            <span>NOMOR KARTU / VIRTUAL ACCOUNT BPJS:</span>
+        </div>
+        <div class="input-box-row">
+            <input type="tel" id="inputBpjsNo" class="ppob-input" placeholder="Contoh: 0001234567890 / 88888..." oninput="validateInput('bpjs')">
+            <i class="far fa-clipboard btn-paste-icon" onclick="pasteClipboard('inputBpjsNo', 'bpjs')" title="Tempel"></i>
+        </div>
+
+        <div class="info-box-tip">
+            <i class="fas fa-info-circle"></i> Masukkan 13 digit nomor kartu BPJS atau nomor Virtual Account keluarga. Tagihan otomatis mengakumulasikan seluruh anggota keluarga yang terdaftar.
+        </div>
+
+        <button type="button" id="btnCekBpjs" class="btn-cek-tagihan" onclick="prosesInquiry('bpjs')" disabled>
+            <i class="fas fa-search"></i> Cek Tagihan BPJS
+        </button>
+    </div>
+
+    <!-- SUB-TAB 3: PLN PASCABAYAR -->
+    <div id="tabContentPln" style="display: {% if active_tab == 'pln' %}block{% else %}none{% endif %};">
+        <div class="form-label">
+            <span>PILIH LAYANAN LISTRIK:</span>
+        </div>
+        <select id="selectPlnProduct" class="custom-select-btn" style="outline:none;" onchange="validateInput('pln')">
+            {% for p in pln_products %}
+            <option value="{{ p.sku_code }}" data-nama="{{ p.name }}">{{ p.name }}</option>
+            {% endfor %}
+            {% if not pln_products %}
+            <option value="post685486" data-nama="PLN Pascabayar">PLN Pascabayar</option>
+            <option value="post685479" data-nama="PLN Nontaglis">PLN Nontaglis</option>
+            {% endif %}
+        </select>
+
+        <div class="form-label">
+            <span>NOMOR METERAN / ID PELANGGAN PLN:</span>
+        </div>
+        <div class="input-box-row">
+            <input type="tel" id="inputPlnNo" class="ppob-input" placeholder="Contoh: 51234567890" oninput="validateInput('pln')">
+            <i class="far fa-clipboard btn-paste-icon" onclick="pasteClipboard('inputPlnNo', 'pln')" title="Tempel"></i>
+        </div>
+
+        {% if is_pln_cutoff %}
+        <div style="background: #fef2f2; border-left: 4px solid #ef4444; padding: 10px 12px; border-radius: 8px; font-size: 11.5px; color: #b91c1c; margin-bottom: 16px;">
+            <i class="fas fa-exclamation-triangle"></i> <b>PLN Sedang Cut-Off (23:30 - 01:00 WIB)</b>. Pengecekan dan pembayaran ditangguhkan hingga pemeliharaan PLN selesai.
+        </div>
+        {% endif %}
+
+        <button type="button" id="btnCekPln" class="btn-cek-tagihan" onclick="prosesInquiry('pln')" {% if is_pln_cutoff %}disabled{% endif %}>
+            <i class="fas fa-search"></i> Cek Tagihan PLN
+        </button>
+    </div>
+
+    <!-- SUB-TAB 4: PBB -->
+    <div id="tabContentPbb" style="display: {% if active_tab == 'pbb' %}block{% else %}none{% endif %};">
+        <div class="form-label">
+            <span>PILIH DAERAH / KABUPATEN PBB:</span>
+        </div>
+        <select id="selectPbbProduct" class="custom-select-btn" style="outline:none;" onchange="validateInput('pbb')">
+            {% for p in pbb_products %}
+            <option value="{{ p.sku_code }}" data-nama="{{ p.name }}">{{ p.name }}</option>
+            {% endfor %}
+            {% if not pbb_products %}
+            <option value="post685474" data-nama="PBB Kabupaten Kediri">PBB Kabupaten Kediri</option>
+            {% endif %}
+        </select>
+
+        <div class="form-label">
+            <span>NOMOR OBJEK PAJAK (NOP):</span>
+        </div>
+        <div class="input-box-row">
+            <input type="tel" id="inputPbbNo" class="ppob-input" placeholder="18 digit Nomor Objek Pajak" oninput="validateInput('pbb')">
+            <i class="far fa-clipboard btn-paste-icon" onclick="pasteClipboard('inputPbbNo', 'pbb')" title="Tempel"></i>
+        </div>
+
+        <button type="button" id="btnCekPbb" class="btn-cek-tagihan" onclick="prosesInquiry('pbb')" disabled>
+            <i class="fas fa-search"></i> Cek Tagihan PBB
+        </button>
+    </div>
+
+    <!-- SUB-TAB 5: LAINNYA -->
+    {% if other_products %}
+    <div id="tabContentOther" style="display: {% if active_tab == 'other' %}block{% else %}none{% endif %};">
+        <div class="form-label">
+            <span>PILIH LAYANAN TAGIHAN:</span>
+        </div>
+        <select id="selectOtherProduct" class="custom-select-btn" style="outline:none;" onchange="validateInput('other')">
+            {% for p in other_products %}
+            <option value="{{ p.sku_code }}" data-nama="{{ p.name }}">{{ p.name }} ({{ p.brand }})</option>
+            {% endfor %}
+        </select>
+
+        <div class="form-label">
+            <span>NOMOR PELANGGAN / ID TAGIHAN:</span>
+        </div>
+        <div class="input-box-row">
+            <input type="tel" id="inputOtherNo" class="ppob-input" placeholder="Masukkan ID / Nomor Pelanggan" oninput="validateInput('other')">
+            <i class="far fa-clipboard btn-paste-icon" onclick="pasteClipboard('inputOtherNo', 'other')" title="Tempel"></i>
+        </div>
+
+        <button type="button" id="btnCekOther" class="btn-cek-tagihan" onclick="prosesInquiry('other')" disabled>
+            <i class="fas fa-search"></i> Cek Tagihan
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ================= MODAL PILIH DAERAH PDAM ================= -->
+<div id="overlayPdam" class="bill-overlay" onclick="tutupModalPdam()"></div>
+<div id="modalPdamSheet" class="modal-pdam-sheet">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: #0f172a;">Pilih Daerah PDAM</h3>
+        <button type="button" onclick="tutupModalPdam()" style="background:none; border:none; font-size:18px; color:#64748b; cursor:pointer;">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <input type="text" id="searchPdamText" class="pdam-search-input" placeholder="Ketik nama kota / kabupaten..." oninput="filterPdamList(this.value)">
+    
+    <div class="pdam-list-container" id="pdamListContainer">
+        {% for p in pdam_products %}
+        <button type="button" class="pdam-item-btn" onclick="pilihPdamItem('{{ p.sku_code }}', '{{ p.name }}')">
+            <span><i class="fas fa-water" style="color: #0284c7; margin-right: 6px;"></i> {{ p.name }}</span>
+            <i class="fas fa-chevron-right" style="color: #cbd5e1; font-size: 11px;"></i>
+        </button>
+        {% endfor %}
+        {% if not pdam_products %}
+        <button type="button" class="pdam-item-btn" onclick="pilihPdamItem('post685472', 'PDAM Kabupaten Kediri')">
+            <span><i class="fas fa-water" style="color: #0284c7; margin-right: 6px;"></i> PDAM Kabupaten Kediri</span>
+            <i class="fas fa-chevron-right" style="color: #cbd5e1; font-size: 11px;"></i>
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ================= MODAL RINCIAN TAGIHAN RESMI ================= -->
+<div id="overlayBill" class="bill-overlay" onclick="tutupModalTagihan()"></div>
+<div id="modalBillSheet" class="bill-modal-sheet">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1.5px solid #f1f5f9; padding-bottom: 10px;">
+        <div>
+            <span style="font-size: 10px; font-weight: 800; color: #15803d; background: #dcfce7; padding: 2px 8px; border-radius: 6px;">
+                <i class="fas fa-check-circle"></i> TAGIHAN DITEMUKAN
+            </span>
+            <h3 style="margin: 4px 0 0 0; font-size: 16px; font-weight: 900; color: #0f172a;" id="billProdName">Tagihan PDAM</h3>
+        </div>
+        <button type="button" onclick="tutupModalTagihan()" style="background:none; border:none; font-size:18px; color:#64748b; cursor:pointer;">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+
+    <!-- RINCIAN DATA TAGIHAN -->
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px; margin-bottom: 14px;">
+        <div class="bill-row">
+            <span class="lbl">ID / No. Pelanggan:</span>
+            <span class="val" id="billCustNo">-</span>
+        </div>
+        <div class="bill-row">
+            <span class="lbl">Nama Pelanggan:</span>
+            <span class="val" id="billCustName" style="color: #00877a;">-</span>
+        </div>
+        <div class="bill-row" id="rowTarifDaya" style="display:none;">
+            <span class="lbl">Tarif / Daya:</span>
+            <span class="val" id="billTarifDaya">-</span>
+        </div>
+        <div class="bill-row">
+            <span class="lbl">Periode Tagihan:</span>
+            <span class="val" id="billPeriode">-</span>
+        </div>
+        <div class="bill-row">
+            <span class="lbl">Jumlah Lembar:</span>
+            <span class="val" id="billLembar">1 Bulan</span>
+        </div>
+        <div class="bill-row">
+            <span class="lbl">Tagihan Pokok:</span>
+            <span class="val" id="billPokok">Rp 0</span>
+        </div>
+        <div class="bill-row" id="rowDenda" style="display:none;">
+            <span class="lbl" style="color:#dc2626;">Denda:</span>
+            <span class="val" id="billDenda" style="color:#dc2626;">Rp 0</span>
+        </div>
+        <div class="bill-row">
+            <span class="lbl">Biaya Admin:</span>
+            <span class="val" id="billAdmin">Rp 0</span>
+        </div>
+        <div class="bill-row" style="border-bottom:none; margin-top: 6px; padding-top: 8px; border-top: 1.5px solid #cbd5e1;">
+            <span class="lbl" style="font-size: 13.5px; font-weight: 800; color: #0f172a;">TOTAL BAYAR:</span>
+            <span class="val" id="billTotalBayar" style="font-size: 16px; font-weight: 900; color: #00877a;">Rp 0</span>
+        </div>
+    </div>
+
+    <!-- PILIHAN METODE PEMBAYARAN -->
+    <div style="font-size: 12px; font-weight: 800; color: #334155; margin-bottom: 6px;">PILIH METODE PEMBAYARAN:</div>
+    
+    <div class="pay-opt-card selected" id="optSaldo" onclick="selectPaymentMethod('saldo')">
+        <div style="display:flex; align-items:center; gap: 10px;">
+            <i class="fas fa-wallet" style="font-size: 20px; color: #00877a;"></i>
+            <div>
+                <div style="font-weight: 800; font-size: 13px; color: #0f172a;">Saldo Akun GarudaTel</div>
+                <div style="font-size: 11px; color: #64748b;">Sisa: Rp {{ "{:,.0f}".format(user_balance).replace(',', '.') }}</div>
+            </div>
+        </div>
+        <i class="fas fa-check-circle" id="checkSaldo" style="color: #00877a; font-size: 18px;"></i>
+    </div>
+
+    <div class="pay-opt-card" id="optQris" onclick="selectPaymentMethod('qris')">
+        <div style="display:flex; align-items:center; gap: 10px;">
+            <i class="fas fa-qrcode" style="font-size: 20px; color: #6366f1;"></i>
+            <div>
+                <div style="font-weight: 800; font-size: 13px; color: #0f172a;">QRIS Instan (Semua Bank / E-Wallet)</div>
+                <div style="font-size: 11px; color: #64748b;">Scan langsung dari BCA, Mandiri, Dana, GoPay, dll.</div>
+            </div>
+        </div>
+        <i class="far fa-circle" id="checkQris" style="color: #cbd5e1; font-size: 18px;"></i>
+    </div>
+
+    <button type="button" id="btnKonfirmasiBayar" class="btn-cek-tagihan" style="margin-top: 16px;" onclick="eksekusiPembayaranTagihan()">
+        <i class="fas fa-lock"></i> Bayar Tagihan Sekarang
+    </button>
+</div>
+
+<!-- 4. LOADING OVERLAY -->
+<div id="loadingOverlay" class="loading-overlay">
+    <div class="spinner-border" style="width: 42px; height: 42px; border-width: 4px; border-color: white; border-right-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+    <div style="margin-top: 14px; font-weight: 800; font-size: 14px;" id="loadingText">Menghubungi Server Biller...</div>
+</div>
+
+<style>
+@keyframes spin { 100% { transform: rotate(360deg); } }
+</style>
+
+<script>
+let currentTab = '{{ active_tab or "pdam" }}';
+let selectedPdamSku = '{{ pdam_products[0].sku_code if pdam_products else "post685472" }}';
+let selectedPdamName = '{{ pdam_products[0].name if pdam_products else "PDAM Kabupaten Kediri" }}';
+let currentInquiryData = null;
+let selectedPaymentMethod = 'saldo';
+const userBalance = {{ user_balance or 0.0 }};
+
+function formatRupiah(num) {
+    return 'Rp ' + Number(num || 0).toLocaleString('id-ID');
+}
+
+// 1. SWITCH TAB PPOB
+function switchPpobTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll('.ppob-tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('[id^="tabContent"]').forEach(c => c.style.display = 'none');
+    
+    // Update Header
+    const hTitle = document.getElementById('headerTitle');
+    const hSub = document.getElementById('headerSubtitle');
+    const hIcon = document.getElementById('headerIcon');
+
+    if (tab === 'pdam') {
+        hTitle.innerText = 'Tagihan PDAM';
+        hSub.innerText = 'Pembayaran Air Minum & Bersih Seluruh Indonesia';
+        hIcon.innerHTML = '<i class="fas fa-faucet"></i>';
+        document.getElementById('tabContentPdam').style.display = 'block';
+    } else if (tab === 'bpjs') {
+        hTitle.innerText = 'BPJS Kesehatan';
+        hSub.innerText = 'Iuran Bulanan Resmi BPJS Kesehatan';
+        hIcon.innerHTML = '<i class="fas fa-heartbeat"></i>';
+        document.getElementById('tabContentBpjs').style.display = 'block';
+    } else if (tab === 'pln') {
+        hTitle.innerText = 'PLN Pascabayar';
+        hSub.innerText = 'Tagihan Listrik Bulanan & Nontaglis';
+        hIcon.innerHTML = '<i class="fas fa-bolt"></i>';
+        document.getElementById('tabContentPln').style.display = 'block';
+    } else if (tab === 'pbb') {
+        hTitle.innerText = 'PBB Online';
+        hSub.innerText = 'Pajak Bumi dan Bangunan Daerah';
+        hIcon.innerHTML = '<i class="fas fa-landmark"></i>';
+        document.getElementById('tabContentPbb').style.display = 'block';
+    } else if (tab === 'other') {
+        hTitle.innerText = 'Tagihan Lainnya';
+        hSub.innerText = 'Internet, TV Berlangganan & Multifinance';
+        hIcon.innerHTML = '<i class="fas fa-receipt"></i>';
+        document.getElementById('tabContentOther').style.display = 'block';
+    }
+
+    if (window.event && window.event.currentTarget) {
+        window.event.currentTarget.classList.add('active');
+    }
+    validateInput(tab);
+}
+
+// 2. MODAL DAERAH PDAM
+function bukaModalPdam() {
+    document.getElementById('overlayPdam').classList.add('show');
+    document.getElementById('modalPdamSheet').classList.add('show');
+    document.getElementById('searchPdamText').value = '';
+    filterPdamList('');
+}
+function tutupModalPdam() {
+    document.getElementById('overlayPdam').classList.remove('show');
+    document.getElementById('modalPdamSheet').classList.remove('show');
+}
+function pilihPdamItem(sku, name) {
+    selectedPdamSku = sku;
+    selectedPdamName = name;
+    document.getElementById('pdamNameText').innerText = name;
+    tutupModalPdam();
+    validateInput('pdam');
+}
+function filterPdamList(q) {
+    const term = q.toLowerCase().trim();
+    document.querySelectorAll('.pdam-item-btn').forEach(btn => {
+        const txt = btn.innerText.toLowerCase();
+        btn.style.display = txt.includes(term) ? 'flex' : 'none';
+    });
+}
+
+// 3. VALIDASI INPUT NOMOR
+function validateInput(tab) {
+    if (tab === 'pdam') {
+        const val = document.getElementById('inputPdamNo').value.trim();
+        document.getElementById('btnCekPdam').disabled = !(selectedPdamSku && val.length >= 4);
+    } else if (tab === 'bpjs') {
+        const val = document.getElementById('inputBpjsNo').value.trim();
+        document.getElementById('btnCekBpjs').disabled = (val.length < 8);
+    } else if (tab === 'pln') {
+        const val = document.getElementById('inputPlnNo').value.trim();
+        const btn = document.getElementById('btnCekPln');
+        if (btn) btn.disabled = (val.length < 8);
+    } else if (tab === 'pbb') {
+        const val = document.getElementById('inputPbbNo').value.trim();
+        document.getElementById('btnCekPbb').disabled = (val.length < 8);
+    } else if (tab === 'other') {
+        const el = document.getElementById('inputOtherNo');
+        const val = el ? el.value.trim() : '';
+        const btn = document.getElementById('btnCekOther');
+        if (btn) btn.disabled = (val.length < 4);
+    }
+}
+
+function pasteClipboard(inputId, tab) {
+    navigator.clipboard.readText().then(text => {
+        if (text) {
+            document.getElementById(inputId).value = text.trim();
+            validateInput(tab);
+        }
+    }).catch(() => {});
+}
+
+// 4. PROSES INQUIRY CEK TAGIHAN
+function prosesInquiry(tab) {
+    let sku = '';
+    let target = '';
+    let prodName = '';
+
+    if (tab === 'pdam') {
+        sku = selectedPdamSku;
+        target = document.getElementById('inputPdamNo').value.trim();
+        prodName = selectedPdamName;
+    } else if (tab === 'bpjs') {
+        sku = '{{ bpjs_products[0].sku_code if bpjs_products else "post685476" }}';
+        target = document.getElementById('inputBpjsNo').value.trim();
+        prodName = 'BPJS Kesehatan';
+    } else if (tab === 'pln') {
+        const sel = document.getElementById('selectPlnProduct');
+        sku = sel.value;
+        target = document.getElementById('inputPlnNo').value.trim();
+        prodName = sel.options[sel.selectedIndex].getAttribute('data-nama') || 'PLN Pascabayar';
+    } else if (tab === 'pbb') {
+        const sel = document.getElementById('selectPbbProduct');
+        sku = sel.value;
+        target = document.getElementById('inputPbbNo').value.trim();
+        prodName = sel.options[sel.selectedIndex].getAttribute('data-nama') || 'PBB';
+    } else if (tab === 'other') {
+        const sel = document.getElementById('selectOtherProduct');
+        sku = sel.value;
+        target = document.getElementById('inputOtherNo').value.trim();
+        prodName = sel.options[sel.selectedIndex].getAttribute('data-nama') || 'Tagihan';
+    }
+
+    if (!sku || !target) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({ icon: 'warning', title: 'Data Belum Lengkap', text: 'Pilih produk dan masukkan ID Pelanggan terlebih dahulu!' });
+        }
+        return;
+    }
+
+    tampilkanLoading('Menghubungi Server Biller (' + prodName + ')...');
+
+    fetch('/trx/inquiry_bill', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() if csrf_token else "" }}'
+        },
+        body: JSON.stringify({
+            sku_code: sku,
+            customer_no: target
+        })
+    })
+    .then(res => {
+        sembunyikanLoading();
+        if (res.status === 401) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Harap Masuk (Login)',
+                    text: 'Silakan masuk ke akun Anda terlebih dahulu untuk mengecek dan membayar tagihan.',
+                    confirmButtonColor: '#00877a'
+                }).then(() => {
+                    window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname);
+                });
+            } else {
+                window.location.href = '/login';
+            }
+            return null;
+        }
+        return res.json();
+    })
+    .then(data => {
+        if (!data) return;
+        if (data.status === 'success') {
+            currentInquiryData = data;
+            currentInquiryData.sku_code = sku;
+            currentInquiryData.prod_name = prodName;
+            currentInquiryData.target_number = target;
+
+            tampilkanModalTagihan(data, prodName);
+        } else {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Tagihan Tidak Ditemukan',
+                    html: `<div style="font-size:13.5px; color:#475569;">${data.message || 'ID Pelanggan tidak terdaftar atau tagihan bulan ini sudah lunas.'}</div>`,
+                    confirmButtonColor: '#00877a'
+                });
+            } else {
+                alert(data.message || 'Tagihan tidak ditemukan');
+            }
+        }
+    })
+    .catch(err => {
+        sembunyikanLoading();
+        console.error('Inquiry error:', err);
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({ icon: 'error', title: 'Gangguan Koneksi', text: 'Gagal terhubung ke server pengecekan tagihan. Coba beberapa saat lagi.', confirmButtonColor: '#00877a' });
+        }
+    });
+}
+
+function tampilkanModalTagihan(data, prodName) {
+    document.getElementById('billProdName').innerText = prodName;
+    document.getElementById('billCustNo').innerText = data.customer_no;
+    document.getElementById('billCustName').innerText = data.customer_name || '-';
+    
+    // Tarif / Daya PLN jika ada
+    if (data.tarif || data.daya) {
+        document.getElementById('rowTarifDaya').style.display = 'flex';
+        document.getElementById('billTarifDaya').innerText = `${data.tarif || '-'} / ${data.daya || '-'}`;
+    } else {
+        document.getElementById('rowTarifDaya').style.display = 'none';
+    }
+
+    document.getElementById('billPeriode').innerText = data.periode || '-';
+    document.getElementById('billLembar').innerText = (data.lembar_tagihan || 1) + ' Bulan';
+    document.getElementById('billPokok').innerText = formatRupiah(data.tagihan_pokok);
+    
+    if (data.denda && data.denda > 0) {
+        document.getElementById('rowDenda').style.display = 'flex';
+        document.getElementById('billDenda').innerText = formatRupiah(data.denda);
+    } else {
+        document.getElementById('rowDenda').style.display = 'none';
+    }
+
+    document.getElementById('billAdmin').innerText = formatRupiah(data.admin_fee);
+    document.getElementById('billTotalBayar').innerText = formatRupiah(data.total_bayar);
+
+    // Update teks tombol
+    document.getElementById('btnKonfirmasiBayar').innerHTML = `<i class="fas fa-lock"></i> Bayar Sekarang (${formatRupiah(data.total_bayar)})`;
+
+    // Buka Modal
+    document.getElementById('overlayBill').classList.add('show');
+    document.getElementById('modalBillSheet').classList.add('show');
+}
+
+function tutupModalTagihan() {
+    document.getElementById('overlayBill').classList.remove('show');
+    document.getElementById('modalBillSheet').classList.remove('show');
+}
+
+function selectPaymentMethod(m) {
+    selectedPaymentMethod = m;
+    const optSaldo = document.getElementById('optSaldo');
+    const optQris = document.getElementById('optQris');
+    const checkSaldo = document.getElementById('checkSaldo');
+    const checkQris = document.getElementById('checkQris');
+
+    if (m === 'saldo') {
+        optSaldo.classList.add('selected');
+        optQris.classList.remove('selected');
+        checkSaldo.className = 'fas fa-check-circle';
+        checkSaldo.style.color = '#00877a';
+        checkQris.className = 'far fa-circle';
+        checkQris.style.color = '#cbd5e1';
+    } else {
+        optQris.classList.add('selected');
+        optSaldo.classList.remove('selected');
+        checkQris.className = 'fas fa-check-circle';
+        checkQris.style.color = '#00877a';
+        checkSaldo.className = 'far fa-circle';
+        checkSaldo.style.color = '#cbd5e1';
+    }
+}
+
+// 5. EKSEKUSI PEMBAYARAN TAGIHAN
+function eksekusiPembayaranTagihan() {
+    if (!currentInquiryData || !currentInquiryData.ref_id) {
+        return;
+    }
+
+    const total = currentInquiryData.total_bayar;
+    if (selectedPaymentMethod === 'saldo' && userBalance < total) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Saldo Tidak Mencukupi',
+                html: `Sisa saldo Anda <b>${formatRupiah(userBalance)}</b>, sedangkan total tagihan <b>${formatRupiah(total)}</b>.<br>Silakan pilih metode <b>QRIS Instan</b> atau Isi Saldo terlebih dahulu.`,
+                showCancelButton: true,
+                confirmButtonText: 'Bayar via QRIS',
+                cancelButtonText: 'Isi Saldo',
+                confirmButtonColor: '#00877a'
+            }).then(res => {
+                if (res.isConfirmed) {
+                    selectPaymentMethod('qris');
+                } else if (res.dismiss === Swal.DismissReason.cancel) {
+                    window.location.href = '/deposit';
+                }
+            });
+        } else {
+            alert('Saldo tidak mencukupi');
+        }
+        return;
+    }
+
+    tutupModalTagihan();
+    tampilkanLoading('Memproses Pembayaran Tagihan ke Biller...');
+
+    fetch('/trx/checkout', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() if csrf_token else "" }}'
+        },
+        body: JSON.stringify({
+            sku_code: currentInquiryData.sku_code,
+            target_number: currentInquiryData.target_number,
+            inquiry_ref_id: currentInquiryData.ref_id,
+            payment_method: selectedPaymentMethod
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        sembunyikanLoading();
+        if (data.status === 'success' || data.success) {
+            if (data.payment_method === 'QRIS' && data.invoice_url) {
+                window.location.href = data.invoice_url;
+            } else if (data.redirect) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Pembayaran Diterima!',
+                        text: 'Tagihan Anda sedang diproses oleh biller operator.',
+                        timer: 2000,
+                        showConfirmButton: false
+                    }).then(() => {
+                        window.location.href = data.redirect;
+                    });
+                } else {
+                    window.location.href = data.redirect;
+                }
+            } else {
+                window.location.href = '/riwayat';
+            }
+        } else {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Pembayaran Gagal',
+                    text: data.message || 'Gagal memproses pembayaran tagihan.',
+                    confirmButtonColor: '#00877a'
+                });
+            } else {
+                alert(data.message || 'Pembayaran gagal');
+            }
+        }
+    })
+    .catch(err => {
+        sembunyikanLoading();
+        console.error('Checkout error:', err);
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({ icon: 'error', title: 'Kesalahan Jaringan', text: 'Terjadi kesalahan saat memproses pembayaran tagihan.' });
+        }
+    });
+}
+
+function tampilkanLoading(msg) {
+    document.getElementById('loadingText').innerText = msg;
+    document.getElementById('loadingOverlay').style.display = 'flex';
+}
+function sembunyikanLoading() {
+    document.getElementById('loadingOverlay').style.display = 'none';
+}
+
+// Inisialisasi awal
+document.addEventListener('DOMContentLoaded', () => {
+    validateInput(currentTab);
+});
+</script>
+{% endblock %}

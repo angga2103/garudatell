@@ -159,6 +159,90 @@ def kategori_tv_detail(provider_id):
     from flask import redirect
     return redirect('/kategori/tv')
 
+def kategori_pascabayar_view(active_sub='pdam'):
+    """Halaman khusus PPOB & Tagihan Pascabayar (PDAM, BPJS, PLN Pasca, PBB, dll)."""
+    kondisi_pasca = (
+        (Product.category.ilike('%pascabayar%')) | 
+        (Product.category.ilike('%pasca%')) | 
+        (Product.category.ilike('%tagihan%')) |
+        (Product.brand.in_(['PDAM', 'BPJS KESEHATAN', 'PBB', 'PLN PASCABAYAR', 'PLN NONTAGLIS']))
+    )
+    
+    db_products = Product.query.filter(kondisi_pasca).order_by(Product.is_active.desc(), Product.name.asc()).all()
+    
+    pdam_list = []
+    bpjs_list = []
+    pln_list = []
+    pbb_list = []
+    other_list = []
+    
+    for prod in db_products:
+        name_u = (prod.name or '').upper()
+        brand_u = (prod.brand or '').upper()
+        
+        # Skip E-Money bebas nominal dari PPOB tagihan (karena sudah ada di emoney.html)
+        if 'BEBAS' in name_u and ('DANA' in name_u or 'GOPAY' in name_u or 'OVO' in name_u or 'SHOPEE' in name_u or 'LINKAJA' in name_u):
+            continue
+            
+        p_dict = format_product_dict(prod, current_user)
+        
+        if 'PDAM' in brand_u or 'PDAM' in name_u or 'AIR' in name_u:
+            pdam_list.append(p_dict)
+        elif 'BPJS' in brand_u or 'BPJS' in name_u:
+            bpjs_list.append(p_dict)
+        elif 'PLN' in brand_u or 'PLN' in name_u or 'NONTAGLIS' in name_u:
+            pln_list.append(p_dict)
+        elif 'PBB' in brand_u or 'PBB' in name_u or 'PAJAK' in name_u:
+            pbb_list.append(p_dict)
+        else:
+            other_list.append(p_dict)
+            
+    # Tentukan tab default
+    sub_clean = (active_sub or 'pdam').lower().strip()
+    if sub_clean in ['bpjs']:
+        init_tab = 'bpjs'
+    elif sub_clean in ['pln', 'listrik']:
+        init_tab = 'pln'
+    elif sub_clean in ['pbb', 'pajak']:
+        init_tab = 'pbb'
+    elif sub_clean in ['other', 'lainnya', 'tagihan']:
+        init_tab = 'other' if other_list else 'pdam'
+    else:
+        init_tab = 'pdam'
+        
+    from app.services.digiflazz import is_pln_cutoff_time
+    user_balance = float(current_user.balance) if current_user.is_authenticated and hasattr(current_user, 'balance') else 0.0
+    return render_template(
+        'user/pascabayar.html',
+        pdam_products=pdam_list,
+        bpjs_products=bpjs_list,
+        pln_products=pln_list,
+        pbb_products=pbb_list,
+        other_products=other_list,
+        active_tab=init_tab,
+        user_balance=user_balance,
+        is_pln_cutoff=is_pln_cutoff_time(),
+        title='TAGIHAN PPOB & PASCABAYAR'
+    )
+
+@user_bp.route('/kategori/pascabayar')
+@user_bp.route('/kategori/pdam')
+@user_bp.route('/kategori/bpjs')
+@user_bp.route('/kategori/pbb')
+@user_bp.route('/kategori/ppob')
+@user_bp.route('/kategori/tagihan')
+def rute_kategori_pascabayar():
+    req_path = request.path.lower()
+    if 'bpjs' in req_path:
+        sub = 'bpjs'
+    elif 'pbb' in req_path:
+        sub = 'pbb'
+    elif 'pln' in req_path:
+        sub = 'pln'
+    else:
+        sub = 'pdam'
+    return kategori_pascabayar_view(active_sub=sub)
+
 @user_bp.route('/kategori/<path:nama_kategori>')
 def lihat_kategori(nama_kategori):
     kat = nama_kategori.lower().strip()
@@ -168,7 +252,10 @@ def lihat_kategori(nama_kategori):
     keywords = [kat]
     title = nama_kategori.upper()
     
-    if kat == 'pulsa':
+    if kat in ['pascabayar', 'pasca', 'pdam', 'bpjs', 'pbb', 'tagihan', 'ppob']:
+        return kategori_pascabayar_view(active_sub=kat)
+    
+    elif kat == 'pulsa':
         db_products = Product.query.filter(
             Product.category.ilike('%pulsa%')
         ).order_by(Product.is_active.desc(), Product.sell_price.asc()).all()
@@ -194,6 +281,42 @@ def lihat_kategori(nama_kategori):
 
     elif kat in ['tv', 'tv-berlangganan', 'tv berlangganan']:
         return kategori_tv_index()
+
+    elif kat in ['voucher', 'vouchers', 'voucher-digital', 'voucher-belanja', 'voucher-kuota', 'voucher-fisik']:
+        kondisi_voucher = (
+            Product.category.ilike('%voucher%') |
+            Product.name.ilike('%voucher%') |
+            Product.brand.ilike('%voucher%') |
+            Product.category.ilike('%aigo%') |
+            Product.name.ilike('%aigo%') |
+            Product.brand.in_([
+                'VIP-ALFAMART VOUCHER', 'VIP-INDOMARET', 'VIP-SPOTIFY', 'VIP-VIDIO', 
+                'VIP-CARREFOUR / TRANSMART', 'VIP-YOSHINOYA', 'Tanaka Voucher',
+                'VIP-Voucher PSN', 'VIP-Voucher Valorant', 'VIP-Voucher PB Zepetto',
+                'VIP-Voucher Razer Gold', 'VIP-Voucher Garena Shell', 'VIP-Voucher Roblox',
+                'VIP-Voucher Fortnite V Bucks', 'VIP-Voucher Megaxus'
+            ])
+        )
+        db_products = Product.query.filter(kondisi_voucher).order_by(Product.is_active.desc(), Product.sell_price.asc()).all()
+        produk_final = []
+        brand_set = set()
+        for prod in db_products:
+            b_clean = (prod.brand or '').replace('VIP-', '').strip()
+            if not b_clean:
+                b_clean = 'VOUCHER'
+            brand_set.add(b_clean)
+            produk_final.append(format_product_dict(prod, current_user, provider_tag=b_clean, extra={'brand': b_clean}))
+
+        brands_list = sorted(list(brand_set))
+        return render_template(
+            'user/kategori.html',
+            products=produk_final,
+            brands=brands_list,
+            title='VOUCHER DIGITAL & KUOTA',
+            icon='fas fa-ticket-alt',
+            subtitle='Voucher Belanja, Kuota Internet & Hiburan Digital'
+        )
+
     elif kat in ['games', 'voucher game', 'game', 'hiburan', 'voucher-game', 'streaming']:
         from app.models.product import Product as MProduct
         from flask import render_template as m_render, request
@@ -391,13 +514,18 @@ def lihat_kategori(nama_kategori):
     
     # 3. Format Data untuk UI (Menerjemahkan Database ke Bahasa UI)
     produk_final = []
+    brands_set = set()
     for prod in db_products:
-        produk_final.append(format_product_dict(prod, current_user))
+        b_clean = (prod.brand or '').replace('VIP-', '').strip()
+        if b_clean:
+            brands_set.add(b_clean)
+        produk_final.append(format_product_dict(prod, current_user, provider_tag=b_clean, extra={'brand': b_clean}))
         
     # 4. Urutkan: produk aktif terlebih dahulu, lalu berdasarkan harga termurah
     produk_final.sort(key=lambda x: (0 if x.get('is_active') else 1, x.get('harga', 0)))
+    brands_list = sorted(list(brands_set))
         
-    return render_template(template_name, products=produk_final, title=title)
+    return render_template(template_name, products=produk_final, brands=brands_list, title=title)
 
 
 # =====================================================================
