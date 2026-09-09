@@ -13,6 +13,7 @@ from app.models.user import User
 from app.models.product import Product
 from app.models.transaction import Transaction
 from app.models.trusted_device import TrustedDevice
+from app.models.branch_mutation import BranchMutation
 from app.services.device_service import (
     create_branch_cashier,
     activate_cashier_device,
@@ -606,7 +607,7 @@ class TestCashierPortal(unittest.TestCase):
         self.assertEqual(data['trx']['status'], 'PROCESSING')
 
     def test_22_cashier_checkout_digiflazz_failed_auto_refund(self):
-        """Memastikan jika Digiflazz menolak (rc 01), saldo kasir otomatis di-refund kembali utuh."""
+        """Memastikan jika Digiflazz menolak (rc 01), order diterima asinkron (200), lalu di latar belakang saldo kasir otomatis di-refund kembali utuh dan status FAILED."""
         ok, dev, _, _ = create_branch_cashier(self.vip_owner, "Cabang Transaksi Gagal", "1234")
         dev.branch_balance = 50000.0
         db.session.commit()
@@ -624,15 +625,32 @@ class TestCashierPortal(unittest.TestCase):
             }
         }
 
+        # Alur asinkron: kasir langsung menerima respon 200 agar dialihkan ke Riwayat Shift tanpa popup loading berputar
         res = self.client.post('/kasir/checkout', json={'sku_code': 'TLKM5', 'target_number': '089999999999'})
-        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.status_code, 200)
         data = res.get_json()
-        self.assertEqual(data['status'], 'error')
-        self.assertIn('dikembalikan', data['message'])
+        self.assertEqual(data['status'], 'success')
+        ref_id = data['trx']['ref_id']
 
-        # Saldo cabang kembali utuh
+        # Saldo cabang otomatis di-refund kembali utuh oleh background executor
         dev_refreshed = db.session.get(TrustedDevice, dev.id)
         self.assertEqual(dev_refreshed.branch_balance, 50000.0)
+
+        # Transaksi tercatat FAILED dan mutasi REFUND tersimpan
+        trx = Transaction.query.filter_by(ref_id=ref_id).first()
+        self.assertIsNotNone(trx)
+        self.assertEqual(trx.status, 'FAILED')
+
+        refund_mut = BranchMutation.query.filter_by(device_id=dev.id, type='REFUND').first()
+        self.assertIsNotNone(refund_mut)
+        self.assertEqual(refund_mut.amount, trx.amount)
+
+        # Kasir cek status di Riwayat Shift
+        res_chk = self.client.get(f'/kasir/check_status/{ref_id}')
+        self.assertEqual(res_chk.status_code, 200)
+        chk_data = res_chk.get_json()
+        self.assertEqual(chk_data['trx_status'], 'FAILED')
+        self.assertEqual(chk_data['current_balance'], 50000.0)
 
     def test_23_cashier_checkout_digiflazz_exception_safe(self):
         """Memastikan jika Digiflazz melempar exception/timeout koneksi, backend tidak crash 500 melainkan status PROCESSING."""
@@ -653,7 +671,28 @@ class TestCashierPortal(unittest.TestCase):
         self.assertEqual(data['status'], 'success')
         self.assertEqual(data['trx_status'], 'PROCESSING')
 
+    def test_24_cashier_check_status_unauthorized_device(self):
+        """Memastikan endpoint /kasir/check_status menolak akses dari perangkat yang belum login / beda cabang."""
+        ok, dev, _, _ = create_branch_cashier(self.vip_owner, "Cabang Asli", "1234")
+        dev.branch_balance = 50000.0
+        db.session.commit()
+
+        token = "token_cabang_asli"
+        activate_cashier_device(dev.activation_token, token)
+        self.client.set_cookie('gt_device_token', token, domain='localhost')
+        self.client.post('/kasir/login_pin', json={'pin': '1234', 'shift_name': 'Pagi'})
+
+        self.mock_digi.return_value = {'data': {'status': 'Sukses', 'rc': '00', 'sn': 'SN12345'}}
+        res = self.client.post('/kasir/checkout', json={'sku_code': 'TLKM5', 'target_number': '081234567890'})
+        ref_id = res.get_json()['trx']['ref_id']
+
+        # Logout / clear cookie
+        self.client.set_cookie('gt_device_token', '', domain='localhost')
+        res_unauth = self.client.get(f'/kasir/check_status/{ref_id}')
+        self.assertEqual(res_unauth.status_code, 401)
+
 
 if __name__ == '__main__':
     unittest.main()
+
 

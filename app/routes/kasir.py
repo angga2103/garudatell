@@ -419,6 +419,98 @@ def get_brands():
     return jsonify({'status': 'success', 'brands': clean_brands}), 200
 
 
+def execute_cashier_provider_order(trx_id, device_id, owner_id, amount, sku_code, target_number, ref_id, is_vip_provider, shift_name, bal_after):
+    """
+    Eksekusi pemesanan ke provider (Digiflazz / VIP-Reseller).
+    Dijalankan secara asinkron di background thread agar checkout kasir instan tanpa delay.
+    """
+    try:
+        trx = db.session.get(Transaction, trx_id)
+        locked_device = db.session.get(TrustedDevice, device_id)
+        owner = db.session.get(User, owner_id)
+        if not trx or not locked_device or not owner:
+            return
+
+        if is_vip_provider:
+            from app.services.vip_reseller import VIPReseller
+            vip = VIPReseller()
+            order_res = vip.create_order(sku_code, target_number)
+            if order_res.get('result'):
+                vip_data = order_res.get('data', {})
+                if vip_data.get('trxid'):
+                    trx.provider_ref = vip_data.get('trxid')
+                trx.status = 'PROCESSING'
+                db.session.commit()
+            else:
+                raw_msg = str(order_res.get('message', 'Ditolak API Provider'))
+                locked_device.branch_balance += amount
+                mut_ref = BranchMutation(
+                    device_id=locked_device.id,
+                    user_id=owner.id,
+                    type='REFUND',
+                    amount=amount,
+                    balance_before=bal_after,
+                    balance_after=bal_after + amount,
+                    description=f"Refund transaksi gagal ({raw_msg})",
+                    shift_name=shift_name,
+                    created_at=datetime.utcnow()
+                )
+                db.session.add(mut_ref)
+                trx.status = 'FAILED'
+                from app.services.provider_helper import sanitize_public_sn_message
+                trx.sn = sanitize_public_sn_message(raw_msg)
+                db.session.commit()
+        else:
+            from app.services.digiflazz import create_transaction
+            from app.services.provider_helper import sanitize_public_sn_message
+            try:
+                digi_res = create_transaction(sku_code, target_number, ref_id)
+                digi_data = digi_res.get('data', {}) if isinstance(digi_res, dict) else {}
+                digi_status = str(digi_data.get('status', '')).lower()
+                rc = str(digi_data.get('rc', '')).strip()
+                raw_msg = digi_data.get('message') or 'Respon operator tidak diketahui'
+
+                if 'sukses' in digi_status or 'success' in digi_status or rc == '00':
+                    trx.status = 'SUCCESS'
+                    trx.sn = digi_data.get('sn') or '-'
+                    from app.routes.transaction import award_transaction_points
+                    award_transaction_points(owner.id, ref_id)
+                    db.session.commit()
+                elif 'gagal' in digi_status or 'failed' in digi_status or rc in ['01', '41', '42', '50', '52']:
+                    locked_device.branch_balance += amount
+                    mut_ref = BranchMutation(
+                        device_id=locked_device.id,
+                        user_id=owner.id,
+                        type='REFUND',
+                        amount=amount,
+                        balance_before=bal_after,
+                        balance_after=bal_after + amount,
+                        description=f"Refund transaksi ditolak operator ({raw_msg})",
+                        shift_name=shift_name,
+                        created_at=datetime.utcnow()
+                    )
+                    db.session.add(mut_ref)
+                    trx.status = 'FAILED'
+                    trx.sn = sanitize_public_sn_message(raw_msg, rc=rc)
+                    db.session.commit()
+                else:
+                    trx.status = 'PROCESSING'
+                    if digi_data.get('sn'):
+                        trx.sn = digi_data.get('sn')
+                    db.session.commit()
+            except Exception as e_digi:
+                logger.error(f"Error Digiflazz cashier trx {ref_id}: {e_digi}")
+                trx.status = 'PROCESSING'
+                db.session.commit()
+    except Exception as e_outer:
+        logger.error(f"Error in execute_cashier_provider_order for {ref_id}: {e_outer}")
+
+
+def _run_async_cashier_order(app_obj, *args):
+    with app_obj.app_context():
+        execute_cashier_provider_order(*args)
+
+
 @kasir_bp.route('/checkout', methods=['POST'])
 @csrf.exempt
 @limiter.limit("30 per minute")
@@ -504,99 +596,34 @@ def checkout():
     locked_device.last_used_at = datetime.utcnow()
     db.session.commit()
 
-    # 4. Eksekusi ke Provider (Digiflazz / VIP-Reseller)
+    # 4. Eksekusi ke Provider (Digiflazz / VIP-Reseller) - Asynchronous Background Processing
     is_vip_provider = 'VIP' in (product.brand or '').upper() or 'VOUCHER' in (product.category or '').upper()
 
-    if is_vip_provider:
-        from app.services.vip_reseller import VIPReseller
-        vip = VIPReseller()
-        order_res = vip.create_order(sku_code, target_number)
-        if order_res.get('result'):
-            vip_data = order_res.get('data', {})
-            if vip_data.get('trxid'):
-                new_trx.provider_ref = vip_data.get('trxid')
-            new_trx.status = 'PROCESSING'
-            db.session.commit()
-        else:
-            # Gagal di provider -> Refund ke saldo cabang
-            raw_msg = str(order_res.get('message', 'Ditolak API Provider'))
-            locked_device.branch_balance += amount
-            mut_ref = BranchMutation(
-                device_id=locked_device.id,
-                user_id=owner.id,
-                type='REFUND',
-                amount=amount,
-                balance_before=bal_after,
-                balance_after=bal_after + amount,
-                description=f"Refund transaksi gagal ({raw_msg})",
-                shift_name=shift_name,
-                created_at=datetime.utcnow()
-            )
-            db.session.add(mut_ref)
-            new_trx.status = 'FAILED'
-            new_trx.sn = raw_msg
-            db.session.commit()
-            return jsonify({'status': 'error', 'message': f'Gagal di server provider: {raw_msg}'}), 400
+    from flask import current_app
+    is_testing = current_app.config.get('TESTING', False)
+    if is_testing:
+        execute_cashier_provider_order(
+            new_trx.id, locked_device.id, owner.id, amount, sku_code, target_number, ref_id, is_vip_provider, shift_name, bal_after
+        )
     else:
-        from app.services.digiflazz import create_transaction
-        from app.services.provider_helper import sanitize_public_sn_message
-        try:
-            digi_res = create_transaction(sku_code, target_number, ref_id)
-            digi_data = digi_res.get('data', {}) if isinstance(digi_res, dict) else {}
-            digi_status = str(digi_data.get('status', '')).lower()
-            rc = str(digi_data.get('rc', '')).strip()
-            raw_msg = digi_data.get('message') or 'Respon operator tidak diketahui'
-
-            if 'sukses' in digi_status or 'success' in digi_status or rc == '00':
-                new_trx.status = 'SUCCESS'
-                new_trx.sn = digi_data.get('sn') or '-'
-                from app.routes.transaction import award_transaction_points
-                award_transaction_points(owner.id, ref_id)
-                db.session.commit()
-            elif 'gagal' in digi_status or 'failed' in digi_status or rc in ['01', '41', '42', '50', '52']:
-                # Penolakan pasti oleh operator -> Kembalikan saldo ke kasir cabang
-                locked_device.branch_balance += amount
-                mut_ref = BranchMutation(
-                    device_id=locked_device.id,
-                    user_id=owner.id,
-                    type='REFUND',
-                    amount=amount,
-                    balance_before=bal_after,
-                    balance_after=bal_after + amount,
-                    description=f"Refund transaksi gagal ({raw_msg})",
-                    shift_name=shift_name,
-                    created_at=datetime.utcnow()
-                )
-                db.session.add(mut_ref)
-                new_trx.status = 'FAILED'
-                new_trx.sn = sanitize_public_sn_message(raw_msg, rc=rc)
-                db.session.commit()
-                return jsonify({
-                    'status': 'error',
-                    'message': f'Transaksi gagal di server operator: {raw_msg}. Saldo kasir telah dikembalikan.',
-                    'remaining_branch_balance': float(locked_device.branch_balance or 0.0)
-                }), 400
-            else:
-                # Transaksi sedang diproses operator (Pending / RC 03 / RC 46 / timeout respon)
-                new_trx.status = 'PROCESSING'
-                if digi_data.get('sn'):
-                    new_trx.sn = digi_data.get('sn')
-                db.session.commit()
-        except Exception as e_digi:
-            logger.error(f"Error Digiflazz cashier trx {ref_id}: {e_digi}")
-            new_trx.status = 'PROCESSING'
-            db.session.commit()
+        import threading
+        app_obj = current_app._get_current_object()
+        thread = threading.Thread(
+            target=_run_async_cashier_order,
+            args=(app_obj, new_trx.id, locked_device.id, owner.id, amount, sku_code, target_number, ref_id, is_vip_provider, shift_name, bal_after),
+            daemon=True
+        )
+        thread.start()
 
     # 5. Cek Peringatan Saldo Menipis (Alert otomatis WhatsApp ke Owner jika < Rp 100.000)
     from app.services.device_service import check_and_notify_low_balance
     check_and_notify_low_balance(locked_device, shift_name=shift_name, base_url=request.host_url)
 
-    msg_success = 'Transaksi Kasir Berhasil!' if new_trx.status == 'SUCCESS' else 'Transaksi Sedang Diproses Operator...'
-
+    # Respon cepat (< 100ms) agar kasir langsung diarahkan ke Riwayat Shift
     return jsonify({
         'status': 'success',
         'trx_status': new_trx.status,
-        'message': msg_success,
+        'message': 'Pesanan berhasil dikirim ke operator! Membuka Riwayat Shift...',
         'remaining_branch_balance': float(locked_device.branch_balance or 0.0),
         'trx': {
             'ref_id': new_trx.ref_id,
@@ -608,6 +635,39 @@ def checkout():
             'branch_name': locked_device.device_name,
             'time': new_trx.created_at_wib
         }
+    }), 200
+
+
+@kasir_bp.route('/check_status/<ref_id>')
+def check_status(ref_id):
+    """Kasir cabang memeriksa status terkini 1 transaksi ke provider API (Real-Time)."""
+    active_device = get_current_cashier_device()
+    if not active_device:
+        return jsonify({'status': 'error', 'message': 'Sesi kasir tidak aktif'}), 401
+
+    trx = Transaction.query.filter_by(ref_id=ref_id, device_id=active_device.id).first()
+    if not trx:
+        return jsonify({'status': 'error', 'message': 'Transaksi tidak ditemukan pada cabang kasir ini'}), 404
+
+    if trx.status in ['PROCESSING', 'PENDING', 'PROSES']:
+        from app.routes.transaction import sync_single_transaction
+        try:
+            sync_single_transaction(trx)
+        except Exception as e:
+            logger.error(f"Error cashier sync single trx {ref_id}: {e}")
+
+    fresh_device = TrustedDevice.query.get(active_device.id) or active_device
+
+    return jsonify({
+        'status': 'success',
+        'trx_status': trx.status,
+        'ref_id': trx.ref_id,
+        'product_name': trx.product_name,
+        'target_number': trx.target_number,
+        'amount': trx.amount,
+        'sn': trx.sn or '-',
+        'time': trx.created_at_wib,
+        'current_balance': float(fresh_device.branch_balance or 0.0)
     }), 200
 
 
@@ -631,7 +691,10 @@ def history():
     limit = int(request.args.get('limit', 50))
     trxs = get_branch_cashier_history(fresh_device.id, limit=limit)
     data = []
+    has_pending = False
     for t in trxs:
+        if t.status in ['PROCESSING', 'PENDING', 'PROSES']:
+            has_pending = True
         data.append({
             'ref_id': t.ref_id,
             'product_name': t.product_name,
@@ -645,6 +708,7 @@ def history():
     return jsonify({
         'status': 'success',
         'history': data,
+        'has_pending': has_pending,
         'current_balance': float(fresh_device.branch_balance or 0.0)
     }), 200
 
