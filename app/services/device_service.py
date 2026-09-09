@@ -565,7 +565,7 @@ def transfer_balance_to_branch(owner_id, device_id, amount, shift_name=None):
         db.session.rollback()
         return False, "Hanya akun VIP aktif yang dapat mentransfer saldo ke cabang."
 
-    device = TrustedDevice.query.filter_by(id=device_id, user_id=owner_id).first()
+    device = db.session.query(TrustedDevice).filter_by(id=device_id, user_id=owner_id).with_for_update().first()
     if not device:
         db.session.rollback()
         return False, "Cabang kasir tidak ditemukan."
@@ -617,7 +617,7 @@ def withdraw_balance_from_branch(owner_id, device_id, amount):
         db.session.rollback()
         return False, "Hanya akun VIP aktif yang dapat menarik saldo cabang."
 
-    device = TrustedDevice.query.filter_by(id=device_id, user_id=owner_id).first()
+    device = db.session.query(TrustedDevice).filter_by(id=device_id, user_id=owner_id).with_for_update().first()
     if not device:
         db.session.rollback()
         return False, "Cabang kasir tidak ditemukan."

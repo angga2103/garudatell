@@ -111,7 +111,7 @@ def create_app():
     app.add_url_rule('/api/check_wa_status', endpoint='alias_api_check_wa_status', view_func=check_wa_status, methods=['GET'])
 
     with app.app_context():
-        from app.models import CommissionLog, TrustedDevice  # Pastikan seluruh model terdaftar di metadata SQLAlchemy
+        from app.models import CommissionLog, TrustedDevice, PostpaidInquiry  # Pastikan seluruh model terdaftar di metadata SQLAlchemy
         db.create_all()
         try:
             inspector = inspect(db.engine)

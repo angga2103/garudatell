@@ -195,7 +195,15 @@ class TestDigiflazzSyncAndWebhook(unittest.TestCase):
         self.assertEqual(trx_refresh.status, 'SUCCESS')
         self.assertEqual(trx_refresh.sn, 'WH-HMAC-OK-9988')
 
-    def test_05_webhook_without_signature_hookshot_fallback(self):
+    @patch('app.services.digiflazz.check_transaction_status')
+    def test_05_webhook_without_signature_hookshot_fallback(self, mock_check):
+        mock_check.return_value = (True, {
+            'status': 'Sukses',
+            'rc': '00',
+            'sn': 'HOOKSHOT-OK-112233',
+            'message': 'Sukses dari Digiflazz'
+        }, 'Sukses')
+
         trx = Transaction(
             ref_id='GT-TEST-WH-02',
             user_id=self.user.id,
@@ -235,6 +243,11 @@ class TestDigiflazzSyncAndWebhook(unittest.TestCase):
         trx_refresh = Transaction.query.filter_by(ref_id=trx.ref_id).first()
         self.assertEqual(trx_refresh.status, 'SUCCESS')
         self.assertEqual(trx_refresh.sn, 'HOOKSHOT-OK-112233')
+
+        # Uji keamanan: Jika server-to-server check gagal (spoofing attacker), tolak dengan 403
+        mock_check.return_value = (False, {}, "Rejected")
+        res_fake = self.client.post('/trx/callback/digiflazz', data=body_bytes, headers=headers)
+        self.assertEqual(res_fake.status_code, 403)
 
     @patch('app.services.digiflazz.check_transaction_status')
     def test_06_riwayat_route_auto_sync(self, mock_check):
