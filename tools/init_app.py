@@ -83,6 +83,11 @@ def init_app():
         db.session.commit()
         print("  [OK] Pengaturan sistem default berhasil diisi.")
 
+        # 6. Inisialisasi Katalog Produk Pascabayar Nasional
+        from app.services.pascabayar_service import seed_pascabayar_products
+        ins, upd = seed_pascabayar_products()
+        print(f"  [OK] Katalog Pascabayar Nasional siap ({ins} baru, {upd} diperbarui).")
+
     print("\n[SUCCESS] Inisialisasi GarudaTel v2 Selesai 100%!")
 
 if __name__ == '__main__':

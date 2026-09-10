@@ -206,16 +206,23 @@ def sync_products():
     # Bersihkan produk Digiflazz lokal yang sudah dihapus di server Digiflazz
     deleted_count = 0
     if cmd_success_count > 0 and seen_skus:
-        # Cari produk lokal yang BUKAN produk VIP-Reseller dan TIDAK ada dalam seen_skus Digiflazz
+        from app.services.pascabayar_service import PASCABAYAR_BRANDS, PASCABAYAR_SKUS, seed_pascabayar_products
+        # Cari produk lokal yang BUKAN produk VIP-Reseller, BUKAN produk Pascabayar, dan TIDAK ada dalam seen_skus Digiflazz
         obsolete_products = Product.query.filter(
             ~Product.brand.like('VIP-%'),
             ~Product.name.like('[VIP] %'),
-            ~Product.sku_code.in_(seen_skus)
+            ~Product.category.ilike('%pasca%'),
+            ~Product.category.ilike('%tagihan%'),
+            ~Product.brand.in_(PASCABAYAR_BRANDS),
+            ~Product.sku_code.in_(seen_skus.union(PASCABAYAR_SKUS))
         ).all()
 
         for ob in obsolete_products:
             db.session.delete(ob)
             deleted_count += 1
+
+        # Pastikan produk pascabayar nasional selalu tersedia
+        seed_pascabayar_products()
 
     if cmd_success_count == 0:
         return False, "Digiflazz menolak permintaan sinkronisasi untuk Prepaid dan Pasca."

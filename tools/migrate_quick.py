@@ -1,7 +1,10 @@
 import os
+import sys
 import sqlite3
 
 BASE_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
 db_path = os.path.join(BASE_DIR, 'app', 'garudatel.db')
 
 def run_migration():
@@ -153,6 +156,18 @@ def run_migration():
 
     conn.commit()
     conn.close()
+
+    # 6. Pastikan seluruh produk pascabayar nasional terdaftar di database
+    try:
+        from app import create_app
+        from app.services.pascabayar_service import seed_pascabayar_products
+        app = create_app()
+        with app.app_context():
+            ins, upd = seed_pascabayar_products()
+            print(f"  [+] Katalog Pascabayar Nasional siap ({ins} baru, {upd} diperbarui).")
+    except Exception as e:
+        print(f"  [!] Peringatan saat seeding pascabayar: {e}")
+
     print("[SUCCESS] Migrasi database berhasil diselesaikan 100%!")
 
 if __name__ == '__main__':

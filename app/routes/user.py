@@ -169,11 +169,13 @@ def kategori_tv_detail(provider_id):
 
 def kategori_pascabayar_view(active_sub='pdam'):
     """Halaman khusus PPOB & Tagihan Pascabayar (PDAM, BPJS, PLN Pasca, PBB, dll)."""
+    from app.services.pascabayar_service import PASCABAYAR_BRANDS, seed_pascabayar_products
+
     kondisi_pasca = (
         (Product.category.ilike('%pascabayar%')) | 
         (Product.category.ilike('%pasca%')) | 
         (Product.category.ilike('%tagihan%')) |
-        (Product.brand.in_(['PDAM', 'BPJS KESEHATAN', 'PBB', 'PLN PASCABAYAR', 'PLN NONTAGLIS']))
+        (Product.brand.in_(PASCABAYAR_BRANDS))
     )
     
     from app.services.setting_service import is_vip_reseller_enabled
@@ -181,6 +183,9 @@ def kategori_pascabayar_view(active_sub='pdam'):
         kondisi_pasca = kondisi_pasca & ~Product.brand.ilike('VIP-%')
     
     db_products = Product.query.filter(kondisi_pasca).order_by(Product.is_active.desc(), Product.name.asc()).all()
+    if not db_products:
+        seed_pascabayar_products()
+        db_products = Product.query.filter(kondisi_pasca).order_by(Product.is_active.desc(), Product.name.asc()).all()
     
     pdam_list = []
     bpjs_list = []

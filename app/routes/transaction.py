@@ -47,7 +47,10 @@ def inquiry_bill():
         # Cari produk di katalog
         product = Product.query.filter_by(sku_code=sku_input).first()
         if not product:
-            return jsonify({'status': 'error', 'message': 'Produk tagihan tidak ditemukan di database'}), 404
+            from app.services.pascabayar_service import get_or_create_pascabayar_product
+            product = get_or_create_pascabayar_product(sku_input)
+            if not product:
+                return jsonify({'status': 'error', 'message': 'Produk tagihan tidak ditemukan di database'}), 404
 
         # Pengecekan Jadwal Cut Off Harian PLN (23:30 - 01:00 WIB)
         is_pln = 'PLN' in (product.category or '').upper() or 'PLN' in (product.name or '').upper() or 'PLN' in (product.brand or '').upper() or 'LISTRIK' in (product.name or '').upper()
@@ -198,6 +201,9 @@ def checkout():
 
         # Cek produk di database terlebih dahulu
         db_product = Product.query.filter_by(sku_code=sku_input).first()
+        if not db_product:
+            from app.services.pascabayar_service import get_or_create_pascabayar_product
+            db_product = get_or_create_pascabayar_product(sku_input)
 
         bebas_brand_match = None
         for b_name in bebas_sku_map.keys():
