@@ -59,7 +59,11 @@ def get_user_notifications(user_id=None):
 @user_bp.route('/')
 @user_bp.route('/dashboard')
 def dashboard():
-    raw_categories = db.session.query(Product.category).filter(Product.is_active==True).distinct().all()
+    from app.services.setting_service import is_vip_reseller_enabled
+    cat_query = db.session.query(Product.category).filter(Product.is_active==True)
+    if not is_vip_reseller_enabled():
+        cat_query = cat_query.filter(~Product.brand.ilike('VIP-%'))
+    raw_categories = cat_query.distinct().all()
     categories = [c[0] for c in raw_categories if c[0]]
     kategori_utama = [c for c in categories if c in ['Pulsa', 'Data', 'E-Money', 'PLN', 'Games']]
     kategori_lainnya = [c for c in categories if c not in kategori_utama]
@@ -126,6 +130,10 @@ def kategori_tv_index():
         ~Product.name.ilike('%ragnarok%')
     )
     
+    from app.services.setting_service import is_vip_reseller_enabled
+    if not is_vip_reseller_enabled():
+        kondisi_tv = kondisi_tv & ~Product.brand.ilike('VIP-%')
+    
     db_products = Product.query.filter(kondisi_tv).order_by(Product.is_active.desc(), Product.sell_price.asc()).all()
     
     produk_final = []
@@ -167,6 +175,10 @@ def kategori_pascabayar_view(active_sub='pdam'):
         (Product.category.ilike('%tagihan%')) |
         (Product.brand.in_(['PDAM', 'BPJS KESEHATAN', 'PBB', 'PLN PASCABAYAR', 'PLN NONTAGLIS']))
     )
+    
+    from app.services.setting_service import is_vip_reseller_enabled
+    if not is_vip_reseller_enabled():
+        kondisi_pasca = kondisi_pasca & ~Product.brand.ilike('VIP-%')
     
     db_products = Product.query.filter(kondisi_pasca).order_by(Product.is_active.desc(), Product.name.asc()).all()
     
@@ -247,6 +259,9 @@ def rute_kategori_pascabayar():
 def lihat_kategori(nama_kategori):
     kat = nama_kategori.lower().strip()
     
+    from app.services.setting_service import is_vip_reseller_enabled
+    vip_enabled = is_vip_reseller_enabled()
+    
     # 1. Konfigurasi Template & Keyword Pencarian Database
     template_name = 'user/kategori.html'
     keywords = [kat]
@@ -256,9 +271,12 @@ def lihat_kategori(nama_kategori):
         return kategori_pascabayar_view(active_sub=kat)
     
     elif kat == 'pulsa':
-        db_products = Product.query.filter(
+        q_pulsa = Product.query.filter(
             Product.category.ilike('%pulsa%')
-        ).order_by(Product.is_active.desc(), Product.sell_price.asc()).all()
+        )
+        if not vip_enabled:
+            q_pulsa = q_pulsa.filter(~Product.brand.ilike('VIP-%'), ~Product.name.ilike('%[VIP]%'))
+        db_products = q_pulsa.order_by(Product.is_active.desc(), Product.sell_price.asc()).all()
         produk_final = []
         for prod in db_products:
             brand_clean = (prod.brand or '').replace('VIP-', '').strip().upper()
@@ -269,9 +287,12 @@ def lihat_kategori(nama_kategori):
     elif kat == 'data':
         keywords = ['data', 'kuota', 'paket', 'internet', 'inject', 'internetmax']
         filters = [Product.category.ilike(f'%{kw}%') for kw in keywords]
-        db_products = Product.query.filter(
+        q_data = Product.query.filter(
             or_(*filters)
-        ).order_by(Product.is_active.desc(), Product.sell_price.asc()).all()
+        )
+        if not vip_enabled:
+            q_data = q_data.filter(~Product.brand.ilike('VIP-%'), ~Product.name.ilike('%[VIP]%'))
+        db_products = q_data.order_by(Product.is_active.desc(), Product.sell_price.asc()).all()
         produk_final = []
         for prod in db_products:
             brand_clean = (prod.brand or '').replace('VIP-', '').strip().upper()
@@ -297,6 +318,8 @@ def lihat_kategori(nama_kategori):
                 'VIP-Voucher Fortnite V Bucks', 'VIP-Voucher Megaxus'
             ])
         )
+        if not vip_enabled:
+            kondisi_voucher = kondisi_voucher & ~Product.brand.ilike('VIP-%') & ~Product.name.ilike('%[VIP]%')
         db_products = Product.query.filter(kondisi_voucher).order_by(Product.is_active.desc(), Product.sell_price.asc()).all()
         produk_final = []
         brand_set = set()
@@ -321,20 +344,26 @@ def lihat_kategori(nama_kategori):
         from app.models.product import Product as MProduct
         from flask import render_template as m_render, request
         
-        # Kondisi dasar: Produk game & voucher VIP-Reseller
-        kondisi_games = (
-            (MProduct.category.ilike('%game%') | MProduct.category.ilike('%voucher%')) &
-            MProduct.brand.ilike('VIP-%')
-        )
+        # Kondisi dasar: Produk game & voucher
+        if vip_enabled:
+            kondisi_games = (
+                (MProduct.category.ilike('%game%') | MProduct.category.ilike('%voucher%'))
+            )
+        else:
+            kondisi_games = (
+                MProduct.category.ilike('%game%') &
+                ~MProduct.brand.ilike('VIP-%') &
+                ~MProduct.name.ilike('%[VIP]%')
+            )
         
-        # Ambil daftar unik seluruh 99 game brand untuk selector dropdown
+        # Ambil daftar unik seluruh game brand untuk selector dropdown
         all_game_brands = [
             b[0].replace('VIP-', '').strip() 
             for b in MProduct.query.with_entities(MProduct.brand).filter(kondisi_games).distinct().order_by(MProduct.brand.asc()).all()
             if b[0]
         ]
         
-        # Tangkap filter dari URL (default: ML / Mobile Legends)
+        # Tangkap filter dari URL (default: ML / Mobile Legends jika ada)
         active_game = request.args.get('game', '').upper().strip()
         active_brand = request.args.get('brand', '').strip()
         search_query = request.args.get('search', '').strip()
@@ -359,7 +388,12 @@ def lihat_kategori(nama_kategori):
         }
         
         if not active_game and not active_brand and not search_query:
-            active_game = 'ML' # Default Mobile Legends agar halaman super cepat dimuat
+            if any('MOBILE LEGENDS' in b.upper() for b in all_game_brands):
+                active_game = 'ML'
+            elif all_game_brands:
+                active_brand = all_game_brands[0]
+            else:
+                active_game = 'ALL'
             
         base_query = MProduct.query.filter(kondisi_games)
         is_dual_input = False
@@ -419,6 +453,8 @@ def lihat_kategori(nama_kategori):
             ~Product.name.ilike('%perdana%') &
             ~Product.category.ilike('%perdana%')
         )
+        if not vip_enabled:
+            kondisi_emoney = kondisi_emoney & ~Product.brand.ilike('VIP-%') & ~Product.name.ilike('%[VIP]%')
         db_products = Product.query.filter(
             kondisi_emoney
         ).order_by(Product.is_active.desc(), Product.sell_price.asc()).all()
@@ -458,6 +494,8 @@ def lihat_kategori(nama_kategori):
             Product.category.ilike('%listrik%') |
             Product.name.ilike('%pln%')
         )
+        if not vip_enabled:
+            kondisi_pln = kondisi_pln & ~Product.brand.ilike('VIP-%') & ~Product.name.ilike('%[VIP]%')
         db_products = Product.query.filter(
             kondisi_pln
         ).order_by(Product.is_active.desc(), Product.sell_price.asc()).all()
@@ -473,9 +511,12 @@ def lihat_kategori(nama_kategori):
     elif kat in ['telpsms', 'telp-sms', 'telp & sms']:
         keywords = ['telp', 'sms']
         filters = [Product.category.ilike(f'%{kw}%') for kw in keywords]
-        db_products = Product.query.filter(
+        q_telp = Product.query.filter(
             or_(*filters)
-        ).order_by(Product.is_active.desc(), Product.sell_price.asc()).all()
+        )
+        if not vip_enabled:
+            q_telp = q_telp.filter(~Product.brand.ilike('VIP-%'), ~Product.name.ilike('%[VIP]%'))
+        db_products = q_telp.order_by(Product.is_active.desc(), Product.sell_price.asc()).all()
         produk_final = []
         for prod in db_products:
             brand_clean = (prod.brand or '').replace('VIP-', '').strip().upper()
@@ -487,6 +528,8 @@ def lihat_kategori(nama_kategori):
             Product.category.ilike('%masa aktif%') |
             (Product.name.ilike('%masa%') & Product.name.ilike('%aktif%'))
         )
+        if not vip_enabled:
+            kondisi_masaaktif = kondisi_masaaktif & ~Product.brand.ilike('VIP-%') & ~Product.name.ilike('%[VIP]%')
         db_products = Product.query.filter(kondisi_masaaktif).order_by(Product.is_active.desc(), Product.sell_price.asc()).all()
         produk_final = []
         for prod in db_products:
@@ -499,6 +542,8 @@ def lihat_kategori(nama_kategori):
     
     # Perbaikan Filter Mutlak: Jauhkan produk TV dari halaman Games
     base_query = Product.query.filter(or_(*filters))
+    if not vip_enabled:
+        base_query = base_query.filter(~Product.brand.ilike('VIP-%'), ~Product.name.ilike('%[VIP]%'))
     
     if kat in ['games', 'voucher game', 'game', 'hiburan', 'voucher-game']:
         # Tolak semua produk yang kategori atau namanya mengandung unsur TV Berlangganan
@@ -1326,7 +1371,11 @@ def api_search_cuan_live(provider, nohp):
 
     # 3. PROSES PENGAMBILAN DATA (Aman dari kebocoran nomor silang)
     try:
-        all_products = Product.query.filter(Product.is_active == True).all()
+        from app.services.setting_service import is_vip_reseller_enabled
+        cuan_q = Product.query.filter(Product.is_active == True)
+        if not is_vip_reseller_enabled():
+            cuan_q = cuan_q.filter(~Product.brand.ilike('VIP-%'), ~Product.name.ilike('%[VIP]%'))
+        all_products = cuan_q.all()
         valid_products = []
         
         for p in all_products:

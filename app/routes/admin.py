@@ -92,13 +92,15 @@ def dashboard():
 
     env_data['server_public_ip'] = server_public_ip
     env_data['vip_callback_url'] = vip_callback_url
-    env_data['digi_callback_url'] = digi_callback_url
+    from app.services.setting_service import is_vip_reseller_enabled
+    vip_reseller_enabled = is_vip_reseller_enabled()
 
     return render_template('admin/dashboard.html',
                            total_users=total_users,
                            total_balance=total_balance,
                            trx_today_count=trx_today_count,
                            total_trx=total_trx,
+                           vip_reseller_enabled=vip_reseller_enabled,
                            **env_data)
 
 @admin_bp.route('/save_config', methods=['POST'])
@@ -768,6 +770,32 @@ def sync_vipreseller():
             
     db.session.commit()
     flash(f"Sinkronisasi VIP-Reseller Sukses! {new_count} Game Baru, {update_count} Diperbarui.", 'success')
+    return redirect(url_for('admin.dashboard'))
+
+
+@admin_bp.route('/toggle_vip_reseller', methods=['POST'])
+def toggle_vip_reseller():
+    """
+    Mengaktifkan atau Menonaktifkan seluruh provider VIP-Reseller secara instan.
+    Ketika OFF, seluruh produk VIP-Reseller (Game, Voucher, dll) disembunyikan
+    dari website pengguna dan kasir POS, sehingga hanya produk Digiflazz yang tampil.
+    """
+    from app.services.setting_service import is_vip_reseller_enabled, set_vip_reseller_status
+    current_status = is_vip_reseller_enabled()
+    new_status = not current_status
+    set_vip_reseller_status(new_status)
+    
+    try:
+        from app.extensions import cache
+        cache.clear()
+    except Exception:
+        pass
+        
+    if new_status:
+        flash("✅ Provider VIP-Reseller BERHASIL DIAKTIFKAN (ON). Seluruh katalog game & voucher VIP kini tampil di website dan kasir.", "success")
+    else:
+        flash("⚠️ Provider VIP-Reseller BERHASIL DINONAKTIFKAN (OFF). Seluruh produk VIP-Reseller kini disembunyikan. Hanya produk Digiflazz yang tampil.", "warning")
+        
     return redirect(url_for('admin.dashboard'))
 
 

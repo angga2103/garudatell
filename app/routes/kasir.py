@@ -352,6 +352,10 @@ def get_products():
             (Product.brand.ilike(f"%{search_q}%"))
         )
 
+    from app.services.setting_service import is_vip_reseller_enabled
+    if not is_vip_reseller_enabled():
+        query = query.filter(~Product.brand.ilike('VIP-%'), ~Product.name.ilike('%[VIP]%'))
+
     products = query.order_by(Product.sell_price.asc()).all()
 
     # Optimasi performa: Baca diskon VIP/Reseller 1x di luar loop (mengeliminasi ratusan query DB berulang)
@@ -363,22 +367,20 @@ def get_products():
     for p in products:
         s_price = float(p.sell_price or 0.0)
         b_price = float(getattr(p, 'base_price', 0.0) or 0.0)
-        if role in ['vip', 'reseller'] and vip_discount > 0:
-            floor = (b_price + 100.0) if b_price > 0 else (s_price - vip_discount)
-            final_price = round(max(floor, s_price - vip_discount), 2)
-        else:
-            final_price = s_price
-
+        
+        # Hitung modal kasir (harga reseller / vip dari toko)
+        c_price = max(b_price, s_price - vip_discount)
         is_pasca = 'PASCABAYAR' in (p.category or '').upper() or 'PASCA' in (p.name or '').upper() or (p.brand or '').upper() in ['PDAM', 'BPJS KESEHATAN', 'PBB', 'PLN PASCABAYAR', 'PLN NONTAGLIS']
-
+        
         prods_data.append({
             'id': p.id,
             'sku_code': p.sku_code,
             'name': p.name,
             'brand': p.brand,
             'category': p.category,
-            'price': final_price,
+            'price': c_price,            # Modal kasir cabang
             'normal_price': s_price,
+            'sell_price': s_price,       # Harga jual standar toko
             'is_pasca': is_pasca,
             'desc': getattr(p, 'desc', '') or ''
         })
@@ -446,6 +448,10 @@ def get_brands():
         )
     elif category in ['MASAAKTIF', 'MASA_AKTIF']:
         query = query.filter(Product.category.ilike('%masa%'))
+
+    from app.services.setting_service import is_vip_reseller_enabled
+    if not is_vip_reseller_enabled():
+        query = query.filter(~Product.brand.ilike('VIP-%'), ~Product.name.ilike('%[VIP]%'))
 
     raw_brands = [b[0].strip() for b in query.with_entities(Product.brand).distinct().order_by(Product.brand.asc()).all() if b[0]]
     clean_brands = []
@@ -621,6 +627,13 @@ def cashier_inquiry_bill():
     if not product:
         return jsonify({'status': 'error', 'message': 'Produk tagihan tidak ditemukan atau sedang nonaktif.'}), 404
 
+    # Cegat jika produk berasal dari provider VIP-Reseller dan status sedang OFF
+    is_vip_prod = (product.brand or '').startswith('VIP-') or '[VIP]' in (product.name or '') or (product.sku_code or '').startswith('VIP-')
+    if is_vip_prod:
+        from app.services.setting_service import is_vip_reseller_enabled
+        if not is_vip_reseller_enabled():
+            return jsonify({'status': 'error', 'message': 'Layanan provider VIP-Reseller sedang dinonaktifkan sementara oleh Admin Toko.'}), 400
+
     # Cek Cut Off PLN jika produk PLN
     is_pln = 'PLN' in (product.category or '').upper() or 'PLN' in (product.name or '').upper() or 'PLN' in (product.brand or '').upper()
     from app.services.digiflazz import inquiry_pasca, is_pln_cutoff_time, get_pln_cutoff_message
@@ -736,6 +749,13 @@ def checkout():
     product = Product.query.filter_by(sku_code=sku_code, is_active=True).first()
     if not product:
         return jsonify({'status': 'error', 'message': 'Produk tidak ditemukan atau sedang dinonaktifkan.'}), 404
+
+    # Cegat jika produk berasal dari provider VIP-Reseller dan status sedang OFF
+    is_vip_prod = (product.brand or '').startswith('VIP-') or '[VIP]' in (product.name or '') or (product.sku_code or '').startswith('VIP-')
+    if is_vip_prod:
+        from app.services.setting_service import is_vip_reseller_enabled
+        if not is_vip_reseller_enabled():
+            return jsonify({'status': 'error', 'message': 'Layanan provider VIP-Reseller sedang dinonaktifkan sementara oleh Admin Toko.'}), 400
 
     # Deteksi apakah transaksi ini adalah Tagihan Pascabayar (PPOB)
     is_pasca_bill = False

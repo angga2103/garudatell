@@ -319,8 +319,17 @@ def checkout():
             sku_code = product.sku_code
 
             # Deteksi VIP Reseller
-            if str(product.brand).startswith('VIP-') or sku_upper.startswith('VIP-'):
+            if str(product.brand).startswith('VIP-') or sku_upper.startswith('VIP-') or '[VIP]' in (product.name or ''):
                 is_vip = True
+
+            if is_vip:
+                from app.services.setting_service import is_vip_reseller_enabled
+                if not is_vip_reseller_enabled():
+                    return jsonify({
+                        'status': 'error',
+                        'error': True,
+                        'message': 'Layanan provider VIP-Reseller sedang dinonaktifkan sementara oleh Admin Toko.'
+                    }), 400
 
             cat_lower = (product.category or '').lower()
             name_lower = (product.name or '').lower()

@@ -112,3 +112,41 @@ def delete_store_logo(upload_folder=None):
         db.session.commit()
     return True
 
+
+def is_vip_reseller_enabled():
+    """
+    Memeriksa apakah provider VIP-Reseller aktif.
+    Default bernilai True (aktif). Jika di-set ke '0'/'false'/'off', mengembalikan False.
+    """
+    val = get_setting_value('vip_reseller_enabled', '1')
+    if str(val).lower() in ['0', 'false', 'off', 'nonaktif', 'disabled']:
+        return False
+    return True
+
+
+def set_vip_reseller_status(enabled: bool):
+    """
+    Mengubah status aktif/nonaktif provider VIP-Reseller.
+    Menyimpan ke tabel Setting dan menyinkronkan ke cache/.env.
+    """
+    val_str = '1' if enabled else '0'
+    s = Setting.query.filter_by(key='vip_reseller_enabled').first()
+    if not s:
+        s = Setting(key='vip_reseller_enabled', value=val_str, description='Status Aktif Provider VIP-Reseller (1=ON, 0=OFF)')
+        db.session.add(s)
+    else:
+        s.value = val_str
+    db.session.commit()
+    
+    # Sinkronisasi opsional ke .env jika file ada
+    try:
+        from dotenv import set_key
+        base_dir = os.path.abspath(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+        env_file = os.path.join(base_dir, '.env')
+        if os.path.exists(env_file):
+            set_key(env_file, 'VIP_RESELLER_ENABLED', val_str)
+    except Exception:
+        pass
+        
+    return enabled
+

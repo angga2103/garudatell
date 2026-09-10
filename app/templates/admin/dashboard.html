@@ -166,11 +166,42 @@
             </form>
         </div>
         
-        <div class="config-card">
+        <div class="config-card" style="border: 2px solid {% if vip_reseller_enabled %}#c7d2fe{% else %}#fecaca{% endif %};">
+            <!-- STATUS TOGGLE ON / OFF PROVIDER VIP-RESELLER -->
+            <div style="background: {% if vip_reseller_enabled %}#ecfdf5; border: 1.5px solid #10b981;{% else %}#fef2f2; border: 1.5px solid #ef4444;{% endif %} border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <div>
+                    <div style="font-size: 13.5px; font-weight: 800; color: {% if vip_reseller_enabled %}#065f46{% else %}#991b1b{% endif %}; display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-power-off"></i> Status Provider VIP-Reseller: 
+                        <span style="padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 900; background: {% if vip_reseller_enabled %}#10b981{% else %}#ef4444{% endif %}; color: white;">
+                            {% if vip_reseller_enabled %}AKTIF (ON){% else %}NONAKTIF (OFF){% endif %}
+                        </span>
+                    </div>
+                    <p style="margin: 4px 0 0 0; font-size: 11.5px; color: #475569; line-height: 1.4;">
+                        {% if vip_reseller_enabled %}
+                        ✅ Seluruh katalog game & voucher VIP-Reseller sedang <b>ditampilkan</b> di website pengguna dan kasir POS.
+                        {% else %}
+                        ⚠️ Seluruh produk VIP-Reseller sedang <b>disembunyikan</b>. Hanya produk <b>Digiflazz</b> saja yang tampil!
+                        {% endif %}
+                    </p>
+                </div>
+                <form action="{{ url_for('admin.toggle_vip_reseller') }}" method="POST" style="margin: 0;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    {% if vip_reseller_enabled %}
+                    <button type="submit" class="btn" style="background: #dc2626; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 800; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(220,38,38,0.25);" onclick="return confirm('Apakah Anda yakin ingin MENONAKTIFKAN provider VIP-Reseller? Semua game & voucher VIP akan langsung disembunyikan dari website dan kasir.');">
+                        <i class="fas fa-toggle-on"></i> Matikan VIP-Reseller (OFF)
+                    </button>
+                    {% else %}
+                    <button type="submit" class="btn" style="background: #16a34a; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 800; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(22,163,74,0.25);" onclick="return confirm('Apakah Anda yakin ingin MENGAKTIFKAN kembali provider VIP-Reseller?');">
+                        <i class="fas fa-toggle-off"></i> Aktifkan VIP-Reseller (ON)
+                    </button>
+                    {% endif %}
+                </form>
+            </div>
+
             <form action="{{ url_for('admin.save_config') }}" method="POST">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <input type="hidden" name="form_type" value="vipreseller">
-                <div class="config-title" style="color:#6366F1;"><i class="fas fa-bolt"></i> API VIP-Reseller</div>
+                <div class="config-title" style="color:#6366F1;"><i class="fas fa-bolt"></i> Konfigurasi API VIP-Reseller</div>
                 
                 <div class="form-group">
                     <label>API ID (VIP_API_ID)</label>
