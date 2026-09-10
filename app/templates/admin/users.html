@@ -104,7 +104,7 @@
             </div>
 
             <!-- SALDO KOMISI DOWNLINE & UPLINE -->
-            <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+            <div style="display: flex; gap: 10px; margin-bottom: 12px;">
                 <div style="flex: 1; background: #fefce8; border: 1px solid #fef08a; border-radius: 12px; padding: 10px;">
                     <label style="display: block; font-size: 11px; font-weight: 800; color: #854d0e; margin-bottom: 4px;">
                         <i class="fas fa-wallet" style="color: #eab308;"></i> Saldo Komisi (Rp)
@@ -119,6 +119,42 @@
                     <input type="text" id="eu_upline" name="upline_input" placeholder="No. WA atau Ref" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 12px; font-family: 'Nunito'; box-sizing: border-box;">
                     <div id="eu_upline_info" style="font-size: 9px; color: #64748b; margin-top: 2px;"></div>
                 </div>
+            </div>
+
+            <!-- MANAJEMEN DOWNLINE KEMITRAAN -->
+            <div id="section_downlines_mgmt" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <label style="font-size: 11px; font-weight: 800; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 6px;">
+                        <i class="fas fa-sitemap" style="color: #0284c7;"></i> Manajemen Downline Pengguna
+                    </label>
+                    <span id="eu_downline_count_badge" style="background: #e0f2fe; color: #0369a1; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 10px;">
+                        0 Downline
+                    </span>
+                </div>
+
+                <!-- FORM INPUT DOWNLINE MANUAL BY WHATSAPP -->
+                <div style="display: flex; gap: 6px; margin-bottom: 8px;">
+                    <div style="flex: 1;">
+                        <input type="text" id="eu_new_downline_phone" name="new_downline_phone" placeholder="Ketik No. WhatsApp Downline (cth: 0812...)" 
+                               style="width: 100%; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 11px; font-family: 'Nunito'; box-sizing: border-box; background: white;"
+                               onkeydown="if(event.key === 'Enter') { event.preventDefault(); submitAddDownlineAjax(); }">
+                    </div>
+                    <button type="button" id="eu_btn_add_downline" onclick="submitAddDownlineAjax()" 
+                            style="background: #0284c7; color: white; border: none; padding: 8px 12px; border-radius: 8px; font-size: 11px; font-weight: 800; cursor: pointer; display: flex; align-items: center; gap: 4px; white-space: nowrap; transition: 0.2s;">
+                        <i class="fas fa-user-plus"></i> Tambah
+                    </button>
+                </div>
+                <div id="eu_downline_feedback" style="display: none; font-size: 11px; padding: 6px 10px; border-radius: 6px; margin-bottom: 8px;"></div>
+
+                <!-- DAFTAR DOWNLINE CONTAINER -->
+                <div id="eu_downlines_container" style="max-height: 150px; overflow-y: auto; background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px;">
+                    <div style="font-size: 11px; color: #94a3b8; text-align: center; padding: 10px;">
+                        <i class="fas fa-spinner fa-spin"></i> Memuat data downline...
+                    </div>
+                </div>
+                <small style="color: #64748b; font-size: 10px; margin-top: 5px; display: block;">
+                    💡 Anda dapat menambahkan downline langsung via tombol <b>Tambah</b> atau cukup simpan form. Calon downline harus sudah terdaftar di sistem.
+                </small>
             </div>
 
             <button type="submit" style="width: 100%; background: #3b8a81; color: white; border: none; padding: 12px; border-radius: 12px; font-weight: 800; cursor: pointer; font-family: 'Nunito'; transition: 0.2s;">
@@ -314,8 +350,165 @@
 </div>
 
 <script>
+    const CSRF_TOKEN = "{{ csrf_token() }}";
+
+    function showDownlineFeedback(msg, isSuccess = true) {
+        const fb = document.getElementById('eu_downline_feedback');
+        if (!fb) return;
+        fb.style.display = 'block';
+        if (isSuccess) {
+            fb.style.background = '#ecfdf5';
+            fb.style.color = '#065f46';
+            fb.style.border = '1px solid #a7f3d0';
+            fb.innerHTML = `<i class="fas fa-check-circle"></i> ${msg}`;
+        } else {
+            fb.style.background = '#fef2f2';
+            fb.style.color = '#991b1b';
+            fb.style.border = '1px solid #fecaca';
+            fb.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${msg}`;
+        }
+        setTimeout(() => {
+            fb.style.display = 'none';
+        }, 5000);
+    }
+
+    function loadUserDownlines(userId) {
+        const container = document.getElementById('eu_downlines_container');
+        const badge = document.getElementById('eu_downline_count_badge');
+        if (!container) return;
+
+        container.innerHTML = '<div style="font-size: 11px; color: #94a3b8; text-align: center; padding: 10px;"><i class="fas fa-spinner fa-spin"></i> Memuat data downline...</div>';
+
+        fetch(`/admin/user/${userId}/downlines`)
+            .then(res => res.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    const count = res.count || 0;
+                    if (badge) badge.innerText = `${count} Downline`;
+
+                    if (count === 0) {
+                        container.innerHTML = '<div style="font-size: 11px; color: #94a3b8; text-align: center; padding: 10px;"><i class="fas fa-info-circle"></i> Belum ada downline terdaftar untuk pengguna ini.</div>';
+                        return;
+                    }
+
+                    let html = '<div style="display: flex; flex-direction: column; gap: 4px;">';
+                    res.downlines.forEach(d => {
+                        const roleColor = d.role === 'vip' ? '#b45309' : (d.role === 'reseller' ? '#0369a1' : '#64748b');
+                        const roleBg = d.role === 'vip' ? '#fef3c7' : (d.role === 'reseller' ? '#e0f2fe' : '#f1f5f9');
+                        const roleLabel = d.role.toUpperCase();
+
+                        html += `
+                            <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 8px; border-radius: 6px; background: #f8fafc; border: 1px solid #f1f5f9; font-size: 11px;">
+                                <div style="display: flex; flex-direction: column; gap: 1px;">
+                                    <div style="font-weight: 800; color: #1e293b;">
+                                        ${d.name} 
+                                        <span style="background: ${roleBg}; color: ${roleColor}; font-size: 9px; font-weight: 800; padding: 1px 5px; border-radius: 4px; margin-left: 4px;">${roleLabel}</span>
+                                    </div>
+                                    <div style="color: #059669; font-size: 10px; font-weight: 700;">
+                                        <i class="fab fa-whatsapp"></i> ${d.phone} 
+                                        <span style="color: #94a3b8; font-weight: 400; margin-left: 6px;">Saldo: Rp ${Number(d.balance).toLocaleString('id-ID')}</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <button type="button" onclick="detachDownlineAjax(${d.id}, '${d.name.replace(/'/g, "\\'")}')" 
+                                            title="Lepaskan Downline" 
+                                            style="background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; transition: 0.2s;">
+                                        <i class="fas fa-unlink"></i> Lepas
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = `<div style="font-size: 11px; color: #ef4444; text-align: center; padding: 10px;">${res.message || 'Gagal memuat downline.'}</div>`;
+                }
+            })
+            .catch(err => {
+                container.innerHTML = '<div style="font-size: 11px; color: #ef4444; text-align: center; padding: 10px;">Terjadi kesalahan saat memuat data.</div>';
+            });
+    }
+
+    function submitAddDownlineAjax() {
+        const userId = document.getElementById('eu_id').value;
+        const phoneInput = document.getElementById('eu_new_downline_phone');
+        const phoneVal = phoneInput ? phoneInput.value.trim() : '';
+
+        if (!phoneVal) {
+            showDownlineFeedback("Silakan ketik nomor WhatsApp calon downline terlebih dahulu!", false);
+            if (phoneInput) phoneInput.focus();
+            return;
+        }
+
+        const btn = document.getElementById('eu_btn_add_downline');
+        const originalBtnText = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        }
+
+        fetch(`/admin/user/${userId}/add_downline`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': CSRF_TOKEN
+            },
+            body: JSON.stringify({ phone: phoneVal })
+        })
+        .then(res => res.json().then(data => ({ ok: res.ok, data })))
+        .then(({ ok, data }) => {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalBtnText;
+            }
+
+            if (ok && data.status === 'success') {
+                showDownlineFeedback(data.message, true);
+                if (phoneInput) phoneInput.value = '';
+                loadUserDownlines(userId);
+            } else {
+                showDownlineFeedback(data.message || 'Gagal menambahkan downline!', false);
+            }
+        })
+        .catch(err => {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalBtnText;
+            }
+            showDownlineFeedback("Terjadi kesalahan jaringan atau server.", false);
+        });
+    }
+
+    function detachDownlineAjax(downlineId, downlineName) {
+        const userId = document.getElementById('eu_id').value;
+        if (!confirm(`Lepaskan "${downlineName}" dari jaringan downline pengguna ini?`)) {
+            return;
+        }
+
+        fetch(`/admin/user/${userId}/remove_downline/${downlineId}`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': CSRF_TOKEN
+            }
+        })
+        .then(res => res.json().then(data => ({ ok: res.ok, data })))
+        .then(({ ok, data }) => {
+            if (ok && data.status === 'success') {
+                showDownlineFeedback(data.message, true);
+                loadUserDownlines(userId);
+            } else {
+                showDownlineFeedback(data.message || 'Gagal melepaskan downline!', false);
+            }
+        })
+        .catch(err => {
+            showDownlineFeedback("Terjadi kesalahan jaringan atau server.", false);
+        });
+    }
+
     function openEditModalBtn(btn) {
-        document.getElementById('eu_id').value = btn.getAttribute('data-id');
+        const userId = btn.getAttribute('data-id');
+        document.getElementById('eu_id').value = userId;
         document.getElementById('eu_name').value = btn.getAttribute('data-name');
         document.getElementById('eu_phone').value = btn.getAttribute('data-phone');
         
@@ -353,6 +546,14 @@
         const upName = btn.getAttribute('data-upline-name');
         document.getElementById('eu_upline').value = upPhone || '';
         document.getElementById('eu_upline_info').innerText = upName ? `Upline saat ini: ${upName} (${upPhone})` : 'Belum memiliki upline';
+
+        // Reset input downline & load daftar downline pengguna
+        const phoneInput = document.getElementById('eu_new_downline_phone');
+        if (phoneInput) phoneInput.value = '';
+        const fb = document.getElementById('eu_downline_feedback');
+        if (fb) fb.style.display = 'none';
+
+        loadUserDownlines(userId);
         
         document.getElementById('editUserModal').style.display = 'flex';
     }

@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 from app.models.admin import Admin
 from app.models.product import Product
 from app.models.margin import MarginTier
@@ -640,10 +640,21 @@ def update_user_action():
                 ).first()
                 if up_user and up_user.id != user.id:
                     user.upline_id = up_user.id
+
+        # Tambahan: Manual Downline Assignment via Form Submit
+        from app.services.tier_service import assign_downline_by_phone
+        new_downline_phone = request.form.get('new_downline_phone', '').strip()
+        downline_msg = ""
+        if new_downline_phone:
+            ok_down, msg_down, _ = assign_downline_by_phone(user, new_downline_phone)
+            if not ok_down:
+                flash(f'Peringatan Downline: {msg_down}', 'warning')
+            else:
+                downline_msg = f" & {msg_down}"
         
         db.session.commit()
         status_text = "diaktifkan" if user.is_active else "diblokir"
-        flash(f'Data pengguna {user.name} berhasil diperbarui (Status: {status_text})!', 'success')
+        flash(f'Data pengguna {user.name} berhasil diperbarui (Status: {status_text}){downline_msg}!', 'success')
         
     except Exception as e:
         db.session.rollback()
@@ -678,6 +689,89 @@ def reset_user_points_action(user_id):
         db.session.rollback()
         flash(f'Gagal mereset poin: {str(e)}', 'error')
     return redirect(url_for('admin.users'))
+
+
+@admin_bp.route('/user/<int:user_id>/downlines', methods=['GET'])
+def get_user_downlines(user_id):
+    """Mengambil daftar seluruh downline aktif dari seorang pengguna."""
+    if not session.get('admin_logged_in'):
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+
+    from app.services.tier_service import get_user_downlines_list
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'status': 'error', 'message': 'Pengguna tidak ditemukan'}), 404
+
+    downlines = get_user_downlines_list(user_id)
+    return jsonify({
+        'status': 'success',
+        'upline': {
+            'id': user.id,
+            'name': user.name,
+            'phone': user.phone,
+            'role': user.get_effective_role() if hasattr(user, 'get_effective_role') else user.role,
+            'referral_code': user.referral_code or '-'
+        },
+        'count': len(downlines),
+        'downlines': downlines
+    })
+
+
+@admin_bp.route('/user/<int:user_id>/add_downline', methods=['POST'])
+@csrf.exempt
+def add_user_downline(user_id):
+    """Menambahkan downline secara manual ke seorang pengguna melalui nomor WhatsApp."""
+    if not session.get('admin_logged_in'):
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+
+    from app.services.tier_service import assign_downline_by_phone
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'status': 'error', 'message': 'Pengguna upline tidak ditemukan'}), 404
+
+    data = request.get_json(silent=True) or request.form
+    phone = data.get('phone') or data.get('downline_phone') or data.get('new_downline_phone')
+
+    ok, msg, downline = assign_downline_by_phone(user, phone)
+    if not ok:
+        return jsonify({'status': 'error', 'message': msg}), 400
+
+    return jsonify({
+        'status': 'success',
+        'message': msg,
+        'downline': {
+            'id': downline.id,
+            'name': downline.name,
+            'phone': downline.phone,
+            'email': downline.email or '-',
+            'role': downline.get_effective_role() if hasattr(downline, 'get_effective_role') else downline.role,
+            'balance': float(downline.balance or 0.0),
+            'points': int(downline.points or 0)
+        }
+    })
+
+
+@admin_bp.route('/user/<int:user_id>/remove_downline/<int:downline_id>', methods=['POST'])
+@csrf.exempt
+def remove_user_downline(user_id, downline_id):
+    """Melepaskan relasi downline dari seorang pengguna."""
+    if not session.get('admin_logged_in'):
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+
+    from app.services.tier_service import remove_downline
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'status': 'error', 'message': 'Pengguna upline tidak ditemukan'}), 404
+
+    ok, msg = remove_downline(user, downline_id)
+    if not ok:
+        return jsonify({'status': 'error', 'message': msg}), 400
+
+    return jsonify({
+        'status': 'success',
+        'message': msg
+    })
+
 
 
 @admin_bp.route('/user/<int:user_id>/audit_saldo')
