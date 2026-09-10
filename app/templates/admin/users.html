@@ -235,7 +235,19 @@
                             <span style="color: #cbd5e1;">-</span>
                         {% endif %}
                     </td>
-                    <td style="padding: 14px 8px; font-weight: 800; color: #0f172a;">Rp {{ "{:,.0f}".format(u.balance).replace(',', '.') }}</td>
+                    <td style="padding: 14px 8px;">
+                        <div style="font-weight: 800; color: #0f172a; font-size: 13px;">Rp {{ "{:,.0f}".format(u.balance).replace(',', '.') }}</div>
+                        {% if u.has_branches %}
+                        <div style="margin-top: 4px; display: flex; flex-direction: column; gap: 2px;">
+                            <span style="background: #e0f2fe; color: #0284c7; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;" title="Total saldo di {{ u.active_branches_count }} perangkat kasir cabang">
+                                <i class="fas fa-code-branch"></i> Cabang: Rp {{ "{:,.0f}".format(u.total_branch_balance).replace(',', '.') }}
+                            </span>
+                            <span style="background: #f0fdf4; color: #166534; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid #bbf7d0;" title="Total Saldo Utama + Seluruh Saldo Cabang">
+                                <i class="fas fa-wallet"></i> Total Aset: Rp {{ "{:,.0f}".format(u.total_asset_balance).replace(',', '.') }}
+                            </span>
+                        </div>
+                        {% endif %}
+                    </td>
                     <td style="padding: 14px 8px;">
                         {% if u.commission_balance and u.commission_balance > 0 %}
                             <span style="font-weight: 800; color: #15803d; font-size: 12px;">Rp {{ "{:,.0f}".format(u.commission_balance).replace(',', '.') }}</span>
@@ -258,25 +270,34 @@
                         {% endif %}
                     </td>
                     <td style="padding: 14px 8px; text-align: right;">
-                        <button type="button" 
-                                data-id="{{ u.id }}" 
-                                data-name="{{ u.name }}" 
-                                data-phone="{{ u.phone }}" 
-                                data-email="{{ u.email or '' }}" 
-                                data-balance="{{ u.balance }}" 
-                                data-points="{{ u.points or 0 }}"
-                                data-role="{{ u.role or 'user' }}" 
-                                data-status="{{ '1' if u.is_active else '0' }}" 
-                                data-expires-at="{{ u.role_expires_at.strftime('%Y-%m-%dT%H:%M') if u.role_expires_at else '' }}"
-                                data-remaining-days="{{ u.get_remaining_days() }}"
-                                data-commission-balance="{{ u.commission_balance or 0.0 }}"
-                                data-upline-phone="{{ u.upline.phone if u.upline else '' }}"
-                                data-upline-name="{{ u.upline.name if u.upline else '' }}"
-                                data-referral-code="{{ u.referral_code or '' }}"
-                                onclick="openEditModalBtn(this)" 
-                                style="background: #e0f2fe; color: #0284c7; border: none; padding: 6px 12px; border-radius: 8px; font-weight: 800; font-size: 12px; cursor: pointer; transition: 0.2s;">
-                            <i class="fas fa-edit"></i> Edit
-                        </button>
+                        <div style="display: inline-flex; gap: 6px; align-items: center; justify-content: flex-end;">
+                            {% if u.has_branches or u.role == 'vip' %}
+                            <a href="{{ url_for('admin.user_audit_saldo', user_id=u.id) }}" 
+                               title="Audit Alur Saldo & Rekonsiliasi Cabang"
+                               style="background: #fdf2f8; color: #db2777; border: 1px solid #fbcfe8; padding: 6px 10px; border-radius: 8px; font-weight: 800; font-size: 11px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; transition: 0.2s;">
+                                <i class="fas fa-balance-scale"></i> Audit Saldo
+                            </a>
+                            {% endif %}
+                            <button type="button" 
+                                    data-id="{{ u.id }}" 
+                                    data-name="{{ u.name }}" 
+                                    data-phone="{{ u.phone }}" 
+                                    data-email="{{ u.email or '' }}" 
+                                    data-balance="{{ u.balance }}" 
+                                    data-points="{{ u.points or 0 }}"
+                                    data-role="{{ u.role or 'user' }}" 
+                                    data-status="{{ '1' if u.is_active else '0' }}" 
+                                    data-expires-at="{{ u.role_expires_at.strftime('%Y-%m-%dT%H:%M') if u.role_expires_at else '' }}"
+                                    data-remaining-days="{{ u.get_remaining_days() }}"
+                                    data-commission-balance="{{ u.commission_balance or 0.0 }}"
+                                    data-upline-phone="{{ u.upline.phone if u.upline else '' }}"
+                                    data-upline-name="{{ u.upline.name if u.upline else '' }}"
+                                    data-referral-code="{{ u.referral_code or '' }}"
+                                    onclick="openEditModalBtn(this)" 
+                                    style="background: #e0f2fe; color: #0284c7; border: none; padding: 6px 12px; border-radius: 8px; font-weight: 800; font-size: 12px; cursor: pointer; transition: 0.2s;">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                        </div>
                     </td>
                 </tr>
                 {% else %}

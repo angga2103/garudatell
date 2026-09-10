@@ -346,6 +346,7 @@ def transactions():
     search_q = request.args.get('q', '').strip()
     status_filter = request.args.get('status', '').strip()
     payment_filter = request.args.get('payment_status', '').strip()
+    source_filter = request.args.get('source', '').strip().lower()
 
     query = Transaction.query
 
@@ -356,7 +357,8 @@ def transactions():
                 Transaction.ref_id.ilike(search_pattern),
                 Transaction.target_number.ilike(search_pattern),
                 Transaction.product_name.ilike(search_pattern),
-                Transaction.sku_code.ilike(search_pattern)
+                Transaction.sku_code.ilike(search_pattern),
+                Transaction.device_name.ilike(search_pattern)
             )
         )
 
@@ -365,6 +367,11 @@ def transactions():
 
     if payment_filter:
         query = query.filter(Transaction.payment_status == payment_filter.upper())
+
+    if source_filter == 'cabang':
+        query = query.filter(Transaction.device_id != None)
+    elif source_filter == 'web':
+        query = query.filter(Transaction.device_id == None)
 
     total_count = Transaction.query.count()
     success_count = Transaction.query.filter_by(status='SUCCESS').count()
@@ -382,6 +389,7 @@ def transactions():
                            search_q=search_q,
                            status_filter=status_filter,
                            payment_filter=payment_filter,
+                           source_filter=source_filter,
                            total_count=total_count,
                            success_count=success_count,
                            total_revenue=total_revenue,
@@ -670,6 +678,228 @@ def reset_user_points_action(user_id):
         db.session.rollback()
         flash(f'Gagal mereset poin: {str(e)}', 'error')
     return redirect(url_for('admin.users'))
+
+
+@admin_bp.route('/user/<int:user_id>/audit_saldo')
+def user_audit_saldo(user_id):
+    """
+    Halaman Rekonsiliasi & Audit Alur Saldo VIP beserta seluruh Kasir Cabang.
+    Menampilkan perputaran deposit, transfer antar cabang, penjualan kasir, dan penarikan.
+    """
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin.login'))
+
+    user = User.query.get_or_404(user_id)
+    from app.models.trusted_device import TrustedDevice
+    from app.models.branch_mutation import BranchMutation
+    from app.models.transaction import Transaction
+
+    branches = TrustedDevice.query.filter_by(user_id=user.id).order_by(TrustedDevice.created_at.asc()).all()
+
+    # Ringkasan Saldo
+    saldo_utama = float(user.balance or 0.0)
+    total_saldo_cabang = sum(float(b.branch_balance or 0.0) for b in branches if b.status == 'approved')
+    total_aset = saldo_utama + total_saldo_cabang
+
+    # Statistik Penjualan per Cabang
+    for b in branches:
+        b.sales_count = Transaction.query.filter_by(device_id=b.id, status='SUCCESS').count()
+        b.sales_volume = db.session.query(db.func.sum(Transaction.amount)).filter_by(device_id=b.id, status='SUCCESS').scalar() or 0.0
+
+    # Total Finansial Akun
+    total_deposit_sukses = db.session.query(db.func.sum(Transaction.amount)).filter(
+        Transaction.user_id == user.id,
+        Transaction.sku_code.in_(['DEPOSIT_SALDO', 'DEPOSIT_MANUAL']),
+        Transaction.status == 'SUCCESS'
+    ).scalar() or 0.0
+
+    total_belanja_cabang = db.session.query(db.func.sum(Transaction.amount)).filter(
+        Transaction.user_id == user.id,
+        Transaction.device_id != None,
+        Transaction.status == 'SUCCESS'
+    ).scalar() or 0.0
+
+    total_belanja_web = db.session.query(db.func.sum(Transaction.amount)).filter(
+        Transaction.user_id == user.id,
+        Transaction.device_id == None,
+        ~Transaction.sku_code.in_(['DEPOSIT_SALDO', 'DEPOSIT_MANUAL']),
+        Transaction.status == 'SUCCESS'
+    ).scalar() or 0.0
+
+    total_belanja_all = total_belanja_cabang + total_belanja_web
+
+    # Timeline Perputaran Saldo Terpadu
+    timeline = []
+
+    # 1. Deposit Masuk
+    deposits = Transaction.query.filter(
+        Transaction.user_id == user.id,
+        Transaction.sku_code.in_(['DEPOSIT_SALDO', 'DEPOSIT_MANUAL'])
+    ).all()
+    for d in deposits:
+        timeline.append({
+            'timestamp': d.created_at,
+            'category': 'deposit',
+            'badge_text': 'DEPOSIT MASUK',
+            'badge_bg': '#ecfdf5',
+            'badge_color': '#059669',
+            'icon': 'fas fa-arrow-down',
+            'icon_color': '#059669',
+            'entity': 'Saldo Utama Owner',
+            'title': f"Deposit {d.payment_method.upper()}",
+            'description': f"Isi Saldo ({d.product_name})",
+            'target': d.target_number or user.phone,
+            'ref_id': d.ref_id,
+            'amount': float(d.amount),
+            'amount_prefix': '+',
+            'amount_color': '#059669',
+            'status': d.status,
+            'balance_impact': 'Menambah Saldo Utama'
+        })
+
+    # 2. Mutasi Saldo Cabang
+    b_muts = BranchMutation.query.filter_by(user_id=user.id).all()
+    for m in b_muts:
+        dev_name = m.device.device_name if m.device else f"Cabang #{m.device_id}"
+        if m.type == 'TOPUP_FROM_OWNER':
+            timeline.append({
+                'timestamp': m.created_at,
+                'category': 'transfer',
+                'badge_text': 'TRANSFER KE CABANG',
+                'badge_bg': '#e0f2fe',
+                'badge_color': '#0284c7',
+                'icon': 'fas fa-share-square',
+                'icon_color': '#0284c7',
+                'entity': f"Saldo Utama ➔ {dev_name}",
+                'title': f"Alokasi Saldo ke {dev_name}",
+                'description': m.description or f"Pengiriman modal kasir (Shift: {m.shift_name or 'Kasir'})",
+                'target': dev_name,
+                'ref_id': f"MUT-{m.id}",
+                'amount': float(m.amount),
+                'amount_prefix': '⇄',
+                'amount_color': '#0284c7',
+                'status': 'SUCCESS',
+                'balance_impact': f"Saldo Utama -Rp {m.amount:,.0f} | Saldo Cabang Menjadi Rp {m.balance_after:,.0f}"
+            })
+        elif m.type == 'WITHDRAW_TO_OWNER':
+            timeline.append({
+                'timestamp': m.created_at,
+                'category': 'withdraw',
+                'badge_text': 'TARIK DARI CABANG',
+                'badge_bg': '#fef3c7',
+                'badge_color': '#b45309',
+                'icon': 'fas fa-reply',
+                'icon_color': '#b45309',
+                'entity': f"{dev_name} ➔ Saldo Utama",
+                'title': f"Tarik Saldo dari {dev_name}",
+                'description': m.description or "Penarikan modal cabang kembali ke Saldo Utama Owner",
+                'target': dev_name,
+                'ref_id': f"MUT-{m.id}",
+                'amount': float(m.amount),
+                'amount_prefix': '⇄',
+                'amount_color': '#b45309',
+                'status': 'SUCCESS',
+                'balance_impact': f"Saldo Cabang -Rp {m.amount:,.0f} (Sisa: Rp {m.balance_after:,.0f}) | Saldo Utama bertambah"
+            })
+        elif m.type == 'SALE':
+            timeline.append({
+                'timestamp': m.created_at,
+                'category': 'sale_cabang',
+                'badge_text': 'TRANSAKSI KASIR CABANG',
+                'badge_bg': '#fef2f2',
+                'badge_color': '#dc2626',
+                'icon': 'fas fa-cash-register',
+                'icon_color': '#dc2626',
+                'entity': dev_name,
+                'title': f"Penjualan di {dev_name}",
+                'description': m.description or f"Transaksi POS kasir (Shift: {m.shift_name or 'Kasir'})",
+                'target': dev_name,
+                'ref_id': f"MUT-{m.id}",
+                'amount': float(m.amount),
+                'amount_prefix': '-',
+                'amount_color': '#dc2626',
+                'status': 'SUCCESS',
+                'balance_impact': f"Potong Saldo Cabang (Sisa Saldo Cabang: Rp {m.balance_after:,.0f})"
+            })
+        elif m.type == 'REFUND':
+            timeline.append({
+                'timestamp': m.created_at,
+                'category': 'refund',
+                'badge_text': 'REFUND CABANG',
+                'badge_bg': '#f0fdf4',
+                'badge_color': '#10b981',
+                'icon': 'fas fa-undo-alt',
+                'icon_color': '#10b981',
+                'entity': dev_name,
+                'title': f"Pengembalian Dana ke {dev_name}",
+                'description': m.description or "Refund otomatis untuk transaksi cabang yang gagal/dibatalkan",
+                'target': dev_name,
+                'ref_id': f"MUT-{m.id}",
+                'amount': float(m.amount),
+                'amount_prefix': '+',
+                'amount_color': '#10b981',
+                'status': 'SUCCESS',
+                'balance_impact': f"Saldo Cabang Dipulihkan Menjadi Rp {m.balance_after:,.0f}"
+            })
+
+    # 3. Transaksi Web Utama milik Owner (jika ada pembelian via web)
+    web_sales = Transaction.query.filter(
+        Transaction.user_id == user.id,
+        Transaction.device_id == None,
+        ~Transaction.sku_code.in_(['DEPOSIT_SALDO', 'DEPOSIT_MANUAL']),
+        Transaction.payment_method == 'SALDO'
+    ).all()
+    for ws in web_sales:
+        timeline.append({
+            'timestamp': ws.created_at,
+            'category': 'sale_web',
+            'badge_text': 'TRANSAKSI WEB UTAMA',
+            'badge_bg': '#eef2ff',
+            'badge_color': '#6366f1',
+            'icon': 'fas fa-globe',
+            'icon_color': '#6366f1',
+            'entity': 'Saldo Utama Owner',
+            'title': f"Order Web: {ws.product_name}",
+            'description': f"Tujuan: {ws.target_number} (SKU: {ws.sku_code})",
+            'target': ws.target_number,
+            'ref_id': ws.ref_id,
+            'amount': float(ws.amount),
+            'amount_prefix': '-',
+            'amount_color': '#6366f1',
+            'status': ws.status,
+            'balance_impact': 'Memotong Saldo Utama Owner'
+        })
+
+    # Urutkan kronologi dari terbaru ke terlama
+    timeline.sort(key=lambda x: x['timestamp'] or datetime.min, reverse=True)
+
+    # Tambahkan format waktu WIB
+    for item in timeline:
+        if item['timestamp']:
+            wib = item['timestamp'] + timedelta(hours=7)
+            item['date_str'] = wib.strftime('%d-%m-%Y')
+            item['time_str'] = wib.strftime('%H:%M WIB')
+        else:
+            item['date_str'] = '-'
+            item['time_str'] = '-'
+
+    # Filter kategori jika diminta oleh admin
+    cat_filter = request.args.get('cat', 'all').strip().lower()
+    if cat_filter != 'all':
+        timeline = [item for item in timeline if item['category'] == cat_filter]
+
+    return render_template('admin/user_audit_saldo.html',
+                           user=user,
+                           branches=branches,
+                           saldo_utama=saldo_utama,
+                           total_saldo_cabang=total_saldo_cabang,
+                           total_aset=total_aset,
+                           total_deposit_sukses=total_deposit_sukses,
+                           total_belanja_cabang=total_belanja_cabang,
+                           total_belanja_web=total_belanja_web,
+                           total_belanja_all=total_belanja_all,
+                           timeline=timeline,
+                           cat_filter=cat_filter)
 
 @admin_bp.route('/sync_vipreseller', methods=['POST'])
 def sync_vipreseller():

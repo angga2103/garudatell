@@ -73,3 +73,33 @@ class User(db.Model, UserMixin):
         wib_now = datetime.now(timezone(timedelta(hours=7))).replace(tzinfo=None)
         diff = self.role_expires_at - wib_now
         return max(0, diff.days)
+
+    @property
+    def total_branch_balance(self):
+        """Menghitung total saldo aktif dari seluruh cabang kasir milik user."""
+        try:
+            return sum(float(d.branch_balance or 0.0) for d in self.trusted_devices.filter_by(status='approved').all())
+        except Exception:
+            return 0.0
+
+    @property
+    def total_asset_balance(self):
+        """Menghitung total aset saldo (Saldo Utama + Total Saldo Seluruh Cabang)."""
+        return float(self.balance or 0.0) + self.total_branch_balance
+
+    @property
+    def active_branches_count(self):
+        """Menghitung jumlah cabang kasir yang berstatus disetujui/aktif."""
+        try:
+            return self.trusted_devices.filter_by(status='approved').count()
+        except Exception:
+            return 0
+
+    @property
+    def has_branches(self):
+        """Memeriksa apakah pengguna memiliki cabang kasir terdaftar."""
+        try:
+            return self.trusted_devices.count() > 0
+        except Exception:
+            return False
+

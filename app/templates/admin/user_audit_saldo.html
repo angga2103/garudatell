@@ -1,0 +1,488 @@
+{% extends 'admin/layout.html' %}
+
+{% block title %}GarudaTel - Audit Alur Saldo & Cabang: {{ user.name }}{% endblock %}
+
+{% set page_title = "Audit Saldo & Cabang" %}
+
+{% block page_css %}
+<style>
+    .audit-header-card {
+        background: white;
+        border-radius: 16px;
+        padding: 20px 24px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+        margin-bottom: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+    .audit-user-profile {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+    .audit-avatar {
+        width: 52px;
+        height: 52px;
+        border-radius: 14px;
+        background: linear-gradient(135deg, #0284c7, #0369a1);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        font-weight: 900;
+        box-shadow: 0 4px 10px rgba(2, 132, 199, 0.3);
+    }
+    .audit-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+        gap: 14px;
+        margin-bottom: 20px;
+    }
+    .audit-card {
+        background: white;
+        border-radius: 14px;
+        padding: 16px 18px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+        position: relative;
+        overflow: hidden;
+    }
+    .audit-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+    }
+    .audit-card.card-primary::before { background: #059669; }
+    .audit-card.card-blue::before { background: #0284c7; }
+    .audit-card.card-gold::before { background: #d97706; }
+    .audit-card.card-indigo::before { background: #6366f1; }
+    .audit-card.card-red::before { background: #dc2626; }
+
+    .audit-card-label {
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        color: #64748b;
+        letter-spacing: 0.5px;
+        margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .audit-card-val {
+        font-size: 19px;
+        font-weight: 900;
+        color: #1e293b;
+        line-height: 1.2;
+    }
+    .audit-card-sub {
+        font-size: 11px;
+        color: #94a3b8;
+        margin-top: 5px;
+        font-weight: 600;
+    }
+
+    .recon-box {
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 14px;
+        padding: 18px 20px;
+        margin-bottom: 20px;
+    }
+
+    .tab-pills {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        padding-bottom: 8px;
+        margin-bottom: 16px;
+    }
+    .tab-pill {
+        padding: 8px 14px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 800;
+        text-decoration: none;
+        white-space: nowrap;
+        border: 1px solid #cbd5e1;
+        color: #475569;
+        background: white;
+        transition: all 0.2s;
+    }
+    .tab-pill:hover, .tab-pill.active {
+        background: #0284c7;
+        color: white;
+        border-color: #0284c7;
+    }
+
+    .audit-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+        text-align: left;
+    }
+    .audit-table th {
+        background: #f8fafc;
+        color: #475569;
+        font-weight: 800;
+        padding: 12px 10px;
+        border-bottom: 2px solid #e2e8f0;
+        font-size: 11px;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+    .audit-table td {
+        padding: 12px 10px;
+        border-bottom: 1px solid #f1f5f9;
+        vertical-align: middle;
+    }
+    .audit-table tr:hover {
+        background: #f8fafc;
+    }
+
+    .badge-audit {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.3px;
+        text-transform: uppercase;
+    }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+
+<!-- NAVIGASI KEMBALI & PROFIL PENGGUNA -->
+<div class="audit-header-card">
+    <div class="audit-user-profile">
+        <div class="audit-avatar">
+            <i class="fas fa-user-shield"></i>
+        </div>
+        <div>
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <h2 style="margin: 0; font-size: 18px; font-weight: 900; color: #1e293b;">{{ user.name }}</h2>
+                <span style="background: #fef3c7; color: #b45309; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 800;">
+                    <i class="fas fa-crown" style="color: #f59e0b;"></i> {{ user.role|upper }}
+                </span>
+                {% if user.is_active %}
+                <span style="background: #ecfdf5; color: #059669; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 800;">
+                    <i class="fas fa-check-circle"></i> AKTIF
+                </span>
+                {% else %}
+                <span style="background: #fef2f2; color: #dc2626; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 800;">
+                    <i class="fas fa-ban"></i> BLOKIR
+                </span>
+                {% endif %}
+            </div>
+            <div style="font-size: 12px; color: #64748b; margin-top: 4px; display: flex; gap: 15px; flex-wrap: wrap;">
+                <span><i class="fab fa-whatsapp" style="color: #059669;"></i> {{ user.phone }}</span>
+                <span><i class="fas fa-id-badge" style="color: #0284c7;"></i> ID Pengguna #{{ user.id }}</span>
+                <span><i class="fas fa-store" style="color: #8b5cf6;"></i> {{ branches|length }} Cabang Kasir Terdaftar</span>
+            </div>
+        </div>
+    </div>
+    <div style="display: flex; gap: 10px;">
+        <a href="{{ url_for('admin.users') }}" style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+            <i class="fas fa-arrow-left"></i> Kembali ke User Center
+        </a>
+    </div>
+</div>
+
+<!-- 5 KARTU RINGKASAN SALDO & AUDIT KEUANGAN -->
+<div class="audit-stats-grid">
+    <!-- SALDO UTAMA OWNER -->
+    <div class="audit-card card-primary">
+        <div class="audit-card-label">
+            <i class="fas fa-user-circle" style="color: #059669;"></i> Sisa Saldo Utama
+        </div>
+        <div class="audit-card-val" style="color: #059669;">
+            Rp {{ "{:,.0f}".format(saldo_utama).replace(',', '.') }}
+        </div>
+        <div class="audit-card-sub">
+            Saldo mandiri akun Owner (Web)
+        </div>
+    </div>
+
+    <!-- TOTAL SALDO SELURUH CABANG -->
+    <div class="audit-card card-blue">
+        <div class="audit-card-label">
+            <i class="fas fa-code-branch" style="color: #0284c7;"></i> Total Saldo Cabang
+        </div>
+        <div class="audit-card-val" style="color: #0284c7;">
+            Rp {{ "{:,.0f}".format(total_saldo_cabang).replace(',', '.') }}
+        </div>
+        <div class="audit-card-sub">
+            Terbagi di {{ branches|length }} perangkat kasir POS
+        </div>
+    </div>
+
+    <!-- TOTAL ASET PENGGUNA -->
+    <div class="audit-card card-gold">
+        <div class="audit-card-label">
+            <i class="fas fa-coins" style="color: #d97706;"></i> Total Aset Terkumpul
+        </div>
+        <div class="audit-card-val" style="color: #b45309;">
+            Rp {{ "{:,.0f}".format(total_aset).replace(',', '.') }}
+        </div>
+        <div class="audit-card-sub">
+            Saldo Utama + Saldo Seluruh Cabang
+        </div>
+    </div>
+
+    <!-- TOTAL DEPOSIT RIIL -->
+    <div class="audit-card card-indigo">
+        <div class="audit-card-label">
+            <i class="fas fa-arrow-circle-down" style="color: #6366f1;"></i> Total Deposit Sukses
+        </div>
+        <div class="audit-card-val" style="color: #4338ca;">
+            Rp {{ "{:,.0f}".format(total_deposit_sukses).replace(',', '.') }}
+        </div>
+        <div class="audit-card-sub">
+            Uang riil yang telah disetor ke sistem
+        </div>
+    </div>
+
+    <!-- TOTAL BELANJA PRODUK DI KASIR CABANG -->
+    <div class="audit-card card-red">
+        <div class="audit-card-label">
+            <i class="fas fa-cash-register" style="color: #dc2626;"></i> Belanja Kasir Cabang
+        </div>
+        <div class="audit-card-val" style="color: #b91c1c;">
+            Rp {{ "{:,.0f}".format(total_belanja_cabang).replace(',', '.') }}
+        </div>
+        <div class="audit-card-sub">
+            Trx pulsa/paket dipotong saldo cabang
+        </div>
+    </div>
+</div>
+
+<!-- KOTAK LOGIKA REKONSILIASI & PANDUAN ADMIN -->
+<div class="recon-box">
+    <div style="display: flex; gap: 12px; align-items: flex-start;">
+        <div style="font-size: 24px; color: #059669; line-height: 1;">
+            <i class="fas fa-shield-alt"></i>
+        </div>
+        <div style="flex: 1;">
+            <h4 style="margin: 0 0 6px 0; color: #065f46; font-size: 14px; font-weight: 900;">
+                💡 Panduan Rekonsiliasi Saldo (Mengapa Saldo Utama Tidak Berkurang Saat Cabang Bertransaksi?)
+            </h4>
+            <div style="font-size: 12px; color: #1e3a8a; line-height: 1.6; background: white; padding: 12px 14px; border-radius: 10px; border: 1px solid #bbf7d0; margin-top: 6px;">
+                <b>Alur Perputaran Saldo yang Benar:</b><br>
+                1. <b>Deposit Masuk:</b> Uang deposit sebesar Rp 1.500.000 masuk 100% ke <b>Saldo Utama Owner</b>.<br>
+                2. <b>Alokasi ke Cabang:</b> Owner memindahkan saldo ke kasir cabang (misal Cabang A: Rp 500.000, Cabang B: Rp 500.000). Seketika itu juga <b>Saldo Utama langsung berkurang</b> menjadi sisa Rp 500.000, dan berpindah ke <b>Saldo Cabang</b> masing-masing.<br>
+                3. <b>Transaksi di Kasir:</b> Saat kasir Cabang A atau B menjual pulsa/data, sistem memotong <b>Saldo Cabang masing-masing</b> (bukan Saldo Utama). Karena modalnya sudah dialokasikan di langkah #2, maka Saldo Utama <b>tidak akan berkurang lagi</b>.<br>
+                4. <b>Rumus Kesesuaian Saldo:</b> <span style="background: #ecfdf5; padding: 2px 6px; border-radius: 4px; font-weight: 800; color: #065f46;">Total Aset Saat Ini (Rp {{ "{:,.0f}".format(total_aset).replace(',', '.') }}) + Total Belanja Seluruh Transaksi (Rp {{ "{:,.0f}".format(total_belanja_all).replace(',', '.') }}) == Total Deposit Masuk</span>.
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- DAFTAR PERANGKAT KASIR CABANG MILIK USER -->
+<div style="background: white; border-radius: 16px; border: 1px solid #e2e8f0; padding: 20px; margin-bottom: 24px; box-shadow: 0 2px 6px rgba(0,0,0,0.03);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+        <h3 style="margin: 0; font-size: 15px; font-weight: 900; color: #1e293b; display: flex; align-items: center; gap: 8px;">
+            <i class="fas fa-store-alt" style="color: #0284c7;"></i> Daftar Cabang Kasir POS Terdaftar ({{ branches|length }} Perangkat)
+        </h3>
+        <span style="font-size: 11px; color: #64748b; font-weight: 700;">
+            Saldo Cabang dikelola langsung oleh masing-masing kasir
+        </span>
+    </div>
+
+    <div style="overflow-x: auto;">
+        <table class="audit-table">
+            <thead>
+                <tr>
+                    <th>ID Cabang</th>
+                    <th>Nama Cabang & Kasir</th>
+                    <th>Model Perangkat / UUID</th>
+                    <th>Status Perangkat</th>
+                    <th>Sisa Saldo Cabang</th>
+                    <th>Terakhir Aktif</th>
+                    <th style="text-align: right;">Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in branches %}
+                <tr>
+                    <td style="font-weight: 800; color: #94a3b8;">#{{ b.id }}</td>
+                    <td>
+                        <div style="font-weight: 800; color: #0284c7; font-size: 13px;">
+                            <i class="fas fa-store"></i> {{ b.device_name }}
+                        </div>
+                        <div style="font-size: 10px; color: #64748b;">
+                            Kasir: {{ b.cashier_name or 'Umum' }}
+                        </div>
+                    </td>
+                    <td>
+                        <div style="font-weight: 700; color: #334155;">{{ b.device_model or 'Perangkat Kasir' }}</div>
+                        <code style="font-size: 10px; color: #64748b; background: #f1f5f9; padding: 2px 4px; border-radius: 4px;">{{ b.device_uuid[:18] }}...</code>
+                    </td>
+                    <td>
+                        {% if b.status == 'approved' %}
+                        <span style="background: #ecfdf5; color: #059669; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 900;">
+                            <i class="fas fa-check"></i> AKTIF
+                        </span>
+                        {% elif b.status == 'blocked' %}
+                        <span style="background: #fef2f2; color: #dc2626; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 900;">
+                            <i class="fas fa-lock"></i> DIBLOKIR
+                        </span>
+                        {% else %}
+                        <span style="background: #fef3c7; color: #b45309; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 900;">
+                            {{ b.status|upper }}
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span style="font-size: 14px; font-weight: 900; color: #0284c7;">
+                            Rp {{ "{:,.0f}".format(b.branch_balance or 0).replace(',', '.') }}
+                        </span>
+                    </td>
+                    <td style="font-size: 11px; color: #64748b;">
+                        {{ b.last_active_wib or '-' }}
+                    </td>
+                    <td style="text-align: right;">
+                        <a href="{{ url_for('admin.transactions', q=b.device_name, source='cabang') }}" 
+                           style="background: #e0f2fe; color: #0284c7; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+                            <i class="fas fa-search"></i> Lihat Transaksi
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" style="text-align: center; padding: 30px; color: #94a3b8; font-weight: 600;">
+                        <i class="fas fa-store-slash" style="font-size: 24px; margin-bottom: 8px; color: #cbd5e1;"></i><br>
+                        Pengguna ini belum memiliki perangkat kasir cabang terdaftar.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- BUKU BESAR KRONOLOGIS TERPADU (UNIFIED BALANCE AUDIT LOG) -->
+<div style="background: white; border-radius: 16px; border: 1px solid #e2e8f0; padding: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.03);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+        <div>
+            <h3 style="margin: 0; font-size: 15px; font-weight: 900; color: #1e293b; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-history" style="color: #059669;"></i> Buku Besar Audit Perputaran Saldo (Kronologis Terpadu)
+            </h3>
+            <p style="margin: 4px 0 0 0; font-size: 11px; color: #64748b;">
+                Merekam seluruh arus dana: Deposit Masuk ➔ Transfer ke Cabang ➔ Penjualan Kasir POS ➔ Tarik Saldo ➔ Refund.
+            </p>
+        </div>
+        <span style="background: #f1f5f9; color: #475569; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 800;">
+            Total {{ timeline|length }} Entri Mutasi Terdata
+        </span>
+    </div>
+
+    <!-- FILTER KATEGORI / TAB PILLS -->
+    <div class="tab-pills">
+        <a href="{{ url_for('admin.user_audit_saldo', user_id=user.id, cat='all') }}" class="tab-pill {% if cat_filter == 'all' %}active{% endif %}">
+            <i class="fas fa-list"></i> Semua Alur ({{ timeline|length }})
+        </a>
+        <a href="{{ url_for('admin.user_audit_saldo', user_id=user.id, cat='deposit') }}" class="tab-pill {% if cat_filter == 'deposit' %}active{% endif %}">
+            <i class="fas fa-arrow-down" style="color: #059669;"></i> Deposit Masuk
+        </a>
+        <a href="{{ url_for('admin.user_audit_saldo', user_id=user.id, cat='transfer') }}" class="tab-pill {% if cat_filter == 'transfer' %}active{% endif %}">
+            <i class="fas fa-share-square" style="color: #0284c7;"></i> Transfer ke Cabang
+        </a>
+        <a href="{{ url_for('admin.user_audit_saldo', user_id=user.id, cat='withdraw') }}" class="tab-pill {% if cat_filter == 'withdraw' %}active{% endif %}">
+            <i class="fas fa-reply" style="color: #b45309;"></i> Tarik dari Cabang
+        </a>
+        <a href="{{ url_for('admin.user_audit_saldo', user_id=user.id, cat='sale_cabang') }}" class="tab-pill {% if cat_filter == 'sale_cabang' %}active{% endif %}">
+            <i class="fas fa-cash-register" style="color: #dc2626;"></i> Transaksi Kasir POS
+        </a>
+        <a href="{{ url_for('admin.user_audit_saldo', user_id=user.id, cat='sale_web') }}" class="tab-pill {% if cat_filter == 'sale_web' %}active{% endif %}">
+            <i class="fas fa-globe" style="color: #6366f1;"></i> Order Web Owner
+        </a>
+        <a href="{{ url_for('admin.user_audit_saldo', user_id=user.id, cat='refund') }}" class="tab-pill {% if cat_filter == 'refund' %}active{% endif %}">
+            <i class="fas fa-undo-alt" style="color: #10b981;"></i> Refund Kasir
+        </a>
+    </div>
+
+    <!-- TABEL BUKU BESAR -->
+    <div style="overflow-x: auto;">
+        <table class="audit-table">
+            <thead>
+                <tr>
+                    <th>Waktu (WIB)</th>
+                    <th>Kategori Alur</th>
+                    <th>Entitas / Saldo Terkait</th>
+                    <th>Keterangan / Ref ID</th>
+                    <th>Nominal Mutasi</th>
+                    <th>Dampak & Catatan Saldo</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in timeline %}
+                <tr>
+                    <td>
+                        <div style="font-weight: 800; color: #1e293b;">{{ item.time_str }}</div>
+                        <div style="font-size: 10px; color: #64748b;">{{ item.date_str }}</div>
+                    </td>
+                    <td>
+                        <span class="badge-audit" style="background: {{ item.badge_bg }}; color: {{ item.badge_color }};">
+                            <i class="{{ item.icon }}"></i> {{ item.badge_text }}
+                        </span>
+                    </td>
+                    <td>
+                        <div style="font-weight: 800; color: #334155;">{{ item.entity }}</div>
+                        {% if item.target %}
+                        <div style="font-size: 10px; color: #64748b;">Tujuan: {{ item.target }}</div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div style="font-weight: 700; color: #1e293b;">{{ item.title }}</div>
+                        <div style="font-size: 11px; color: #64748b;">{{ item.description }}</div>
+                        <code style="font-size: 9px; color: #94a3b8;">{{ item.ref_id }}</code>
+                    </td>
+                    <td>
+                        <span style="font-size: 13px; font-weight: 900; color: {{ item.amount_color }};">
+                            {{ item.amount_prefix }} Rp {{ "{:,.0f}".format(item.amount).replace(',', '.') }}
+                        </span>
+                    </td>
+                    <td>
+                        <div style="font-size: 11px; font-weight: 700; color: #475569;">
+                            {{ item.balance_impact }}
+                        </div>
+                    </td>
+                    <td>
+                        {% if item.status == 'SUCCESS' %}
+                        <span style="background: #ecfdf5; color: #059669; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 900;">
+                            SUKSES
+                        </span>
+                        {% else %}
+                        <span style="background: #fef2f2; color: #dc2626; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 900;">
+                            {{ item.status }}
+                        </span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" style="text-align: center; padding: 40px; color: #94a3b8; font-weight: 600;">
+                        <i class="fas fa-receipt" style="font-size: 28px; margin-bottom: 8px; color: #cbd5e1;"></i><br>
+                        Tidak ada riwayat mutasi dalam kategori filter ini.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}
