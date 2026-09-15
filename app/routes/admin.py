@@ -373,6 +373,18 @@ def transactions():
     elif source_filter == 'web':
         query = query.filter(Transaction.device_id == None)
 
+    # Auto-sync pasif: cek hingga 5 transaksi PROCESSING terbaru ke provider secara otomatis
+    try:
+        from app.routes.transaction import sync_single_transaction
+        quick_pending = Transaction.query.filter(
+            Transaction.status.in_(['PROCESSING', 'PENDING', 'PROSES']),
+            Transaction.payment_status == 'PAID'
+        ).order_by(Transaction.id.desc()).limit(5).all()
+        for qp in quick_pending:
+            sync_single_transaction(qp)
+    except Exception as e_qsync:
+        pass
+
     total_count = Transaction.query.count()
     success_count = Transaction.query.filter_by(status='SUCCESS').count()
     total_revenue = db.session.query(db.func.sum(Transaction.amount)).filter(Transaction.status == 'SUCCESS').scalar() or 0.0
@@ -427,6 +439,48 @@ def update_transaction_status(id):
     async_send_trx_notification(trx, title=f"ADMIN UPDATE: {trx.status}")
     flash(f"Status transaksi {trx.ref_id} berhasil diperbarui!", 'success')
     return redirect(request.referrer or url_for('admin.transactions'))
+
+
+@admin_bp.route('/transactions/sync/<int:id>', methods=['POST'])
+@csrf.exempt
+def sync_transaction_admin(id):
+    """Menyinkronkan status 1 transaksi tertentu langsung ke provider (Digiflazz/VIP)."""
+    if not session.get('admin_logged_in'):
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+
+    trx = Transaction.query.get_or_404(id)
+    from app.routes.transaction import sync_single_transaction
+    old_status = trx.status
+    changed = sync_single_transaction(trx)
+
+    return jsonify({
+        'status': 'success',
+        'changed': changed,
+        'trx_id': trx.id,
+        'ref_id': trx.ref_id,
+        'old_status': old_status,
+        'new_status': trx.status,
+        'sn': trx.sn or '-',
+        'message': f"Transaksi {trx.ref_id}: Status {trx.status} (SN: {trx.sn or '-'})"
+    })
+
+
+@admin_bp.route('/transactions/sync_all_pending', methods=['POST'])
+@csrf.exempt
+def sync_all_pending_admin():
+    """Menyinkronkan seluruh transaksi berstatus PROCESSING/PENDING dalam 48 jam terakhir."""
+    if not session.get('admin_logged_in'):
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+
+    from app.routes.transaction import sync_all_pending_transactions
+    res = sync_all_pending_transactions(limit=30, max_hours=48)
+
+    msg = f"Selesai memeriksa {res['total_checked']} transaksi. {res['updated_count']} transaksi berhasil disinkronkan ke provider."
+    return jsonify({
+        'status': 'success',
+        'message': msg,
+        'data': res
+    })
 
 @admin_bp.route('/margin', methods=['GET', 'POST'])
 def margin():

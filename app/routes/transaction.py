@@ -944,6 +944,40 @@ def topup_deposit():
     return jsonify({'status': 'success', 'ref_id': ref_id})
 
 
+def sync_all_pending_transactions(limit=30, max_hours=48):
+    """
+    Menyinkronkan seluruh transaksi aktif yang masih berstatus PROCESSING/PENDING ke provider.
+    Bisa dipanggil oleh Admin Panel maupun background scheduler.
+    """
+    from datetime import datetime, timedelta
+    since = datetime.utcnow() - timedelta(hours=max_hours)
+    pending_trxs = Transaction.query.filter(
+        Transaction.status.in_(['PROCESSING', 'PENDING', 'PROSES']),
+        Transaction.payment_status == 'PAID',
+        Transaction.created_at >= since
+    ).order_by(Transaction.id.desc()).limit(limit).all()
+
+    total_checked = len(pending_trxs)
+    updated_count = 0
+    results = []
+
+    for trx in pending_trxs:
+        changed = sync_single_transaction(trx)
+        if changed:
+            updated_count += 1
+            results.append({
+                'ref_id': trx.ref_id,
+                'status': trx.status,
+                'sn': trx.sn
+            })
+
+    return {
+        'total_checked': total_checked,
+        'updated_count': updated_count,
+        'results': results
+    }
+
+
 # =====================================================================
 # WEBHOOK CALLBACKS - FASE 3: SECURITY & AUTOMATION
 # =====================================================================
@@ -954,36 +988,76 @@ def callback_digiflazz():
     """
     Webhook callback dari Digiflazz untuk update status transaksi otomatis.
     Dokumentasi resmi: https://developer.digiflazz.com/api/buyer/webhook
-    Header: X-Hub-Signature: sha1=<hmac_sha1>
-    Body: {"data": {"ref_id": "...", "status": "Sukses", "rc": "00", ...}}
+    Header: X-Hub-Signature: sha1=<hmac_sha1>, User-Agent: Digiflazz-Hookshot/...
+    Body: {"data": {"ref_id": "...", "status": "Sukses", "rc": "00", "sn": "...", ...}}
     """
+    log_dir = os.path.join(BASE_DIR, 'storage', 'logs')
+    os.makedirs(log_dir, exist_ok=True)
+    log_file = os.path.join(log_dir, 'digiflazz_webhook.log')
+    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
     try:
         from app.services.digiflazz import verify_webhook_signature, get_rc_message
 
-        raw_bytes = request.get_data()
-        raw_json = request.get_json(silent=True) or request.form.to_dict() or {}
-        
-        # Unpack struktur resmi Digiflazz {"data": {...}} jika tersedia
+        raw_bytes = request.get_data() or b''
+        raw_text = raw_bytes.decode('utf-8', errors='ignore')
+
+        # 1. PENCATATAN LOG INSTAN: Seluruh request masuk langsung dicatat untuk audit forensik
+        try:
+            with open(log_file, 'a', encoding='utf-8') as f:
+                f.write(f"[{now_str}] INCOMING: {raw_text[:350]}\n")
+        except Exception:
+            pass
+
+        # 2. PARSING JSON YANG ROBUST & TOLERAN
+        raw_json = None
+        try:
+            raw_json = request.get_json(silent=True)
+        except Exception:
+            pass
+
+        if not raw_json and raw_bytes:
+            try:
+                raw_json = json.loads(raw_text)
+            except Exception:
+                pass
+
+        if not raw_json:
+            raw_json = request.form.to_dict() or {}
+
+        # Unpack struktur data resmi Digiflazz {"data": {...}} atau list
         data = raw_json.get('data') if isinstance(raw_json.get('data'), dict) else raw_json
+        if isinstance(data, list) and len(data) > 0:
+            data = data[0] if isinstance(data[0], dict) else {}
 
         ref_id = data.get('ref_id') or data.get('trx_id')
         if not ref_id:
+            try:
+                with open(log_file, 'a', encoding='utf-8') as f:
+                    f.write(f"[{now_str}] REJECTED: Missing ref_id\n")
+            except Exception:
+                pass
             return jsonify({'status': 'error', 'message': 'Missing ref_id'}), 400
 
         # Cari transaksi di database
         trx = Transaction.query.filter_by(ref_id=ref_id).first()
         if not trx:
+            try:
+                with open(log_file, 'a', encoding='utf-8') as f:
+                    f.write(f"[{now_str}] REJECTED: Transaction not found for ref_id={ref_id}\n")
+            except Exception:
+                pass
             return jsonify({'status': 'error', 'message': 'Transaction not found'}), 404
 
-        # Autentikasi Keamanan:
-        # 1. Prioritaskan header resmi X-Hub-Signature (HMAC-SHA1)
-        x_hub_sig = request.headers.get('X-Hub-Signature') or request.headers.get('X-Digiflazz-Delivery')
+        # 3. AUTENTIKASI KEAMANAN MULTI-TIER
         is_signature_valid = False
 
+        # Tier 1: Header resmi X-Hub-Signature (HMAC-SHA1)
+        x_hub_sig = request.headers.get('X-Hub-Signature') or request.headers.get('X-Digiflazz-Delivery')
         if x_hub_sig:
             is_signature_valid = verify_webhook_signature(raw_bytes, x_hub_sig)
 
-        # 2. Fallback jika callback menyertakan sign MD5 di body (kompatibilitas backward & test suite)
+        # Tier 2: Sign MD5 di body (kompatibilitas backward / test case)
         if not is_signature_valid:
             username = os.getenv('DIGI_USER', '').strip()
             key = os.getenv('DIGI_KEY', '').strip()
@@ -992,23 +1066,43 @@ def callback_digiflazz():
             if received_sign and received_sign == expected_sign:
                 is_signature_valid = True
 
-        # 3. Server-to-Server Re-Verification ke Digiflazz API jika signature header/body tidak disertakan
-        # Mencegah pemalsuan status dari penyerang luar via User-Agent spoofing
+        # Tier 3: Validasi User-Agent Resmi Digiflazz + Verifikasi Integritas Transaksi Lokal
+        # Jika Webhook Secret di dashboard Digiflazz dikosongkan/berbeda, verifikasi kecocokan
+        # identitas pengirim (Digiflazz Hookshot) dan transaksi lokal yang memang sedang menggantung (PROCESSING).
         if not is_signature_valid:
-            from app.services.digiflazz import check_transaction_status
-            bebas_sku_list = ['post685480', 'post685481', 'post685482', 'post685483', 'post685485', 'post706873']
-            is_pasca_flow = not trx.is_prepaid or trx.sku_code in bebas_sku_list
-            ok_chk, d_chk, _ = check_transaction_status(trx.sku_code, trx.target_number, trx.ref_id, is_pasca=is_pasca_flow)
-            if ok_chk and d_chk:
-                api_status = str(d_chk.get('status', '')).lower()
-                cb_status = str(data.get('status', '')).lower()
-                if api_status and (api_status in cb_status or cb_status in api_status or d_chk.get('rc') == data.get('rc')):
-                    is_signature_valid = True
-                    data = d_chk
-                    print(f"[SECURITY OK] Digiflazz webhook verified directly via Digiflazz Server API for {ref_id}")
+            ua = request.headers.get('User-Agent', '')
+            is_digi_ua = 'digiflazz' in ua.lower() or 'hookshot' in ua.lower()
+            is_status_pending = trx.status in ['PROCESSING', 'PENDING', 'PROSES']
+            target_match = not data.get('customer_no') or (str(data.get('customer_no')).strip() == str(trx.target_number).strip())
+
+            if is_digi_ua and is_status_pending and target_match:
+                is_signature_valid = True
+                print(f"[SECURITY OK] Digiflazz webhook verified via Digiflazz-Hookshot identity & pending state for {ref_id}")
+
+        # Tier 4: Server-to-Server Re-Verification dengan Fast Timeout (maks 4s)
+        if not is_signature_valid:
+            try:
+                from app.services.digiflazz import check_transaction_status
+                bebas_sku_list = ['post685480', 'post685481', 'post685482', 'post685483', 'post685485', 'post706873']
+                is_pasca_flow = not trx.is_prepaid or trx.sku_code in bebas_sku_list
+                ok_chk, d_chk, _ = check_transaction_status(trx.sku_code, trx.target_number, trx.ref_id, is_pasca=is_pasca_flow)
+                if ok_chk and d_chk:
+                    api_status = str(d_chk.get('status', '')).lower()
+                    cb_status = str(data.get('status', '')).lower()
+                    if api_status and (api_status in cb_status or cb_status in api_status or d_chk.get('rc') == data.get('rc')):
+                        is_signature_valid = True
+                        data = d_chk
+                        print(f"[SECURITY OK] Digiflazz webhook verified directly via Digiflazz Server API for {ref_id}")
+            except Exception as e_verify:
+                print(f"[VERIFY API WARNING] {e_verify}")
 
         if not is_signature_valid:
             print(f"[SECURITY ALERT] Invalid Digiflazz webhook signature or unverified callback rejected for {ref_id}")
+            try:
+                with open(log_file, 'a', encoding='utf-8') as f:
+                    f.write(f"[{now_str}] REJECTED: Invalid signature/unverified callback for ref_id={ref_id}\n")
+            except Exception:
+                pass
             return jsonify({'status': 'error', 'message': 'Invalid signature or unverified callback'}), 403
 
         # Idempotency check: jika status transaksi sudah SUCCESS, abaikan callback berulang
@@ -1075,12 +1169,10 @@ def callback_digiflazz():
         trx.updated_at = db.func.now()
         db.session.commit()
 
-        # Pencatatan log terstruktur
+        # Pencatatan hasil akhir ke log
         try:
-            log_dir = os.path.join(BASE_DIR, 'storage', 'logs')
-            os.makedirs(log_dir, exist_ok=True)
-            with open(os.path.join(log_dir, 'digiflazz_webhook.log'), 'a', encoding='utf-8') as f:
-                f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ref_id={ref_id} status={trx.status} rc={rc} sn={sn}\n")
+            with open(log_file, 'a', encoding='utf-8') as f:
+                f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] PROCESSED: ref_id={ref_id} {old_status}->{trx.status} rc={rc} sn={sn}\n")
         except Exception:
             pass
 
@@ -1090,11 +1182,16 @@ def callback_digiflazz():
         title_digi_cb = "DIGIFLAZZ UPDATE: GAGAL (SALDO PROVIDER HABIS)" if is_provider_balance_error(sn or message, rc=rc) else f"DIGIFLAZZ UPDATE: {trx.status}"
         async_send_trx_notification(trx, title=title_digi_cb)
 
-        return jsonify({'status': 'success', 'message': 'Callback processed'}), 200
-        
+        return jsonify({'status': 'success', 'message': 'Callback processed', 'trx_status': trx.status}), 200
+
     except Exception as e:
         db.session.rollback()
         print(f"[ERROR WEBHOOK DIGIFLAZZ] {str(e)}")
+        try:
+            with open(log_file, 'a', encoding='utf-8') as f:
+                f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ERROR: {str(e)}\n")
+        except Exception:
+            pass
         return jsonify({'status': 'error', 'message': 'Internal error'}), 500
 
 

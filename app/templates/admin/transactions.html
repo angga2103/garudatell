@@ -106,6 +106,12 @@
         {% if search_q or status_filter or payment_filter or source_filter %}
         <a href="{{ url_for('admin.transactions') }}" class="btn-reset-filter"><i class="fas fa-times"></i> Reset</a>
         {% endif %}
+
+        <button type="button" onclick="syncAllPendingTrx(this)" 
+                title="Periksa dan perbarui otomatis seluruh transaksi yang berstatus PROCESSING/PENDING ke provider"
+                style="background: #0284c7; color: white; border: none; padding: 10px 16px; border-radius: 8px; font-size: 12px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; margin-left: auto;">
+            <i class="fas fa-sync-alt"></i> Sync Semua Processing
+        </button>
     </form>
 </div>
 
@@ -181,17 +187,27 @@
                         <span style="color: #94A3B8; font-size: 11px;">-</span>
                     {% endif %}
                 </td>
-                <td>
-                    <button type="button" 
-                            data-id="{{ t.id }}" 
-                            data-ref="{{ t.ref_id }}" 
-                            data-status="{{ t.status }}" 
-                            data-payment="{{ t.payment_status }}" 
-                            data-sn="{{ t.sn or '' }}" 
-                            onclick="openTrxModalBtn(this)" 
-                            class="btn-action-edit">
-                        <i class="fas fa-edit"></i> Edit
-                    </button>
+                <td style="white-space: nowrap;">
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                        {% if t.status in ['PROCESSING', 'PENDING', 'PROSES'] %}
+                        <button type="button" 
+                                onclick="syncSingleTrx({{ t.id }}, this)" 
+                                title="Tarik Status & SN Langsung dari Provider" 
+                                style="background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; padding: 6px 10px; border-radius: 6px; font-weight: 800; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; transition: 0.2s;">
+                            <i class="fas fa-sync-alt"></i> Cek Provider
+                        </button>
+                        {% endif %}
+                        <button type="button" 
+                                data-id="{{ t.id }}" 
+                                data-ref="{{ t.ref_id }}" 
+                                data-status="{{ t.status }}" 
+                                data-payment="{{ t.payment_status }}" 
+                                data-sn="{{ t.sn or '' }}" 
+                                onclick="openTrxModalBtn(this)" 
+                                class="btn-action-edit">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                    </div>
                 </td>
             </tr>
             {% else %}
@@ -269,6 +285,8 @@
 </div>
 
 <script>
+    const CSRF_TOKEN = "{{ csrf_token() }}";
+
     function openTrxModalBtn(btn) {
         const id = btn.getAttribute('data-id');
         const refId = btn.getAttribute('data-ref');
@@ -286,6 +304,70 @@
 
     function closeTrxModal() {
         document.getElementById('trxModal').style.display = 'none';
+    }
+
+    function syncSingleTrx(id, btn) {
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cek...';
+
+        fetch(`/admin/transactions/sync/${id}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': CSRF_TOKEN
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+            if (data.status === 'success') {
+                alert(`Hasil Sinkronisasi:\n${data.message}`);
+                window.location.reload();
+            } else {
+                alert(`Gagal cek provider: ${data.message || 'Terjadi kesalahan'}`);
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+            alert("Terjadi kesalahan jaringan saat menghubungi provider.");
+        });
+    }
+
+    function syncAllPendingTrx(btn) {
+        if (!confirm("Periksa dan sinkronkan seluruh transaksi yang masih PROCESSING ke server provider sekarang?")) {
+            return;
+        }
+
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sinkronisasi...';
+
+        fetch('/admin/transactions/sync_all_pending', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': CSRF_TOKEN
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+            if (data.status === 'success') {
+                alert(`Hasil Sinkronisasi Massal:\n${data.message}`);
+                window.location.reload();
+            } else {
+                alert(`Gagal: ${data.message || 'Terjadi kesalahan'}`);
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+            alert("Terjadi kesalahan jaringan.");
+        });
     }
 </script>
 
