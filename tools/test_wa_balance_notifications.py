@@ -17,6 +17,7 @@ from app.services.balance_notification_service import (
     _build_low_balance_message_user,
     _build_low_balance_message_upline,
     check_and_notify_low_balance,
+    scan_and_notify_all_low_balance_users,
     LOW_BALANCE_THRESHOLD,
     format_rupiah
 )
@@ -201,6 +202,94 @@ class TestWABalanceNotifications(unittest.TestCase):
         called_numbers = [call[0][0] for call in calls]
         self.assertIn(self.user.phone, called_numbers)
         self.assertIn(self.upline.phone, called_numbers)
+
+    @patch('app.services.balance_notification_service.kirim_wa')
+    def test_scan_and_notify_all_low_balance_users(self, mock_kirim_wa):
+        """Menguji pemindaian proaktif seluruh akun toko dengan saldo < Rp 100.000 dan cooldown."""
+        mock_kirim_wa.return_value = True
+
+        # Set user balance < 100k
+        self.user.balance = 45000.0
+        self.user.last_low_balance_notified_at = None
+        db.session.commit()
+
+        # 1. Pemindaian pertama (normal) -> Harus terkirim ke user dan upline
+        res1 = scan_and_notify_all_low_balance_users(force_all=False)
+        self.assertEqual(res1['total_low'], 1)
+        self.assertEqual(res1['notified_users'], 1)
+        self.assertEqual(res1['notified_uplines'], 1)
+        self.assertEqual(len(res1['details']), 1)
+        self.assertEqual(res1['details'][0]['user_id'], self.user.id)
+
+        # 2. Pemindaian kedua langsung sesudahnya (cooldown 12 jam masih aktif) -> Tidak dikirim lagi
+        res2 = scan_and_notify_all_low_balance_users(force_all=False)
+        self.assertEqual(res2['total_low'], 1)
+        self.assertEqual(res2['notified_users'], 0)
+        self.assertEqual(res2['notified_uplines'], 0)
+
+        # 3. Pemindaian paksa (force_all=True) -> Melewati cooldown dan langsung terkirim
+        res3 = scan_and_notify_all_low_balance_users(force_all=True)
+        self.assertEqual(res3['total_low'], 1)
+        self.assertEqual(res3['notified_users'], 1)
+        self.assertEqual(res3['notified_uplines'], 1)
+
+    @patch('app.services.telegram_service.send_sync_report_to_admin_bot')
+    @patch('app.services.digiflazz.get_price_list')
+    def test_digiflazz_sync_reports_to_telegram_bot3(self, mock_get_price_list, mock_send_report):
+        """Memastikan sync_products memanggil send_sync_report_to_admin_bot dengan format total produk."""
+        from app.services.digiflazz import sync_products
+        from app.models.product import Product
+
+        mock_send_report.return_value = (True, "OK")
+        mock_get_price_list.return_value = (True, [
+            {
+                'buyer_sku_code': 'TESTSKU01',
+                'product_name': 'Paket Data Test 1GB',
+                'category': 'Data',
+                'brand': 'TELKOMSEL',
+                'price': 10000,
+                'buyer_product_status': True,
+                'seller_product_status': False  # Ini terdeteksi gangguan
+            }
+        ], "OK")
+
+        # Jalankan sync_products
+        ok, msg = sync_products(force=True, notify_admin_bot=True)
+        self.assertTrue(ok)
+        self.assertIn("Sukses!", msg)
+        self.assertIn("total produk", msg)
+        self.assertIn("terdeteksi gangguan", msg)
+
+        # Pastikan send_sync_report_to_admin_bot dipanggil
+        self.assertTrue(mock_send_report.called)
+        sent_msg = mock_send_report.call_args[0][0]
+        self.assertIn("total produk", sent_msg)
+        self.assertIn("terdeteksi gangguan", sent_msg)
+
+    @patch('app.services.balance_notification_service.kirim_wa')
+    def test_cron_and_web_routes_for_scan_low_balance(self, mock_kirim_wa):
+        """Menguji endpoint cron /api/cron/check-low-balance dan route web admin /admin/users/scan_low_balance."""
+        mock_kirim_wa.return_value = True
+        client = self.app.test_client()
+
+        # 1. Cron check low balance tanpa key -> 403
+        resp_unauth = client.get('/api/cron/check-low-balance')
+        self.assertEqual(resp_unauth.status_code, 403)
+
+        # 2. Cron check low balance dengan key valid -> 200
+        cron_secret = os.getenv('CRON_SECRET_KEY', 'ipay-cron-secret-2026').strip()
+        resp_auth = client.get(f'/api/cron/check-low-balance?key={cron_secret}&force=1')
+        self.assertEqual(resp_auth.status_code, 200)
+        data = resp_auth.get_json()
+        self.assertEqual(data['status'], 'success')
+        self.assertIn('total_low', data['data'])
+
+        # 3. Web Admin scan low balance (dengan session login admin)
+        with client.session_transaction() as sess:
+            sess['admin_logged_in'] = True
+
+        resp_admin = client.post('/admin/users/scan_low_balance', data={'force': '1'}, follow_redirects=True)
+        self.assertEqual(resp_admin.status_code, 200)
 
 if __name__ == '__main__':
     unittest.main()

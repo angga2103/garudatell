@@ -511,6 +511,41 @@ def get_bot_admin_credentials():
     return token, chat_id
 
 
+def send_sync_report_to_admin_bot(msg, is_cron=True):
+    """
+    Mengirimkan laporan hasil sinkronisasi produk otomatis Digiflazz ke Bot 3 : Panel & Fitur Admin.
+    """
+    token, chat_id = get_bot_admin_credentials()
+    if not token or not chat_id:
+        logger.warning("[Bot 3 Admin] BOT_ADMIN_TOKEN atau BOT_ADMIN_CHAT_ID belum diset di .env")
+        return False, "Kredensial Bot 3 belum diatur"
+
+    wib_now = format_wib(fmt='%d/%m/%Y %H:%M:%S WIB')
+    title = "🔄 <b>AUTO SINKRONISASI DIGIFLAZZ</b>" if is_cron else "🔄 <b>SINKRONISASI PRODUK DIGIFLAZZ</b>"
+    text = (
+        f"{title}\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"📢 <b>Laporan Sistem:</b>\n"
+        f"<b>{msg}</b>\n\n"
+        f"⏰ <b>Waktu Eksekusi:</b> {wib_now}\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "✅ <i>Katalog produk dan status gangguan operator telah tersinkronisasi otomatis.</i>"
+    )
+    try:
+        api_url = f"https://api.telegram.org/bot{token}/sendMessage"
+        payload = {
+            "chat_id": chat_id,
+            "text": text,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True
+        }
+        res = requests.post(api_url, json=payload, timeout=15)
+        return res.status_code == 200, res.text
+    except Exception as e:
+        logger.error(f"[Bot 3 Sync Report] Gagal kirim laporan ke Telegram: {e}")
+        return False, str(e)
+
+
 def get_admin_inline_keyboard():
     """Menghasilkan struktur tombol inline keyboard untuk menu utama Bot Admin."""
     return {
@@ -524,19 +559,22 @@ def get_admin_inline_keyboard():
                 {"text": "⏳ Trx Pending", "callback_data": "cmd_pending"}
             ],
             [
+                {"text": "⚠️ Cek Saldo Minim", "callback_data": "cmd_scan_low_bal"},
+                {"text": "🔄 Sync Digiflazz", "callback_data": "cmd_sync_digi"}
+            ],
+            [
                 {"text": "🎫 Tiket CS Masuk", "callback_data": "cmd_tickets"},
                 {"text": "💾 Backup DB Sekarang", "callback_data": "cmd_backup"}
             ],
             [
-                {"text": "🔄 Sync Digiflazz", "callback_data": "cmd_sync_digi"},
-                {"text": "🔄 Sync VIP Games", "callback_data": "cmd_sync_vip"}
+                {"text": "🔄 Sync VIP Games", "callback_data": "cmd_sync_vip"},
+                {"text": "🆘 Buat OTP Darurat", "callback_data": "cmd_otp_info"}
             ],
             [
-                {"text": "🆘 Buat OTP Darurat", "callback_data": "cmd_otp_info"},
-                {"text": "📱 Status / Pairing WA", "callback_data": "cmd_wa_status"}
+                {"text": "📱 Status / Pairing WA", "callback_data": "cmd_wa_status"},
+                {"text": "🩺 Status Sistem VPS", "callback_data": "cmd_system"}
             ],
             [
-                {"text": "🩺 Status Sistem VPS", "callback_data": "cmd_system"},
                 {"text": "🔄 Refresh Menu", "callback_data": "cmd_menu"}
             ]
         ]
@@ -1106,6 +1144,55 @@ def handle_admin_callback(app, callback_query):
                 text = "\n".join(lines)
             _edit_message(token, chat_id, message_id, text, get_back_button())
 
+        elif data == 'cmd_scan_low_bal':
+            _edit_message(token, chat_id, message_id, "⏳ <i>Sedang memindai seluruh user dengan saldo < Rp 100.000 dan mengirim notifikasi WhatsApp...</i>", None)
+            from app.services.balance_notification_service import scan_and_notify_all_low_balance_users
+            res = scan_and_notify_all_low_balance_users(force_all=False)
+
+            lines = [
+                "⚠️ <b>HASIL PEMERIKSAAN SISA SALDO MINIM</b>",
+                "━━━━━━━━━━━━━━━━━━━━━━",
+                f"👥 <b>Total Toko Saldo Minim:</b> {res['total_low']} toko/user",
+                f"📲 <b>Notifikasi WA Terkirim ke User:</b> {res['notified_users']} pesan",
+                f"🌟 <b>Notifikasi WA Terkirim ke Upline:</b> {res['notified_uplines']} pesan",
+                f"⏰ <b>Waktu:</b> {format_wib(fmt='%d/%m/%Y %H:%M:%S WIB')}",
+                "━━━━━━━━━━━━━━━━━━━━━━"
+            ]
+            if res['details']:
+                lines.append("📋 <b>Daftar Toko yang Dinotifikasi:</b>")
+                for d in res['details'][:8]:
+                    lines.append(f"• <b>{d['name']}</b>: Rp {d['balance']:,.0f} (<code>{d['phone']}</code>)")
+                if len(res['details']) > 8:
+                    lines.append(f"<i>...dan {len(res['details']) - 8} toko lainnya.</i>")
+            else:
+                if res['total_low'] > 0:
+                    lines.append("ℹ️ <i>Semua toko tersebut sudah dinotifikasi sebelumnya (< 12 jam cooldown). Untuk mengirim ulang sekarang, klik tombol di bawah:</i>")
+                else:
+                    lines.append("🎉 <i>Alhamdulillah, seluruh saldo akun toko saat ini aman di atas Rp 100.000!</i>")
+
+            markup = {
+                "inline_keyboard": [
+                    [{"text": "⚡ Paksa Kirim Ulang Sekarang", "callback_data": "cmd_scan_low_bal_force"}],
+                    [{"text": "« Kembali ke Menu Utama", "callback_data": "cmd_menu"}]
+                ]
+            }
+            _edit_message(token, chat_id, message_id, "\n".join(lines), markup)
+
+        elif data == 'cmd_scan_low_bal_force':
+            _edit_message(token, chat_id, message_id, "⏳ <i>Sedang memaksa pengiriman notifikasi WhatsApp saldo minim ke seluruh toko...</i>", None)
+            from app.services.balance_notification_service import scan_and_notify_all_low_balance_users
+            res = scan_and_notify_all_low_balance_users(force_all=True)
+            text = (
+                "⚡ <b>NOTIFIKASI SALDO MINIM DIPAKSA TERKIRIM!</b>\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"👥 <b>Total Toko Saldo Minim:</b> {res['total_low']} toko\n"
+                f"📲 <b>WA Terkirim ke User:</b> {res['notified_users']} pesan\n"
+                f"🌟 <b>WA Terkirim ke Upline:</b> {res['notified_uplines']} pesan\n"
+                f"⏰ <b>Waktu:</b> {format_wib(fmt='%d/%m/%Y %H:%M:%S WIB')}\n"
+                "━━━━━━━━━━━━━━━━━━━━━━"
+            )
+            _edit_message(token, chat_id, message_id, text, get_back_button())
+
         elif data == 'cmd_sync_digi':
             _edit_message(token, chat_id, message_id, "⏳ <i>Sedang menarik data produk dari Digiflazz... Harap tunggu sebentar.</i>", None)
             ok, msg = sync_products()
@@ -1463,6 +1550,42 @@ def handle_admin_message(app, message):
                 ]
             }
             _send_message(token, chat_id, text_msg, reply_markup=store_keyboard)
+        return
+
+    # Perintah /ceksaldo atau /ceksaldominim
+    if text.startswith('/ceksaldo') or text.startswith('/ceksaldominim'):
+        force_flag = 'force' in text.lower()
+        _send_message(token, chat_id, "⏳ <i>Sedang memindai seluruh saldo akun toko dan mengirim notifikasi WhatsApp...</i>")
+        with app.app_context():
+            from app.services.balance_notification_service import scan_and_notify_all_low_balance_users
+            res = scan_and_notify_all_low_balance_users(force_all=force_flag)
+            reply = (
+                "⚠️ <b>HASIL PEMERIKSAAN SISA SALDO MINIM</b>\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"👥 <b>Total Toko Saldo Minim:</b> {res['total_low']} toko\n"
+                f"📲 <b>WA Terkirim ke User:</b> {res['notified_users']} pesan\n"
+                f"🌟 <b>WA Terkirim ke Upline:</b> {res['notified_uplines']} pesan\n"
+                f"⏰ <b>Waktu:</b> {format_wib(fmt='%d/%m/%Y %H:%M:%S WIB')}\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n"
+            )
+            if res['notified_users'] == 0 and res['total_low'] > 0 and not force_flag:
+                reply += "ℹ️ <i>Seluruh toko telah dinotifikasi sebelumnya (< 12 jam). Ketik: <code>/ceksaldominim force</code> untuk memaksa kirim ulang sekarang.</i>"
+            elif res['total_low'] == 0:
+                reply += "🎉 <i>Alhamdulillah, seluruh saldo akun toko saat ini aman di atas Rp 100.000!</i>"
+            else:
+                reply += "✅ <i>Pemberitahuan ramah berhasil dikirimkan via WhatsApp ke toko dan pembina kemitraan.</i>"
+            _send_message(token, chat_id, reply)
+        return
+
+    # Perintah /sync atau /syncdigi
+    if text.startswith('/sync') or text.startswith('/syncdigi'):
+        force_flag = 'force' in text.lower()
+        _send_message(token, chat_id, "⏳ <i>Sedang melakukan sinkronisasi katalog produk dari Digiflazz...</i>")
+        with app.app_context():
+            from app.services.digiflazz import sync_products
+            ok, msg = sync_products(force=force_flag, notify_admin_bot=False)
+            icon = "✅" if ok else "🚨"
+            _send_message(token, chat_id, f"{icon} <b>HASIL SINKRONISASI DIGIFLAZZ:</b>\n\n{msg}")
         return
 
     # Perintah Menu Utama (/start, /menu, /help)

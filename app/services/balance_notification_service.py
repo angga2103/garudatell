@@ -315,3 +315,87 @@ def check_and_notify_low_balance(user_id, old_balance, new_balance):
 
     return False
 
+
+def scan_and_notify_all_low_balance_users(force_all=False):
+    """
+    Memindai seluruh akun pengguna aktif yang saat ini memiliki saldo < Rp 100.000.
+    Jika force_all=True: abaikan cooldown 12 jam (berguna saat admin memicu manual / pertama kali).
+    Jika force_all=False: hormati cooldown 12 jam agar tidak spam.
+    
+    Returns:
+        dict: {
+            'total_low': int,
+            'notified_users': int,
+            'notified_uplines': int,
+            'details': list
+        }
+    """
+    store_name = get_app_store_name()
+    now_naive = datetime.utcnow()
+
+    # Ambil user aktif yang saldonya di bawah batas Rp 100.000
+    low_users = User.query.filter(
+        User.balance < LOW_BALANCE_THRESHOLD,
+        User.is_active == True
+    ).all()
+
+    total_low = len(low_users)
+    notified_users = 0
+    notified_uplines = 0
+    details = []
+
+    for u in low_users:
+        last_notif = getattr(u, 'last_low_balance_notified_at', None)
+        should_notify = force_all or (last_notif is None)
+        if not should_notify and last_notif:
+            diff_hours = (now_naive - last_notif).total_seconds() / 3600.0
+            if diff_hours >= LOW_BALANCE_COOLDOWN_HOURS:
+                should_notify = True
+
+        if should_notify:
+            u.last_low_balance_notified_at = now_naive
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+            cur_bal = float(u.balance or 0.0)
+
+            # 1. Kirim WA ke User
+            if u.phone:
+                try:
+                    msg_user = _build_low_balance_message_user(store_name, u.name, cur_bal)
+                    ok_user = kirim_wa(u.phone, msg_user)
+                    if ok_user:
+                        notified_users += 1
+                        logger.info(f"[SCAN LOW BAL] WA terkirim ke User #{u.id} ({u.phone})")
+                except Exception as e_u:
+                    logger.error(f"[SCAN LOW BAL] Gagal kirim ke user #{u.id} ({u.phone}): {e_u}")
+
+            # 2. Kirim WA ke Upline jika ada
+            if u.upline and u.upline.phone:
+                try:
+                    msg_upline = _build_low_balance_message_upline(store_name, u.upline.name, u.name, u.phone, cur_bal)
+                    ok_upline = kirim_wa(u.upline.phone, msg_upline)
+                    if ok_upline:
+                        notified_uplines += 1
+                        logger.info(f"[SCAN LOW BAL] WA terkirim ke Upline #{u.upline.id} ({u.upline.phone})")
+                except Exception as e_up:
+                    logger.error(f"[SCAN LOW BAL] Gagal kirim ke upline #{u.upline.id} ({u.upline.phone}): {e_up}")
+
+            details.append({
+                'user_id': u.id,
+                'name': u.name,
+                'phone': u.phone,
+                'balance': cur_bal
+            })
+
+    logger.info(f"[SCAN LOW BAL FINISHED] Total: {total_low}, User Notif: {notified_users}, Upline Notif: {notified_uplines}")
+    return {
+        'total_low': total_low,
+        'notified_users': notified_users,
+        'notified_uplines': notified_uplines,
+        'details': details
+    }
+
+

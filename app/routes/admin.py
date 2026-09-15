@@ -307,14 +307,51 @@ def cron_sync_products():
         }), 403
 
     force = request.args.get('force') == '1'
-    ok, msg = sync_products(force=force)
+    ok, msg = sync_products(force=force, notify_admin_bot=True)
     status_str = 'success' if ok else ('cooldown' if 'Cooldown' in msg else 'error')
+
+    # Pemindaian berkala saldo minim pengguna setelah sync produk sukses
+    scan_res = None
+    if ok:
+        try:
+            from app.services.balance_notification_service import scan_and_notify_all_low_balance_users
+            scan_res = scan_and_notify_all_low_balance_users(force_all=False)
+        except Exception as e_scan:
+            print(f"[CRON SCAN LOW BAL ERROR] {e_scan}")
 
     return jsonify({
         'status': status_str,
         'message': msg,
+        'low_balance_scan': scan_res,
         'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     }), (200 if ok or 'Cooldown' in msg else 500)
+
+@admin_bp.route('/api/cron/check-low-balance', methods=['GET', 'POST'])
+@csrf.exempt
+def cron_check_low_balance():
+    """
+    Endpoint otomatis untuk Cron Job VPS Linux untuk memindai saldo minim (< Rp 100.000) dan mengirim notifikasi WhatsApp.
+    Contoh command crontab Linux:
+    0 * * * * curl -s -X POST "https://ipay.my.id/api/cron/check-low-balance?key=CRON_SECRET" > /dev/null 2>&1
+    """
+    cron_secret = os.getenv('CRON_SECRET_KEY', 'ipay-cron-secret-2026').strip()
+    provided_key = request.headers.get('X-Cron-Key') or request.args.get('key') or request.form.get('key') or ''
+
+    if not provided_key or provided_key != cron_secret:
+        return jsonify({
+            'status': 'error',
+            'message': 'Unauthorized: Token keamanan cron job tidak valid'
+        }), 403
+
+    force = request.args.get('force') == '1' or request.form.get('force') == '1'
+    from app.services.balance_notification_service import scan_and_notify_all_low_balance_users
+    res = scan_and_notify_all_low_balance_users(force_all=force)
+
+    return jsonify({
+        'status': 'success',
+        'data': res,
+        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    })
 
 @admin_bp.route('/change-password', methods=['POST'])
 def change_password():
@@ -655,6 +692,28 @@ def users():
     # Mengambil semua user, diurutkan dari yang terbaru (ID terbesar)
     all_users = User.query.order_by(User.id.desc()).all()
     return render_template('admin/users.html', users=all_users)
+
+@admin_bp.route('/users/scan_low_balance', methods=['POST'])
+def scan_low_balance():
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin.login'))
+
+    force = request.form.get('force') == '1'
+    from app.services.balance_notification_service import scan_and_notify_all_low_balance_users
+    res = scan_and_notify_all_low_balance_users(force_all=force)
+
+    total_low = res.get('total_low', 0)
+    notified_users = res.get('notified_users', 0)
+    notified_uplines = res.get('notified_uplines', 0)
+
+    if notified_users > 0 or notified_uplines > 0:
+        flash(f"✅ Pemindaian selesai! Berhasil mengirim notifikasi WhatsApp saldo minim ke {notified_users} user dan {notified_uplines} upline.", "success")
+    elif total_low > 0:
+        flash(f"ℹ️ Ditemukan {total_low} user dengan saldo < Rp 100.000, tetapi mereka sudah dinotifikasi sebelumnya (< 12 jam). Centang 'Paksa Kirim Ulang' jika ingin mengirim ulang sekarang.", "warning")
+    else:
+        flash("🎉 Seluruh akun toko saat ini memiliki saldo aman di atas Rp 100.000!", "info")
+
+    return redirect(url_for('admin.users'))
 
 
 @admin_bp.route('/user/update_action', methods=['POST'])

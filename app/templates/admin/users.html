@@ -277,9 +277,20 @@
 </div>
 
 <div class="config-card" style="padding: 0; overflow: hidden;">
-    <div class="config-title" style="padding: 20px 20px 10px 20px;">
-        <i class="fas fa-users"></i>
-        Daftar Pelanggan
+    <div class="config-title" style="padding: 20px 20px 10px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <i class="fas fa-users"></i>
+            Daftar Pelanggan
+        </div>
+        <form method="POST" action="{{ url_for('admin.scan_low_balance') }}" style="margin: 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <label style="font-size: 11px; font-weight: 700; color: #64748b; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; user-select: none;">
+                <input type="checkbox" name="force" value="1"> Paksa Kirim Ulang (Bypass Cooldown 12 Jam)
+            </label>
+            <button type="submit" class="btn-primary" style="background: #f59e0b; color: white; border: none; padding: 6px 14px; border-radius: 8px; font-weight: 800; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(245, 158, 11, 0.2);" onclick="return confirm('Pindai seluruh akun toko dengan saldo < Rp 100.000 dan kirim notifikasi WhatsApp ramah sekarang?');">
+                <i class="fab fa-whatsapp"></i> ⚠️ Cek & Notif Saldo Minim (< 100rb)
+            </button>
+        </form>
     </div>
 
     <div style="overflow-x: auto; padding: 0 20px 20px 20px;">

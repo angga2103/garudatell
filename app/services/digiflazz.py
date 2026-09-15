@@ -199,7 +199,7 @@ def get_price_list(cmd='prepaid', code=None):
     except Exception as e:
         return False, [], f"Gagal menghubungi server Digiflazz: {str(e)}"
 
-def sync_products(force=False):
+def sync_products(force=False, notify_admin_bot=True):
     """
     Sinkronisasi katalog produk dari Digiflazz (Prepaid & Pasca) ke database lokal.
     Dilengkapi 4 Lapis Pengaman Baja Anti-Wipeout:
@@ -331,11 +331,20 @@ def sync_products(force=False):
     db.session.commit()
     set_last_sync_timestamp()
 
-    msg_success = f"Sukses! {new_count} produk baru, {update_count} diperbarui, {gangguan_count} terdeteksi gangguan"
+    total_products = Product.query.count()
+
+    msg_success = f"Sukses! {new_count} produk baru, {update_count} diperbarui, total produk {total_products}, {gangguan_count} terdeteksi gangguan"
     if deactivated_count > 0:
         msg_success += f", {deactivated_count} produk usang dinonaktifkan."
     else:
         msg_success += "."
+
+    if notify_admin_bot:
+        try:
+            from app.services.telegram_service import send_sync_report_to_admin_bot
+            send_sync_report_to_admin_bot(msg_success, is_cron=True)
+        except Exception as e_tele:
+            print(f"[SYNC NOTIF BOT ERROR] Gagal mengirim laporan ke Bot 3: {e_tele}")
 
     return True, msg_success
 
