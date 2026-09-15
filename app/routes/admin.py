@@ -279,10 +279,42 @@ def test_connection(tipe):
 
 @admin_bp.route('/sync_digiflazz', methods=['POST'])
 def sync_digiflazz():
-    success, message = sync_products()
-    if success: flash(message, 'success')
-    else: flash(message, 'danger')
+    force = request.args.get('force') == '1' or request.form.get('force') == '1'
+    success, message = sync_products(force=force)
+    if success:
+        flash(message, 'success')
+    else:
+        category = 'warning' if 'Cooldown' in message else 'danger'
+        flash(message, category)
     return redirect(url_for('admin.dashboard'))
+
+@admin_bp.route('/api/cron/sync-products', methods=['GET', 'POST'])
+@csrf.exempt
+def cron_sync_products():
+    """
+    Endpoint otomatis untuk Cron Job VPS Linux (disarankan setiap 30 menit).
+    Proteksi token keamanan: Header 'X-Cron-Key' atau parameter '?key=...'.
+    Contoh command crontab Linux:
+    */30 * * * * curl -s -X POST "https://ipay.my.id/api/cron/sync-products?key=CRON_SECRET" > /dev/null 2>&1
+    """
+    cron_secret = os.getenv('CRON_SECRET_KEY', 'ipay-cron-secret-2026').strip()
+    provided_key = request.headers.get('X-Cron-Key') or request.args.get('key') or request.form.get('key') or ''
+
+    if not provided_key or provided_key != cron_secret:
+        return jsonify({
+            'status': 'error',
+            'message': 'Unauthorized: Token keamanan cron job tidak valid'
+        }), 403
+
+    force = request.args.get('force') == '1'
+    ok, msg = sync_products(force=force)
+    status_str = 'success' if ok else ('cooldown' if 'Cooldown' in msg else 'error')
+
+    return jsonify({
+        'status': status_str,
+        'message': msg,
+        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    }), (200 if ok or 'Cooldown' in msg else 500)
 
 @admin_bp.route('/change-password', methods=['POST'])
 def change_password():

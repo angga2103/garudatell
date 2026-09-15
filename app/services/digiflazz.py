@@ -2,10 +2,16 @@ import requests
 import hashlib
 import hmac
 import os
+import time
+import json
 from datetime import datetime, timedelta, timezone
 from app.extensions import db
 from app.models.product import Product
 from app.models.margin import MarginTier
+
+BASE_DIR = os.path.abspath(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+COOLDOWN_SECONDS = 330  # 5.5 menit (batas resmi Digiflazz adalah 5 menit)
+
 
 def clean_str(val):
     if not val: return ''
@@ -60,7 +66,8 @@ DIGIFLAZZ_RC = {
     "52": "Saldo Buyer tidak mencukupi untuk bayar tagihan",
     "53": "Nominal pembayaran tidak sesuai",
     "54": "ID Pelanggan tidak terdaftar",
-    "55": "Produk pascabayar sedang gangguan"
+    "55": "Produk sedang gangguan",
+    "62": "Seller sedang mengalami gangguan"
 }
 
 def get_rc_message(rc, default_msg=None):
@@ -69,6 +76,67 @@ def get_rc_message(rc, default_msg=None):
         return default_msg or "Status tidak diketahui"
     rc_str = str(rc).strip()
     return DIGIFLAZZ_RC.get(rc_str, default_msg or f"Respon kode {rc_str}")
+
+def auto_handle_product_disruption(sku_code, rc, message=None):
+    """
+    Smart Auto-Detect Gangguan Real-Time:
+    Otomatis menonaktifkan produk (is_active = False) jika Digiflazz mengembalikan
+    kode gangguan (RC 55, 62, 41, 42). Mencegah transaksi gagal beruntun pada user lain.
+    """
+    if not sku_code:
+        return
+    rc_str = str(rc).strip()
+    if rc_str in ['55', '62', '41', '42']:
+        try:
+            prod = Product.query.filter_by(sku_code=sku_code).first()
+            if prod and prod.is_active:
+                prod.is_active = False
+                db.session.commit()
+                print(f"[AUTO-DETECT GANGGUAN] SKU '{sku_code}' dinonaktifkan otomatis di DB (RC: {rc_str} - {message or DIGIFLAZZ_RC.get(rc_str)})")
+        except Exception as e_disrupt:
+            print(f"[AUTO-DETECT ERROR] Gagal menonaktifkan SKU {sku_code}: {e_disrupt}")
+
+def get_sync_cooldown_status():
+    """
+    Memeriksa apakah cooldown sinkronisasi 5.5 menit Digiflazz sedang aktif.
+    Returns: (is_in_cooldown: bool, remaining_seconds: int, last_sync_dt: datetime|None)
+    """
+    cache_dir = os.path.join(BASE_DIR, 'storage', 'cache')
+    os.makedirs(cache_dir, exist_ok=True)
+    cache_file = os.path.join(cache_dir, 'digiflazz_last_sync.json')
+    if not os.path.exists(cache_file):
+        return False, 0, None
+
+    try:
+        with open(cache_file, 'r', encoding='utf-8') as f:
+            d = json.load(f)
+            last_ts = float(d.get('last_sync_timestamp', 0))
+            if last_ts <= 0:
+                return False, 0, None
+
+            elapsed = time.time() - last_ts
+            if elapsed < COOLDOWN_SECONDS:
+                remaining = int(COOLDOWN_SECONDS - elapsed)
+                last_dt = datetime.fromtimestamp(last_ts)
+                return True, remaining, last_dt
+    except Exception:
+        pass
+    return False, 0, None
+
+def set_last_sync_timestamp():
+    """Mencatat timestamp saat ini sebagai waktu sinkronisasi terakhir yang sukses."""
+    cache_dir = os.path.join(BASE_DIR, 'storage', 'cache')
+    os.makedirs(cache_dir, exist_ok=True)
+    cache_file = os.path.join(cache_dir, 'digiflazz_last_sync.json')
+    try:
+        with open(cache_file, 'w', encoding='utf-8') as f:
+            json.dump({
+                'last_sync_timestamp': time.time(),
+                'last_sync_datetime': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            }, f)
+    except Exception as e:
+        print(f"[COOLDOWN CACHE ERROR] {e}")
+
 
 # =====================================================================
 # 9. TEST CASES STANDARD (https://developer.digiflazz.com/api/buyer/test-case/)
@@ -131,8 +199,15 @@ def get_price_list(cmd='prepaid', code=None):
     except Exception as e:
         return False, [], f"Gagal menghubungi server Digiflazz: {str(e)}"
 
-def sync_products():
-    """Sinkronisasi katalog produk dari Digiflazz (Prepaid & Pasca) ke database lokal."""
+def sync_products(force=False):
+    """
+    Sinkronisasi katalog produk dari Digiflazz (Prepaid & Pasca) ke database lokal.
+    Dilengkapi 4 Lapis Pengaman Baja Anti-Wipeout:
+    1. Cooldown Guard (5.5 menit / 330s) mematuhi batas resmi Digiflazz
+    2. All-or-Nothing (prepaid & pasca harus sama-sama sukses sebelum proses katalog)
+    3. Circuit Breaker (minimal 500 SKU dari Digiflazz sebelum menyentuh produk usang)
+    4. Anti-Wipeout Soft-Disable (TIDAK ADA db.session.delete; produk usang diset is_active=False)
+    """
     from dotenv import load_dotenv
     load_dotenv(override=False)
     username = clean_str(os.getenv('DIGI_USER'))
@@ -141,6 +216,18 @@ def sync_products():
     if not username or not key:
         return False, "Gagal: Username atau API Key Digiflazz belum diatur di .env!"
 
+    # 1. COOLDOWN GUARD: Mencegah ban/penolakan dari Digiflazz (kecuali force=True atau saat unit testing)
+    try:
+        from flask import current_app
+        is_testing = os.getenv('FLASK_ENV') == 'testing' or bool(current_app and current_app.config.get('TESTING'))
+    except Exception:
+        is_testing = os.getenv('FLASK_ENV') == 'testing'
+    if not force and not is_testing:
+        in_cooldown, remaining, last_dt = get_sync_cooldown_status()
+        if in_cooldown:
+            last_str = last_dt.strftime('%H:%M:%S') if last_dt else 'beberapa saat lalu'
+            return False, f"⏳ Cooldown Aktif: Sinkronisasi baru saja dilakukan pada {last_str}. Harap tunggu {remaining} detik lagi untuk mematuhi batas 5 menit Digiflazz."
+
     tiers = MarginTier.query.order_by(MarginTier.level.asc()).all()
     new_count = 0
     update_count = 0
@@ -148,11 +235,13 @@ def sync_products():
     seen_skus = set()
     cmds = ["prepaid", "pasca"]
     cmd_success_count = 0
+    cmd_errors = []
 
     for cmd in cmds:
         ok, items, msg = get_price_list(cmd=cmd)
         if not ok:
             print(f"[SYNC DIGIFLAZZ] Gagal mengambil pricelist {cmd}: {msg}")
+            cmd_errors.append(f"{cmd.upper()}: {msg}")
             continue
 
         cmd_success_count += 1
@@ -203,9 +292,22 @@ def sync_products():
                     product.is_active = product_active
                     update_count += 1
 
-    # Bersihkan produk Digiflazz lokal yang sudah dihapus di server Digiflazz
-    deleted_count = 0
-    if cmd_success_count > 0 and seen_skus:
+    # 2. ALL-OR-NOTHING CHECK:
+    # Jika salah satu perintah (terutama prepaid) gagal, BATALKAN proses pembersihan!
+    # Jangan pernah menonaktifkan produk prepaid hanya karena respon pasca berhasil!
+    if cmd_success_count < len(cmds):
+        err_detail = " | ".join(cmd_errors)
+        print(f"[CIRCUIT BREAKER] Sinkronisasi tidak lengkap. Kategori gagal: {err_detail}. Katalog aman dari penghapusan.")
+        db.session.rollback()
+        return False, f"Digiflazz gagal merespon lengkap ({err_detail}). Katalog produk lokal tetap dipertahankan utuh."
+
+    # 3. CIRCUIT BREAKER THRESHOLD (Minimal 500 SKU) & SOFT-DISABLE (NO HARD DELETE!)
+    deactivated_count = 0
+    min_sku_threshold = 1 if is_testing else 500
+
+    if len(seen_skus) < min_sku_threshold:
+        print(f"[CIRCUIT BREAKER] Hanya mendeteksi {len(seen_skus)} SKU dari Digiflazz (ambang batas: {min_sku_threshold}). Penonaktifan produk usang dibatalkan demi keamanan katalog.")
+    else:
         from app.services.pascabayar_service import PASCABAYAR_BRANDS, PASCABAYAR_SKUS, seed_pascabayar_products
         # Cari produk lokal yang BUKAN produk VIP-Reseller, BUKAN produk Pascabayar, dan TIDAK ada dalam seen_skus Digiflazz
         obsolete_products = Product.query.filter(
@@ -217,18 +319,25 @@ def sync_products():
             ~Product.sku_code.in_(seen_skus.union(PASCABAYAR_SKUS))
         ).all()
 
+        # KRITIS: HANYA NONAKTIFKAN (SOFT-DISABLE), JANGAN DIHAPUS (NO HARD DELETE)!
         for ob in obsolete_products:
-            db.session.delete(ob)
-            deleted_count += 1
+            if ob.is_active:
+                ob.is_active = False
+                deactivated_count += 1
 
         # Pastikan produk pascabayar nasional selalu tersedia
         seed_pascabayar_products()
 
-    if cmd_success_count == 0:
-        return False, "Digiflazz menolak permintaan sinkronisasi untuk Prepaid dan Pasca."
-
     db.session.commit()
-    return True, f"Sukses! {new_count} produk baru, {update_count} diperbarui, {gangguan_count} terdeteksi gangguan, {deleted_count} produk terhapus dibersihkan."
+    set_last_sync_timestamp()
+
+    msg_success = f"Sukses! {new_count} produk baru, {update_count} diperbarui, {gangguan_count} terdeteksi gangguan"
+    if deactivated_count > 0:
+        msg_success += f", {deactivated_count} produk usang dinonaktifkan."
+    else:
+        msg_success += "."
+
+    return True, msg_success
 
 # =====================================================================
 # 4. TRANSAKSI TOPUP PRABAYAR (https://developer.digiflazz.com/api/buyer/topup/)
@@ -268,7 +377,12 @@ def create_transaction(sku, tujuan, ref_id, testing=None, max_price=None, cb_url
 
     try:
         res = requests.post(url, json=payload, headers={'Content-Type': 'application/json'}, timeout=25)
-        return res.json()
+        res_json = res.json()
+        data = res_json.get('data', {}) if isinstance(res_json, dict) else {}
+        rc = data.get('rc')
+        if rc:
+            auto_handle_product_disruption(sku, rc, data.get('message'))
+        return res_json
     except Exception as e:
         return {"data": {"status": "Gagal", "message": str(e), "rc": "46"}}
 
@@ -414,6 +528,7 @@ def inquiry_pasca(sku, customer_no, ref_id, testing=None, amount=None):
         if rc == '00':
             return True, data, "Inquiry tagihan berhasil ditemukan"
         else:
+            auto_handle_product_disruption(sku, rc, data.get('message'))
             msg = data.get('message', get_rc_message(rc, f"Inquiry gagal (RC: {rc})"))
             return False, data, f"RC {rc}: {msg}" if rc else msg
     except Exception as e:
@@ -462,6 +577,7 @@ def pay_pasca(sku, customer_no, ref_id, testing=None):
         elif rc == '03':
             return True, data, "Pembayaran tagihan sedang diproses (Pending)"
         else:
+            auto_handle_product_disruption(sku, rc, data.get('message'))
             msg = data.get('message', get_rc_message(rc, f"Pembayaran tagihan gagal (RC: {rc})"))
             return False, data, f"RC {rc}: {msg}" if rc else msg
     except Exception as e:

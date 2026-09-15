@@ -105,10 +105,21 @@ def create_app():
         endpoint_name = 'alias_' + path.replace('/', '_').strip('_')
         app.add_url_rule(path, endpoint=endpoint_name, view_func=handler, methods=['POST'])
 
+    # Daftarkan Alias Route Cron Job Otomatis (/api/cron/sync-products)
+    from app.routes.admin import cron_sync_products
+    app.add_url_rule('/api/cron/sync-products', endpoint='alias_api_cron_sync_products', view_func=cron_sync_products, methods=['GET', 'POST'])
+
     # Daftarkan Alias Route AJAX Auth (/api/auth_ajax & /api/check_wa_status)
     from app.routes.auth import auth_ajax, check_wa_status
     app.add_url_rule('/api/auth_ajax', endpoint='alias_api_auth_ajax', view_func=auth_ajax, methods=['POST'])
     app.add_url_rule('/api/check_wa_status', endpoint='alias_api_check_wa_status', view_func=check_wa_status, methods=['GET'])
+
+    @app.cli.command("sync-digiflazz")
+    def cli_sync_digiflazz():
+        """Sinkronisasi katalog Digiflazz via terminal CLI VPS."""
+        from app.services.digiflazz import sync_products
+        ok, msg = sync_products(force=True)
+        print(f"[{'SUCCESS' if ok else 'FAILED'}] {msg}")
 
     with app.app_context():
         from app.models import CommissionLog, TrustedDevice, PostpaidInquiry  # Pastikan seluruh model terdaftar di metadata SQLAlchemy

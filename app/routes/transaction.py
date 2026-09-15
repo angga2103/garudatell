@@ -1119,7 +1119,7 @@ def callback_digiflazz():
             trx.status = 'SUCCESS'
             trx.sn = sn or trx.sn
             award_transaction_points(trx.user_id, ref_id)
-        elif 'gagal' in status or 'failed' in status or 'error' in status or rc in ['01', '41', '42', '50', '52']:
+        elif 'gagal' in status or 'failed' in status or 'error' in status or rc in ['01', '41', '42', '50', '52', '55', '62']:
             # AUTO-REFUND hanya jika status sebelumnya belum FAILED (mencegah double refund)
             if old_status != 'FAILED' and trx.payment_status == 'PAID' and trx.payment_method == 'SALDO':
                 if trx.device_id:
@@ -1151,8 +1151,8 @@ def callback_digiflazz():
             from app.services.provider_helper import sanitize_public_sn_message
             trx.sn = sanitize_public_sn_message(sn or message, rc=rc)
 
-            # DETEKSI OTOMATIS GANGGUAN DIGIFLAZZ (RC 41: Gangguan, 55: Pasca Gangguan, atau keyword)
-            if rc in ['41', '55'] or 'gangguan' in str(sn or message).lower() or 'cut off' in str(sn or message).lower():
+            # DETEKSI OTOMATIS GANGGUAN DIGIFLAZZ (RC 41: Gangguan, 42: Cut-Off, 55: Pasca Gangguan, 62: Seller Gangguan)
+            if rc in ['41', '42', '55', '62'] or 'gangguan' in str(sn or message).lower() or 'cut off' in str(sn or message).lower():
                 try:
                     if trx.sku_code:
                         Product.query.filter_by(sku_code=trx.sku_code).update({'is_active': False})
