@@ -5,8 +5,8 @@ from app.extensions import db
 from app.models.setting import Setting
 
 ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
-DEFAULT_STORE_NAME = "GarudaTel"
-DEFAULT_TAGLINE = "Platform PPOB & Top Up Terpercaya"
+DEFAULT_STORE_NAME = ""
+DEFAULT_TAGLINE = ""
 DEFAULT_FOOTER = "Terima kasih atas kepercayaan Anda!"
 
 def allowed_file(filename):
@@ -22,7 +22,7 @@ def get_setting_value(key, default=""):
     return default
 
 def get_store_name():
-    """Mengembalikan nama toko dinamis saat ini (default: GarudaTel)."""
+    """Mengembalikan nama toko dinamis saat ini dari tabel Setting (Profil Toko)."""
     return get_setting_value('store_name', DEFAULT_STORE_NAME)
 
 def get_store_settings():

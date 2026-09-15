@@ -36,11 +36,19 @@ def format_rupiah(amount):
         return "0"
 
 def get_app_store_name():
+    """Mengambil nama web/toko dinamis dari pengaturan profil toko (tabel Setting key 'store_name')."""
     try:
         from app.services.setting_service import get_store_name
-        return get_store_name() or "GarudaTel"
+        name = get_store_name()
+        if name and name.strip() and name.strip().lower() != "garudatel":
+            return name.strip()
+        from app.models.setting import Setting
+        s = Setting.query.filter_by(key='store_name').first()
+        if s and s.value and s.value.strip() and s.value.strip().lower() != "garudatel":
+            return s.value.strip()
+        return name.strip() if name and name.strip().lower() != "garudatel" else ""
     except Exception:
-        return "GarudaTel"
+        return ""
 
 # ==============================================================================
 # 1. NOTIFIKASI PENAMBAHAN / PENGURANGAN SALDO VIA ADMIN (USER & UPLINE)
@@ -52,10 +60,14 @@ def _build_adjustment_message_user(store_name, user_name, old_balance, amount, n
     new_str = format_rupiah(new_balance)
     clean_note = note.strip() if note else '-'
 
+    store_in = f" di *{store_name}*" if store_name else ""
+    store_from = f" dari *{store_name}*" if store_name else ""
+    store_thanks = f" bersama {store_name}" if store_name else ""
+
     if action == 'add':
         return (
             f"Halo Kak *{user_name}*, 😊\n\n"
-            f"Kabar baik! Saldo akun Anda di *{store_name}* telah berhasil *DITAMBAHKAN* oleh Admin ({admin_source}).\n\n"
+            f"Kabar baik! Saldo akun Anda{store_in} telah berhasil *DITAMBAHKAN* oleh Admin ({admin_source}).\n\n"
             f"📋 *DETAIL PENAMBAHAN SALDO:*\n"
             f"• Ref ID: `{ref_id}`\n"
             f"• Saldo Awal: *Rp {old_str}*\n"
@@ -63,12 +75,12 @@ def _build_adjustment_message_user(store_name, user_name, old_balance, amount, n
             f"• Saldo Sekarang: *Rp {new_str}*\n"
             f"• Waktu: {wib_str} WIB\n"
             f"• Keterangan: _{clean_note}_\n\n"
-            f"Terima kasih atas kepercayaannya bersama {store_name}. Selamat bertransaksi kembali, semoga usaha dan penjualan Kakak semakin lancar, sukses, dan berkah! 🚀🙏"
+            f"Terima kasih atas kepercayaannya{store_thanks}. Selamat bertransaksi kembali, semoga usaha dan penjualan Kakak semakin lancar, sukses, dan berkah! 🚀🙏"
         )
     else:
         return (
             f"Halo Kak *{user_name}*, 😊\n\n"
-            f"Pemberitahuan resmi dari *{store_name}*: Telah dilakukan *PENYESUAIAN SALDO* pada akun Anda oleh Admin ({admin_source}).\n\n"
+            f"Pemberitahuan resmi{store_from}: Telah dilakukan *PENYESUAIAN SALDO* pada akun Anda oleh Admin ({admin_source}).\n\n"
             f"📋 *DETAIL PENYESUAIAN SALDO:*\n"
             f"• Ref ID: `{ref_id}`\n"
             f"• Saldo Awal: *Rp {old_str}*\n"
@@ -84,11 +96,12 @@ def _build_adjustment_message_upline(store_name, upline_name, user_name, user_ph
     old_str = format_rupiah(old_balance)
     amt_str = format_rupiah(amount)
     new_str = format_rupiah(new_balance)
+    store_from = f" dari *{store_name}*" if store_name else ""
 
     if action == 'add':
         return (
             f"Halo Kak *{upline_name}*, 😊\n\n"
-            f"Pemberitahuan kemitraan dari *{store_name}*:\n\n"
+            f"Pemberitahuan kemitraan{store_from}:\n\n"
             f"Mitra / Downline Anda:\n"
             f"👤 Nama: *{user_name}*\n"
             f"📱 No. WhatsApp: `{user_phone}`\n\n"
@@ -103,7 +116,7 @@ def _build_adjustment_message_upline(store_name, upline_name, user_name, user_ph
     else:
         return (
             f"Halo Kak *{upline_name}*, 😊\n\n"
-            f"Pemberitahuan kemitraan dari *{store_name}*:\n\n"
+            f"Pemberitahuan kemitraan{store_from}:\n\n"
             f"Telah dilakukan penyesuaian saldo oleh Admin untuk mitra/downline Anda:\n"
             f"👤 Nama: *{user_name}*\n"
             f"📱 No. WhatsApp: `{user_phone}`\n\n"
@@ -191,28 +204,25 @@ def _build_low_balance_message_user(store_name, user_name, current_balance):
     bal_str = format_rupiah(current_balance)
     return (
         f"Halo Kak *{user_name}*, 😊\n\n"
-        f"Pengingat ramah dari *{store_name}*:\n\n"
         f"⚠️ *PERINGATAN SISA SALDO MINIM*\n"
         f"Saat ini sisa saldo akun Anda berada di bawah batas aman:\n"
         f"💰 *Sisa Saldo Saat Ini:* *Rp {bal_str}* (di bawah Rp 100.000)\n\n"
         f"Agar aktivitas transaksi dan pemesanan pelanggan di toko Kakak tetap berjalan lancar tanpa kendala, yuk segera lakukan isi ulang (Top Up) saldo akun Anda.\n\n"
-        f"📌 *Cara Top Up Praktis:*\n"
-        f"1. Buka menu *Deposit Saldo* di web {store_name}\n"
-        f"2. Masukkan nominal & bayar mudah via QRIS (Otomatis masuk hitungan detik!)\n\n"
         f"Terima kasih banyak atas perhatiannya, semoga rezeki dan penjualan toko Kakak semakin berkah & melimpah! 🙏✨"
     )
 
 def _build_low_balance_message_upline(store_name, upline_name, user_name, user_phone, current_balance):
     bal_str = format_rupiah(current_balance)
+    store_from = f" dari *{store_name}*" if store_name else ""
     return (
         f"Halo Kak *{upline_name}*, 😊\n\n"
-        f"Pemberitahuan kemitraan dari *{store_name}*:\n\n"
+        f"Pemberitahuan kemitraan{store_from}:\n\n"
         f"Mitra / Downline Anda:\n"
         f"👤 Nama: *{user_name}*\n"
         f"📱 No. WhatsApp: `{user_phone}`\n"
         f"💰 *Sisa Saldo:* *Rp {bal_str}* (di bawah batas Rp 100.000)\n\n"
         f"Demi menjaga kelancaran transaksi penjualan toko mitra Anda serta kelangsungan bonus komisi kemitraan Anda, Kakak dapat mengingatkan mitra tersebut untuk segera melakukan isi saldo.\n\n"
-        f"Terima kasih atas peran aktif Kakak dalam membimbing jaringan kemitraan {store_name}! 🚀🤝"
+        f"Terima kasih atas peran aktif Kakak dalam membimbing jaringan kemitraan! 🚀🤝"
     )
 
 def _dispatch_low_balance_worker(app, user_id, current_balance):
@@ -304,3 +314,4 @@ def check_and_notify_low_balance(user_id, old_balance, new_balance):
             return False
 
     return False
+

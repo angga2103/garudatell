@@ -60,9 +60,9 @@ class TestWABalanceNotifications(unittest.TestCase):
         self.app_context.pop()
 
     def test_build_adjustment_messages_format(self):
-        """Memastikan pesan WhatsApp penambahan saldo admin ramah, rapi, dan mencakup saldo awal, nominal, saldo akhir."""
+        """Memastikan pesan WhatsApp penambahan saldo admin ramah, rapi, dan mencakup saldo awal, nominal, saldo akhir dengan nama profil toko dinamis."""
         msg_user_add = _build_adjustment_message_user(
-            store_name="GarudaTel",
+            store_name="iPay",
             user_name="Toko Berkah",
             old_balance=100000,
             amount=50000,
@@ -74,7 +74,8 @@ class TestWABalanceNotifications(unittest.TestCase):
             wib_str='15/09/2026 18:00'
         )
         self.assertIn("Toko Berkah", msg_user_add)
-        self.assertIn("GarudaTel", msg_user_add)
+        self.assertIn("iPay", msg_user_add)
+        self.assertNotIn("GarudaTel", msg_user_add)
         self.assertIn("DITAMBAHKAN", msg_user_add)
         self.assertIn("Rp 100.000", msg_user_add)   # Saldo awal
         self.assertIn("+Rp 50.000", msg_user_add)   # Nominal masuk
@@ -83,7 +84,7 @@ class TestWABalanceNotifications(unittest.TestCase):
         self.assertIn("Bonus Promo Agen", msg_user_add)
 
         msg_upline_add = _build_adjustment_message_upline(
-            store_name="GarudaTel",
+            store_name="iPay",
             upline_name="Bos Agen Upline",
             user_name="Toko Berkah",
             user_phone="6282222222222",
@@ -97,6 +98,8 @@ class TestWABalanceNotifications(unittest.TestCase):
         self.assertIn("Bos Agen Upline", msg_upline_add)
         self.assertIn("Toko Berkah", msg_upline_add)
         self.assertIn("6282222222222", msg_upline_add)
+        self.assertIn("iPay", msg_upline_add)
+        self.assertNotIn("GarudaTel", msg_upline_add)
         self.assertIn("Rp 100.000", msg_upline_add)
         self.assertIn("+Rp 50.000", msg_upline_add)
         self.assertIn("Rp 150.000", msg_upline_add)
@@ -104,7 +107,7 @@ class TestWABalanceNotifications(unittest.TestCase):
     def test_build_deduction_messages_format(self):
         """Memastikan pesan WhatsApp pengurangan/sinkronisasi saldo admin ramah dan jelas."""
         msg_user_deduct = _build_adjustment_message_user(
-            store_name="GarudaTel",
+            store_name="iPay",
             user_name="Toko Berkah",
             old_balance=200000,
             amount=50000,
@@ -116,24 +119,32 @@ class TestWABalanceNotifications(unittest.TestCase):
             wib_str='15/09/2026 18:00'
         )
         self.assertIn("PENYESUAIAN SALDO", msg_user_deduct)
+        self.assertIn("iPay", msg_user_deduct)
+        self.assertNotIn("GarudaTel", msg_user_deduct)
         self.assertIn("Rp 200.000", msg_user_deduct)  # Saldo awal
         self.assertIn("-Rp 50.000", msg_user_deduct)  # Nominal penyesuaian
         self.assertIn("Rp 150.000", msg_user_deduct)  # Saldo sekarang
         self.assertIn("Koreksi Transaksi Dobel", msg_user_deduct)
 
     def test_low_balance_alert_messages_format(self):
-        """Memastikan format pesan peringatan saldo minim ramah & profesional."""
-        msg_user_low = _build_low_balance_message_user("GarudaTel", "Toko Berkah", 45000)
+        """Memastikan format pesan peringatan saldo minim ramah & profesional tanpa Pengingat ramah GarudaTel dan tanpa Cara Top Up Praktis."""
+        msg_user_low = _build_low_balance_message_user("iPay", "Toko Berkah", 45000)
         self.assertIn("PERINGATAN SISA SALDO MINIM", msg_user_low)
         self.assertIn("Rp 45.000", msg_user_low)
         self.assertIn("Rp 100.000", msg_user_low)
-        self.assertIn("Deposit Saldo", msg_user_low)
+        # Memastikan teks yang diminta dihapus benar-benar tidak ada
+        self.assertNotIn("Pengingat ramah", msg_user_low)
+        self.assertNotIn("Cara Top Up Praktis", msg_user_low)
+        self.assertNotIn("Deposit Saldo", msg_user_low)
+        self.assertNotIn("GarudaTel", msg_user_low)
 
-        msg_upline_low = _build_low_balance_message_upline("GarudaTel", "Bos Agen", "Toko Berkah", "6282222222222", 45000)
+        msg_upline_low = _build_low_balance_message_upline("iPay", "Bos Agen", "Toko Berkah", "6282222222222", 45000)
         self.assertIn("Bos Agen", msg_upline_low)
         self.assertIn("Toko Berkah", msg_upline_low)
         self.assertIn("Rp 45.000", msg_upline_low)
         self.assertIn("bonus komisi kemitraan", msg_upline_low)
+        self.assertNotIn("Pengingat ramah", msg_upline_low)
+        self.assertNotIn("GarudaTel", msg_upline_low)
 
     @patch('app.services.balance_notification_service.kirim_wa')
     def test_low_balance_trigger_and_cooldown(self, mock_kirim_wa):
