@@ -81,13 +81,22 @@
 <!-- FILTER & SEARCH BAR -->
 <div class="filter-card">
     <form method="GET" action="{{ url_for('admin.transactions') }}" class="filter-form">
-        <input type="text" name="q" value="{{ search_q }}" placeholder="Cari Ref ID / No Tujuan / Produk..." class="filter-input">
+        <input type="text" name="q" value="{{ search_q }}" placeholder="Cari Ref ID / Nama Toko / Produk / Tujuan..." class="filter-input">
         
+        <select name="store_id" class="filter-select" style="min-width: 180px;">
+            <option value="">-- Pilih Toko (Semua) --</option>
+            {% for st in all_stores %}
+            <option value="{{ st.id }}" {% if store_id == (st.id|string) %}selected{% endif %}>
+                🏢 {{ st.name }} (User #{{ st.id }})
+            </option>
+            {% endfor %}
+        </select>
+
         <select name="status" class="filter-select">
             <option value="">-- Status Trx (Semua) --</option>
-            <option value="SUCCESS" {% if status_filter == 'SUCCESS' %}selected{% endif %}>SUCCESS</option>
-            <option value="PENDING" {% if status_filter == 'PENDING' %}selected{% endif %}>PENDING</option>
-            <option value="FAILED" {% if status_filter == 'FAILED' %}selected{% endif %}>FAILED</option>
+            <option value="SUCCESS" {% if status_filter == 'SUCCESS' %}selected{% endif %}>SUCCESS (Sukses)</option>
+            <option value="PENDING" {% if status_filter == 'PENDING' %}selected{% endif %}>PENDING (Proses)</option>
+            <option value="FAILED" {% if status_filter == 'FAILED' %}selected{% endif %}>FAILED (Gagal)</option>
         </select>
 
         <select name="payment_status" class="filter-select">
@@ -103,7 +112,7 @@
         </select>
 
         <button type="submit" class="btn-filter"><i class="fas fa-search"></i> Filter</button>
-        {% if search_q or status_filter or payment_filter or source_filter %}
+        {% if search_q or status_filter or payment_filter or source_filter or store_id %}
         <a href="{{ url_for('admin.transactions') }}" class="btn-reset-filter"><i class="fas fa-times"></i> Reset</a>
         {% endif %}
 
@@ -114,6 +123,53 @@
         </button>
     </form>
 </div>
+
+{% if selected_store %}
+<!-- BANNER RINGKASAN KHUSUS TOKO TERPILIH -->
+<div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: white; border-radius: 14px; padding: 18px 24px; margin-bottom: 24px; box-shadow: 0 8px 20px rgba(0,0,0,0.12); display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; border-left: 6px solid #38bdf8;">
+    <div>
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <span style="font-size: 19px; font-weight: 800; color: #38bdf8;"><i class="fas fa-store"></i> {{ selected_store.name }}</span>
+            <span style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 99px;">User #{{ selected_store.id }}</span>
+            <span style="background: #10b981; color: white; font-size: 12px; font-weight: 800; padding: 3px 12px; border-radius: 99px;">
+                <i class="fas fa-wallet"></i> Saldo: Rp {{ "{:,.0f}".format(selected_store.balance or 0).replace(',', '.') }}
+            </span>
+        </div>
+        <div style="font-size: 12px; color: #94a3b8; margin-top: 6px;">
+            <i class="fab fa-whatsapp" style="color: #22c55e;"></i> {{ selected_store.phone }} &nbsp;|&nbsp; 
+            Role: <b>{{ selected_store.role|upper }}</b> &nbsp;|&nbsp; 
+            Status Akun: <span style="color: {{ '#34d399' if selected_store.is_active else '#f87171' }}; font-weight: 800;">{{ 'AKTIF' if selected_store.is_active else 'DIBLOKIR' }}</span>
+        </div>
+    </div>
+    
+    <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+        <div style="background: rgba(255,255,255,0.06); padding: 8px 14px; border-radius: 10px; text-align: center; border: 1px solid rgba(255,255,255,0.1);">
+            <div style="font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: 700;">Total Trx</div>
+            <div style="font-size: 17px; font-weight: 800; color: white;">{{ "{:,}".format(store_total) }}</div>
+        </div>
+        <a href="{{ url_for('admin.transactions', store_id=selected_store.id, status='SUCCESS') }}" 
+           title="Klik untuk filter transaksi Sukses toko ini"
+           style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); padding: 8px 14px; border-radius: 10px; text-align: center; text-decoration: none; display: block; transition: 0.2s;">
+            <div style="font-size: 10px; color: #34d399; text-transform: uppercase; font-weight: 800;">✅ Sukses</div>
+            <div style="font-size: 17px; font-weight: 900; color: #34d399;">{{ "{:,}".format(store_success) }}</div>
+        </a>
+        <a href="{{ url_for('admin.transactions', store_id=selected_store.id, status='FAILED') }}" 
+           title="Klik untuk filter transaksi Gagal toko ini"
+           style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); padding: 8px 14px; border-radius: 10px; text-align: center; text-decoration: none; display: block; transition: 0.2s;">
+            <div style="font-size: 10px; color: #f87171; text-transform: uppercase; font-weight: 800;">❌ Gagal</div>
+            <div style="font-size: 17px; font-weight: 900; color: #f87171;">{{ "{:,}".format(store_failed) }}</div>
+        </a>
+        <div style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); padding: 8px 14px; border-radius: 10px; text-align: center;">
+            <div style="font-size: 10px; color: #fbbf24; text-transform: uppercase; font-weight: 700;">💵 Omset Sukses</div>
+            <div style="font-size: 17px; font-weight: 900; color: #fbbf24;">Rp {{ "{:,.0f}".format(store_revenue).replace(',', '.') }}</div>
+        </div>
+        <button type="button" onclick="openStoreAdjustBalanceModal('{{ selected_store.id }}', '{{ selected_store.name }}', '{{ selected_store.balance or 0 }}')"
+                style="background: #2563eb; color: white; border: none; padding: 10px 16px; border-radius: 10px; font-size: 12px; font-weight: 800; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 10px rgba(37,99,235,0.3);">
+            <i class="fas fa-coins"></i> Atur Saldo Toko
+        </button>
+    </div>
+</div>
+{% endif %}
 
 <!-- DATA TABLE -->
 <div class="table-container">
@@ -155,11 +211,23 @@
                     {% endif %}
                 </td>
                 <td>
-                    <div style="font-weight: 700;">{{ t.product_name }}</div>
-                    <div style="font-size: 10px; color: #64748B;">SKU: {{ t.sku_code }}</div>
+                    {% if t.sku_code == 'DEPOSIT_MANUAL' %}
+                        <div style="font-weight: 800; color: #15803d; display: flex; align-items: center; gap: 4px;">
+                            <i class="fas fa-plus-circle"></i> {{ t.product_name }}
+                        </div>
+                        <span style="background: #dcfce7; color: #166534; padding: 1px 6px; border-radius: 4px; font-size: 9px; font-weight: 800;">TOPUP SALDO MANUAL</span>
+                    {% elif t.sku_code == 'MANUAL_DEDUCTION' %}
+                        <div style="font-weight: 800; color: #b91c1c; display: flex; align-items: center; gap: 4px;">
+                            <i class="fas fa-minus-circle"></i> {{ t.product_name }}
+                        </div>
+                        <span style="background: #fee2e2; color: #991b1b; padding: 1px 6px; border-radius: 4px; font-size: 9px; font-weight: 800;">PENYESUAIAN SALDO</span>
+                    {% else %}
+                        <div style="font-weight: 700;">{{ t.product_name }}</div>
+                        <div style="font-size: 10px; color: #64748B;">SKU: {{ t.sku_code }}</div>
+                    {% endif %}
                 </td>
-                <td style="font-weight: 800; color: #059669;">
-                    Rp {{ "{:,.0f}".format(t.amount) }}
+                <td style="font-weight: 800; color: {% if t.sku_code == 'DEPOSIT_MANUAL' %}#16a34a{% elif t.sku_code == 'MANUAL_DEDUCTION' %}#dc2626{% else %}#059669{% endif %};">
+                    {% if t.sku_code == 'DEPOSIT_MANUAL' %}+ {% elif t.sku_code == 'MANUAL_DEDUCTION' %}- {% endif %}Rp {{ "{:,.0f}".format(t.amount) }}
                 </td>
                 <td>
                     <span style="font-size: 11px; font-weight: 800; color: #475569;">{{ t.payment_method|upper }}</span>
@@ -284,8 +352,135 @@
     </div>
 </div>
 
+<!-- MODAL ATUR SALDO TOKO -->
+<div id="storeAdjustBalanceModal" class="modal-overlay">
+    <div class="modal-box" style="max-width: 480px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid #E2E8F0; padding-bottom: 12px;">
+            <div>
+                <h3 style="margin: 0; font-size: 16px; color: #1E293B; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-coins" style="color: #2563EB;"></i> Atur Saldo Toko
+                </h3>
+                <div id="adj_store_subtitle" style="font-size: 11px; color: #64748B; margin-top: 3px;">Toko: -</div>
+            </div>
+            <button onclick="closeStoreAdjustBalanceModal()" style="background: none; border: none; font-size: 18px; color: #94A3B8; cursor: pointer;"><i class="fas fa-times"></i></button>
+        </div>
+
+        <form id="storeAdjustBalanceForm" method="POST" action="/admin/user/adjust_balance">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <input type="hidden" name="user_id" id="adj_user_id">
+            <input type="hidden" name="redirect_to" value="transactions">
+
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <span style="font-size: 10px; color: #64748B; font-weight: 800; text-transform: uppercase;">Saldo Saat Ini</span>
+                    <div id="adj_current_balance_text" style="font-size: 16px; font-weight: 900; color: #059669;">Rp 0</div>
+                </div>
+                <div style="text-align: right;">
+                    <span style="font-size: 10px; color: #64748B; font-weight: 800; text-transform: uppercase;">ID Pengguna</span>
+                    <div id="adj_user_id_text" style="font-size: 14px; font-weight: 800; color: #1E293B;">#0</div>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 14px;">
+                <label style="display: block; font-size: 11px; font-weight: 800; color: #64748B; margin-bottom: 6px;">Pilih Jenis Aksi Saldo</label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <label style="cursor: pointer;">
+                        <input type="radio" name="action" value="add" checked id="adj_action_add" style="display: none;" onchange="updateActionUI()">
+                        <div id="adj_box_add" style="padding: 10px; border-radius: 8px; border: 2px solid #10B981; background: #ECFDF5; text-align: center; color: #065F46; font-weight: 800; font-size: 12px;">
+                            <i class="fas fa-plus-circle"></i> Tambah Saldo (+)
+                        </div>
+                    </label>
+                    <label style="cursor: pointer;">
+                        <input type="radio" name="action" value="deduct" id="adj_action_deduct" style="display: none;" onchange="updateActionUI()">
+                        <div id="adj_box_deduct" style="padding: 10px; border-radius: 8px; border: 1px solid #CBD5E1; background: white; text-align: center; color: #64748B; font-weight: 800; font-size: 12px;">
+                            <i class="fas fa-minus-circle"></i> Potong Saldo (-)
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 14px;">
+                <label style="display: block; font-size: 11px; font-weight: 800; color: #64748B; margin-bottom: 5px;">Nominal (Rp)</label>
+                <input type="number" name="amount" id="adj_amount" min="1" step="any" required placeholder="Contoh: 100000" 
+                       style="width: 100%; padding: 10px 12px; border: 2px solid #CBD5E1; border-radius: 8px; font-size: 15px; font-weight: 800; box-sizing: border-box; outline: none;">
+                
+                <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px;">
+                    <button type="button" onclick="setAdjAmount(50000)" style="background: #F1F5F9; border: 1px solid #CBD5E1; padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; cursor: pointer;">+50rb</button>
+                    <button type="button" onclick="setAdjAmount(100000)" style="background: #F1F5F9; border: 1px solid #CBD5E1; padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; cursor: pointer;">+100rb</button>
+                    <button type="button" onclick="setAdjAmount(200000)" style="background: #F1F5F9; border: 1px solid #CBD5E1; padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; cursor: pointer;">+200rb</button>
+                    <button type="button" onclick="setAdjAmount(500000)" style="background: #F1F5F9; border: 1px solid #CBD5E1; padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; cursor: pointer;">+500rb</button>
+                    <button type="button" onclick="setAdjAmount(1000000)" style="background: #F1F5F9; border: 1px solid #CBD5E1; padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; cursor: pointer;">+1jt</button>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 18px;">
+                <label style="display: block; font-size: 11px; font-weight: 800; color: #64748B; margin-bottom: 5px;">Catatan / Keterangan (Muncul di Mutasi & Trx)</label>
+                <input type="text" name="note" id="adj_note" placeholder="Cth: Topup kasir toko / Penyesuaian selisih..." 
+                       style="width: 100%; padding: 8px 10px; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 12px; box-sizing: border-box;">
+            </div>
+
+            <button type="submit" id="adj_submit_btn" style="width: 100%; background: #10B981; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 13px; font-weight: 800; cursor: pointer; transition: 0.2s;">
+                <i class="fas fa-check-circle"></i> Eksekusi Tambah Saldo
+            </button>
+        </form>
+    </div>
+</div>
+
 <script>
     const CSRF_TOKEN = "{{ csrf_token() }}";
+
+    function openStoreAdjustBalanceModal(userId, userName, currentBalance) {
+        document.getElementById('adj_user_id').value = userId;
+        document.getElementById('adj_user_id_text').innerText = '#' + userId;
+        document.getElementById('adj_store_subtitle').innerText = 'Toko: ' + userName;
+        document.getElementById('adj_current_balance_text').innerText = 'Rp ' + Number(currentBalance || 0).toLocaleString('id-ID');
+        document.getElementById('adj_amount').value = '';
+        document.getElementById('adj_note').value = '';
+        
+        document.getElementById('adj_action_add').checked = true;
+        updateActionUI();
+
+        document.getElementById('storeAdjustBalanceModal').style.display = 'flex';
+    }
+
+    function closeStoreAdjustBalanceModal() {
+        document.getElementById('storeAdjustBalanceModal').style.display = 'none';
+    }
+
+    function setAdjAmount(amt) {
+        document.getElementById('adj_amount').value = amt;
+    }
+
+    function updateActionUI() {
+        const isAdd = document.getElementById('adj_action_add').checked;
+        const boxAdd = document.getElementById('adj_box_add');
+        const boxDeduct = document.getElementById('adj_box_deduct');
+        const btn = document.getElementById('adj_submit_btn');
+
+        if (isAdd) {
+            boxAdd.style.border = '2px solid #10B981';
+            boxAdd.style.background = '#ECFDF5';
+            boxAdd.style.color = '#065F46';
+
+            boxDeduct.style.border = '1px solid #CBD5E1';
+            boxDeduct.style.background = 'white';
+            boxDeduct.style.color = '#64748B';
+
+            btn.style.background = '#10B981';
+            btn.innerHTML = '<i class="fas fa-check-circle"></i> Eksekusi Tambah Saldo';
+        } else {
+            boxDeduct.style.border = '2px solid #EF4444';
+            boxDeduct.style.background = '#FEF2F2';
+            boxDeduct.style.color = '#991B1B';
+
+            boxAdd.style.border = '1px solid #CBD5E1';
+            boxAdd.style.background = 'white';
+            boxAdd.style.color = '#64748B';
+
+            btn.style.background = '#EF4444';
+            btn.innerHTML = '<i class="fas fa-minus-circle"></i> Eksekusi Potong Saldo';
+        }
+    }
 
     function openTrxModalBtn(btn) {
         const id = btn.getAttribute('data-id');

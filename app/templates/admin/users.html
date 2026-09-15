@@ -164,6 +164,80 @@
     </div>
 </div>
 
+<!-- MODAL ATUR SALDO TOKO -->
+<div id="storeAdjustBalanceModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(5px); overflow-y: auto; padding: 20px 10px; box-sizing: border-box;">
+    <div style="background: white; width: 100%; max-width: 480px; border-radius: 20px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); margin: auto; box-sizing: border-box;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid #E2E8F0; padding-bottom: 12px;">
+            <div>
+                <h3 style="margin: 0; font-size: 16px; color: #1E293B; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-coins" style="color: #2563EB;"></i> Atur Saldo Toko
+                </h3>
+                <div id="adj_store_subtitle" style="font-size: 11px; color: #64748B; margin-top: 3px;">Toko: -</div>
+            </div>
+            <button onclick="closeStoreAdjustBalanceModal()" style="background: none; border: none; font-size: 18px; color: #94A3B8; cursor: pointer;"><i class="fas fa-times"></i></button>
+        </div>
+
+        <form id="storeAdjustBalanceForm" method="POST" action="/admin/user/adjust_balance">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <input type="hidden" name="user_id" id="adj_user_id">
+            <input type="hidden" name="redirect_to" value="users">
+
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <span style="font-size: 10px; color: #64748B; font-weight: 800; text-transform: uppercase;">Saldo Saat Ini</span>
+                    <div id="adj_current_balance_text" style="font-size: 16px; font-weight: 900; color: #059669;">Rp 0</div>
+                </div>
+                <div style="text-align: right;">
+                    <span style="font-size: 10px; color: #64748B; font-weight: 800; text-transform: uppercase;">ID Pengguna</span>
+                    <div id="adj_user_id_text" style="font-size: 14px; font-weight: 800; color: #1E293B;">#0</div>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 14px;">
+                <label style="display: block; font-size: 11px; font-weight: 800; color: #64748B; margin-bottom: 6px;">Pilih Jenis Aksi Saldo</label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <label style="cursor: pointer;">
+                        <input type="radio" name="action" value="add" checked id="adj_action_add" style="display: none;" onchange="updateActionUI()">
+                        <div id="adj_box_add" style="padding: 10px; border-radius: 8px; border: 2px solid #10B981; background: #ECFDF5; text-align: center; color: #065F46; font-weight: 800; font-size: 12px;">
+                            <i class="fas fa-plus-circle"></i> Tambah Saldo (+)
+                        </div>
+                    </label>
+                    <label style="cursor: pointer;">
+                        <input type="radio" name="action" value="deduct" id="adj_action_deduct" style="display: none;" onchange="updateActionUI()">
+                        <div id="adj_box_deduct" style="padding: 10px; border-radius: 8px; border: 1px solid #CBD5E1; background: white; text-align: center; color: #64748B; font-weight: 800; font-size: 12px;">
+                            <i class="fas fa-minus-circle"></i> Potong Saldo (-)
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 14px;">
+                <label style="display: block; font-size: 11px; font-weight: 800; color: #64748B; margin-bottom: 5px;">Nominal (Rp)</label>
+                <input type="number" name="amount" id="adj_amount" min="1" step="any" required placeholder="Contoh: 100000" 
+                       style="width: 100%; padding: 10px 12px; border: 2px solid #CBD5E1; border-radius: 8px; font-size: 15px; font-weight: 800; box-sizing: border-box; outline: none;">
+                
+                <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px;">
+                    <button type="button" onclick="setAdjAmount(50000)" style="background: #F1F5F9; border: 1px solid #CBD5E1; padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; cursor: pointer;">+50rb</button>
+                    <button type="button" onclick="setAdjAmount(100000)" style="background: #F1F5F9; border: 1px solid #CBD5E1; padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; cursor: pointer;">+100rb</button>
+                    <button type="button" onclick="setAdjAmount(200000)" style="background: #F1F5F9; border: 1px solid #CBD5E1; padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; cursor: pointer;">+200rb</button>
+                    <button type="button" onclick="setAdjAmount(500000)" style="background: #F1F5F9; border: 1px solid #CBD5E1; padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; cursor: pointer;">+500rb</button>
+                    <button type="button" onclick="setAdjAmount(1000000)" style="background: #F1F5F9; border: 1px solid #CBD5E1; padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; cursor: pointer;">+1jt</button>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 18px;">
+                <label style="display: block; font-size: 11px; font-weight: 800; color: #64748B; margin-bottom: 5px;">Catatan / Keterangan (Muncul di Mutasi & Trx)</label>
+                <input type="text" name="note" id="adj_note" placeholder="Cth: Topup kasir toko / Penyesuaian selisih..." 
+                       style="width: 100%; padding: 8px 10px; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 12px; box-sizing: border-box;">
+            </div>
+
+            <button type="submit" id="adj_submit_btn" style="width: 100%; background: #10B981; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 13px; font-weight: 800; cursor: pointer; transition: 0.2s;">
+                <i class="fas fa-check-circle"></i> Eksekusi Tambah Saldo
+            </button>
+        </form>
+    </div>
+</div>
+
 <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
     <div>
         <i class="fas fa-users-cog"></i>
@@ -307,13 +381,24 @@
                     </td>
                     <td style="padding: 14px 8px; text-align: right;">
                         <div style="display: inline-flex; gap: 6px; align-items: center; justify-content: flex-end;">
+                            <a href="{{ url_for('admin.transactions', store_id=u.id) }}" 
+                               title="Lihat Riwayat & Analisa Transaksi Toko Ini"
+                               style="background: #f0f9ff; color: #0369a1; border: 1px solid #bae6fd; padding: 6px 10px; border-radius: 8px; font-weight: 800; font-size: 11px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; transition: 0.2s;">
+                                <i class="fas fa-exchange-alt"></i> Trx
+                            </a>
                             {% if u.has_branches or u.role == 'vip' %}
                             <a href="{{ url_for('admin.user_audit_saldo', user_id=u.id) }}" 
                                title="Audit Alur Saldo & Rekonsiliasi Cabang"
                                style="background: #fdf2f8; color: #db2777; border: 1px solid #fbcfe8; padding: 6px 10px; border-radius: 8px; font-weight: 800; font-size: 11px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; transition: 0.2s;">
-                                <i class="fas fa-balance-scale"></i> Audit Saldo
+                                <i class="fas fa-balance-scale"></i> Audit
                             </a>
                             {% endif %}
+                            <button type="button" 
+                                    onclick="openStoreAdjustBalanceModal('{{ u.id }}', '{{ u.name|replace('\'', '\\\'') }}', '{{ u.balance or 0 }}')"
+                                    title="Tambah / Potong Saldo Toko"
+                                    style="background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; padding: 6px 10px; border-radius: 8px; font-weight: 800; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; transition: 0.2s;">
+                                <i class="fas fa-coins"></i> Saldo
+                            </button>
                             <button type="button" 
                                     data-id="{{ u.id }}" 
                                     data-name="{{ u.name }}" 
@@ -565,6 +650,59 @@
     function resetUserPoints() {
         if (confirm("Reset / kosongkan poin member ini menjadi 0?")) {
             document.getElementById('eu_points').value = 0;
+        }
+    }
+
+    function openStoreAdjustBalanceModal(userId, userName, currentBalance) {
+        document.getElementById('adj_user_id').value = userId;
+        document.getElementById('adj_user_id_text').innerText = '#' + userId;
+        document.getElementById('adj_store_subtitle').innerText = 'Toko: ' + userName;
+        document.getElementById('adj_current_balance_text').innerText = 'Rp ' + Number(currentBalance || 0).toLocaleString('id-ID');
+        document.getElementById('adj_amount').value = '';
+        document.getElementById('adj_note').value = '';
+        
+        document.getElementById('adj_action_add').checked = true;
+        updateActionUI();
+
+        document.getElementById('storeAdjustBalanceModal').style.display = 'flex';
+    }
+
+    function closeStoreAdjustBalanceModal() {
+        document.getElementById('storeAdjustBalanceModal').style.display = 'none';
+    }
+
+    function setAdjAmount(amt) {
+        document.getElementById('adj_amount').value = amt;
+    }
+
+    function updateActionUI() {
+        const isAdd = document.getElementById('adj_action_add').checked;
+        const boxAdd = document.getElementById('adj_box_add');
+        const boxDeduct = document.getElementById('adj_box_deduct');
+        const btn = document.getElementById('adj_submit_btn');
+
+        if (isAdd) {
+            boxAdd.style.border = '2px solid #10B981';
+            boxAdd.style.background = '#ECFDF5';
+            boxAdd.style.color = '#065F46';
+
+            boxDeduct.style.border = '1px solid #CBD5E1';
+            boxDeduct.style.background = 'white';
+            boxDeduct.style.color = '#64748B';
+
+            btn.style.background = '#10B981';
+            btn.innerHTML = '<i class="fas fa-check-circle"></i> Eksekusi Tambah Saldo';
+        } else {
+            boxDeduct.style.border = '2px solid #EF4444';
+            boxDeduct.style.background = '#FEF2F2';
+            boxDeduct.style.color = '#991B1B';
+
+            boxAdd.style.border = '1px solid #CBD5E1';
+            boxAdd.style.background = 'white';
+            boxAdd.style.color = '#64748B';
+
+            btn.style.background = '#EF4444';
+            btn.innerHTML = '<i class="fas fa-minus-circle"></i> Eksekusi Potong Saldo';
         }
     }
 </script>

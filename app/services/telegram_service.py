@@ -516,12 +516,16 @@ def get_admin_inline_keyboard():
     return {
         "inline_keyboard": [
             [
-                {"text": "💰 Saldo Digiflazz", "callback_data": "cmd_saldo"},
+                {"text": "🏪 Cek Toko", "callback_data": "cmd_list_stores"},
                 {"text": "📊 Omset Hari Ini", "callback_data": "cmd_stats"}
             ],
             [
-                {"text": "⏳ Trx Pending", "callback_data": "cmd_pending"},
-                {"text": "🎫 Tiket CS Masuk", "callback_data": "cmd_tickets"}
+                {"text": "💰 Saldo Digiflazz", "callback_data": "cmd_saldo"},
+                {"text": "⏳ Trx Pending", "callback_data": "cmd_pending"}
+            ],
+            [
+                {"text": "🎫 Tiket CS Masuk", "callback_data": "cmd_tickets"},
+                {"text": "💾 Backup DB Sekarang", "callback_data": "cmd_backup"}
             ],
             [
                 {"text": "🔄 Sync Digiflazz", "callback_data": "cmd_sync_digi"},
@@ -529,16 +533,59 @@ def get_admin_inline_keyboard():
             ],
             [
                 {"text": "🆘 Buat OTP Darurat", "callback_data": "cmd_otp_info"},
-                {"text": "💾 Backup DB Sekarang", "callback_data": "cmd_backup"}
+                {"text": "📱 Status / Pairing WA", "callback_data": "cmd_wa_status"}
             ],
             [
-                {"text": "📱 Status / Pairing WA", "callback_data": "cmd_wa_status"},
-                {"text": "🩺 Status Sistem VPS", "callback_data": "cmd_system"}
-            ],
-            [
+                {"text": "🩺 Status Sistem VPS", "callback_data": "cmd_system"},
                 {"text": "🔄 Refresh Menu", "callback_data": "cmd_menu"}
             ]
         ]
+    }
+
+
+def render_stores_keyboard(page=1, per_page=8):
+    """Menghasilkan struktur keyboard daftar toko/member dengan penomoran halaman."""
+    from app.models.user import User
+    import math
+
+    stores = User.query.order_by(User.name.asc()).all()
+    total_stores = len(stores)
+    total_pages = max(1, math.ceil(total_stores / per_page))
+    page = max(1, min(page, total_pages))
+
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    current_stores = stores[start_idx:end_idx]
+
+    keyboard = []
+    # 2 toko per baris
+    row = []
+    for s in current_stores:
+        s_name = (s.name or f"User #{s.id}")[:18]
+        row.append({"text": f"🏢 {s_name}", "callback_data": f"store_view_{s.id}"})
+        if len(row) == 2:
+            keyboard.append(row)
+            row = []
+    if row:
+        keyboard.append(row)
+
+    # Navigasi halaman jika lebih dari 1 halaman
+    nav_row = []
+    if page > 1:
+        nav_row.append({"text": "« Hal Sebelumnya", "callback_data": f"cmd_stores_p_{page - 1}"})
+    if page < total_pages:
+        nav_row.append({"text": "Hal Berikutnya »", "callback_data": f"cmd_stores_p_{page + 1}"})
+    if nav_row:
+        keyboard.append(nav_row)
+
+    # Tombol kembali ke menu utama
+    keyboard.append([{"text": "« Kembali ke Menu Utama", "callback_data": "cmd_menu"}])
+
+    return {
+        "keyboard": {"inline_keyboard": keyboard},
+        "page": page,
+        "total_pages": total_pages,
+        "total_stores": total_stores
     }
 
 
@@ -631,6 +678,349 @@ def handle_admin_callback(app, callback_query):
                 "Pilih salah satu tombol di bawah untuk menjalankan fitur:"
             )
             _edit_message(token, chat_id, message_id, text, get_admin_inline_keyboard())
+
+        # ==========================================================
+        # FITUR TOKO / MEMBER (CEK TOKO, OMSET, TRX GAGAL, SALDO)
+        # ==========================================================
+        elif data == 'cmd_list_stores' or data.startswith('cmd_stores_p_'):
+            try:
+                page = int(data.replace('cmd_stores_p_', '')) if data.startswith('cmd_stores_p_') else 1
+            except Exception:
+                page = 1
+            rendered = render_stores_keyboard(page=page, per_page=8)
+            text = (
+                f"🏪 <b>DAFTAR TOKO / MEMBER (Hal {rendered['page']}/{rendered['total_pages']})</b>\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"Ditemukan <b>{rendered['total_stores']}</b> toko/member terdaftar.\n\n"
+                "Silakan klik salah satu toko di bawah untuk melihat:\n"
+                "• Omset & performa transaksi hari ini\n"
+                "• Riwayat produk apa saja yang gagal\n"
+                "• Tambah / potong saldo manual toko\n"
+            )
+            _edit_message(token, chat_id, message_id, text, rendered['keyboard'])
+
+        elif data.startswith('store_view_'):
+            try:
+                u_id = int(data.replace('store_view_', ''))
+                target_user = User.query.get(u_id)
+            except Exception:
+                target_user = None
+
+            if not target_user:
+                _edit_message(token, chat_id, message_id, "❌ Data toko tidak ditemukan!", get_back_button())
+                return
+
+            wib_now = get_wib_now()
+            today_start_wib = wib_now.replace(hour=0, minute=0, second=0, microsecond=0)
+            today_start = today_start_wib.astimezone(timezone.utc).replace(tzinfo=None)
+
+            from app.extensions import db
+            today_total = Transaction.query.filter(Transaction.user_id == target_user.id, Transaction.created_at >= today_start).count()
+            today_success = Transaction.query.filter(Transaction.user_id == target_user.id, Transaction.created_at >= today_start, Transaction.status == 'SUCCESS').count()
+            today_failed = Transaction.query.filter(
+                Transaction.user_id == target_user.id,
+                Transaction.created_at >= today_start,
+                Transaction.status.in_(['FAILED', 'GAGAL', 'CANCELLED', 'BATAL'])
+            ).count()
+            today_revenue = db.session.query(db.func.sum(Transaction.amount)).filter(
+                Transaction.user_id == target_user.id,
+                Transaction.created_at >= today_start,
+                Transaction.status == 'SUCCESS',
+                ~Transaction.sku_code.in_(['DEPOSIT_SALDO', 'DEPOSIT_MANUAL', 'COMMISSION_PAYOUT'])
+            ).scalar() or 0.0
+
+            text = (
+                f"🏪 <b>PROFIL & ANALISA TOKO</b>\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"🏢 <b>Nama Toko:</b> {target_user.name}\n"
+                f"🆔 <b>ID Pengguna:</b> <code>#{target_user.id}</code>\n"
+                f"📱 <b>WhatsApp:</b> <code>{target_user.phone}</code>\n"
+                f"👑 <b>Golongan:</b> {target_user.role.upper()}\n"
+                f"💰 <b>Saldo Saat Ini:</b> <code>Rp {target_user.balance:,.0f}</code>\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"📅 <b>PERFORMA TRANSAKSI HARI INI:</b>\n"
+                f"• <b>Omset Penjualan:</b> <code>Rp {today_revenue:,.0f}</code>\n"
+                f"• <b>Total Transaksi:</b> {today_total} transaksi\n"
+                f"• <b>Status:</b> ✅ {today_success} Sukses  |  ❌ {today_failed} Gagal\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n"
+                "Silakan pilih aksi di bawah ini:"
+            )
+
+            store_keyboard = {
+                "inline_keyboard": [
+                    [
+                        {"text": "❌ Cek Trx Gagal", "callback_data": f"store_failed_{target_user.id}"},
+                        {"text": "📋 5 Trx Terakhir", "callback_data": f"store_recent_{target_user.id}"}
+                    ],
+                    [
+                        {"text": "➕ Tambah Saldo", "callback_data": f"store_topup_{target_user.id}"},
+                        {"text": "➖ Kurangi Saldo", "callback_data": f"store_deduct_{target_user.id}"}
+                    ],
+                    [
+                        {"text": "« Daftar Toko", "callback_data": "cmd_list_stores"},
+                        {"text": "🏠 Menu Utama", "callback_data": "cmd_menu"}
+                    ]
+                ]
+            }
+            _edit_message(token, chat_id, message_id, text, store_keyboard)
+
+        elif data.startswith('store_failed_'):
+            try:
+                u_id = int(data.replace('store_failed_', ''))
+                target_user = User.query.get(u_id)
+            except Exception:
+                target_user = None
+
+            if not target_user:
+                _edit_message(token, chat_id, message_id, "❌ Toko tidak ditemukan!", get_back_button())
+                return
+
+            failed_trxs = Transaction.query.filter(
+                Transaction.user_id == target_user.id,
+                Transaction.status.in_(['FAILED', 'GAGAL', 'CANCELLED', 'BATAL'])
+            ).order_by(Transaction.id.desc()).limit(8).all()
+
+            if not failed_trxs:
+                text = (
+                    f"✅ <b>TIDAK ADA TRANSAKSI GAGAL</b>\n"
+                    "━━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"Toko <b>{target_user.name}</b> tidak memiliki riwayat transaksi gagal terkini."
+                )
+            else:
+                lines = [
+                    f"❌ <b>RIWAYAT PRODUK GAGAL: {target_user.name}</b>",
+                    "━━━━━━━━━━━━━━━━━━━━━━"
+                ]
+                for idx, t in enumerate(failed_trxs, 1):
+                    t_time = format_wib(t.created_at, '%d/%m %H:%M') if t.created_at else '-'
+                    reason = t.sn or 'Ditolak provider / Saldo tidak cukup'
+                    lines.append(
+                        f"<b>{idx}. {t.product_name or 'Produk'}</b>\n"
+                        f"• Ref: <code>{t.ref_id}</code> | Rp {t.amount:,.0f}\n"
+                        f"• Tujuan: <code>{t.target_number or '-'}</code> | {t_time} WIB\n"
+                        f"• ⚠️ Alasan: <i>{reason}</i>\n"
+                    )
+                lines.append("━━━━━━━━━━━━━━━━━━━━━━")
+                text = "\n".join(lines)
+
+            markup = {
+                "inline_keyboard": [
+                    [{"text": "« Kembali ke Profil Toko", "callback_data": f"store_view_{target_user.id}"}],
+                    [{"text": "« Daftar Toko", "callback_data": "cmd_list_stores"}]
+                ]
+            }
+            _edit_message(token, chat_id, message_id, text, markup)
+
+        elif data.startswith('store_recent_'):
+            try:
+                u_id = int(data.replace('store_recent_', ''))
+                target_user = User.query.get(u_id)
+            except Exception:
+                target_user = None
+
+            if not target_user:
+                _edit_message(token, chat_id, message_id, "❌ Toko tidak ditemukan!", get_back_button())
+                return
+
+            recents = Transaction.query.filter_by(user_id=target_user.id).order_by(Transaction.id.desc()).limit(5).all()
+            if not recents:
+                text = f"ℹ️ Toko <b>{target_user.name}</b> belum memiliki riwayat transaksi apapun."
+            else:
+                lines = [
+                    f"📋 <b>5 TRANSAKSI TERAKHIR: {target_user.name}</b>",
+                    "━━━━━━━━━━━━━━━━━━━━━━"
+                ]
+                for idx, r in enumerate(recents, 1):
+                    icon = "✅" if r.status == 'SUCCESS' else ("❌" if r.status in ['FAILED', 'CANCELLED'] else "⏳")
+                    r_time = format_wib(r.created_at, '%d/%m %H:%M') if r.created_at else '-'
+                    lines.append(
+                        f"{icon} <b>{r.product_name or 'Produk'}</b> ({r.status})\n"
+                        f"• Ref: <code>{r.ref_id}</code> | Rp {r.amount:,.0f}\n"
+                        f"• Tujuan: <code>{r.target_number or '-'}</code> | {r_time} WIB\n"
+                    )
+                lines.append("━━━━━━━━━━━━━━━━━━━━━━")
+                text = "\n".join(lines)
+
+            markup = {
+                "inline_keyboard": [
+                    [{"text": "« Kembali ke Profil Toko", "callback_data": f"store_view_{target_user.id}"}],
+                    [{"text": "« Daftar Toko", "callback_data": "cmd_list_stores"}]
+                ]
+            }
+            _edit_message(token, chat_id, message_id, text, markup)
+
+        elif data.startswith('store_topup_'):
+            try:
+                u_id = int(data.replace('store_topup_', ''))
+                target_user = User.query.get(u_id)
+            except Exception:
+                target_user = None
+
+            if not target_user:
+                _edit_message(token, chat_id, message_id, "❌ Toko tidak ditemukan!", get_back_button())
+                return
+
+            text = (
+                f"➕ <b>TAMBAH SALDO TOKO (TOPUP MANUAL)</b>\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"🏢 <b>Toko:</b> {target_user.name} (User #{target_user.id})\n"
+                f"💰 <b>Saldo Saat Ini:</b> <code>Rp {target_user.balance:,.0f}</code>\n\n"
+                "Pilih nominal cepat di bawah, atau ketik langsung di chat:\n"
+                f"👉 <code>/topup {target_user.id} &lt;nominal&gt;</code>\n"
+                f"Contoh: <code>/topup {target_user.id} 250000</code>"
+            )
+
+            markup = {
+                "inline_keyboard": [
+                    [
+                        {"text": "+50.000", "callback_data": f"store_do_add_{target_user.id}_50000"},
+                        {"text": "+100.000", "callback_data": f"store_do_add_{target_user.id}_100000"}
+                    ],
+                    [
+                        {"text": "+200.000", "callback_data": f"store_do_add_{target_user.id}_200000"},
+                        {"text": "+500.000", "callback_data": f"store_do_add_{target_user.id}_500000"}
+                    ],
+                    [
+                        {"text": "+1.000.000", "callback_data": f"store_do_add_{target_user.id}_1000000"},
+                        {"text": "+2.000.000", "callback_data": f"store_do_add_{target_user.id}_2000000"}
+                    ],
+                    [
+                        {"text": "« Batal / Kembali ke Profil", "callback_data": f"store_view_{target_user.id}"}
+                    ]
+                ]
+            }
+            _edit_message(token, chat_id, message_id, text, markup)
+
+        elif data.startswith('store_deduct_'):
+            try:
+                u_id = int(data.replace('store_deduct_', ''))
+                target_user = User.query.get(u_id)
+            except Exception:
+                target_user = None
+
+            if not target_user:
+                _edit_message(token, chat_id, message_id, "❌ Toko tidak ditemukan!", get_back_button())
+                return
+
+            text = (
+                f"➖ <b>KURANGI / POTONG SALDO TOKO</b>\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"🏢 <b>Toko:</b> {target_user.name} (User #{target_user.id})\n"
+                f"💰 <b>Saldo Saat Ini:</b> <code>Rp {target_user.balance:,.0f}</code>\n\n"
+                "Pilih nominal potongan di bawah, atau ketik langsung di chat:\n"
+                f"👉 <code>/potong {target_user.id} &lt;nominal&gt;</code>\n"
+                f"Contoh: <code>/potong {target_user.id} 75000</code>"
+            )
+
+            markup = {
+                "inline_keyboard": [
+                    [
+                        {"text": "-50.000", "callback_data": f"store_do_deduct_{target_user.id}_50000"},
+                        {"text": "-100.000", "callback_data": f"store_do_deduct_{target_user.id}_100000"}
+                    ],
+                    [
+                        {"text": "-200.000", "callback_data": f"store_do_deduct_{target_user.id}_200000"},
+                        {"text": "-500.000", "callback_data": f"store_do_deduct_{target_user.id}_500000"}
+                    ],
+                    [
+                        {"text": "-1.000.000", "callback_data": f"store_do_deduct_{target_user.id}_1000000"}
+                    ],
+                    [
+                        {"text": "« Batal / Kembali ke Profil", "callback_data": f"store_view_{target_user.id}"}
+                    ]
+                ]
+            }
+            _edit_message(token, chat_id, message_id, text, markup)
+
+        elif data.startswith('store_do_add_'):
+            parts = data.split('_')
+            try:
+                u_id = int(parts[3])
+                amt = float(parts[4])
+            except Exception:
+                _edit_message(token, chat_id, message_id, "❌ Parameter saldo tidak valid!", get_back_button())
+                return
+
+            from app.services.balance_service import adjust_user_balance_manual
+            ok, new_bal, msg, trx = adjust_user_balance_manual(
+                user_id=u_id,
+                amount=amt,
+                action='add',
+                note='Topup Cepat via Bot Telegram Admin',
+                admin_source='Bot Telegram Admin'
+            )
+
+            target_user = User.query.get(u_id)
+            store_name = target_user.name if target_user else f"User #{u_id}"
+
+            if ok:
+                ref_id = trx.ref_id if trx else '-'
+                text = (
+                    "✅ <b>TOPUP SALDO TOKO BERHASIL!</b>\n"
+                    "━━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"🏢 <b>Toko:</b> {store_name} (User #{u_id})\n"
+                    f"➕ <b>Nominal:</b> <code>+Rp {amt:,.0f}</code>\n"
+                    f"💰 <b>Saldo Baru:</b> <code>Rp {new_bal:,.0f}</code>\n"
+                    f"🔖 <b>Ref ID:</b> <code>{ref_id}</code>\n"
+                    f"⏰ <b>Waktu:</b> {format_wib(fmt='%d/%m/%Y %H:%M:%S WIB')}\n"
+                    "━━━━━━━━━━━━━━━━━━━━━━\n"
+                    "Transaksi resmi & mutasi akun toko telah tersinkronisasi."
+                )
+            else:
+                text = f"🚨 <b>GAGAL MENAMBAH SALDO:</b>\n{msg}"
+
+            markup = {
+                "inline_keyboard": [
+                    [{"text": "« Lihat Profil Toko", "callback_data": f"store_view_{u_id}"}],
+                    [{"text": "« Daftar Toko", "callback_data": "cmd_list_stores"}]
+                ]
+            }
+            _edit_message(token, chat_id, message_id, text, markup)
+
+        elif data.startswith('store_do_deduct_'):
+            parts = data.split('_')
+            try:
+                u_id = int(parts[3])
+                amt = float(parts[4])
+            except Exception:
+                _edit_message(token, chat_id, message_id, "❌ Parameter saldo tidak valid!", get_back_button())
+                return
+
+            from app.services.balance_service import adjust_user_balance_manual
+            ok, new_bal, msg, trx = adjust_user_balance_manual(
+                user_id=u_id,
+                amount=amt,
+                action='deduct',
+                note='Penyesuaian Saldo via Bot Telegram Admin',
+                admin_source='Bot Telegram Admin'
+            )
+
+            target_user = User.query.get(u_id)
+            store_name = target_user.name if target_user else f"User #{u_id}"
+
+            if ok:
+                ref_id = trx.ref_id if trx else '-'
+                text = (
+                    "✅ <b>PENGURANGAN SALDO BERHASIL!</b>\n"
+                    "━━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"🏢 <b>Toko:</b> {store_name} (User #{u_id})\n"
+                    f"➖ <b>Nominal:</b> <code>-Rp {amt:,.0f}</code>\n"
+                    f"💰 <b>Saldo Baru:</b> <code>Rp {new_bal:,.0f}</code>\n"
+                    f"🔖 <b>Ref ID:</b> <code>{ref_id}</code>\n"
+                    f"⏰ <b>Waktu:</b> {format_wib(fmt='%d/%m/%Y %H:%M:%S WIB')}\n"
+                    "━━━━━━━━━━━━━━━━━━━━━━\n"
+                    "Transaksi resmi & mutasi akun toko telah tersinkronisasi."
+                )
+            else:
+                text = f"🚨 <b>GAGAL MENGURANGI SALDO:</b>\n{msg}"
+
+            markup = {
+                "inline_keyboard": [
+                    [{"text": "« Lihat Profil Toko", "callback_data": f"store_view_{u_id}"}],
+                    [{"text": "« Daftar Toko", "callback_data": "cmd_list_stores"}]
+                ]
+            }
+            _edit_message(token, chat_id, message_id, text, markup)
 
         elif data == 'cmd_saldo':
             is_ok, bal, msg = check_balance()
@@ -908,6 +1298,171 @@ def handle_admin_message(app, message):
                 f"Berikan kode di atas kepada pengguna untuk dimasukkan pada kolom verifikasi."
             )
             _send_message(token, chat_id, reply)
+    # Perintah /topup <id_user> <nominal>
+    if text.startswith('/topup'):
+        parts = text.split()
+        if len(parts) < 3:
+            _send_message(token, chat_id, "⚠️ <b>Format salah!</b>\nGunakan: <code>/topup &lt;id_user&gt; &lt;nominal&gt;</code>\nContoh: <code>/topup 5 250000</code>")
+            return
+        try:
+            u_id = int(parts[1])
+            amt = float(parts[2])
+        except ValueError:
+            _send_message(token, chat_id, "⚠️ ID User dan nominal harus berupa angka!")
+            return
+
+        with app.app_context():
+            from app.models.user import User
+            from app.services.balance_service import adjust_user_balance_manual
+            target_user = User.query.get(u_id)
+            if not target_user:
+                _send_message(token, chat_id, f"❌ Toko/User ID #{u_id} tidak ditemukan!")
+                return
+            ok, new_bal, msg, trx = adjust_user_balance_manual(
+                user_id=u_id,
+                amount=amt,
+                action='add',
+                note='Topup Chat Command via Bot Telegram Admin',
+                admin_source='Bot Telegram Admin'
+            )
+            if ok:
+                reply = (
+                    "✅ <b>TOPUP SALDO TOKO BERHASIL!</b>\n"
+                    "━━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"🏢 <b>Toko:</b> {target_user.name} (User #{u_id})\n"
+                    f"➕ <b>Nominal:</b> <code>+Rp {amt:,.0f}</code>\n"
+                    f"💰 <b>Saldo Baru:</b> <code>Rp {new_bal:,.0f}</code>\n"
+                    f"🔖 <b>Ref ID:</b> <code>{trx.ref_id if trx else '-'}</code>\n"
+                    f"⏰ <b>Waktu:</b> {format_wib(fmt='%d/%m/%Y %H:%M:%S WIB')}"
+                )
+            else:
+                reply = f"🚨 <b>GAGAL MENAMBAH SALDO:</b>\n{msg}"
+            _send_message(token, chat_id, reply)
+        return
+
+    # Perintah /potong <id_user> <nominal>
+    if text.startswith('/potong'):
+        parts = text.split()
+        if len(parts) < 3:
+            _send_message(token, chat_id, "⚠️ <b>Format salah!</b>\nGunakan: <code>/potong &lt;id_user&gt; &lt;nominal&gt;</code>\nContoh: <code>/potong 5 50000</code>")
+            return
+        try:
+            u_id = int(parts[1])
+            amt = float(parts[2])
+        except ValueError:
+            _send_message(token, chat_id, "⚠️ ID User dan nominal harus berupa angka!")
+            return
+
+        with app.app_context():
+            from app.models.user import User
+            from app.services.balance_service import adjust_user_balance_manual
+            target_user = User.query.get(u_id)
+            if not target_user:
+                _send_message(token, chat_id, f"❌ Toko/User ID #{u_id} tidak ditemukan!")
+                return
+            ok, new_bal, msg, trx = adjust_user_balance_manual(
+                user_id=u_id,
+                amount=amt,
+                action='deduct',
+                note='Potong Saldo Chat Command via Bot Telegram Admin',
+                admin_source='Bot Telegram Admin'
+            )
+            if ok:
+                reply = (
+                    "✅ <b>PENGURANGAN SALDO BERHASIL!</b>\n"
+                    "━━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"🏢 <b>Toko:</b> {target_user.name} (User #{u_id})\n"
+                    f"➖ <b>Nominal:</b> <code>-Rp {amt:,.0f}</code>\n"
+                    f"💰 <b>Saldo Baru:</b> <code>Rp {new_bal:,.0f}</code>\n"
+                    f"🔖 <b>Ref ID:</b> <code>{trx.ref_id if trx else '-'}</code>\n"
+                    f"⏰ <b>Waktu:</b> {format_wib(fmt='%d/%m/%Y %H:%M:%S WIB')}"
+                )
+            else:
+                reply = f"🚨 <b>GAGAL MENGURANGI SALDO:</b>\n{msg}"
+            _send_message(token, chat_id, reply)
+        return
+
+    # Perintah /toko atau /cektoko
+    if text.startswith('/toko') or text.startswith('/cektoko'):
+        parts = text.split()
+        with app.app_context():
+            from app.models.user import User
+            from app.models.transaction import Transaction
+            if len(parts) < 2:
+                rendered = render_stores_keyboard(page=1, per_page=8)
+                text_msg = (
+                    f"🏪 <b>DAFTAR TOKO / MEMBER (Hal 1/{rendered['total_pages']})</b>\n"
+                    "━━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"Ditemukan <b>{rendered['total_stores']}</b> toko/member terdaftar.\n"
+                    "Silakan klik salah satu toko di bawah untuk melihat performa:"
+                )
+                _send_message(token, chat_id, text_msg, reply_markup=rendered['keyboard'])
+                return
+
+            try:
+                u_id = int(parts[1])
+            except ValueError:
+                _send_message(token, chat_id, "⚠️ ID Toko harus berupa angka!")
+                return
+
+            target_user = User.query.get(u_id)
+            if not target_user:
+                _send_message(token, chat_id, f"❌ Toko ID #{u_id} tidak ditemukan!")
+                return
+
+            wib_now = get_wib_now()
+            today_start_wib = wib_now.replace(hour=0, minute=0, second=0, microsecond=0)
+            today_start = today_start_wib.astimezone(timezone.utc).replace(tzinfo=None)
+
+            from app.extensions import db
+            today_total = Transaction.query.filter(Transaction.user_id == target_user.id, Transaction.created_at >= today_start).count()
+            today_success = Transaction.query.filter(Transaction.user_id == target_user.id, Transaction.created_at >= today_start, Transaction.status == 'SUCCESS').count()
+            today_failed = Transaction.query.filter(
+                Transaction.user_id == target_user.id,
+                Transaction.created_at >= today_start,
+                Transaction.status.in_(['FAILED', 'GAGAL', 'CANCELLED', 'BATAL'])
+            ).count()
+            today_revenue = db.session.query(db.func.sum(Transaction.amount)).filter(
+                Transaction.user_id == target_user.id,
+                Transaction.created_at >= today_start,
+                Transaction.status == 'SUCCESS',
+                ~Transaction.sku_code.in_(['DEPOSIT_SALDO', 'DEPOSIT_MANUAL', 'COMMISSION_PAYOUT'])
+            ).scalar() or 0.0
+
+            text_msg = (
+                f"🏪 <b>PROFIL & ANALISA TOKO</b>\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"🏢 <b>Nama Toko:</b> {target_user.name}\n"
+                f"🆔 <b>ID Pengguna:</b> <code>#{target_user.id}</code>\n"
+                f"📱 <b>WhatsApp:</b> <code>{target_user.phone}</code>\n"
+                f"👑 <b>Golongan:</b> {target_user.role.upper()}\n"
+                f"💰 <b>Saldo Saat Ini:</b> <code>Rp {target_user.balance:,.0f}</code>\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"📅 <b>PERFORMA TRANSAKSI HARI INI:</b>\n"
+                f"• <b>Omset Penjualan:</b> <code>Rp {today_revenue:,.0f}</code>\n"
+                f"• <b>Total Transaksi:</b> {today_total} transaksi\n"
+                f"• <b>Status:</b> ✅ {today_success} Sukses  |  ❌ {today_failed} Gagal\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n"
+                "Silakan pilih aksi di bawah ini:"
+            )
+
+            store_keyboard = {
+                "inline_keyboard": [
+                    [
+                        {"text": "❌ Cek Trx Gagal", "callback_data": f"store_failed_{target_user.id}"},
+                        {"text": "📋 5 Trx Terakhir", "callback_data": f"store_recent_{target_user.id}"}
+                    ],
+                    [
+                        {"text": "➕ Tambah Saldo", "callback_data": f"store_topup_{target_user.id}"},
+                        {"text": "➖ Kurangi Saldo", "callback_data": f"store_deduct_{target_user.id}"}
+                    ],
+                    [
+                        {"text": "« Daftar Toko", "callback_data": "cmd_list_stores"},
+                        {"text": "🏠 Menu Utama", "callback_data": "cmd_menu"}
+                    ]
+                ]
+            }
+            _send_message(token, chat_id, text_msg, reply_markup=store_keyboard)
         return
 
     # Perintah Menu Utama (/start, /menu, /help)

@@ -82,18 +82,29 @@ def get_user_mutations(user_id, limit=100):
         target_num = str(getattr(trx, 'target_number', '') or '-')
         sn_val = str(getattr(trx, 'sn', '') or '-')
 
-        # KASUS A: Top Up / Deposit Saldo Sukses & Pencairan Komisi Downline
+        # KASUS A: Top Up / Deposit Saldo Sukses, Topup Manual Admin, & Pencairan Komisi Downline
         if sku in ['DEPOSIT_SALDO', 'DEPOSIT_MANUAL', 'COMMISSION_PAYOUT']:
             # Hanya catat sebagai mutasi jika telah dibayar / sukses
             if pay_status in ['PAID', 'SUCCESS', 'SUKSES', 'SETTLEMENT'] or trx_status in ['SUCCESS', 'SUKSES', 'PAID']:
                 is_commission = (sku == 'COMMISSION_PAYOUT')
+                is_manual_admin = (sku == 'DEPOSIT_MANUAL')
+                if is_commission:
+                    t_title = "Pencairan Komisi Downline"
+                    t_sub = "Bonus Kemitraan VIP ke Saldo Utama"
+                elif is_manual_admin:
+                    t_title = "Topup Saldo oleh Admin"
+                    t_sub = sn_val if sn_val and sn_val != '-' else "Penambahan saldo oleh Admin"
+                else:
+                    t_title = f"Topup {ref_id}"
+                    t_sub = f"Deposit Saldo via {pay_method or 'QRIS'}"
+
                 events.append({
                     'id': f"dep-{trx.id}" if not is_commission else f"com-{trx.id}",
                     'raw_id': trx.id,
                     'type': 'pemasukan',
-                    'title': f"Pencairan Komisi Downline" if is_commission else f"Topup {ref_id}",
-                    'subtitle': f"Bonus Kemitraan VIP ke Saldo Utama" if is_commission else f"Deposit Saldo via {pay_method or 'QRIS'}",
-                    'product_name': prod_name or ('Komisi Downline' if is_commission else 'Deposit Saldo'),
+                    'title': t_title,
+                    'subtitle': t_sub,
+                    'product_name': prod_name or ('Komisi Downline' if is_commission else ('Topup Admin' if is_manual_admin else 'Deposit Saldo')),
                     'target': '-',
                     'amount': amount,
                     'direction': '+',
@@ -102,11 +113,34 @@ def get_user_mutations(user_id, limit=100):
                     'status_color': 'success',
                     'ref_id': ref_id,
                     'sn': sn_val,
-                    'payment_method': 'KOMISI' if is_commission else (pay_method or 'QRIS'),
+                    'payment_method': 'KOMISI' if is_commission else ('ADMIN' if is_manual_admin else (pay_method or 'QRIS')),
                     '_sort_key': c_time.timestamp(),
                     'date_str': c_str,
                     'is_refund': False
                 })
+
+        # KASUS D: Pengurangan / Penyesuaian Saldo oleh Admin
+        elif sku == 'MANUAL_DEDUCTION':
+            events.append({
+                'id': f"ded-{trx.id}",
+                'raw_id': trx.id,
+                'type': 'pengeluaran',
+                'title': 'Penyesuaian Saldo oleh Admin',
+                'subtitle': sn_val if sn_val and sn_val != '-' else "Pengurangan/Sinkronisasi saldo oleh admin",
+                'product_name': 'Penyesuaian Saldo Admin',
+                'target': '-',
+                'amount': amount,
+                'direction': '-',
+                'status': 'Sukses',
+                'status_badge': 'Sukses',
+                'status_color': 'warning',
+                'ref_id': ref_id,
+                'sn': sn_val,
+                'payment_method': 'ADMIN',
+                '_sort_key': c_time.timestamp(),
+                'date_str': c_str,
+                'is_refund': False
+            })
 
         # KASUS B: Pembelian Produk / Upgrade Menggunakan Saldo
         elif pay_method == 'SALDO' or (pay_status == 'PAID' and pay_method in ['SALDO', 'BALANCE']):

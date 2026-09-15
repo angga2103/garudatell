@@ -379,8 +379,9 @@ def transactions():
     status_filter = request.args.get('status', '').strip()
     payment_filter = request.args.get('payment_status', '').strip()
     source_filter = request.args.get('source', '').strip().lower()
+    store_id_raw = request.args.get('store_id', '').strip()
 
-    query = Transaction.query
+    query = Transaction.query.outerjoin(User, Transaction.user_id == User.id)
 
     if search_q:
         search_pattern = f"%{search_q}%"
@@ -390,9 +391,37 @@ def transactions():
                 Transaction.target_number.ilike(search_pattern),
                 Transaction.product_name.ilike(search_pattern),
                 Transaction.sku_code.ilike(search_pattern),
-                Transaction.device_name.ilike(search_pattern)
+                Transaction.device_name.ilike(search_pattern),
+                User.name.ilike(search_pattern),
+                User.phone.ilike(search_pattern)
             )
         )
+
+    # Filter khusus Toko / User
+    selected_store = None
+    store_total = 0
+    store_success = 0
+    store_failed = 0
+    store_revenue = 0.0
+
+    if store_id_raw:
+        try:
+            store_id = int(store_id_raw)
+            query = query.filter(Transaction.user_id == store_id)
+            selected_store = User.query.get(store_id)
+            if selected_store:
+                store_total = Transaction.query.filter_by(user_id=store_id).count()
+                store_success = Transaction.query.filter_by(user_id=store_id, status='SUCCESS').count()
+                store_failed = Transaction.query.filter(
+                    Transaction.user_id == store_id,
+                    Transaction.status.in_(['FAILED', 'GAGAL', 'CANCELLED', 'BATAL'])
+                ).count()
+                store_revenue = db.session.query(db.func.sum(Transaction.amount)).filter(
+                    Transaction.user_id == store_id,
+                    Transaction.status == 'SUCCESS'
+                ).scalar() or 0.0
+        except (ValueError, TypeError):
+            pass
 
     if status_filter:
         query = query.filter(Transaction.status == status_filter.upper())
@@ -424,6 +453,8 @@ def transactions():
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     today_count = Transaction.query.filter(Transaction.created_at >= today_start).count()
 
+    all_stores = User.query.order_by(User.name.asc()).all()
+
     pagination = query.order_by(Transaction.id.desc()).paginate(page=page, per_page=25, error_out=False)
     trxs = pagination.items
 
@@ -434,10 +465,47 @@ def transactions():
                            status_filter=status_filter,
                            payment_filter=payment_filter,
                            source_filter=source_filter,
+                           store_id=store_id_raw,
+                           selected_store=selected_store,
+                           store_total=store_total,
+                           store_success=store_success,
+                           store_failed=store_failed,
+                           store_revenue=store_revenue,
+                           all_stores=all_stores,
                            total_count=total_count,
                            success_count=success_count,
                            total_revenue=total_revenue,
                            today_count=today_count)
+
+@admin_bp.route('/user/adjust_balance', methods=['POST'])
+def adjust_user_balance_route():
+    """Endpoint penambahan (+) atau pemotongan (-) saldo manual oleh Admin di web."""
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin.login'))
+
+    user_id = request.form.get('user_id')
+    amount_raw = request.form.get('amount', '0')
+    action = request.form.get('action', 'add').strip().lower()
+    note = request.form.get('note', '').strip()
+    redirect_to = request.form.get('redirect_to', 'users')
+
+    from app.services.balance_service import adjust_user_balance_manual
+    ok, new_bal, msg, trx = adjust_user_balance_manual(
+        user_id=user_id,
+        amount=amount_raw,
+        action=action,
+        note=note,
+        admin_source='Web Admin'
+    )
+
+    if ok:
+        flash(f"✅ {msg}", 'success')
+    else:
+        flash(f"❌ {msg}", 'danger')
+
+    if redirect_to == 'transactions':
+        return redirect(url_for('admin.transactions', store_id=user_id))
+    return redirect(url_for('admin.users'))
 
 @admin_bp.route('/transactions/update_status/<int:id>', methods=['POST'])
 def update_transaction_status(id):
@@ -628,11 +696,21 @@ def update_user_action():
         else:
             user.email = None
         
-        # Memperbarui Saldo
+        # Memperbarui Saldo secara transparan dengan pencatatan Transaksi & Mutasi
         balance_raw = request.form.get('balance')
         if balance_raw is not None and balance_raw != '':
             try:
-                user.balance = float(balance_raw)
+                new_bal = float(balance_raw)
+                old_bal = float(user.balance or 0.0)
+                diff = round(new_bal - old_bal, 2)
+                if abs(diff) >= 1.0:
+                    from app.services.balance_service import adjust_user_balance_manual
+                    b_action = 'add' if diff > 0 else 'deduct'
+                    b_amt = abs(diff)
+                    b_note = request.form.get('balance_note', '').strip() or 'Sinkronisasi/Edit Data Toko oleh Admin'
+                    adjust_user_balance_manual(user.id, b_amt, action=b_action, note=b_note, admin_source='Web Admin (Edit Pengguna)')
+                else:
+                    user.balance = new_bal
             except ValueError:
                 pass
             
