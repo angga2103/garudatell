@@ -136,7 +136,8 @@ def create_app():
                     ('commission_balance', 'REAL DEFAULT 0.0'),
                     ('last_reminded_at', 'DATETIME'),
                     ('referral_code', 'VARCHAR(20)'),
-                    ('is_device_lock_enabled', 'BOOLEAN DEFAULT 0')
+                    ('is_device_lock_enabled', 'BOOLEAN DEFAULT 0'),
+                    ('last_low_balance_notified_at', 'DATETIME')
                 ]
                 with db.engine.connect() as conn:
                     for c_name, c_type in new_user_cols:

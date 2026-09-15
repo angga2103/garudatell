@@ -576,6 +576,7 @@ def transfer_balance_to_branch(owner_id, device_id, amount, shift_name=None):
         sisa = owner.balance or 0.0
         return False, f"Gagal: Saldo Utama Anda tidak mencukupi (Tersedia: Rp {sisa:,.0f}, Diminta: Rp {amt:,.0f}). Tarik saldo dari cabang lain terlebih dahulu atau isi deposit Anda."
 
+    old_owner_balance = float(owner.balance or 0.0)
     bal_before = float(device.branch_balance or 0.0)
     device.branch_balance = bal_before + amt
     bal_after = float(device.branch_balance)
@@ -596,6 +597,12 @@ def transfer_balance_to_branch(owner_id, device_id, amount, shift_name=None):
     )
     db.session.add(mut)
     db.session.commit()
+
+    try:
+        from app.services.balance_notification_service import check_and_notify_low_balance
+        check_and_notify_low_balance(owner.id, old_owner_balance, owner.balance)
+    except Exception:
+        pass
 
     return True, f"Berhasil mengirim saldo Rp {amt:,.0f} ke {device.device_name}. Saldo cabang saat ini: Rp {bal_after:,.0f}."
 
@@ -627,6 +634,7 @@ def withdraw_balance_from_branch(owner_id, device_id, amount):
         db.session.rollback()
         return False, f"Gagal: Saldo cabang {device.device_name} hanya tersisa Rp {cur_branch_bal:,.0f}."
 
+    old_owner_balance = float(owner.balance or 0.0)
     bal_before = cur_branch_bal
     device.branch_balance = bal_before - amt
     bal_after = float(device.branch_balance)
@@ -646,6 +654,12 @@ def withdraw_balance_from_branch(owner_id, device_id, amount):
     )
     db.session.add(mut)
     db.session.commit()
+
+    try:
+        from app.services.balance_notification_service import check_and_notify_low_balance
+        check_and_notify_low_balance(owner.id, old_owner_balance, owner.balance)
+    except Exception:
+        pass
 
     return True, f"Berhasil menarik saldo Rp {amt:,.0f} dari {device.device_name} ke Saldo Utama Anda. Saldo cabang tersisa: Rp {bal_after:,.0f}."
 

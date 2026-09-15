@@ -413,6 +413,7 @@ def checkout():
                     'message': dev_err or 'Akses Transaksi Saldo Ditolak: Perangkat kasir belum diotorisasi resmi oleh Owner.'
                 }), 403
 
+            old_balance_for_check = float(user_locked.balance or 0.0)
             if user_locked.balance < amount:
                 db.session.rollback()
                 return jsonify({
@@ -459,6 +460,11 @@ def checkout():
                         new_trx.provider_ref = vip_data.get('trxid')
                     new_trx.status = 'PROCESSING'
                     db.session.commit()
+                    try:
+                        from app.services.balance_notification_service import check_and_notify_low_balance
+                        check_and_notify_low_balance(user_locked.id, old_balance_for_check, user_locked.balance)
+                    except Exception:
+                        pass
                     from app.services.telegram_service import async_send_trx_notification
                     async_send_trx_notification(new_trx, title="TRANSAKSI DIPROSES (VIP)")
                     return jsonify({
@@ -502,6 +508,11 @@ def checkout():
                         new_trx.sn = res_pay_data.get('sn', '')
                         award_transaction_points(new_trx.user_id, new_trx.ref_id)
                         db.session.commit()
+                        try:
+                            from app.services.balance_notification_service import check_and_notify_low_balance
+                            check_and_notify_low_balance(user_locked.id, old_balance_for_check, user_locked.balance)
+                        except Exception:
+                            pass
                         from app.services.telegram_service import async_send_trx_notification
                         async_send_trx_notification(new_trx, title="TRANSAKSI BERHASIL (PASCA)")
                         return jsonify({'status': 'success', 'success': True, 'error': False, 'message': 'Transaksi sukses masuk Digiflazz!', 'redirect': '/riwayat'}), 200
@@ -547,6 +558,11 @@ def checkout():
                     else:
                         new_trx.status = 'PROCESSING'
                     db.session.commit()
+                    try:
+                        from app.services.balance_notification_service import check_and_notify_low_balance
+                        check_and_notify_low_balance(user_locked.id, old_balance_for_check, user_locked.balance)
+                    except Exception:
+                        pass
                     from app.services.telegram_service import async_send_trx_notification
                     async_send_trx_notification(new_trx, title="TAGIHAN PLN DIPROSES (PASCA)")
                     return jsonify({
@@ -603,6 +619,13 @@ def checkout():
                 except Exception as digi_err:
                     new_trx.status = 'PROCESSING'
                     db.session.commit()
+
+                if new_trx.status in ['SUCCESS', 'PROCESSING']:
+                    try:
+                        from app.services.balance_notification_service import check_and_notify_low_balance
+                        check_and_notify_low_balance(user_locked.id, old_balance_for_check, user_locked.balance)
+                    except Exception:
+                        pass
 
                 from app.services.telegram_service import async_send_trx_notification
                 async_send_trx_notification(new_trx, title=f"TRANSAKSI {new_trx.status} (SALDO)")
@@ -1251,9 +1274,15 @@ def process_paid_order(trx):
     if trx.sku_code in ['DEPOSIT_SALDO', 'DEPOSIT_MANUAL']:
         user = User.query.filter_by(id=trx.user_id).with_for_update().first()
         if user and trx.status != 'SUCCESS':
+            old_bal = float(user.balance or 0.0)
             user.balance += trx.amount
             trx.status = 'SUCCESS'
             print(f"[DEPOSIT] User {user.id} balance +Rp {trx.amount}")
+            try:
+                from app.services.balance_notification_service import check_and_notify_low_balance
+                check_and_notify_low_balance(user.id, old_bal, user.balance)
+            except Exception:
+                pass
             
     # 2. Jika transaksi produk pascabayar / prabayar, trigger Digiflazz
     elif trx.status in ['UNPAID', 'PENDING', 'PROCESSING']:

@@ -98,15 +98,25 @@ def kirim_wa(target_number, message):
             clean_num = '62' + clean_num[1:]
 
         payload = {"number": clean_num, "message": message}
-        res = requests.post(
-            'http://127.0.0.1:3000/api/send',
-            json=payload,
-            headers={'Content-Type': 'application/json'},
-            timeout=5
-        )
-        if res.status_code == 200:
-            res_data = res.json()
-            return res_data.get('status') == 'success'
+        for host in ['127.0.0.1', 'localhost']:
+            try:
+                res = requests.post(
+                    f'http://{host}:3000/api/send',
+                    json=payload,
+                    headers={'Content-Type': 'application/json'},
+                    timeout=8
+                )
+                if res.status_code == 200:
+                    res_data = res.json()
+                    if res_data.get('status') == 'success':
+                        return True
+                    else:
+                        logger.warning(f"[-] Respons bot WA ({host}): {res.text}")
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+                continue
+            except Exception as e:
+                logger.warning(f"[-] Gagal kirim WA ke {target_number} via {host}: {e}")
+                continue
         return False
     except Exception as e:
         logger.warning(f"[-] Gagal kirim WA ke {target_number}: {e}")

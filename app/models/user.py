@@ -20,6 +20,7 @@ class User(db.Model, UserMixin):
     upline_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     commission_balance = db.Column(db.Float, default=0.0)
     last_reminded_at = db.Column(db.DateTime, nullable=True)
+    last_low_balance_notified_at = db.Column(db.DateTime, nullable=True)
 
     # Proteksi Kasir & Kunci Perangkat (Eksklusif VIP)
     is_device_lock_enabled = db.Column(db.Boolean, default=False)

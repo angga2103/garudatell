@@ -126,6 +126,7 @@ def process_subscription_upgrade(user, target_role):
         user_locked.role_expires_at = now + timedelta(days=30)
 
     # Potong saldo
+    old_balance_for_check = float(user_locked.balance or 0.0)
     user_locked.balance -= fee
     user_locked.last_reminded_at = None
 
@@ -153,6 +154,12 @@ def process_subscription_upgrade(user, target_role):
     )
     db.session.add(trx)
     db.session.commit()
+
+    try:
+        from app.services.balance_notification_service import check_and_notify_low_balance
+        check_and_notify_low_balance(user_locked.id, old_balance_for_check, user_locked.balance)
+    except Exception:
+        pass
 
     logger.info(f"[TIER_SERVICE] User {user_locked.id} ({user_locked.phone}) berhasil upgrade ke {target_role}. Berakhir: {exp_str}")
     return True, f"Selamat! Akun Anda berhasil di-upgrade ke {role_title} (aktif s/d {exp_str} WIB).", user_locked

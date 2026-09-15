@@ -58,6 +58,26 @@ def adjust_user_balance_manual(user_id, amount, action='add', note='', admin_sou
         db.session.add(trx)
         db.session.commit()
 
+        # Kirim notifikasi WhatsApp ke User dan Upline secara asinkron
+        try:
+            from app.services.balance_notification_service import (
+                notify_admin_balance_adjustment,
+                check_and_notify_low_balance
+            )
+            notify_admin_balance_adjustment(
+                user_id=user.id,
+                old_balance=old_balance,
+                amount=amount,
+                new_balance=new_balance,
+                action='add',
+                note=clean_note,
+                admin_source=clean_source,
+                ref_id=ref_id
+            )
+            check_and_notify_low_balance(user.id, old_balance, new_balance)
+        except Exception as e_notif:
+            print(f"[SALDO MANUAL NOTIF ERR] Gagal trigger notifikasi WA: {e_notif}")
+
         msg = f"Berhasil menambahkan saldo Rp {amount:,.0f} ke toko {user.name}. Saldo baru: Rp {new_balance:,.0f}."
         print(f"[SALDO MANUAL ADD] User #{user.id} ({user.name}) +Rp {amount:,.0f} oleh {clean_source}. Ref: {ref_id}")
         return True, new_balance, msg, trx
@@ -86,6 +106,26 @@ def adjust_user_balance_manual(user_id, amount, action='add', note='', admin_sou
         )
         db.session.add(trx)
         db.session.commit()
+
+        # Kirim notifikasi WhatsApp ke User dan Upline secara asinkron
+        try:
+            from app.services.balance_notification_service import (
+                notify_admin_balance_adjustment,
+                check_and_notify_low_balance
+            )
+            notify_admin_balance_adjustment(
+                user_id=user.id,
+                old_balance=old_balance,
+                amount=amount,
+                new_balance=new_balance,
+                action='deduct',
+                note=clean_note,
+                admin_source=clean_source,
+                ref_id=ref_id
+            )
+            check_and_notify_low_balance(user.id, old_balance, new_balance)
+        except Exception as e_notif:
+            print(f"[SALDO MANUAL NOTIF ERR] Gagal trigger notifikasi WA: {e_notif}")
 
         msg = f"Berhasil memotong/menyesuaikan saldo Rp {amount:,.0f} dari toko {user.name}. Saldo baru: Rp {new_balance:,.0f}."
         print(f"[SALDO MANUAL DEDUCT] User #{user.id} ({user.name}) -Rp {amount:,.0f} oleh {clean_source}. Ref: {ref_id}")

@@ -530,9 +530,15 @@ def update_transaction_status(id):
         if trx.sku_code in ['DEPOSIT_SALDO', 'DEPOSIT_MANUAL']:
             user = User.query.get(trx.user_id)
             if user:
+                old_bal = float(user.balance or 0.0)
                 user.balance += trx.amount
                 trx.payment_status = 'PAID'
                 print(f"[ADMIN DEPOSIT APPROVE] User {user.id} balance +Rp {trx.amount} for trx {trx.ref_id}")
+                try:
+                    from app.services.balance_notification_service import check_and_notify_low_balance
+                    check_and_notify_low_balance(user.id, old_bal, user.balance)
+                except Exception:
+                    pass
 
     db.session.commit()
     from app.services.telegram_service import async_send_trx_notification
