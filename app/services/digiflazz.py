@@ -199,12 +199,13 @@ def get_price_list(cmd='prepaid', code=None):
     except Exception as e:
         return False, [], f"Gagal menghubungi server Digiflazz: {str(e)}"
 
-def sync_products(force=False, notify_admin_bot=True):
+def sync_products(force=False, notify_admin_bot=True, include_pasca=False):
     """
-    Sinkronisasi katalog produk dari Digiflazz (Prepaid & Pasca) ke database lokal.
-    Dilengkapi 4 Lapis Pengaman Baja Anti-Wipeout:
-    1. Cooldown Guard (5.5 menit / 330s) mematuhi batas resmi Digiflazz
-    2. All-or-Nothing (prepaid & pasca harus sama-sama sukses sebelum proses katalog)
+    Sinkronisasi katalog produk dari Digiflazz ke database lokal.
+    Dilengkapi 4 Lapis Pengaman Baja Anti-Wipeout & Anti-Limit (RC 83):
+    1. Single-Endpoint Priority (Prepaid ditarik dari Digiflazz, Pasca menggunakan katalog resmi lokal)
+       mencegah benturan rate-limit Digiflazz RC 83 yang hanya mengizinkan 1 request /price-list per akun.
+    2. Cooldown Guard (5.5 menit / 330s) mematuhi batas resmi Digiflazz
     3. Circuit Breaker (minimal 500 SKU dari Digiflazz sebelum menyentuh produk usang)
     4. Anti-Wipeout Soft-Disable (TIDAK ADA db.session.delete; produk usang diset is_active=False)
     """
@@ -233,7 +234,10 @@ def sync_products(force=False, notify_admin_bot=True):
     update_count = 0
     gangguan_count = 0
     seen_skus = set()
-    cmds = ["prepaid", "pasca"]
+    cmds = ["prepaid"]
+    if include_pasca:
+        cmds.append("pasca")
+
     cmd_success_count = 0
     cmd_errors = []
 
@@ -242,6 +246,12 @@ def sync_products(force=False, notify_admin_bot=True):
         if not ok:
             print(f"[SYNC DIGIFLAZZ] Gagal mengambil pricelist {cmd}: {msg}")
             cmd_errors.append(f"{cmd.upper()}: {msg}")
+            # Jika terkena limitasi RC 83 dari Digiflazz, aktifkan cooldown lokal agar admin tidak spam
+            if "83" in str(msg):
+                try:
+                    set_last_sync_timestamp()
+                except Exception:
+                    pass
             continue
 
         cmd_success_count += 1
@@ -293,12 +303,19 @@ def sync_products(force=False, notify_admin_bot=True):
                     update_count += 1
 
     # 2. ALL-OR-NOTHING CHECK:
-    # Jika salah satu perintah (terutama prepaid) gagal, BATALKAN proses pembersihan!
-    # Jangan pernah menonaktifkan produk prepaid hanya karena respon pasca berhasil!
+    # Jika perintah gagal, BATALKAN proses pembersihan dan amankan katalog!
     if cmd_success_count < len(cmds):
         err_detail = " | ".join(cmd_errors)
         print(f"[CIRCUIT BREAKER] Sinkronisasi tidak lengkap. Kategori gagal: {err_detail}. Katalog aman dari penghapusan.")
         db.session.rollback()
+        if "83" in err_detail:
+            friendly_err = (
+                f"Digiflazz gagal merespon lengkap ({err_detail}).\n\n"
+                "💡 <i>Catatan: Server Digiflazz membatasi pengecekan pricelist per akun (jeda 5-10 menit). "
+                "Harap tunggu beberapa menit sebelum mencoba lagi, atau pastikan server/bot lain tidak sedang mengakses akun Digiflazz yang sama. "
+                "Katalog produk lokal tetap dipertahankan utuh & aman.</i>"
+            )
+            return False, friendly_err
         return False, f"Digiflazz gagal merespon lengkap ({err_detail}). Katalog produk lokal tetap dipertahankan utuh."
 
     # 3. CIRCUIT BREAKER THRESHOLD (Minimal 500 SKU) & SOFT-DISABLE (NO HARD DELETE!)
@@ -325,8 +342,12 @@ def sync_products(force=False, notify_admin_bot=True):
                 ob.is_active = False
                 deactivated_count += 1
 
-        # Pastikan produk pascabayar nasional selalu tersedia
+    # Selalu pastikan produk pascabayar nasional (PDAM se-Indonesia, BPJS, PLN Pasca, Telkom) tersedia & aktif
+    try:
+        from app.services.pascabayar_service import seed_pascabayar_products
         seed_pascabayar_products()
+    except Exception as e_seed:
+        print(f"[SEED PASCABAYAR WARNING] {e_seed}")
 
     db.session.commit()
     set_last_sync_timestamp()
