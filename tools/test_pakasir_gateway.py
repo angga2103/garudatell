@@ -18,6 +18,8 @@ def test_pakasir_gateway():
     print("=" * 70)
 
     app = create_app()
+    app.config['WTF_CSRF_ENABLED'] = False
+    app.config['TESTING'] = True
     client = app.test_client()
 
     # 1. Uji PakasirService secara unit
@@ -73,6 +75,11 @@ def test_pakasir_gateway():
     print("\n[3/5] Menguji Dispatcher /trx/generate_qris/<ref_id> dengan Pakasir...")
     with app.app_context():
         test_u = User.query.first()
+        if not test_u:
+            test_u = User(name="Test User", phone="08123456789", balance=10000.0)
+            test_u.set_password("pass123")
+            db.session.add(test_u)
+            db.session.commit()
         uid = test_u.id
 
     # Login sebagai user
@@ -160,8 +167,68 @@ def test_pakasir_gateway():
     assert "already processed" in res_wb_retry.get_json()['message']
     print("  [OK] Idempotensi Webhook Pakasir: Panggilan duplikat direspons aman tanpa error.")
 
-    # 5. Uji Kemampuan Kembali ke PaymentKita
-    print("\n[5/5] Menguji Pengalihan Kembali ke PaymentKita...")
+    # 5. Uji Check Transaction dengan parameter amount resmi Pakasir
+    print("\n[5/7] Menguji PakasirService.check_transaction dengan parameter amount...")
+    with patch('requests.get') as mock_chk_get:
+        mock_chk_get.return_value.status_code = 200
+        mock_chk_get.return_value.json.return_value = {
+            'status': 'completed',
+            'order_id': 'GT-TEST-CHK',
+            'amount': 25000
+        }
+        chk_res = ps.check_transaction('GT-TEST-CHK', amount=25000)
+        assert chk_res.get('status') == 'completed'
+        call_params = mock_chk_get.call_args[1]['params']
+        assert call_params['amount'] == 25000
+        assert call_params['order_id'] == 'GT-TEST-CHK'
+        assert call_params['project'] == 'garuda-store'
+        print("  [OK] PakasirService.check_transaction menyertakan parameter amount dengan tepat!")
+
+    # 6. Uji /trx/generate_qris saat Pakasir merespons 'Transaction already completed'
+    print("\n[6/7] Menguji /trx/generate_qris ketika transaksi telah dibayar (Transaction already completed)...")
+    dep_ref = f"DEP-TEST-AUTO-{int(time.time()*1000)}"
+    with app.app_context():
+        # Buat transaksi deposit dummy UNPAID
+        u = User.query.get(uid)
+        initial_bal = float(u.balance or 0.0)
+        dep_trx = Transaction(
+            ref_id=dep_ref,
+            user_id=uid,
+            sku_code='DEPOSIT_SALDO',
+            product_name="Deposit Saldo QRIS",
+            target_number="08123456789",
+            amount=50000,
+            payment_method="QRIS",
+            payment_status="UNPAID",
+            status="UNPAID"
+        )
+        db.session.add(dep_trx)
+        db.session.commit()
+
+    with patch('app.services.pakasir_service.PakasirService.create_qris') as mock_create_completed:
+        mock_create_completed.return_value = {
+            'status': False,
+            'error': 'Transaction already completed'
+        }
+        res_gq_comp = client.get(f'/trx/generate_qris/{dep_ref}')
+        assert res_gq_comp.status_code == 200
+        data_gq = res_gq_comp.get_json()
+        assert data_gq['status'] == 'paid'
+        assert data_gq['payment_status'] == 'PAID'
+
+    with app.app_context():
+        dep_done = Transaction.query.filter_by(ref_id=dep_ref).first()
+        assert dep_done.payment_status == 'PAID'
+        assert dep_done.status == 'SUCCESS'
+        u_after = User.query.get(uid)
+        assert float(u_after.balance) == initial_bal + 50000
+        print("  [OK] Saat Pakasir merespons 'Transaction already completed', deposit langsung otomatis PAID & saldo bertambah!")
+        db.session.delete(dep_done)
+        u_after.balance = initial_bal
+        db.session.commit()
+
+    # 7. Uji Kemampuan Kembali ke PaymentKita
+    print("\n[7/7] Menguji Pengalihan Kembali ke PaymentKita...")
     with client.session_transaction() as sess:
         sess['admin_logged_in'] = True
 

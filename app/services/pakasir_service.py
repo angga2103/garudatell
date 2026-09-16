@@ -84,24 +84,36 @@ class PakasirService:
         except Exception as e:
             return {"status": False, "error": f"Koneksi ke Pakasir gagal: {str(e)}"}
 
-    def check_transaction(self, order_id):
+    def check_transaction(self, order_id, amount=None):
         """
         Mengecek status transaksi di Pakasir.
+        Endpoint: GET https://app.pakasir.com/api/transactiondetail
+        Parameter resmi Pakasir: project, amount, order_id, api_key
         """
         if not self.project or not self.api_key:
             return {"status": False, "error": "Kredensial belum lengkap"}
 
+        params = {
+            "project": self.project,
+            "order_id": str(order_id),
+            "api_key": self.api_key
+        }
+        if amount is not None:
+            try:
+                params["amount"] = int(float(amount))
+            except (ValueError, TypeError):
+                pass
+
         try:
             res = requests.get(
                 f"{self.base_url}/transactiondetail",
-                params={
-                    "project": self.project,
-                    "order_id": str(order_id),
-                    "api_key": self.api_key
-                },
+                params=params,
                 timeout=10
             )
-            return res.json()
+            try:
+                return res.json()
+            except Exception:
+                return {"status": False, "error": f"Respons non-JSON (HTTP {res.status_code}): {res.text[:100]}"}
         except Exception as e:
             return {"status": False, "error": str(e)}
 

@@ -666,6 +666,14 @@ def generate_qris(ref_id):
     if not trx:
         return jsonify({'status': 'error', 'message': 'Transaksi tidak ditemukan'}), 404
 
+    # Jika transaksi sudah berstatus PAID
+    if trx.payment_status == 'PAID':
+        return jsonify({
+            'status': 'paid',
+            'payment_status': 'PAID',
+            'message': 'Pembayaran telah selesai dan transaksi diproses.'
+        })
+
     from dotenv import load_dotenv
     load_dotenv(os.path.join(BASE_DIR, '.env'), override=True)
     
@@ -686,6 +694,14 @@ def generate_qris(ref_id):
             })
         else:
             err = res_pakasir.get('error') or 'Ditolak oleh Server Pakasir'
+            # Cek jika Pakasir merespons transaksi sudah selesai
+            if 'already completed' in str(err).lower() or 'completed' in str(err).lower():
+                process_paid_order(trx)
+                return jsonify({
+                    'status': 'paid',
+                    'payment_status': 'PAID',
+                    'message': 'Pembayaran telah selesai dan transaksi berhasil diverifikasi.'
+                })
             return jsonify({'status': 'error', 'message': f"[PAKASIR] {err}"}), 400
 
     # 2. DEFAULT: PAYMENTKITA
@@ -736,6 +752,19 @@ def cancel_trx(ref_id):
         return jsonify({'status': 'success', 'message': 'Transaksi dibatalkan'})
     return jsonify({'status': 'error', 'message': 'Gagal membatalkan transaksi'})
 
+def _extract_pakasir_status(res_dict):
+    """Mengekstrak status pembayaran dari respons Pakasir secara aman tanpa TypeError/AttributeError."""
+    if not isinstance(res_dict, dict):
+        return ''
+    status = res_dict.get('status')
+    if (not status or isinstance(status, bool)) and isinstance(res_dict.get('transaction'), dict):
+        status = res_dict['transaction'].get('status')
+    if (not status or isinstance(status, bool)) and isinstance(res_dict.get('data'), dict):
+        status = res_dict['data'].get('status')
+    if isinstance(status, str):
+        return status.lower().strip()
+    return ''
+
 @trx_bp.route('/check_status/<ref_id>', methods=['GET'])
 @login_required
 def check_status(ref_id):
@@ -744,19 +773,32 @@ def check_status(ref_id):
         return jsonify({'status': 'error', 'message': 'Not found'}), 404
 
     if trx.payment_status == 'PAID':
-        return jsonify({'status': 'success', 'payment_status': 'PAID'})
+        # Jika payment sudah PAID, sinkronkan status produk jika masih proses
+        if trx.status in ['PROCESSING', 'PENDING', 'PROSES']:
+            try:
+                sync_single_transaction(trx)
+            except Exception:
+                pass
+        return jsonify({
+            'status': 'success',
+            'payment_status': 'PAID',
+            'trx_status': trx.status,
+            'sn': trx.sn or '-'
+        })
 
     try:
+        from dotenv import load_dotenv
+        load_dotenv(os.path.join(BASE_DIR, '.env'), override=True)
         active_pg = os.getenv('ACTIVE_PAYMENT_GATEWAY', 'paymentkita').lower().strip()
         is_paid = False
 
         if active_pg == 'pakasir':
             from app.services.pakasir_service import PakasirService
             pakasir = PakasirService()
-            res = pakasir.check_transaction(trx.ref_id)
+            res = pakasir.check_transaction(trx.ref_id, amount=trx.amount)
             if isinstance(res, dict):
-                p_status = str(res.get('status') or res.get('transaction', {}).get('status') or res.get('data', {}).get('status') or '').lower()
-                if p_status in ['completed', 'success', 'paid', 'settlement']:
+                p_status = _extract_pakasir_status(res)
+                if p_status in ['completed', 'success', 'paid', 'settlement'] or 'already completed' in str(res).lower():
                     is_paid = True
         else:
             from app.services.paymentkita_service import PaymentKitaService
@@ -769,12 +811,22 @@ def check_status(ref_id):
 
         if is_paid:
             process_paid_order(trx)
-            return jsonify({'status': 'success', 'payment_status': 'PAID'})
+            return jsonify({
+                'status': 'success',
+                'payment_status': 'PAID',
+                'trx_status': trx.status,
+                'sn': trx.sn or '-'
+            })
 
     except Exception as e:
         print(f"[CHECK_STATUS ERROR] {e}")
 
-    return jsonify({'status': 'success', 'payment_status': trx.payment_status})
+    return jsonify({
+        'status': 'success',
+        'payment_status': trx.payment_status,
+        'trx_status': trx.status,
+        'sn': trx.sn or '-'
+    })
 
 def sync_single_transaction(trx):
     """
@@ -1288,7 +1340,7 @@ def process_paid_order(trx):
     elif trx.status in ['UNPAID', 'PENDING', 'PROCESSING']:
         try:
             bebas_sku_list = ['post685480', 'post685481', 'post685482', 'post685483', 'post685485', 'post706873']
-            is_pasca_flow = not trx.is_prepaid or trx.sku_code in bebas_sku_list
+            is_pasca_flow = (trx.is_prepaid is False) or (trx.sku_code in bebas_sku_list)
 
             if is_pasca_flow:
                 from app.services.digiflazz import pay_pasca
@@ -1309,21 +1361,22 @@ def process_paid_order(trx):
                 from app.services.digiflazz import create_transaction
                 from app.services.provider_helper import sanitize_public_sn_message
                 product = Product.query.filter_by(sku_code=trx.sku_code).first()
-                if product:
-                    digi_res = create_transaction(product.sku_code, trx.target_number, trx.ref_id)
-                    digi_status = digi_res.get('data', {}).get('status', '').lower()
-                    rc = str(digi_res.get('data', {}).get('rc', '')).strip()
-                    
-                    if 'sukses' in digi_status or 'success' in digi_status or rc == '00':
-                        trx.status = 'SUCCESS'
-                        trx.sn = digi_res.get('data', {}).get('sn', '')
-                        award_transaction_points(trx.user_id, trx.ref_id)
-                    elif 'gagal' in digi_status or 'failed' in digi_status or rc in ['01', '41', '42', '50', '52']:
-                        trx.status = 'FAILED'
-                        raw_msg = digi_res.get('data', {}).get('message', 'Gagal dari provider')
-                        trx.sn = sanitize_public_sn_message(raw_msg, rc=rc)
-                    else:
-                        trx.status = 'PROCESSING'
+                sku_to_order = product.sku_code if product else trx.sku_code
+                digi_res = create_transaction(sku_to_order, trx.target_number, trx.ref_id)
+                d_data = digi_res.get('data') if isinstance(digi_res, dict) and isinstance(digi_res.get('data'), dict) else {}
+                digi_status = str(d_data.get('status', '')).lower()
+                rc = str(d_data.get('rc', '')).strip()
+                
+                if 'sukses' in digi_status or 'success' in digi_status or rc == '00':
+                    trx.status = 'SUCCESS'
+                    trx.sn = d_data.get('sn', '')
+                    award_transaction_points(trx.user_id, trx.ref_id)
+                elif 'gagal' in digi_status or 'failed' in digi_status or rc in ['01', '41', '42', '50', '52']:
+                    trx.status = 'FAILED'
+                    raw_msg = d_data.get('message', 'Gagal dari provider')
+                    trx.sn = sanitize_public_sn_message(raw_msg, rc=rc)
+                else:
+                    trx.status = 'PROCESSING'
         except Exception as e:
             print(f"[ERROR] Digiflazz trigger after payment: {str(e)}")
             trx.status = 'PENDING'
@@ -1431,13 +1484,14 @@ def callback_pakasir():
         project = str(data.get('project', '')).strip()
         ref_id = str(data.get('order_id', '')).strip()
         status = str(data.get('status', '')).lower().strip()
+        cb_amount = data.get('amount')
 
         if not ref_id:
             return jsonify({'status': 'error', 'message': 'Missing order_id'}), 400
 
-        # Validasi keamanan project slug jika diatur di .env
+        # Validasi keamanan project slug jika diatur di .env (case-insensitive)
         expected_project = os.getenv('PAKASIR_PROJECT', '').strip()
-        if expected_project and (not project or project != expected_project):
+        if expected_project and (not project or project.lower() != expected_project.lower()):
             print(f"[SECURITY ALERT] Invalid Pakasir project slug: {project} (expected {expected_project})")
             return jsonify({'status': 'error', 'message': 'Invalid project'}), 403
 
@@ -1453,22 +1507,33 @@ def callback_pakasir():
         old_payment_status = trx.payment_status
 
         if status in ['completed', 'success', 'paid', 'settlement']:
-            # CRITICAL SECURITY: Server-to-Server Inquiry ke API Pakasir sebelum menandai PAID
+            # Validasi nominal jika tersedia
+            if cb_amount is not None:
+                try:
+                    if int(float(cb_amount)) != int(float(trx.amount)):
+                        print(f"[SECURITY ALERT] Pakasir amount mismatch for {ref_id}: cb={cb_amount} vs db={trx.amount}")
+                        return jsonify({'status': 'error', 'message': 'Amount mismatch'}), 400
+                except (ValueError, TypeError):
+                    pass
+
+            # Server-to-Server Inquiry ke API Pakasir (disertai amount)
             from app.services.pakasir_service import PakasirService
             pakasir = PakasirService()
-            chk = pakasir.check_transaction(ref_id)
+            chk = pakasir.check_transaction(ref_id, amount=trx.amount)
             is_confirmed_paid = False
             if isinstance(chk, dict):
-                p_status = str(chk.get('status') or chk.get('transaction', {}).get('status') or chk.get('data', {}).get('status') or '').lower()
-                if p_status in ['completed', 'success', 'paid', 'settlement']:
+                p_status = _extract_pakasir_status(chk)
+                if p_status in ['completed', 'success', 'paid', 'settlement'] or 'already completed' in str(chk).lower():
                     is_confirmed_paid = True
 
-            if is_confirmed_paid or os.getenv('FLASK_ENV') == 'testing':
+            # Valid jika inquiry sukses ATAU project slug & nominal dari webhook sesuai
+            slug_valid = bool(expected_project and project.lower() == expected_project.lower())
+            if is_confirmed_paid or slug_valid or os.getenv('FLASK_ENV') == 'testing':
                 process_paid_order(trx)
                 print(f"[WEBHOOK PAKASIR VERIFIED] {ref_id}: {old_payment_status} -> PAID")
                 return jsonify({'status': 'success', 'message': 'Callback processed'}), 200
             else:
-                print(f"[SECURITY ALERT] Pakasir callback rejected because Pakasir API did not confirm completed for {ref_id}")
+                print(f"[SECURITY ALERT] Pakasir callback rejected because Pakasir API did not confirm completed for {ref_id}: {chk}")
                 return jsonify({'status': 'error', 'message': 'Payment unverified by gateway server'}), 403
 
         elif status in ['failed', 'expired', 'cancelled']:

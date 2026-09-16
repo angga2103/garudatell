@@ -490,7 +490,7 @@
 </div>
 
 <script>
-// Load QRIS Image
+// Load QRIS Image & Auto-detect Status
 {% if trx.payment_status == 'UNPAID' and trx.payment_method and trx.payment_method|upper == 'QRIS' %}
 window.addEventListener('DOMContentLoaded', function() {
     fetch('/trx/generate_qris/{{ trx.ref_id }}')
@@ -499,6 +499,13 @@ window.addEventListener('DOMContentLoaded', function() {
             const loading = document.getElementById('qrisLoading');
             const img = document.getElementById('qrisImage');
             
+            // Jika pembayaran ternyata sudah selesai saat generate QRIS
+            if (data.status === 'paid' || data.payment_status === 'PAID') {
+                if (typeof pollInterval !== 'undefined' && pollInterval) clearInterval(pollInterval);
+                window.location.reload();
+                return;
+            }
+
             if (data.status === 'success' && (data.qr_url || data.qr_string)) {
                 img.src = data.qr_url || ('https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=' + encodeURIComponent(data.qr_string));
                 img.onload = function() {
@@ -541,22 +548,61 @@ function updateCountdown() {
 const countdownInterval = setInterval(updateCountdown, 1000);
 updateCountdown();
 
-// Cek Status Pembayaran
-function checkPaymentStatus() {
+// Cek Status Pembayaran (Manual & Auto-Polling)
+let pollInterval = null;
+
+function checkPaymentStatus(isAuto = false) {
     fetch('/trx/check_status/{{ trx.ref_id }}')
         .then(response => response.json())
         .then(data => {
             if (data.payment_status === 'PAID') {
-                alert('Pembayaran berhasil diterima! Saldo / transaksi telah diperbarui.');
-                window.location.reload();
-            } else {
-                alert('Pembayaran belum diterima sistem. Jika sudah bayar, tunggu beberapa saat lalu cek kembali.');
+                if (pollInterval) clearInterval(pollInterval);
+                if (typeof countdownInterval !== 'undefined') clearInterval(countdownInterval);
+                
+                const qrisBox = document.querySelector('.qris-container');
+                if (qrisBox) {
+                    qrisBox.innerHTML = `
+                        <div style="padding: 24px 16px; background: #ecfdf5; border-radius: 20px; border: 2px solid #10b981; color: #065f46; text-align: center; margin-bottom: 10px;">
+                            <i class="fas fa-check-circle" style="font-size: 46px; color: #10b981; margin-bottom: 10px;"></i>
+                            <h3 style="margin: 0 0 6px 0; font-size: 18px; font-weight: 900;">Pembayaran Berhasil Diterima!</h3>
+                            <p style="margin: 0; font-size: 13px; font-weight: 700; color: #047857;">Memperbarui data pesanan Anda...</p>
+                        </div>
+                    `;
+                }
+                
+                setTimeout(function() {
+                    window.location.reload();
+                }, 800);
+            } else if (!isAuto) {
+                alert('Pembayaran belum diterima sistem. Jika baru saja scan/transfer, harap tunggu beberapa saat lalu cek kembali.');
             }
         })
         .catch(error => {
-            alert('Gagal mengecek status: ' + error.message);
+            if (!isAuto) {
+                alert('Gagal mengecek status: ' + error.message);
+            }
         });
 }
+
+// Jalankan Auto-Polling otomatis setiap 3.5 detik untuk mendeteksi pembayaran masuk tanpa refresh manual
+pollInterval = setInterval(function() {
+    checkPaymentStatus(true);
+}, 3500);
+{% endif %}
+
+// Auto-Sync status produk jika sudah PAID tapi masih dalam proses provider
+{% if trx.payment_status == 'PAID' and trx.status in ['PROCESSING', 'PENDING', 'PROSES'] %}
+let trxPollInterval = setInterval(function() {
+    fetch('/trx/check_status/{{ trx.ref_id }}')
+        .then(r => r.json())
+        .then(data => {
+            if (data.trx_status && data.trx_status !== 'PROCESSING' && data.trx_status !== 'PENDING' && data.trx_status !== 'PROSES') {
+                clearInterval(trxPollInterval);
+                window.location.reload();
+            }
+        })
+        .catch(() => {});
+}, 4000);
 {% endif %}
 
 // =========================================================================
