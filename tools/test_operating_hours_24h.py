@@ -26,11 +26,12 @@ from app.services.device_service import (
 
 class TestOperatingHoursAnd24Hours(unittest.TestCase):
     def setUp(self):
-        self.app = create_app()
-        self.app.config['TESTING'] = True
-        self.app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
-        self.app.config['WTF_CSRF_ENABLED'] = False
-        self.app.config['SERVER_NAME'] = 'localhost'
+        self.app = create_app({
+            'TESTING': True,
+            'SQLALCHEMY_DATABASE_URI': 'sqlite:///:memory:',
+            'WTF_CSRF_ENABLED': False,
+            'SERVER_NAME': 'localhost'
+        })
         self.client = self.app.test_client()
 
         self.app_context = self.app.app_context()

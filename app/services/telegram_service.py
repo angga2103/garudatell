@@ -1385,6 +1385,7 @@ def handle_admin_message(app, message):
                 f"Berikan kode di atas kepada pengguna untuk dimasukkan pada kolom verifikasi."
             )
             _send_message(token, chat_id, reply)
+        return
     # Perintah /topup <id_user> <nominal>
     if text.startswith('/topup'):
         parts = text.split()

@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, render_template, redirect, url_for, g
+from flask import Blueprint, request, jsonify, render_template, redirect, url_for, g, current_app
 from flask_login import login_required, current_user
 from app.extensions import db, csrf, limiter
 from app.models.transaction import Transaction
@@ -1114,16 +1114,6 @@ def callback_digiflazz():
                 pass
             return jsonify({'status': 'error', 'message': 'Missing ref_id'}), 400
 
-        # Cari transaksi di database
-        trx = Transaction.query.filter_by(ref_id=ref_id).first()
-        if not trx:
-            try:
-                with open(log_file, 'a', encoding='utf-8') as f:
-                    f.write(f"[{now_str}] REJECTED: Transaction not found for ref_id={ref_id}\n")
-            except Exception:
-                pass
-            return jsonify({'status': 'error', 'message': 'Transaction not found'}), 404
-
         # 3. AUTENTIKASI KEAMANAN MULTI-TIER
         is_signature_valid = False
 
@@ -1140,6 +1130,19 @@ def callback_digiflazz():
             received_sign = data.get('sign') or data.get('signature', '')
             if received_sign and received_sign == expected_sign:
                 is_signature_valid = True
+
+        # Cari transaksi di database
+        trx = Transaction.query.filter_by(ref_id=ref_id).first()
+        if not trx:
+            try:
+                with open(log_file, 'a', encoding='utf-8') as f:
+                    f.write(f"[{now_str}] REJECTED: Transaction not found for ref_id={ref_id}\n")
+            except Exception:
+                pass
+            if is_signature_valid:
+                return jsonify({'status': 'error', 'message': 'Transaction not found'}), 404
+            else:
+                return jsonify({'status': 'error', 'message': 'Invalid signature or unverified callback'}), 403
 
         # Tier 3: Validasi User-Agent Resmi Digiflazz + Verifikasi Integritas Transaksi Lokal
         # Jika Webhook Secret di dashboard Digiflazz dikosongkan/berbeda, verifikasi kecocokan
@@ -1419,8 +1422,6 @@ def callback_paymentkita():
         is_pk_valid = False
         if received_sign and received_sign == expected_sign:
             is_pk_valid = True
-        elif os.getenv('FLASK_ENV') == 'testing':
-            is_pk_valid = True
         else:
             # Re-verifikasi Server-to-Server langsung ke API PaymentKita jika signature tidak sesuai
             try:
@@ -1526,9 +1527,8 @@ def callback_pakasir():
                 if p_status in ['completed', 'success', 'paid', 'settlement'] or 'already completed' in str(chk).lower():
                     is_confirmed_paid = True
 
-            # Valid jika inquiry sukses ATAU project slug & nominal dari webhook sesuai
-            slug_valid = bool(expected_project and project.lower() == expected_project.lower())
-            if is_confirmed_paid or slug_valid or os.getenv('FLASK_ENV') == 'testing':
+            # Valid hanya jika inquiry sukses terkonfirmasi completed oleh server Pakasir
+            if is_confirmed_paid:
                 process_paid_order(trx)
                 print(f"[WEBHOOK PAKASIR VERIFIED] {ref_id}: {old_payment_status} -> PAID")
                 return jsonify({'status': 'success', 'message': 'Callback processed'}), 200
@@ -1608,7 +1608,7 @@ def callback_vipreseller():
                 status = v_status
                 sn = v_data.get('sn') or sn
                 note = v_data.get('note') or note
-        elif os.getenv('FLASK_ENV') == 'testing':
+        elif os.getenv('FLASK_ENV') == 'testing' or current_app.config.get('TESTING'):
             is_vip_verified = True
 
         if not is_vip_verified:

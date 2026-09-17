@@ -34,11 +34,12 @@ class TestCashierPortal(unittest.TestCase):
         self.digi_patcher = patch('app.services.digiflazz.create_transaction', return_value={'data': {'status': 'Sukses', 'rc': '00', 'sn': 'SN-KASIR-12345'}})
         self.mock_digi = self.digi_patcher.start()
 
-        self.app = create_app()
-        self.app.config['TESTING'] = True
-        self.app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
-        self.app.config['WTF_CSRF_ENABLED'] = False
-        self.app.config['SERVER_NAME'] = 'localhost'
+        self.app = create_app({
+            'TESTING': True,
+            'SQLALCHEMY_DATABASE_URI': 'sqlite:///:memory:',
+            'WTF_CSRF_ENABLED': False,
+            'SERVER_NAME': 'localhost'
+        })
         self.client = self.app.test_client()
 
         self.ctx = self.app.app_context()

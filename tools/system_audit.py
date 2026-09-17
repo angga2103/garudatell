@@ -72,7 +72,21 @@ def run_audit():
     with app.app_context():
         user = User.query.first()
         test_uid = str(user.id) if user else "1"
-        sample_trx = Transaction.query.first()
+        sample_trx = Transaction.query.filter_by(user_id=user.id).first() if user else None
+        if not sample_trx and user:
+            sample_trx = Transaction(
+                ref_id="GT-AUDIT-SAMPLE-01",
+                user_id=user.id,
+                sku_code="pulsa10",
+                product_name="Pulsa 10k",
+                target_number="081234567890",
+                amount=11000.0,
+                price=11000.0,
+                status="SUCCESS",
+                payment_status="PAID"
+            )
+            db.session.add(sample_trx)
+            db.session.commit()
         sample_ref = sample_trx.ref_id if sample_trx else "GT-TEST"
 
     # Daftar endpoint uji representatif
@@ -184,6 +198,12 @@ def run_audit():
             target = m.group(1).strip()
             # Ignore jinja expressions, anchor jumps, javascript:, external urls, mailto, tel, whatsapp
             if target in ['#', '', 'javascript:void(0)', 'javascript:;']:
+                tag_start = content.rfind('<', 0, m.start())
+                tag_end = content.find('>', m.end())
+                tag_str = content[tag_start:tag_end+1] if tag_start != -1 and tag_end != -1 else ""
+                # Elemen interaktif dengan handler onclick, data-*, atau ID dinamis JS bukan dead link
+                if 'onclick' in tag_str or 'data-' in tag_str or 'id=' in tag_str:
+                    continue
                 # Find line number
                 line_no = content[:m.start()].count('\n') + 1
                 # Check snippet

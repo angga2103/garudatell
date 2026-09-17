@@ -134,14 +134,19 @@ def test_point_feature():
     with client.session_transaction() as sess:
         sess['admin_logged_in'] = True
 
+    import re
     # A. Cek kolom poin di tabel user admin
     res_adm_users = client.get('/admin/users')
     assert res_adm_users.status_code == 200
-    assert 'Poin' in res_adm_users.data.decode('utf-8')
-    assert 'eu_points' in res_adm_users.data.decode('utf-8')
+    html_users = res_adm_users.data.decode('utf-8')
+    assert 'Poin' in html_users
+    assert 'eu_points' in html_users
+    m_csrf = re.search(r'name="csrf_token" value="([^"]+)"', html_users)
+    csrf_u = m_csrf.group(1) if m_csrf else ""
 
     # B. Update poin user via modal edit
     res_update_user = client.post('/admin/user/update_action', data={
+        'csrf_token': csrf_u,
         'user_id': user_id,
         'name': 'User Test Point',
         'phone': '081299998888',
@@ -157,7 +162,7 @@ def test_point_feature():
         print("  [OK] Admin berhasil mengedit jumlah poin user menjadi 350 Pts!")
 
     # C. Reset poin user via endpoint reset_points
-    res_reset = client.post(f'/admin/user/reset_points/{user_id}', follow_redirects=True)
+    res_reset = client.post(f'/admin/user/reset_points/{user_id}', data={'csrf_token': csrf_u}, follow_redirects=True)
     assert res_reset.status_code == 200
     with app.app_context():
         u_reset = User.query.get(user_id)
@@ -165,7 +170,12 @@ def test_point_feature():
         print("  [OK] Admin berhasil mereset poin user menjadi 0 Pts!")
 
     # D. Edit Aturan Dinamis di /admin/point_settings
+    res_ps_get = client.get('/admin/point_settings')
+    m_csrf_ps = re.search(r'name="csrf_token" value="([^"]+)"', res_ps_get.data.decode('utf-8'))
+    csrf_ps = m_csrf_ps.group(1) if m_csrf_ps else csrf_u
+
     res_save_settings = client.post('/admin/point_settings', data={
+        'csrf_token': csrf_ps,
         'point_rate': '2',
         'point_reward_per_trx': '5',
         'point_claim_start_day': '1',

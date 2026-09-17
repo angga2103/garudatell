@@ -63,7 +63,8 @@ def get_current_cashier_device():
 
     return device
 
-@kasir_bp.route('/')
+@kasir_bp.route('', strict_slashes=False)
+@kasir_bp.route('/', strict_slashes=False)
 def index():
     """
     Halaman Utama Portal Kasir:

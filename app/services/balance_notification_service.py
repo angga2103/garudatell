@@ -229,23 +229,28 @@ def _dispatch_low_balance_worker(app, user_id, current_balance):
     """Worker background untuk mengirim alert saldo minim via WA."""
     with app.app_context():
         try:
-            user = User.query.get(user_id)
+            user = db.session.get(User, int(user_id))
             if not user:
                 return
 
             store_name = get_app_store_name()
+            u_name = user.name
+            u_phone = user.phone
+            upline_id = getattr(user, 'upline_id', None)
 
             # 1. Kirim ke User
-            if user.phone:
-                msg_user = _build_low_balance_message_user(store_name, user.name, current_balance)
-                ok_user = kirim_wa(user.phone, msg_user)
-                logger.info(f"[WA LOW BAL ALERT] Kirim ke User #{user.id} ({user.phone}): {'Sukses' if ok_user else 'Gagal'}")
+            if u_phone:
+                msg_user = _build_low_balance_message_user(store_name, u_name, current_balance)
+                ok_user = kirim_wa(u_phone, msg_user)
+                logger.info(f"[WA LOW BAL ALERT] Kirim ke User #{user_id} ({u_phone}): {'Sukses' if ok_user else 'Gagal'}")
 
             # 2. Kirim ke Upline jika ada
-            if user.upline and user.upline.phone:
-                msg_upline = _build_low_balance_message_upline(store_name, user.upline.name, user.name, user.phone, current_balance)
-                ok_upline = kirim_wa(user.upline.phone, msg_upline)
-                logger.info(f"[WA LOW BAL ALERT] Kirim ke Upline #{user.upline.id} ({user.upline.phone}): {'Sukses' if ok_upline else 'Gagal'}")
+            if upline_id:
+                upline = db.session.get(User, int(upline_id))
+                if upline and upline.phone:
+                    msg_upline = _build_low_balance_message_upline(store_name, upline.name, u_name, u_phone, current_balance)
+                    ok_upline = kirim_wa(upline.phone, msg_upline)
+                    logger.info(f"[WA LOW BAL ALERT] Kirim ke Upline #{upline.id} ({upline.phone}): {'Sukses' if ok_upline else 'Gagal'}")
 
         except Exception as e:
             logger.error(f"[WA LOW BAL ALERT] Error saat mengirim alert saldo minim: {e}")
@@ -262,7 +267,7 @@ def check_and_notify_low_balance(user_id, old_balance, new_balance):
     except Exception:
         return False
 
-    user = User.query.get(user_id)
+    user = db.session.get(User, int(user_id))
     if not user:
         return False
 

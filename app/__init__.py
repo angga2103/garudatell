@@ -22,7 +22,7 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
         finally:
             cursor.close()
 
-def create_app():
+def create_app(test_config=None):
     app = Flask(__name__)
     basedir = os.path.abspath(os.path.dirname(__file__))
     root_dir = os.path.dirname(basedir)
@@ -30,6 +30,12 @@ def create_app():
 
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'garudatel.db')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'pool_size': 30,
+        'max_overflow': 50,
+        'pool_timeout': 30,
+        'pool_recycle': 1800
+    }
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY') or secrets.token_hex(32)
     app.config['RATELIMIT_STORAGE_URI'] = 'memory://'
     app.config['TEMPLATES_AUTO_RELOAD'] = True
@@ -38,6 +44,14 @@ def create_app():
     app.config['CACHE_TYPE'] = 'SimpleCache'
     app.config['CACHE_DEFAULT_TIMEOUT'] = 300
     app.config['CACHE_THRESHOLD'] = 1000
+
+    if test_config:
+        app.config.update(test_config)
+    
+    # In-memory SQLite uses StaticPool which does not accept pool_size/max_overflow/pool_timeout
+    db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
+    if ':memory:' in db_uri or db_uri == 'sqlite://':
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {}
     
     cache.init_app(app)
     db.init_app(app)
@@ -81,10 +95,12 @@ def create_app():
     from app.routes.auth import auth_bp
     from app.routes.transaction import trx_bp
     from app.routes.kasir import kasir_bp
+    from app.routes.admin_provider import admin_provider_bp
     
     # Daftarkan Blueprint
     app.register_blueprint(user_bp) 
     app.register_blueprint(admin_bp, url_prefix='/admin')
+    app.register_blueprint(admin_provider_bp, url_prefix='/admin')
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(trx_bp, url_prefix='/trx')
     app.register_blueprint(kasir_bp, url_prefix='/kasir')

@@ -77,13 +77,17 @@ def dashboard():
     trx_today_count = Transaction.query.filter(Transaction.created_at >= today_start).count()
     total_trx = Transaction.query.count()
 
-    # Deteksi IP Public VPS untuk Whitelist & Callback URL Dinamis
+    # Deteksi IP Public VPS untuk Whitelist & Callback URL Dinamis (dengan Caching 1 Jam)
     server_public_ip = clean_str(os.getenv('SERVER_PUBLIC_IP'))
     if not server_public_ip:
-        try:
-            server_public_ip = requests.get('https://api.ipify.org', timeout=2).text.strip()
-        except Exception:
-            server_public_ip = '203.194.115.182'
+        server_public_ip = cache.get('server_public_ip')
+        if not server_public_ip:
+            try:
+                server_public_ip = requests.get('https://api.ipify.org', timeout=1.5).text.strip()
+                if server_public_ip:
+                    cache.set('server_public_ip', server_public_ip, timeout=3600)
+            except Exception:
+                server_public_ip = '203.194.115.182'
 
     f_proto = request.headers.get('X-Forwarded-Proto') or request.scheme
     f_host = request.headers.get('X-Forwarded-Host') or request.host

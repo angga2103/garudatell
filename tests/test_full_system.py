@@ -31,6 +31,7 @@ def run_all_tests():
     print("=" * 70)
 
     app = create_app()
+    app.config['TESTING'] = True
     client = app.test_client()
 
     # ----------------------------------------------------------------------
@@ -111,9 +112,9 @@ def run_all_tests():
             db.session.commit()
         test_uid = u_test.id
 
-        # Dapatkan produk aktif
-        sample_prod = Product.query.filter_by(is_active=True).first()
-        sample_sku = sample_prod.sku_code if sample_prod else 'TEST_SKU'
+        # Dapatkan produk aktif prepaid
+        sample_prod = Product.query.filter(Product.is_active == True, Product.category == 'PULSA').first() or Product.query.filter_by(is_active=True).first()
+        sample_sku = sample_prod.sku_code if sample_prod else 'TSEL5'
 
     # Simulasikan login
     with client.session_transaction() as sess:
@@ -170,8 +171,11 @@ def run_all_tests():
     assert r_cb1.get_json().get('message') == 'Transaction already completed'
     print("  [OK] Idempotensi Digiflazz: Webhook duplikat pada transaksi sukses direspons 200 tanpa duplikasi aksi.")
 
+    merchant_id = os.getenv('PAYMENTKITA_MERCHANT_ID', '')
+    secret = os.getenv('PAYMENTKITA_SECRET', '')
+    pk_sig = hashlib.md5(f"{merchant_id}{secret}{ref_id_qris}paid".encode()).hexdigest()
     r_pk1 = client.post('/trx/callback/paymentkita', json={
-        'ref_id': ref_id_qris, 'status': 'paid'
+        'ref_id': ref_id_qris, 'status': 'paid', 'signature': pk_sig
     })
     assert r_pk1.get_json().get('message') == 'Payment already processed'
     print("  [OK] Idempotensi PaymentKita: Webhook retry pada transaksi PAID direspons 200 tanpa duplikasi kredit.")

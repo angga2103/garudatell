@@ -76,10 +76,8 @@ class TestEmergencyOtpFlow(unittest.TestCase):
             payload = call_kwargs.get('json', {})
             text = payload.get('text', '')
 
-            self.assertIn("PERMINTAAN BANTUAN OTP DARURAT", text)
+            self.assertIn("PERMINTAAN BANTUAN OTP MANUAL BARU", text)
             self.assertIn("6281234567890", text)
-            self.assertIn("789456", text)
-            self.assertIn("10 Menit", text)
             self.assertIn("Budi Darurat", text)
 
     @patch('requests.post')
@@ -91,37 +89,41 @@ class TestEmergencyOtpFlow(unittest.TestCase):
         mock_post.return_value = mock_response
 
         test_phone = '081288887777'
-        # Hapus OTP sebelumnya
+        # Hapus OTP dan Permohonan sebelumnya
+        from app.models.otp_manual import OtpManualRequest
         OtpCode.query.filter(OtpCode.phone.in_(get_phone_variants(test_phone))).delete()
+        OtpManualRequest.query.filter(OtpManualRequest.phone.in_(get_phone_variants(test_phone))).delete()
         db.session.commit()
 
         with patch.dict(os.environ, {'BOT_CS_TOKEN': '123456:FAKE_CS_TOKEN', 'BOT_CS_CHAT_ID': '987654321', 'ADMIN_PHONE': '62811111111'}):
             res = self.client.post('/api/auth_ajax', json={
                 'action': 'request_emergency_otp',
                 'phone': test_phone,
-                'name': 'Andi Member'
+                'name': 'Andi Member',
+                'purpose': 'login'
             })
             self.assertEqual(res.status_code, 200)
             data = res.get_json()
-            self.assertEqual(data.get('status'), 'success')
-            self.assertIn('10 menit', data.get('message').lower())
-            self.assertTrue(data.get('cs_wa_url').startswith('https://wa.me/'))
+            self.assertEqual(data.get('status'), 'pending_approval')
+            self.assertIn('admin', data.get('message').lower())
+            req_id = data.get('request_id')
+            self.assertIsNotNone(req_id)
 
-            # Verifikasi OTP tersimpan di DB dengan masa berlaku sekitar 10 menit
-            otp_record = OtpCode.query.filter(
-                OtpCode.phone.in_(get_phone_variants(test_phone)),
-                OtpCode.action == 'manual'
-            ).order_by(OtpCode.created_at.desc()).first()
+            # Admin menyetujui permohonan via /admin/otp_manual/approve
+            with self.client.session_transaction() as sess:
+                sess['admin_logged_in'] = True
 
-            self.assertIsNotNone(otp_record)
-            now_ts = time.time()
-            delta = otp_record.expires_at - now_ts
-            # Harus sekitar 600 detik (antara 500 dan 620)
-            self.assertGreater(delta, 500)
-            self.assertLessEqual(delta, 620)
+            res_appr = self.client.post('/admin/otp_manual/approve', json={
+                'request_id': req_id
+            })
+            self.assertEqual(res_appr.status_code, 200)
+            appr_data = res_appr.get_json()
+            self.assertEqual(appr_data.get('status'), 'success')
+            otp_approved = appr_data.get('otp_code')
+            self.assertIsNotNone(otp_approved)
 
             # Kode OTP manual ini harus bisa diverifikasi untuk login atau register
-            ok, v_msg, _ = verify_otp(test_phone, otp_record.otp_code, action='login')
+            ok, v_msg, _ = verify_otp(test_phone, otp_approved, action='login')
             self.assertTrue(ok, f"OTP darurat harus valid: {v_msg}")
 
     @patch('requests.post')

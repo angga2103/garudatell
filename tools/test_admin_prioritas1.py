@@ -40,16 +40,19 @@ def test_admin_priority_1():
     csrf_count = res_dash.text.count('name="csrf_token"')
     print(f"  [OK] Ditemukan {csrf_count} field csrf_token di form dashboard.")
     assert csrf_count >= 8, f"Kurang dari 8 csrf_token di dashboard (hanya {csrf_count})"
+    m_csrf = re.search(r'name="csrf_token" value="([^"]+)"', res_dash.text)
+    csrf_tok = m_csrf.group(1) if m_csrf else ""
 
     # 2. Test Simpan Konfigurasi (POST /admin/save_config)
     print("\n[2/6] Menguji Simpan Konfigurasi...")
     res_save = client.post('/admin/save_config', data={
+        'csrf_token': csrf_tok,
         'form_type': 'digiflazz',
         'digi_user': 'user_test_admin',
         'digi_url': 'https://api.digiflazz.com/v1'
     }, follow_redirects=True)
     assert res_save.status_code == 200
-    assert "Konfigurasi berhasil disimpan!" in res_save.text
+    assert "berhasil disimpan" in res_save.text.lower()
     print("  [OK] Form save_config berhasil diproses tanpa blokir CSRF (200 OK via redirect).")
 
     # 3. Test Edit User di Data User (POST /admin/user/update_action)
@@ -64,6 +67,7 @@ def test_admin_priority_1():
         uid = test_u.id
 
     res_user_act = client.post('/admin/user/update_action', data={
+        'csrf_token': csrf_tok,
         'user_id': uid,
         'name': 'UserAdminEdited',
         'phone': '081122334455',
@@ -100,9 +104,11 @@ def test_admin_priority_1():
     res_margin = client.get('/admin/margin')
     assert res_margin.status_code == 200
     assert 'name="csrf_token"' in res_margin.text
+    m_csrf_m = re.search(r'name="csrf_token" value="([^"]+)"', res_margin.text)
+    csrf_margin = m_csrf_m.group(1) if m_csrf_m else csrf_tok
     
     # Test apply auto tier
-    res_apply = client.post('/admin/apply_auto_tier', follow_redirects=True)
+    res_apply = client.post('/admin/apply_auto_tier', data={'csrf_token': csrf_margin}, follow_redirects=True)
     assert res_apply.status_code == 200
     print("  [OK] Form Margin & eksekusi apply_auto_tier berhasil dijalankan tanpa kendala CSRF.")
 

@@ -131,7 +131,8 @@ def test_pakasir_gateway():
     # Set mock project slug
     os.environ['PAKASIR_PROJECT'] = 'garuda-store'
 
-    with patch('app.services.digiflazz.create_transaction') as mock_digi:
+    with patch('app.services.digiflazz.create_transaction') as mock_digi, \
+         patch('app.services.pakasir_service.PakasirService.check_transaction', return_value={'status': 'completed', 'data': {'status': 'completed'}}):
         mock_digi.return_value = {
             'data': {'status': 'Sukses', 'sn': 'SN-PKS-999888'}
         }
