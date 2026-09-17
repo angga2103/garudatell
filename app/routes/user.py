@@ -1642,10 +1642,14 @@ def deposit():
         Transaction.sku_code.in_(['DEPOSIT_SALDO', 'DEPOSIT_MANUAL'])
     ).order_by(Transaction.id.desc()).limit(5).all()
 
+    from app.services.setting_service import get_manual_deposit_settings
+    depo_settings = get_manual_deposit_settings()
+
     return render_template('user/deposit.html',
                            active_pg=active_pg,
                            gateway_name=gateway_name,
-                           recent_deposits=recent_deposits)
+                           recent_deposits=recent_deposits,
+                           depo_settings=depo_settings)
 
 
 @user_bp.route('/deposit/manual', methods=['POST'])
@@ -1655,11 +1659,17 @@ def deposit_manual_action():
     from flask import jsonify, request
     import random
     import time
+    import re
     from urllib.parse import quote
     from app.models.transaction import Transaction
+    from app.services.setting_service import get_manual_deposit_settings
 
     if not current_user.is_authenticated:
         return jsonify({'status': 'error', 'message': 'Silakan login terlebih dahulu.'}), 401
+
+    depo_settings = get_manual_deposit_settings()
+    if str(depo_settings.get('is_active', '1')) == '0':
+        return jsonify({'status': 'error', 'message': 'Metode transfer manual sedang dinonaktifkan sementara oleh admin. Silakan gunakan QRIS Otomatis.'}), 400
 
     data = request.get_json(silent=True) or request.form.to_dict() or {}
     nominal_raw = data.get('nominal') or data.get('amount')
@@ -1679,8 +1689,26 @@ def deposit_manual_action():
 
     ref_id = f"DEP-MANUAL-{int(time.time())}{random.randint(100, 999)}"
 
-    ewallet_dest = "081775700114"
-    ewallet_owner = "GarudaTel"
+    # Ambil nomor e-wallet dan atas nama dinamis sesuai jenis e-wallet yang dipilih user
+    if ewallet_type == 'SHOPEEPAY':
+        ewallet_dest = depo_settings.get('shopee_number') or "081775700114"
+        ewallet_owner = depo_settings.get('shopee_name') or "GarudaTel / Kasir"
+    elif ewallet_type == 'GOPAY':
+        ewallet_dest = depo_settings.get('gopay_number') or "081775700114"
+        ewallet_owner = depo_settings.get('gopay_name') or "GarudaTel / Kasir"
+    else:
+        ewallet_dest = depo_settings.get('dana_number') or "081775700114"
+        ewallet_owner = depo_settings.get('dana_name') or "GarudaTel / Kasir"
+
+    # Nomor WA admin tujuan konfirmasi
+    wa_raw = depo_settings.get('wa_target') or "081775700114"
+    clean_wa = re.sub(r'[^0-9]', '', str(wa_raw))
+    if clean_wa.startswith('0'):
+        clean_wa = '62' + clean_wa[1:]
+    elif not clean_wa.startswith('62') and clean_wa:
+        clean_wa = '62' + clean_wa
+    if not clean_wa:
+        clean_wa = '6281775700114'
 
     # Simpan ke tabel Transaksi
     trx = Transaction(
@@ -1719,9 +1747,9 @@ def deposit_manual_action():
         f"• Ref ID: {ref_id}\n\n"
         f"Saya sudah mentransfer sesuai jumlah total di atas. Mohon segera dicek dan disetujui. Terima kasih!"
     )
-    # Format URL WhatsApp konfirmasi dengan skema langsung whatsapp://
-    wa_url = f"whatsapp://send?phone=6281775700114&text={quote(wa_message)}"
-    wa_web_url = f"https://wa.me/6281775700114?text={quote(wa_message)}"
+    # Format URL WhatsApp konfirmasi dengan nomor tujuan dinamis
+    wa_url = f"whatsapp://send?phone={clean_wa}&text={quote(wa_message)}"
+    wa_web_url = f"https://wa.me/{clean_wa}?text={quote(wa_message)}"
 
     return jsonify({
         'status': 'success',

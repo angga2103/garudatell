@@ -96,8 +96,9 @@ def dashboard():
 
     env_data['server_public_ip'] = server_public_ip
     env_data['vip_callback_url'] = vip_callback_url
-    from app.services.setting_service import is_vip_reseller_enabled
+    from app.services.setting_service import is_vip_reseller_enabled, get_manual_deposit_settings
     vip_reseller_enabled = is_vip_reseller_enabled()
+    manual_depo = get_manual_deposit_settings()
 
     return render_template('admin/dashboard.html',
                            total_users=total_users,
@@ -105,6 +106,7 @@ def dashboard():
                            trx_today_count=trx_today_count,
                            total_trx=total_trx,
                            vip_reseller_enabled=vip_reseller_enabled,
+                           manual_depo=manual_depo,
                            **env_data)
 
 @admin_bp.route('/save_config', methods=['POST'])
@@ -112,7 +114,15 @@ def save_config():
     if not os.path.exists(ENV_FILE): open(ENV_FILE, 'a').close()
     
     form_type = request.form.get('form_type')
-    if form_type == 'switch_gateway':
+    if form_type == 'manual_deposit':
+        from app.services.setting_service import save_manual_deposit_settings
+        save_manual_deposit_settings(request.form)
+        flash('✅ Informasi rekening & atas nama deposit transfer manual berhasil disimpan!', 'success')
+        return_url = request.form.get('return_url')
+        if return_url and 'store_settings' in return_url:
+            return redirect(url_for('admin.store_settings'))
+        return redirect(url_for('admin.dashboard'))
+    elif form_type == 'switch_gateway':
         target_gw = clean_str(request.form.get('active_payment_gateway', 'paymentkita')).lower()
         if target_gw in ['paymentkita', 'pakasir']:
             set_key(ENV_FILE, 'ACTIVE_PAYMENT_GATEWAY', target_gw)
@@ -2406,9 +2416,15 @@ def update_ticket_status(id):
 @admin_bp.route('/store_settings', methods=['GET', 'POST'])
 def store_settings():
     """Halaman Pengaturan Profil Toko Dinamis & Upload Logo Struk Thermal"""
-    from app.services.setting_service import get_store_settings, save_store_settings
+    from app.services.setting_service import get_store_settings, save_store_settings, get_manual_deposit_settings, save_manual_deposit_settings
     
     if request.method == 'POST':
+        form_type = request.form.get('form_type')
+        if form_type == 'manual_deposit':
+            save_manual_deposit_settings(request.form)
+            flash('✅ Informasi rekening deposit transfer manual berhasil disimpan!', 'success')
+            return redirect(url_for('admin.store_settings'))
+
         logo_file = request.files.get('store_logo')
         try:
             save_store_settings(request.form, logo_file=logo_file)
@@ -2418,7 +2434,8 @@ def store_settings():
         return redirect(url_for('admin.store_settings'))
         
     store = get_store_settings()
-    return render_template('admin/store_settings.html', store=store, page_title='Pengaturan Toko & Logo Struk')
+    manual_depo = get_manual_deposit_settings()
+    return render_template('admin/store_settings.html', store=store, manual_depo=manual_depo, page_title='Pengaturan Toko & Logo Struk')
 
 
 @admin_bp.route('/store_settings/delete_logo', methods=['POST'])

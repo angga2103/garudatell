@@ -18,6 +18,8 @@ def test_deposit_feature():
     client = app.test_client()
 
     with app.app_context():
+        from app.services.setting_service import DEFAULT_MANUAL_DEPO, save_manual_deposit_settings
+        save_manual_deposit_settings(DEFAULT_MANUAL_DEPO)
         user = User.query.first()
         assert user is not None, "User harus ada di database"
         user_id = user.id
@@ -110,8 +112,16 @@ def test_deposit_feature():
 
     with client.session_transaction() as sess:
         sess['admin_logged_in'] = True
+        sess['admin_user'] = 'admin'
+
+    # Dapatkan CSRF token dari admin
+    res_adm_dash = client.get('/admin/dashboard')
+    import re
+    csrf_m = re.search(r'name="csrf_token" value="([^"]+)"', res_adm_dash.data.decode('utf-8'))
+    admin_csrf = csrf_m.group(1) if csrf_m else ''
 
     res_approve = client.post(f'/admin/transactions/update_status/{trx_manual_id}', data={
+        'csrf_token': admin_csrf,
         'status': 'SUCCESS',
         'payment_status': 'PAID',
         'sn': 'Transfer Diterima Admin'
@@ -126,7 +136,7 @@ def test_deposit_feature():
         print(f"  [OK] Approval admin berhasil! Saldo user bertambah +Rp 50.000 (Saldo sekarang: Rp {u_after.balance:,.0f})")
 
     # 6. UJI KEAMANAN & MINIMAL NOMINAL
-    print("\n[6/6] Menguji Validasi Minimal Nominal (< Rp 10.000)...")
+    print("\n[6/7] Menguji Validasi Minimal Nominal (< Rp 10.000)...")
     with client.session_transaction() as sess:
         sess['_user_id'] = str(user_id)
         sess['admin_logged_in'] = False
@@ -136,6 +146,77 @@ def test_deposit_feature():
     res_invalid_manual = client.post('/deposit/manual', json={'nominal': 5000})
     assert res_invalid_manual.status_code == 400
     print("  [OK] Validasi minimal nominal Rp 10.000 berjalan aman!")
+
+    # 7. UJI FITUR ADMIN: EDIT NOMOR & ATAS NAMA DEPOSIT MANUAL DAN SINKRONISASI KE HALAMAN USER
+    print("\n[7/7] Menguji Fitur Admin: Edit Nomor & Atas Nama Deposit Manual dan Verifikasi Halaman User...")
+    with client.session_transaction() as sess:
+        sess['admin_logged_in'] = True
+        sess['admin_user'] = 'admin'
+
+    # Admin simpan nomor & a.n baru
+    res_save_depo = client.post('/admin/save_config', data={
+        'csrf_token': admin_csrf,
+        'form_type': 'manual_deposit',
+        'manual_depo_active': '1',
+        'wa_target': '089912345678',
+        'dana_number': '089912345678',
+        'dana_name': 'Garuda Baru DANA',
+        'shopee_number': '088876543210',
+        'shopee_name': 'Garuda Baru Shopee',
+        'gopay_number': '087711223344',
+        'gopay_name': 'Garuda Baru GoPay',
+        'instructions': 'Harap transfer sesuai kode unik untuk verifikasi otomatis.'
+    }, follow_redirects=True)
+    assert res_save_depo.status_code == 200
+    print("  [OK] Admin berhasil menyimpan konfigurasi nomor & atas nama deposit baru!")
+
+    # User membuka /deposit dan memastikan nomor & a.n baru tampil
+    with client.session_transaction() as sess:
+        sess['_user_id'] = str(user_id)
+        sess['admin_logged_in'] = False
+
+    res_dep_updated = client.get('/deposit')
+    assert res_dep_updated.status_code == 200
+    html_dep_updated = res_dep_updated.data.decode('utf-8')
+    assert '089912345678' in html_dep_updated, "Nomor DANA baru harus tampil di /deposit"
+    assert 'Garuda Baru DANA' in html_dep_updated, "Atas nama DANA baru harus tampil di /deposit"
+    assert '088876543210' in html_dep_updated, "Nomor ShopeePay baru harus tampil di /deposit"
+    assert 'Garuda Baru Shopee' in html_dep_updated, "Atas nama ShopeePay baru harus tampil di /deposit"
+    assert '087711223344' in html_dep_updated, "Nomor GoPay baru harus tampil di /deposit"
+    assert 'Garuda Baru GoPay' in html_dep_updated, "Atas nama GoPay baru harus tampil di /deposit"
+    print("  [OK] Halaman /deposit user 100% dinamis menampilkan nomor dan atas nama baru!")
+
+    # User membuat order deposit manual DANA
+    res_order_new = client.post('/deposit/manual', json={
+        'nominal': 20000,
+        'ewallet_type': 'DANA'
+    })
+    assert res_order_new.status_code == 200
+    order_data = res_order_new.get_json()
+    assert order_data['ewallet_dest'] == '089912345678'
+    assert order_data['ewallet_owner'] == 'Garuda Baru DANA'
+    assert 'phone=6289912345678' in order_data['wa_url']
+    print("  [OK] API order deposit manual menghasilkan tujuan transfer & link WhatsApp sesuai konfigurasi baru!")
+
+    # Kembalikan ke default agar database tetap konsisten
+    with client.session_transaction() as sess:
+        sess['admin_logged_in'] = True
+        sess['admin_user'] = 'admin'
+
+    client.post('/admin/save_config', data={
+        'csrf_token': admin_csrf,
+        'form_type': 'manual_deposit',
+        'manual_depo_active': '1',
+        'wa_target': '081775700114',
+        'dana_number': '081775700114',
+        'dana_name': 'GarudaTel / Kasir',
+        'shopee_number': '081775700114',
+        'shopee_name': 'GarudaTel / Kasir',
+        'gopay_number': '081775700114',
+        'gopay_name': 'GarudaTel / Kasir',
+        'instructions': 'Pastikan nominal transfer sama persis dengan total di atas (jangan dibulatkan) agar proses verifikasi saldo Anda cepat dan akurat.'
+    }, follow_redirects=True)
+    print("  [OK] Reset setting deposit manual ke default berhasil!")
 
     print("\n" + "=" * 70)
     print("  >>> SELURUH FITUR DEPOSIT BARCODE & MANUAL LULUS 100%! <<<")

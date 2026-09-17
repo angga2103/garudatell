@@ -290,7 +290,133 @@
     </div>
 </div>
 
+<!-- ================= PENGATURAN DEPOSIT TRANSFER MANUAL E-WALLET ================= -->
+<div class="card-box" style="margin-top: 25px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 2px solid #f1f5f9; padding-bottom: 12px;">
+        <h3 style="margin: 0; font-size: 16px; font-weight: 900; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+            <i class="fas fa-money-bill-transfer" style="color: #00877a;"></i> Pengaturan Rekening Deposit Transfer Manual E-Wallet
+        </h3>
+        <span style="font-size: 11px; font-weight: 800; color: {% if manual_depo.is_active == '1' %}#059669{% else %}#ef4444{% endif %}; background: {% if manual_depo.is_active == '1' %}#dcfce7{% else %}#fee2e2{% endif %}; padding: 4px 10px; border-radius: 8px;">
+            {% if manual_depo.is_active == '1' %}🟢 AKTIF{% else %}🔴 NONAKTIF{% endif %}
+        </span>
+    </div>
+
+    <form action="{{ url_for('admin.store_settings') }}" method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="form_type" value="manual_deposit">
+
+        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 12px 16px; margin-bottom: 18px; font-size: 12px; color: #166534; line-height: 1.5;">
+            <i class="fas fa-info-circle"></i> Nomor dan nama pemilik di bawah ini akan otomatis ditampilkan ke user di halaman <strong>/deposit</strong> saat memilih transfer manual E-Wallet (DANA, ShopeePay, GoPay) serta tujuan chat konfirmasi WhatsApp.
+        </div>
+
+        <div style="margin-bottom: 16px; padding: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;">
+            <label style="font-size: 13px; font-weight: 800; color: #334155; display: flex; align-items: center; gap: 10px; cursor: pointer; margin-bottom: 0;">
+                <input type="checkbox" name="manual_depo_active" value="1" {% if manual_depo.is_active == '1' %}checked{% endif %} style="width: 18px; height: 18px; accent-color: #00877a;">
+                <span>Aktifkan Opsi Transfer Manual E-Wallet di Halaman User</span>
+            </label>
+        </div>
+
+        <div style="margin-bottom: 18px;">
+            <label class="form-label">
+                <i class="fab fa-whatsapp" style="color: #25D366; font-size: 14px;"></i> Nomor WhatsApp Admin (Tujuan Konfirmasi Bukti Transfer)
+            </label>
+            <input type="text" name="wa_target" id="store_depo_wa_target" class="form-input" value="{{ manual_depo.wa_target }}" placeholder="Contoh: 081775700114" required>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; margin-top: 20px;">
+            <span style="font-size: 13px; font-weight: 900; color: #1e293b;"><i class="fas fa-list-ul"></i> Detail Rekening Akun E-Wallet:</span>
+            <button type="button" onclick="syncStoreEwalletFromDana()" style="background: #e2e8f0; border: none; padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: 800; color: #334155; cursor: pointer; transition: 0.2s;">
+                <i class="fas fa-copy"></i> Samakan ShopeePay & GoPay dengan DANA
+            </button>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 18px;">
+            <!-- DANA -->
+            <div style="background: #ffffff; border: 1.5px solid #0284c7; border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(2,132,199,0.05);">
+                <div style="font-weight: 900; color: #0284c7; font-size: 13px; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                    <i class="fas fa-wallet"></i> 1. Akun DANA
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <label class="form-label" style="font-size: 11px;">Nomor HP / Akun DANA:</label>
+                    <input type="text" name="dana_number" id="store_depo_dana_number" class="form-input" value="{{ manual_depo.dana_number }}" placeholder="Contoh: 081775700114" required>
+                </div>
+                <div>
+                    <label class="form-label" style="font-size: 11px;">Atas Nama (a.n) Pemilik Akun DANA:</label>
+                    <input type="text" name="dana_name" id="store_depo_dana_name" class="form-input" value="{{ manual_depo.dana_name }}" placeholder="Contoh: GarudaTel / Kasir" required>
+                </div>
+            </div>
+
+            <!-- SHOPEEPAY -->
+            <div style="background: #ffffff; border: 1.5px solid #ea580c; border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(234,88,12,0.05);">
+                <div style="font-weight: 900; color: #ea580c; font-size: 13px; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                    <i class="fas fa-shopping-bag"></i> 2. Akun ShopeePay
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <label class="form-label" style="font-size: 11px;">Nomor HP / Akun ShopeePay:</label>
+                    <input type="text" name="shopee_number" id="store_depo_shopee_number" class="form-input" value="{{ manual_depo.shopee_number }}" placeholder="Contoh: 081775700114" required>
+                </div>
+                <div>
+                    <label class="form-label" style="font-size: 11px;">Atas Nama (a.n) Pemilik Akun ShopeePay:</label>
+                    <input type="text" name="shopee_name" id="store_depo_shopee_name" class="form-input" value="{{ manual_depo.shopee_name }}" placeholder="Contoh: GarudaTel / Kasir" required>
+                </div>
+            </div>
+
+            <!-- GOPAY -->
+            <div style="background: #ffffff; border: 1.5px solid #059669; border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(5,150,105,0.05);">
+                <div style="font-weight: 900; color: #059669; font-size: 13px; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                    <i class="fas fa-motorcycle"></i> 3. Akun GoPay
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <label class="form-label" style="font-size: 11px;">Nomor HP / Akun GoPay:</label>
+                    <input type="text" name="gopay_number" id="store_depo_gopay_number" class="form-input" value="{{ manual_depo.gopay_number }}" placeholder="Contoh: 081775700114" required>
+                </div>
+                <div>
+                    <label class="form-label" style="font-size: 11px;">Atas Nama (a.n) Pemilik Akun GoPay:</label>
+                    <input type="text" name="gopay_name" id="store_depo_gopay_name" class="form-input" value="{{ manual_depo.gopay_name }}" placeholder="Contoh: GarudaTel / Kasir" required>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-bottom: 18px;">
+            <label class="form-label">Instruksi Tambahan untuk User (Opsional):</label>
+            <textarea name="instructions" rows="2" class="form-input" style="font-size: 12px;">{{ manual_depo.instructions }}</textarea>
+        </div>
+
+        <button type="submit" class="btn-save-store" style="background: #00877a;">
+            <i class="fas fa-save"></i> Simpan Info Rekening Deposit Manual
+        </button>
+    </form>
+</div>
+
 <script>
+    function syncStoreEwalletFromDana() {
+        var danaNum = document.getElementById('store_depo_dana_number').value.trim();
+        var danaNm = document.getElementById('store_depo_dana_name').value.trim();
+        if (danaNum) {
+            document.getElementById('store_depo_shopee_number').value = danaNum;
+            document.getElementById('store_depo_gopay_number').value = danaNum;
+            var waElem = document.getElementById('store_depo_wa_target');
+            if (waElem && !waElem.value.trim()) {
+                waElem.value = danaNum;
+            }
+        }
+        if (danaNm) {
+            document.getElementById('store_depo_shopee_name').value = danaNm;
+            document.getElementById('store_depo_gopay_name').value = danaNm;
+        }
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'success',
+                title: 'Tersinkron',
+                text: 'Nomor dan Nama Akun DANA berhasil disalin ke ShopeePay & GoPay!',
+                timer: 1500,
+                showConfirmButton: false
+            });
+        } else {
+            alert('Nomor dan Nama Akun DANA berhasil disalin ke ShopeePay & GoPay!');
+        }
+    }
+
     // Live Synchronized Preview
     const nameInput = document.getElementById('inputStoreName');
     const taglineInput = document.getElementById('inputStoreTagline');

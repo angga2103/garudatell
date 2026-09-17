@@ -644,10 +644,10 @@
             <div class="dest-card">
                 <div>
                     <span style="font-size: 11px; color: #64748b; font-weight: 700; display: block;" id="destNameLabel">Nomor E-Wallet DANA</span>
-                    <div class="dest-info-num">081775700114</div>
-                    <span style="font-size: 11px; color: #059669; font-weight: 800;">a.n GarudaTel / Kasir</span>
+                    <div class="dest-info-num" id="destInfoNum">{{ (depo_settings.dana_number if depo_settings else '081775700114') }}</div>
+                    <span style="font-size: 11px; color: #059669; font-weight: 800;" id="destOwnerName">a.n {{ (depo_settings.dana_name if depo_settings else 'GarudaTel / Kasir') }}</span>
                 </div>
-                <button type="button" class="copy-btn" onclick="copyText('081775700114', 'Nomor e-wallet 081775700114 berhasil disalin!')">
+                <button type="button" class="copy-btn" id="btnCopyEwallet" onclick="copyCurrentEwallet()">
                     <i class="fas fa-copy"></i> Salin Nomor
                 </button>
             </div>
@@ -698,7 +698,7 @@
             <!-- AREA STATUS PROSES & TOMBOL WHATSAPP LANGSUNG -->
             <div id="waActionArea">
                 <button type="button" class="btn-whatsapp-action" id="btnSubmitManual" onclick="submitManualDeposit()">
-                    <i class="fab fa-whatsapp" style="font-size: 18px;"></i> Ajukan & Masuk WhatsApp (081775700114)
+                    <i class="fab fa-whatsapp" style="font-size: 18px;"></i> Ajukan & Masuk WhatsApp ({{ (depo_settings.wa_target if depo_settings else '081775700114') }})
                 </button>
             </div>
             
@@ -826,6 +826,22 @@
         }
     }
 
+    const ewalletAccounts = {
+        'DANA': {
+            number: {{ (depo_settings.dana_number if depo_settings else '081775700114')|tojson }},
+            name: {{ (depo_settings.dana_name if depo_settings else 'GarudaTel / Kasir')|tojson }}
+        },
+        'SHOPEEPAY': {
+            number: {{ (depo_settings.shopee_number if depo_settings else '081775700114')|tojson }},
+            name: {{ (depo_settings.shopee_name if depo_settings else 'GarudaTel / Kasir')|tojson }}
+        },
+        'GOPAY': {
+            number: {{ (depo_settings.gopay_number if depo_settings else '081775700114')|tojson }},
+            name: {{ (depo_settings.gopay_name if depo_settings else 'GarudaTel / Kasir')|tojson }}
+        }
+    };
+    const waTargetNumber = {{ (depo_settings.wa_target if depo_settings else '081775700114')|tojson }};
+
     function selectEwallet(type) {
         selectedEwallet = type;
         document.querySelectorAll('.ewallet-item').forEach(el => el.classList.remove('active'));
@@ -834,7 +850,17 @@
         else if (type === 'SHOPEEPAY') document.getElementById('ew_shopee').classList.add('active');
         else if (type === 'GOPAY') document.getElementById('ew_gopay').classList.add('active');
 
+        const acc = ewalletAccounts[type] || ewalletAccounts['DANA'];
         document.getElementById('destNameLabel').innerText = 'Nomor E-Wallet ' + type;
+        const numEl = document.getElementById('destInfoNum');
+        if (numEl) numEl.innerText = acc.number;
+        const ownerEl = document.getElementById('destOwnerName');
+        if (ownerEl) ownerEl.innerText = 'a.n ' + acc.name;
+    }
+
+    function copyCurrentEwallet() {
+        const acc = ewalletAccounts[selectedEwallet] || ewalletAccounts['DANA'];
+        copyText(acc.number, 'Nomor e-wallet ' + selectedEwallet + ' (' + acc.number + ') berhasil disalin!');
     }
 
     function regenerateUniqueCode() {
@@ -927,13 +953,13 @@
                 window.location.href = data.wa_url;
             } else {
                 alert(data.message || 'Gagal mengajukan deposit manual.');
-                btn.innerHTML = '<i class="fab fa-whatsapp"></i> Ajukan & Masuk WhatsApp (081775700114)';
+                btn.innerHTML = '<i class="fab fa-whatsapp"></i> Ajukan & Masuk WhatsApp (' + waTargetNumber + ')';
                 btn.disabled = false;
             }
         })
         .catch(err => {
             alert('Terjadi kesalahan jaringan: ' + err);
-            btn.innerHTML = '<i class="fab fa-whatsapp"></i> Ajukan & Masuk WhatsApp (081775700114)';
+            btn.innerHTML = '<i class="fab fa-whatsapp"></i> Ajukan & Masuk WhatsApp (' + waTargetNumber + ')';
             btn.disabled = false;
         });
     }
