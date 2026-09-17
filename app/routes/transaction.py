@@ -657,7 +657,26 @@ def invoice(ref_id):
     except Exception:
         pass
 
-    return render_template('user/invoice.html', trx=trx)
+    # Hitung estimasi / real fee payment gateway jika metode bayar QRIS
+    if not current_app.config.get('TESTING'):
+        from dotenv import load_dotenv
+        load_dotenv(os.path.join(BASE_DIR, '.env'), override=True)
+    active_pg = os.getenv('ACTIVE_PAYMENT_GATEWAY', 'paymentkita').lower().strip()
+    pg_fee = 0
+    total_with_fee = trx.amount
+    if trx.payment_method and trx.payment_method.upper() == 'QRIS':
+        if active_pg == 'pakasir':
+            from app.services.pakasir_service import calculate_pakasir_fee
+            pg_fee = calculate_pakasir_fee(trx.amount, 'qris')
+            total_with_fee = trx.amount + pg_fee
+
+    return render_template(
+        'user/invoice.html',
+        trx=trx,
+        pg_fee=pg_fee,
+        total_with_fee=total_with_fee,
+        active_pg=active_pg
+    )
 
 @trx_bp.route('/generate_qris/<ref_id>', methods=['GET'])
 @login_required
@@ -674,8 +693,9 @@ def generate_qris(ref_id):
             'message': 'Pembayaran telah selesai dan transaksi diproses.'
         })
 
-    from dotenv import load_dotenv
-    load_dotenv(os.path.join(BASE_DIR, '.env'), override=True)
+    if not current_app.config.get('TESTING'):
+        from dotenv import load_dotenv
+        load_dotenv(os.path.join(BASE_DIR, '.env'), override=True)
     
     active_pg = os.getenv('ACTIVE_PAYMENT_GATEWAY', 'paymentkita').lower().strip()
     
@@ -690,6 +710,9 @@ def generate_qris(ref_id):
                 'gateway': 'pakasir',
                 'qr_url': res_pakasir.get('qr_url'),
                 'qr_string': res_pakasir.get('qr_string'),
+                'fee': res_pakasir.get('fee', 0),
+                'total_payment': res_pakasir.get('total_payment', trx.amount),
+                'amount': res_pakasir.get('amount', trx.amount),
                 'expired_at': res_pakasir.get('expired_at')
             })
         else:
@@ -727,7 +750,10 @@ def generate_qris(ref_id):
                         'status': 'success',
                         'gateway': 'paymentkita',
                         'qr_url': qr_url,
-                        'qr_string': qr_string
+                        'qr_string': qr_string,
+                        'fee': 0,
+                        'total_payment': nominal_int,
+                        'amount': nominal_int
                     })
             
             # Tampilkan pesan error ASLI dari server jika gagal

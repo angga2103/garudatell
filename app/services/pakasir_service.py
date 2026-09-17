@@ -2,6 +2,34 @@ import os
 import requests
 import urllib.parse
 
+def calculate_pakasir_fee(amount, method='qris'):
+    """
+    Menghitung tarif resmi Payment Gateway Pakasir berdasarkan https://pakasir.com/p/pricing.
+    - QRIS:
+      * Nominal <= Rp 105.000: 0.7% + Rp 310
+      * Nominal > Rp 105.000: 1% + Rp 0
+    - Virtual Account:
+      * BRI, BNI, BNC, CIMB Niaga, Maybank, Permata: Rp 3.500
+      * Artha Graha, Sampoerna: Rp 2.000
+    """
+    try:
+        amt = float(amount)
+    except (ValueError, TypeError):
+        return 0
+
+    method = (method or 'qris').lower().strip()
+    if method == 'qris':
+        if amt > 105000:
+            fee = round(amt * 0.01)
+        else:
+            fee = round((amt * 0.007) + 310)
+        return int(fee)
+    elif 'va' in method:
+        if any(b in method for b in ['artha', 'sampoerna']):
+            return 2000
+        return 3500
+    return 0
+
 class PakasirService:
     """
     Layanan integrasi Payment Gateway Pakasir untuk transaksi QRIS dan verifikasi pembayaran.
@@ -62,6 +90,20 @@ class PakasirService:
             )
             expired_at = payment_obj.get('expired_at') or res_json.get('expired_at')
             
+            # Ekstrak fee dan total_payment dari respons Pakasir
+            raw_fee = payment_obj.get('fee')
+            raw_total = payment_obj.get('total_payment')
+            if raw_fee is not None and raw_total is not None:
+                try:
+                    fee = int(float(raw_fee))
+                    total_payment = int(float(raw_total))
+                except (ValueError, TypeError):
+                    fee = calculate_pakasir_fee(nominal_int, 'qris')
+                    total_payment = nominal_int + fee
+            else:
+                fee = calculate_pakasir_fee(nominal_int, 'qris')
+                total_payment = nominal_int + fee
+
             # Jika ada URL gambar langsung atau QR string
             qr_url = payment_obj.get('qr_url') or payment_obj.get('pay_url') or res_json.get('qr_url')
             if not qr_url and qr_string:
@@ -74,6 +116,9 @@ class PakasirService:
                     "status": True,
                     "qr_url": qr_url,
                     "qr_string": qr_string,
+                    "fee": fee,
+                    "total_payment": total_payment,
+                    "amount": nominal_int,
                     "expired_at": expired_at,
                     "raw_response": res_json
                 }
