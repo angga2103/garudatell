@@ -251,7 +251,7 @@ def checkout():
                     'status': 'error',
                     'error': True,
                     'is_gangguan': True,
-                    'message': f'Pemesanan dicegat: Layanan {prod_name_label} sedang mengalami gangguan/pemeliharaan dari pihak operator (Digiflazz). Saldo Anda aman dan tidak terpotong. Silakan pilih nominal top up e-wallet regular atau coba beberapa saat lagi.'
+                    'message': f'Pemesanan dicegat: Layanan {prod_name_label} sedang mengalami gangguan/pemeliharaan dari pihak operator. Saldo Anda aman dan tidak terpotong. Silakan pilih nominal top up e-wallet regular atau coba beberapa saat lagi.'
                 }), 400
 
             admin_fee = float(db_product.sell_price) if db_product else 1700.0
@@ -316,7 +316,7 @@ def checkout():
                     'status': 'error',
                     'error': True,
                     'is_gangguan': True,
-                    'message': f'Pemesanan dicegat: Produk {product.name} sedang mengalami gangguan/pemeliharaan dari pihak operator server (Digiflazz). Saldo Anda aman dan tidak terpotong. Silakan coba beberapa saat lagi atau pilih produk/provider lain.'
+                    'message': f'Pemesanan dicegat: Produk {product.name} sedang mengalami gangguan/pemeliharaan dari pihak operator. Saldo Anda aman dan tidak terpotong. Silakan coba beberapa saat lagi atau pilih produk/provider lain.'
                 }), 400
 
             from app.services.tier_service import get_user_product_price
@@ -515,7 +515,7 @@ def checkout():
                             pass
                         from app.services.telegram_service import async_send_trx_notification
                         async_send_trx_notification(new_trx, title="TRANSAKSI BERHASIL (PASCA)")
-                        return jsonify({'status': 'success', 'success': True, 'error': False, 'message': 'Transaksi sukses masuk Digiflazz!', 'redirect': '/riwayat'}), 200
+                        return jsonify({'status': 'success', 'success': True, 'error': False, 'message': 'Transaksi berhasil diproses!', 'redirect': '/riwayat'}), 200
                     else:
                         user_locked.balance += amount
                         new_trx.status = 'FAILED'

@@ -12,6 +12,8 @@ Tujuan Utama:
    akun provider (VIP-Reseller / Digiflazz) sedang kosong/kurang sehingga admin segera top up.
 """
 
+import re
+
 # Kata kunci yang mengindikasikan saldo deposit admin di provider habis / kurang
 PROVIDER_BALANCE_KEYWORDS = [
     'saldo anda tidak cukup',
@@ -38,7 +40,12 @@ PROVIDER_SYSTEM_KEYWORDS = [
     'ip 2001',
     'not permitted',
     'timeout dari provider',
-    'parameter yang dikirim tidak lengkap'
+    'parameter yang dikirim tidak lengkap',
+    'digiflazz',
+    'vip-reseller',
+    'vip reseller',
+    'tokovoucher',
+    'apigames'
 ]
 
 USER_FRIENDLY_SN_MSG = "Jalur operator sedang gangguan sementara. Saldo aman & telah direfund."
@@ -84,8 +91,10 @@ def sanitize_public_sn_message(raw_message, rc=None, default_msg=None):
         if kw in msg_lower:
             return "Gangguan sistem operator sementara. Silakan coba kembali nanti."
 
-    # Jika nomor salah atau format salah, biarkan pesan wajar
-    return str(raw_message).strip()
+    # Filter dan hilangkan nama provider server dari pesan teks
+    clean_msg = str(raw_message).strip()
+    clean_msg = re.sub(r'(?i)\b(digiflazz|vip-reseller|vip reseller|tokovoucher|apigames)\b', 'operator', clean_msg)
+    return clean_msg
 
 
 def sanitize_public_popup_message(raw_message, rc=None):
