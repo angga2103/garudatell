@@ -702,16 +702,19 @@
     // ALUR LUPA PASSWORD (MODAL 3-STEP)
     // ==========================================
     let fpPhone = '';
+    let fpResetToken = '';
 
     function openForgotPasswordModal() {
         document.getElementById('modalForgotPassword').style.display = 'flex';
         document.getElementById('fp-step-1').style.display = 'block';
         document.getElementById('fp-step-2').style.display = 'none';
         document.getElementById('fp-step-3').style.display = 'none';
+        fpResetToken = '';
     }
 
     function closeForgotPasswordModal() {
         document.getElementById('modalForgotPassword').style.display = 'none';
+        fpResetToken = '';
     }
 
     function requestForgotOTP() {
@@ -799,6 +802,7 @@
             btn.disabled = false;
 
             if (data.status === 'success') {
+                fpResetToken = data.reset_token || '';
                 document.getElementById('fp-step-2').style.display = 'none';
                 document.getElementById('fp-step-3').style.display = 'block';
             } else {
@@ -832,6 +836,7 @@
         formData.append('action', 'forgot_password_step3');
         formData.append('phone', fpPhone);
         formData.append('new_password', p1);
+        formData.append('reset_token', fpResetToken || '');
 
         fetch('/profil', { method: 'POST', body: formData })
         .then(r => r.json())

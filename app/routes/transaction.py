@@ -1170,20 +1170,9 @@ def callback_digiflazz():
             else:
                 return jsonify({'status': 'error', 'message': 'Invalid signature or unverified callback'}), 403
 
-        # Tier 3: Validasi User-Agent Resmi Digiflazz + Verifikasi Integritas Transaksi Lokal
-        # Jika Webhook Secret di dashboard Digiflazz dikosongkan/berbeda, verifikasi kecocokan
-        # identitas pengirim (Digiflazz Hookshot) dan transaksi lokal yang memang sedang menggantung (PROCESSING).
-        if not is_signature_valid:
-            ua = request.headers.get('User-Agent', '')
-            is_digi_ua = 'digiflazz' in ua.lower() or 'hookshot' in ua.lower()
-            is_status_pending = trx.status in ['PROCESSING', 'PENDING', 'PROSES']
-            target_match = not data.get('customer_no') or (str(data.get('customer_no')).strip() == str(trx.target_number).strip())
-
-            if is_digi_ua and is_status_pending and target_match:
-                is_signature_valid = True
-                print(f"[SECURITY OK] Digiflazz webhook verified via Digiflazz-Hookshot identity & pending state for {ref_id}")
-
-        # Tier 4: Server-to-Server Re-Verification dengan Fast Timeout (maks 4s)
+        # Tier 3: Server-to-Server Re-Verification dengan API Resmi Digiflazz
+        # Jika HMAC signature X-Hub-Signature tidak cocok, lakukan query langsung ke server Digiflazz
+        # untuk memvalidasi apakah transaksi ini benar-benar telah selesai atau gagal secara faktual.
         if not is_signature_valid:
             try:
                 from app.services.digiflazz import check_transaction_status

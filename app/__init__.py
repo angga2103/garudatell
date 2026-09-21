@@ -37,7 +37,7 @@ def create_app(test_config=None):
         'pool_recycle': 1800
     }
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY') or secrets.token_hex(32)
-    app.config['RATELIMIT_STORAGE_URI'] = 'memory://'
+    app.config['RATELIMIT_STORAGE_URI'] = os.getenv('RATELIMIT_STORAGE_URI', 'memory://')
     app.config['TEMPLATES_AUTO_RELOAD'] = True
     
     # Flask-Caching Configuration
@@ -310,9 +310,16 @@ def create_app(test_config=None):
             'environment': 'production' if not app.debug else 'development'
         }), http_status
 
-    # Dynamic Gzip Compression Middleware untuk transfer cepat & hemat bandwidth
+    # Security Headers & Dynamic Gzip Compression Middleware
     @app.after_request
-    def compress_response(response):
+    def apply_security_and_compression(response):
+        # Security Headers Produksi (OWASP Core Security Principles)
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+
+        # Gzip compression
         import gzip
         accept_encoding = request.headers.get('Accept-Encoding', '')
         if (response.status_code < 300 and 

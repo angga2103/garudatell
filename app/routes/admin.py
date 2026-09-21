@@ -311,10 +311,17 @@ def cron_sync_products():
     Contoh command crontab Linux:
     */30 * * * * curl -s -X POST "https://ipay.my.id/api/cron/sync-products?key=CRON_SECRET" > /dev/null 2>&1
     """
-    cron_secret = os.getenv('CRON_SECRET_KEY', 'ipay-cron-secret-2026').strip()
+    cron_secret = (os.getenv('CRON_SECRET_KEY') or '').strip()
+    if not cron_secret:
+        return jsonify({
+            'status': 'error',
+            'message': 'CRON_SECRET_KEY belum dikonfigurasi di environment server'
+        }), 500
+
     provided_key = request.headers.get('X-Cron-Key') or request.args.get('key') or request.form.get('key') or ''
 
-    if not provided_key or provided_key != cron_secret:
+    import secrets
+    if not provided_key or not secrets.compare_digest(provided_key, cron_secret):
         return jsonify({
             'status': 'error',
             'message': 'Unauthorized: Token keamanan cron job tidak valid'
@@ -348,10 +355,17 @@ def cron_check_low_balance():
     Contoh command crontab Linux:
     0 * * * * curl -s -X POST "https://ipay.my.id/api/cron/check-low-balance?key=CRON_SECRET" > /dev/null 2>&1
     """
-    cron_secret = os.getenv('CRON_SECRET_KEY', 'ipay-cron-secret-2026').strip()
+    cron_secret = (os.getenv('CRON_SECRET_KEY') or '').strip()
+    if not cron_secret:
+        return jsonify({
+            'status': 'error',
+            'message': 'CRON_SECRET_KEY belum dikonfigurasi di environment server'
+        }), 500
+
     provided_key = request.headers.get('X-Cron-Key') or request.args.get('key') or request.form.get('key') or ''
 
-    if not provided_key or provided_key != cron_secret:
+    import secrets
+    if not provided_key or not secrets.compare_digest(provided_key, cron_secret):
         return jsonify({
             'status': 'error',
             'message': 'Unauthorized: Token keamanan cron job tidak valid'
@@ -1650,16 +1664,19 @@ def wa_pairing():
         if not bot_number:
             return jsonify({'status': 'error', 'message': 'Nomor WhatsApp tidak boleh kosong'})
             
+        from app.wa_helper import _get_wa_headers
+        wa_headers = _get_wa_headers()
+
         # Mengirim sinyal ke Mesin Baileys Node.js
         try:
-            response = requests.post('http://127.0.0.1:3000/api/pair', json={'number': bot_number}, timeout=30)
+            response = requests.post('http://127.0.0.1:3000/api/pair', json={'number': bot_number}, headers=wa_headers, timeout=30)
             return jsonify(response.json())
         except requests.exceptions.RequestException:
             # Jika port 3000 belum menyala, coba auto-recovery
             ok, msg = _ensure_wa_bot_running()
             if ok:
                 try:
-                    response = requests.post('http://127.0.0.1:3000/api/pair', json={'number': bot_number}, timeout=30)
+                    response = requests.post('http://127.0.0.1:3000/api/pair', json={'number': bot_number}, headers=wa_headers, timeout=30)
                     return jsonify(response.json())
                 except Exception as ex:
                     return jsonify({'status': 'error', 'message': f'Mesin dinyalakan namun pairing gagal: {ex}'})
@@ -1685,9 +1702,10 @@ def wa_reset_session():
     from flask import jsonify
     import requests
     import os, shutil
+    from app.wa_helper import _get_wa_headers
     
     try:
-        r = requests.post('http://127.0.0.1:3000/api/reset', timeout=5)
+        r = requests.post('http://127.0.0.1:3000/api/reset', headers=_get_wa_headers(), timeout=5)
         if r.status_code == 200:
             return jsonify(r.json())
     except Exception:
@@ -2012,9 +2030,10 @@ def wa_status():
 def wa_test_message():
     from flask import request, jsonify
     import requests
+    from app.wa_helper import _get_wa_headers
     try:
         data = request.get_json()
-        r = requests.post('http://127.0.0.1:3000/api/send', json=data, timeout=10)
+        r = requests.post('http://127.0.0.1:3000/api/send', json=data, headers=_get_wa_headers(), timeout=10)
         return jsonify(r.json())
     except Exception as e:
         return jsonify({'status': 'error', 'message': 'Gagal menghubungi Mesin Node.js'})

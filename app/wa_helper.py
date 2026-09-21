@@ -1,8 +1,16 @@
 import requests
 import json
 import logging
+import os
 
 logger = logging.getLogger(__name__)
+
+def _get_wa_headers():
+    headers = {'Content-Type': 'application/json'}
+    token = os.getenv('WA_BOT_SECRET_TOKEN', '').strip()
+    if token:
+        headers['X-Internal-Token'] = token
+    return headers
 
 def is_wa_bot_connected():
     """Mengecek apakah Mesin Baileys Node.js di port 3000 aktif dan terhubung ke WhatsApp."""
@@ -61,7 +69,7 @@ def kirim_wa_otp(target_number, kode_otp, action='register'):
                 res = requests.post(
                     f'http://{host}:3000/api/send',
                     json=payload,
-                    headers={'Content-Type': 'application/json'},
+                    headers=_get_wa_headers(),
                     timeout=8
                 )
                 if res.status_code == 200:
@@ -103,7 +111,7 @@ def kirim_wa(target_number, message):
                 res = requests.post(
                     f'http://{host}:3000/api/send',
                     json=payload,
-                    headers={'Content-Type': 'application/json'},
+                    headers=_get_wa_headers(),
                     timeout=8
                 )
                 if res.status_code == 200:

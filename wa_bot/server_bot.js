@@ -378,8 +378,27 @@ app.get('/api/health', (req, res) => {
     });
 });
 
+// Middleware Validasi Token Internal (Cegah Injeksi Pesan & Unauthorized Access Port 3000)
+const WA_SECRET_TOKEN = (process.env.WA_BOT_SECRET_TOKEN || '').trim();
+
+function requireInternalAuth(req, res, next) {
+    if (!WA_SECRET_TOKEN) {
+        // Fallback jika belum diset token di env: hanya izinkan akses lokal (loopback)
+        const remoteIp = req.socket.remoteAddress || '';
+        if (remoteIp.includes('127.0.0.1') || remoteIp === '::1' || remoteIp.includes('localhost') || remoteIp === '::ffff:127.0.0.1') {
+            return next();
+        }
+        return res.status(401).json({ status: 'error', message: 'Unauthorized: Akses eksternal ditolak tanpa WA_BOT_SECRET_TOKEN' });
+    }
+    const token = req.headers['x-internal-token'] || (req.headers['authorization'] || '').replace(/^Bearer\s+/i, '') || req.query.token;
+    if (!token || token !== WA_SECRET_TOKEN) {
+        return res.status(401).json({ status: 'error', message: 'Unauthorized: Token keamanan internal WhatsApp tidak valid' });
+    }
+    next();
+}
+
 // Endpoint Minta Kode Pairing via Web Admin Panel
-app.post('/api/pair', async (req, res) => {
+app.post('/api/pair', requireInternalAuth, async (req, res) => {
     let { number } = req.body;
     if (!number) return res.status(400).json({ status: 'error', message: 'Nomor tidak boleh kosong' });
 
@@ -398,7 +417,7 @@ app.post('/api/pair', async (req, res) => {
 });
 
 // Endpoint Kirim Pesan (OTP & Notifikasi Transaksi)
-app.post('/api/send', async (req, res) => {
+app.post('/api/send', requireInternalAuth, async (req, res) => {
     try {
         let { number, message } = req.body;
         const isRegistered = isSessionRegistered() || !!(sock?.authState?.creds?.registered && sock?.user);
@@ -419,7 +438,7 @@ app.post('/api/send', async (req, res) => {
 });
 
 // Endpoint Reset Sesi
-app.post('/api/reset', async (req, res) => {
+app.post('/api/reset', requireInternalAuth, async (req, res) => {
     try {
         console.log('[WA BOT] Melakukan reset sesi WhatsApp...');
         cleanAuthFolder();
@@ -432,5 +451,5 @@ app.post('/api/reset', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-const HOST = process.env.HOST || '0.0.0.0';
+const HOST = process.env.HOST || '127.0.0.1';
 app.listen(PORT, HOST, () => console.log(`🚀 Mesin Baileys Berjalan di http://${HOST}:${PORT}`));

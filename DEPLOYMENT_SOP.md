@@ -44,9 +44,19 @@ pip install -r requirements.txt
 
 ### Langkah 3: Konfigurasi Kunci Lingkungan (.env)
 Pastikan file `.env` di direktori root sudah terisi dengan kredensial aman:
+
+> **Tips Keamanan**: Generate SECRET_KEY acak baru via terminal VPS:
+> `python3 -c "import secrets; print(secrets.token_hex(32))"`
+
 ```ini
-# Production Secret Key (64 karakter hex)
-SECRET_KEY=39d3530fff01af616d63de37dbc0591aea5f67b9fa3ffc3cc26e323b90bcd623
+# Production Secret Key (Wajib digenerate acak dan rahasia, minimal 64 karakter hex)
+SECRET_KEY=ganti_dengan_token_hex_hasil_generate_python
+
+# Token Internal Keamanan WhatsApp Bot (Port 3000)
+WA_BOT_SECRET_TOKEN=ganti_dengan_token_rahasia_internal_wa
+
+# Token Keamanan Otomatisasi Cron Job
+CRON_SECRET_KEY=ganti_dengan_token_rahasia_cron
 
 # Kredensial Provider Digiflazz
 DIGI_USER=username_anda

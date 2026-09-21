@@ -950,8 +950,10 @@ def profil():
             })
 
         elif action == 'forgot_password_step2':
-            from flask import jsonify
-            from app.services.otp_service import verify_otp
+            from flask import jsonify, session
+            from app.services.otp_service import verify_otp, get_phone_variants
+            import secrets
+            import time
 
             phone = request.form.get('phone') or (request.json.get('phone') if request.is_json else None)
             otp_input = request.form.get('otp') or (request.json.get('otp') if request.is_json else None)
@@ -963,34 +965,70 @@ def profil():
             if not is_valid:
                 return jsonify({'status': 'error', 'message': msg})
 
+            # Terbitkan token kriptografis berbatas waktu (5 menit)
+            reset_token = secrets.token_urlsafe(32)
+            clean_p = ''.join(filter(str.isdigit, str(phone)))
+            session['reset_pwd_token'] = reset_token
+            session['reset_pwd_phone'] = clean_p
+            session['reset_pwd_expires'] = time.time() + 300  # 5 menit
+
             return jsonify({
                 'status': 'success',
+                'reset_token': reset_token,
                 'message': 'Kode OTP cocok! Silakan buat kata sandi baru Anda.'
             })
 
         elif action == 'forgot_password_step3':
-            from flask import jsonify
+            from flask import jsonify, session
             from app.models.user import User
             from app.services.otp_service import get_phone_variants
             from flask_login import login_user
+            import time
+            import secrets
 
             phone = (request.form.get('phone') or request.json.get('phone') if request.is_json else request.form.get('phone') or '').strip()
             new_password = (request.form.get('new_password') or request.json.get('new_password') if request.is_json else request.form.get('new_password') or '').strip()
+            reset_token = (request.form.get('reset_token') or request.json.get('reset_token') if request.is_json else request.form.get('reset_token') or '').strip()
 
             if not phone or not new_password:
                 return jsonify({'status': 'error', 'message': 'Data tidak lengkap.'})
 
-            if len(new_password) < 6:
-                return jsonify({'status': 'error', 'message': 'Kata sandi minimal 6 karakter.'})
+            # Validasi Token Keamanan Reset Password (Cegah Account Takeover SEC-VULN-01)
+            sess_token = session.get('reset_pwd_token')
+            sess_phone = session.get('reset_pwd_phone')
+            sess_exp = session.get('reset_pwd_expires', 0)
 
             clean_p = ''.join(filter(str.isdigit, str(phone)))
             variants = get_phone_variants(clean_p)
+
+            # Validasi apakah token cocok dengan sesi atau token parameter, nomor HP cocok, dan belum kedaluwarsa
+            token_to_verify = reset_token or sess_token
+            if not token_to_verify or not sess_token or not secrets.compare_digest(token_to_verify, sess_token):
+                return jsonify({'status': 'error', 'message': 'Sesi verifikasi OTP tidak valid atau kedaluwarsa. Silakan ulangi langkah verifikasi OTP.'}), 403
+
+            if time.time() > sess_exp:
+                session.pop('reset_pwd_token', None)
+                session.pop('reset_pwd_phone', None)
+                session.pop('reset_pwd_expires', None)
+                return jsonify({'status': 'error', 'message': 'Sesi verifikasi telah kedaluwarsa (lebih dari 5 menit). Silakan minta kode OTP baru.'}), 403
+
+            if sess_phone not in variants and clean_p != sess_phone:
+                return jsonify({'status': 'error', 'message': 'Nomor WhatsApp tidak cocok dengan sesi verifikasi OTP.'}), 403
+
+            if len(new_password) < 6:
+                return jsonify({'status': 'error', 'message': 'Kata sandi minimal 6 karakter.'})
+
             user = User.query.filter(User.phone.in_(variants)).first()
             if not user:
                 return jsonify({'status': 'error', 'message': 'Pengguna tidak ditemukan.'})
 
             user.set_password(new_password)
             db.session.commit()
+
+            # Bersihkan sesi token setelah berhasil dipakai (One-Time Use)
+            session.pop('reset_pwd_token', None)
+            session.pop('reset_pwd_phone', None)
+            session.pop('reset_pwd_expires', None)
 
             login_user(user, remember=True)
             return jsonify({

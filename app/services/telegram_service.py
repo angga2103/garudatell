@@ -457,9 +457,11 @@ def handle_notif_callback(app, callback_query):
     data = callback_query.get('data', '')
 
     admin_chat = clean_str(os.getenv('BOT_ADMIN_CHAT_ID'))
-    # Validasi otorisasi admin (boleh dari NOTIF_CHAT_ID atau ADMIN_CHAT_ID)
-    if (allowed_chat and chat_id != str(allowed_chat)) and (admin_chat and chat_id != str(admin_chat)):
+    # Validasi otorisasi admin secara ketat (Fail-Closed)
+    valid_chats = {str(c) for c in [allowed_chat, admin_chat] if c}
+    if not valid_chats or str(chat_id) not in valid_chats:
         _answer_callback(token, query_id, "Akses ditolak! Anda bukan Admin terdaftar.")
+        logger.warning(f"[Bot 2 Security Alert] Akses callback ditolak dari unauthorized chat_id: {chat_id}")
         return
 
     if data == 'restore_confirm_prompt':
@@ -1389,7 +1391,8 @@ def handle_admin_message(app, message):
     if clean_digits.startswith('62') and 10 <= len(clean_digits) <= 16 and not text.startswith('/'):
         _send_message(token, chat_id, f"⏳ <i>Sedang memproses Pairing Code untuk nomor <code>{clean_digits}</code>... Harap tunggu 3 detik untuk menstabilkan soket WhatsApp...</i>")
         try:
-            res = requests.post('http://127.0.0.1:3000/api/pair', json={'number': clean_digits}, timeout=35)
+            from app.wa_helper import _get_wa_headers
+            res = requests.post('http://127.0.0.1:3000/api/pair', json={'number': clean_digits}, headers=_get_wa_headers(), timeout=35)
             res_data = res.json()
             if res_data.get('status') == 'success':
                 p_code = res_data.get('code')

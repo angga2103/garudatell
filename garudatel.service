@@ -15,13 +15,14 @@ After=network.target
 
 [Service]
 Type=notify
-User=root
-Group=root
+# Keamanan: Gunakan unprivileged user (www-data) demi prinsip Least Privilege
+User=www-data
+Group=www-data
 WorkingDirectory=/root/garudatel_v2
 Environment="PATH=/root/garudatel_v2/venv/bin"
 ExecStart=/root/garudatel_v2/venv/bin/gunicorn \
     --workers 4 \
-    --bind 0.0.0.0:5000 \
+    --bind 127.0.0.1:5000 \
     --timeout 120 \
     --log-level info \
     --access-logfile /root/garudatel_v2/logs/access.log \

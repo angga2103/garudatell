@@ -58,29 +58,6 @@ def create_otp(phone, action='register', username=None, password_hash=None, expi
         db.session.rollback()
         logger.error(f"[OTP Service] Gagal simpan ke DB: {e}")
 
-    # Mirror ke JSON untuk redundansi dan fallback kompatibilitas
-    try:
-        otp_data = {}
-        if os.path.exists(LEGACY_JSON_PATH):
-            try:
-                with open(LEGACY_JSON_PATH, 'r') as f:
-                    otp_data = json.load(f)
-            except Exception:
-                otp_data = {}
-
-        for p_var in phone_variants:
-            otp_data[p_var] = {
-                'otp': otp_code,
-                'expiry': expires_at,
-                'action': action,
-                'username': username,
-                'password_hash': password_hash
-            }
-        with open(LEGACY_JSON_PATH, 'w') as f:
-            json.dump(otp_data, f)
-    except Exception as e:
-        logger.warning(f"[OTP Service] Gagal mirror ke JSON: {e}")
-
     return otp_code
 
 
