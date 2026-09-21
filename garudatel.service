@@ -18,15 +18,15 @@ Type=notify
 # Keamanan: Gunakan unprivileged user (www-data) demi prinsip Least Privilege
 User=www-data
 Group=www-data
-WorkingDirectory=/root/garudatel_v2
-Environment="PATH=/root/garudatel_v2/venv/bin"
-ExecStart=/root/garudatel_v2/venv/bin/gunicorn \
+WorkingDirectory=/var/www/garudatel
+Environment="PATH=/var/www/garudatel/venv/bin"
+ExecStart=/var/www/garudatel/venv/bin/gunicorn \
     --workers 4 \
     --bind 127.0.0.1:5000 \
     --timeout 120 \
     --log-level info \
-    --access-logfile /root/garudatel_v2/logs/access.log \
-    --error-logfile /root/garudatel_v2/logs/error.log \
+    --access-logfile /var/www/garudatel/storage/logs/access.log \
+    --error-logfile /var/www/garudatel/storage/logs/error.log \
     wsgi:app
 
 # Restart policy
