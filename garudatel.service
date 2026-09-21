@@ -10,32 +10,27 @@
 # =====================================================================
 
 [Unit]
-Description=Garudatel V2 PPOB Platform (Gunicorn)
+Description=GarudaTel v2 - Web Application Server (Gunicorn)
 After=network.target
 
 [Service]
-Type=notify
-# Keamanan: Gunakan unprivileged user (www-data) demi prinsip Least Privilege
-User=www-data
-Group=www-data
+Type=simple
+User=root
+Group=root
 WorkingDirectory=/var/www/garudatel
 Environment="PATH=/var/www/garudatel/venv/bin"
 ExecStart=/var/www/garudatel/venv/bin/gunicorn \
-    --workers 4 \
+    --workers 3 \
     --bind 127.0.0.1:5000 \
     --timeout 120 \
     --log-level info \
     --access-logfile /var/www/garudatel/storage/logs/access.log \
     --error-logfile /var/www/garudatel/storage/logs/error.log \
-    wsgi:app
+    run:app
 
 # Restart policy
 Restart=always
-RestartSec=10
-
-# Security
-NoNewPrivileges=true
-PrivateTmp=true
+RestartSec=5
 
 # Logging
 StandardOutput=journal
