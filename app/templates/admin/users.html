@@ -248,30 +248,42 @@
     </a>
 </div>
 
-<div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));">
+<div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));">
+    <div class="stat-card" style="background: linear-gradient(135deg, #ecfdf5 0%, #ffffff 100%); border: 1.5px solid #10b981;">
+        <i class="fas fa-wallet stat-icon" style="color: #059669;"></i>
+        <div class="stat-value" style="color: #047857; font-size: 16px; font-weight: 900; white-space: nowrap;">
+            Rp {{ "{:,.0f}".format(total_user_balance).replace(',', '.') }}
+        </div>
+        <div class="stat-label" style="color: #065f46; font-weight: 800;">TOTAL SALDO USER</div>
+        {% if overall_branch_balance and overall_branch_balance > 0 %}
+        <div style="font-size: 9.5px; color: #059669; margin-top: 3px; font-weight: 700;">
+            +Cabang: Rp {{ "{:,.0f}".format(overall_branch_balance).replace(',', '.') }}
+        </div>
+        {% endif %}
+    </div>
     <div class="stat-card">
         <i class="fas fa-chart-line stat-icon"></i>
-        <div class="stat-value">{{ users|length }}</div>
+        <div class="stat-value">{{ total_user_count }}</div>
         <div class="stat-label">TOTAL USER</div>
     </div>
     <div class="stat-card">
         <i class="fas fa-user stat-icon" style="color: #64748b;"></i>
-        <div class="stat-value">{{ users|selectattr('role', 'equalto', 'user')|list|length }}</div>
+        <div class="stat-value">{{ count_member }}</div>
         <div class="stat-label">MEMBER</div>
     </div>
     <div class="stat-card">
         <i class="fas fa-store stat-icon" style="color: #0284c7;"></i>
-        <div class="stat-value">{{ users|selectattr('role', 'equalto', 'reseller')|list|length }}</div>
+        <div class="stat-value">{{ count_reseller }}</div>
         <div class="stat-label">RESELLER</div>
     </div>
     <div class="stat-card">
         <i class="fas fa-crown stat-icon" style="color: #f59e0b;"></i>
-        <div class="stat-value">{{ users|selectattr('role', 'equalto', 'vip')|list|length }}</div>
+        <div class="stat-value">{{ count_vip }}</div>
         <div class="stat-label">VIP</div>
     </div>
     <div class="stat-card">
         <i class="fas fa-user-slash stat-icon" style="color: #ef4444;"></i>
-        <div class="stat-value">{{ users|selectattr('is_active', 'equalto', False)|list|length }}</div>
+        <div class="stat-value">{{ count_blocked }}</div>
         <div class="stat-label">DIBLOKIR</div>
     </div>
 </div>
@@ -293,17 +305,141 @@
         </form>
     </div>
 
+    <!-- TOOLBAR FILTER & PENGURUTAN (SORT) -->
+    <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; padding: 14px 20px;">
+        <form method="GET" action="{{ url_for('admin.users') }}" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 0;">
+            <!-- Input Pencarian -->
+            <div style="flex: 1; min-width: 220px; position: relative;">
+                <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 13px;"></i>
+                <input type="text" name="q" value="{{ search_q }}" placeholder="Cari nama toko, No WA, email..." 
+                       style="width: 100%; padding: 8px 12px 8px 34px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 12px; font-family: 'Nunito'; box-sizing: border-box; background: white; outline: none;">
+            </div>
+
+            <!-- Sort Dropdown -->
+            <div style="min-width: 185px;">
+                <div style="font-size: 10px; font-weight: 800; color: #64748b; margin-bottom: 2px; text-transform: uppercase;">
+                    <i class="fas fa-sort-amount-down-alt" style="color: #0284c7;"></i> Urutkan Saldo / Data
+                </div>
+                <select name="sort" onchange="this.form.submit()" 
+                        style="width: 100%; padding: 8px 10px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 12px; font-family: 'Nunito'; font-weight: 800; color: #1e293b; background: white; cursor: pointer;">
+                    <option value="saldo_desc" {% if sort_by == 'saldo_desc' %}selected{% endif %}>💎 Saldo Terbanyak</option>
+                    <option value="saldo_asc" {% if sort_by == 'saldo_asc' %}selected{% endif %}>🔻 Saldo Paling Sedikit</option>
+                    <option value="id_desc" {% if sort_by == 'id_desc' %}selected{% endif %}>🕒 ID Terbaru (Default)</option>
+                    <option value="id_asc" {% if sort_by == 'id_asc' %}selected{% endif %}>⏳ ID Terlama</option>
+                    <option value="name_asc" {% if sort_by == 'name_asc' %}selected{% endif %}>🔤 Nama Pelanggan (A - Z)</option>
+                    <option value="name_desc" {% if sort_by == 'name_desc' %}selected{% endif %}>🔤 Nama Pelanggan (Z - A)</option>
+                    <option value="points_desc" {% if sort_by == 'points_desc' %}selected{% endif %}>🪙 Poin Terbanyak</option>
+                    <option value="commission_desc" {% if sort_by == 'commission_desc' %}selected{% endif %}>💰 Komisi Terbanyak</option>
+                </select>
+            </div>
+
+            <!-- Filter Saldo -->
+            <div style="min-width: 150px;">
+                <div style="font-size: 10px; font-weight: 800; color: #64748b; margin-bottom: 2px; text-transform: uppercase;">
+                    <i class="fas fa-wallet" style="color: #10b981;"></i> Filter Saldo
+                </div>
+                <select name="balance" onchange="this.form.submit()" 
+                        style="width: 100%; padding: 8px 10px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 12px; font-family: 'Nunito'; font-weight: 700; color: #1e293b; background: white; cursor: pointer;">
+                    <option value="">Semua Saldo</option>
+                    <option value="low" {% if balance_filter == 'low' %}selected{% endif %}>⚠️ Saldo Minim (&lt; 100rb)</option>
+                    <option value="positive" {% if balance_filter == 'positive' %}selected{% endif %}>✅ Ada Saldo (&gt; 0)</option>
+                    <option value="zero" {% if balance_filter == 'zero' %}selected{% endif %}>⭕ Saldo Kosong (Rp 0)</option>
+                </select>
+            </div>
+
+            <!-- Filter Golongan -->
+            <div style="min-width: 120px;">
+                <div style="font-size: 10px; font-weight: 800; color: #64748b; margin-bottom: 2px; text-transform: uppercase;">
+                    <i class="fas fa-user-tag" style="color: #f59e0b;"></i> Golongan
+                </div>
+                <select name="role" onchange="this.form.submit()" 
+                        style="width: 100%; padding: 8px 10px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 12px; font-family: 'Nunito'; font-weight: 700; color: #1e293b; background: white; cursor: pointer;">
+                    <option value="">Semua Tier</option>
+                    <option value="vip" {% if role_filter == 'vip' %}selected{% endif %}>👑 VIP</option>
+                    <option value="reseller" {% if role_filter == 'reseller' %}selected{% endif %}>🏪 Reseller</option>
+                    <option value="user" {% if role_filter == 'user' %}selected{% endif %}>👤 Member</option>
+                </select>
+            </div>
+
+            <!-- Tombol Cari & Reset -->
+            <div style="display: flex; gap: 6px; align-self: flex-end;">
+                <button type="submit" 
+                        style="background: #0284c7; color: white; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 800; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; height: 35px;">
+                    <i class="fas fa-filter"></i> Terapkan
+                </button>
+                {% if search_q or role_filter or status_filter or balance_filter or (sort_by and sort_by != 'id_desc') %}
+                <a href="{{ url_for('admin.users') }}" 
+                   style="background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; padding: 8px 12px; border-radius: 8px; font-weight: 800; font-size: 12px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; height: 35px; box-sizing: border-box;"
+                   title="Reset Semua Filter dan Urutan">
+                    <i class="fas fa-undo"></i> Reset
+                </a>
+                {% endif %}
+            </div>
+        </form>
+
+        <!-- Baris Info Jumlah Saldo & Hasil Filter -->
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; font-size: 11px; color: #64748b;">
+            <div>
+                Menampilkan <b>{{ users|length }}</b> dari total <b>{{ total_user_count }}</b> pelanggan
+                {% if search_q %} untuk pencarian <i>"{{ search_q }}"</i>{% endif %}
+                {% if sort_by == 'saldo_desc' %}<span style="color: #047857; font-weight: 800;"> • 💎 Urutan: Saldo Terbanyak</span>{% endif %}
+                {% if sort_by == 'saldo_asc' %}<span style="color: #b45309; font-weight: 800;"> • 🔻 Urutan: Saldo Paling Sedikit</span>{% endif %}
+                {% if sort_by == 'name_asc' %}<span style="color: #0284c7; font-weight: 800;"> • 🔤 Urutan: Nama A - Z</span>{% endif %}
+            </div>
+            <div style="background: white; border: 1px solid #cbd5e1; padding: 4px 10px; border-radius: 20px; font-weight: 800; color: #047857; display: inline-flex; align-items: center; gap: 6px;">
+                <i class="fas fa-coins" style="color: #10b981;"></i> Jumlah Saldo Ditampilkan: <b>Rp {{ "{:,.0f}".format(displayed_balance).replace(',', '.') }}</b>
+            </div>
+        </div>
+    </div>
+
     <div style="overflow-x: auto; padding: 0 20px 20px 20px;">
         <table style="width: 100%; border-collapse: collapse; min-width: 800px; text-align: left; font-family: 'Nunito', sans-serif;">
             <thead>
                 <tr style="border-bottom: 2px solid #f1f5f9;">
-                    <th style="padding: 12px 8px; color: #64748b; font-weight: 800; font-size: 11px; text-transform: uppercase;">ID</th>
-                    <th style="padding: 12px 8px; color: #64748b; font-weight: 800; font-size: 11px; text-transform: uppercase;">Pelanggan</th>
+                    <th style="padding: 12px 8px; color: #64748b; font-weight: 800; font-size: 11px; text-transform: uppercase;">
+                        <a href="{{ url_for('admin.users', sort='id_asc' if sort_by == 'id_desc' else 'id_desc', q=search_q, role=role_filter, status=status_filter, balance=balance_filter) }}" 
+                           style="color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;" title="Urutkan ID">
+                            ID
+                            {% if sort_by == 'id_desc' %}<i class="fas fa-sort-down" style="color: #0284c7;"></i>
+                            {% elif sort_by == 'id_asc' %}<i class="fas fa-sort-up" style="color: #0284c7;"></i>
+                            {% else %}<i class="fas fa-sort" style="color: #cbd5e1;"></i>{% endif %}
+                        </a>
+                    </th>
+                    <th style="padding: 12px 8px; color: #64748b; font-weight: 800; font-size: 11px; text-transform: uppercase;">
+                        <a href="{{ url_for('admin.users', sort='name_desc' if sort_by == 'name_asc' else 'name_asc', q=search_q, role=role_filter, status=status_filter, balance=balance_filter) }}" 
+                           style="color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;" title="Urutkan Nama">
+                            Pelanggan
+                            {% if sort_by == 'name_asc' %}<i class="fas fa-sort-alpha-down" style="color: #0284c7;"></i>
+                            {% elif sort_by == 'name_desc' %}<i class="fas fa-sort-alpha-down-alt" style="color: #0284c7;"></i>
+                            {% else %}<i class="fas fa-sort" style="color: #cbd5e1;"></i>{% endif %}
+                        </a>
+                    </th>
                     <th style="padding: 12px 8px; color: #64748b; font-weight: 800; font-size: 11px; text-transform: uppercase;">Golongan / Tier</th>
                     <th style="padding: 12px 8px; color: #64748b; font-weight: 800; font-size: 11px; text-transform: uppercase;">Upline</th>
-                    <th style="padding: 12px 8px; color: #64748b; font-weight: 800; font-size: 11px; text-transform: uppercase;">Saldo Utama</th>
-                    <th style="padding: 12px 8px; color: #64748b; font-weight: 800; font-size: 11px; text-transform: uppercase;">Komisi VIP</th>
-                    <th style="padding: 12px 8px; color: #64748b; font-weight: 800; font-size: 11px; text-transform: uppercase;">Poin</th>
+                    <th style="padding: 12px 8px; color: #64748b; font-weight: 800; font-size: 11px; text-transform: uppercase;">
+                        <a href="{{ url_for('admin.users', sort='saldo_asc' if sort_by == 'saldo_desc' else 'saldo_desc', q=search_q, role=role_filter, status=status_filter, balance=balance_filter) }}" 
+                           style="color: {% if 'saldo' in sort_by %}#047857{% else %}inherit{% endif %}; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;"
+                           title="Klik untuk mengurutkan Saldo Terbanyak / Paling Sedikit">
+                            Saldo Utama
+                            {% if sort_by == 'saldo_desc' %}<i class="fas fa-sort-amount-down" style="color: #059669;" title="Saldo Terbanyak ke Terkecil"></i>
+                            {% elif sort_by == 'saldo_asc' %}<i class="fas fa-sort-amount-up" style="color: #059669;" title="Saldo Paling Sedikit ke Terbanyak"></i>
+                            {% else %}<i class="fas fa-sort" style="color: #cbd5e1;"></i>{% endif %}
+                        </a>
+                    </th>
+                    <th style="padding: 12px 8px; color: #64748b; font-weight: 800; font-size: 11px; text-transform: uppercase;">
+                        <a href="{{ url_for('admin.users', sort='id_desc' if sort_by == 'commission_desc' else 'commission_desc', q=search_q, role=role_filter, status=status_filter, balance=balance_filter) }}" 
+                           style="color: {% if sort_by == 'commission_desc' %}#15803d{% else %}inherit{% endif %}; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;" title="Urutkan Komisi VIP">
+                            Komisi VIP
+                            {% if sort_by == 'commission_desc' %}<i class="fas fa-sort-down" style="color: #15803d;"></i>{% else %}<i class="fas fa-sort" style="color: #cbd5e1;"></i>{% endif %}
+                        </a>
+                    </th>
+                    <th style="padding: 12px 8px; color: #64748b; font-weight: 800; font-size: 11px; text-transform: uppercase;">
+                        <a href="{{ url_for('admin.users', sort='id_desc' if sort_by == 'points_desc' else 'points_desc', q=search_q, role=role_filter, status=status_filter, balance=balance_filter) }}" 
+                           style="color: {% if sort_by == 'points_desc' %}#b45309{% else %}inherit{% endif %}; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;" title="Urutkan Poin">
+                            Poin
+                            {% if sort_by == 'points_desc' %}<i class="fas fa-sort-down" style="color: #b45309;"></i>{% else %}<i class="fas fa-sort" style="color: #cbd5e1;"></i>{% endif %}
+                        </a>
+                    </th>
                     <th style="padding: 12px 8px; color: #64748b; font-weight: 800; font-size: 11px; text-transform: uppercase;">Status</th>
                     <th style="padding: 12px 8px; color: #64748b; font-weight: 800; font-size: 11px; text-transform: uppercase; text-align: right;">Aksi</th>
                 </tr>
@@ -441,6 +577,25 @@
                 </tr>
                 {% endfor %}
             </tbody>
+            {% if users %}
+            <tfoot>
+                <tr style="background: #f8fafc; border-top: 2.5px solid #cbd5e1; font-weight: 800;">
+                    <td colspan="4" style="padding: 14px 8px; color: #475569; text-align: right; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">
+                        <i class="fas fa-calculator" style="color: #0284c7;"></i> Total Saldo ({{ users|length }} Pelanggan):
+                    </td>
+                    <td style="padding: 14px 8px; color: #047857; font-size: 14px; font-weight: 900; white-space: nowrap;">
+                        Rp {{ "{:,.0f}".format(displayed_balance).replace(',', '.') }}
+                    </td>
+                    <td style="padding: 14px 8px; color: #15803d; font-size: 12px; font-weight: 800; white-space: nowrap;">
+                        Rp {{ "{:,.0f}".format(displayed_commission).replace(',', '.') }}
+                    </td>
+                    <td style="padding: 14px 8px; color: #b45309; font-size: 12px; font-weight: 800; white-space: nowrap;">
+                        {{ "{:,}".format(displayed_points).replace(',', '.') }} Pts
+                    </td>
+                    <td colspan="2"></td>
+                </tr>
+            </tfoot>
+            {% endif %}
         </table>
     </div>
 </div>

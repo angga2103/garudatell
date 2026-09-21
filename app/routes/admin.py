@@ -703,9 +703,104 @@ def users():
     if not session.get('admin_logged_in'):
         return redirect(url_for('admin.login'))
     
-    # Mengambil semua user, diurutkan dari yang terbaru (ID terbesar)
-    all_users = User.query.order_by(User.id.desc()).all()
-    return render_template('admin/users.html', users=all_users)
+    sort_by = request.args.get('sort', 'id_desc').strip()
+    search_q = request.args.get('q', '').strip()
+    role_filter = request.args.get('role', '').strip().lower()
+    status_filter = request.args.get('status', '').strip().lower()
+    balance_filter = request.args.get('balance', '').strip().lower()
+
+    # Statistik Keseluruhan (Database-wide)
+    total_user_count = User.query.count()
+    count_member = User.query.filter_by(role='user').count()
+    count_reseller = User.query.filter_by(role='reseller').count()
+    count_vip = User.query.filter_by(role='vip').count()
+    count_blocked = User.query.filter_by(is_active=False).count()
+
+    total_user_balance = db.session.query(db.func.sum(User.balance)).scalar() or 0.0
+    total_commission_balance = db.session.query(db.func.sum(User.commission_balance)).scalar() or 0.0
+    total_user_points = db.session.query(db.func.sum(User.points)).scalar() or 0
+
+    # Query Terfilter
+    query = User.query
+
+    if search_q:
+        search_pattern = f"%{search_q}%"
+        or_clauses = [
+            User.name.ilike(search_pattern),
+            User.phone.ilike(search_pattern),
+            User.email.ilike(search_pattern)
+        ]
+        if search_q.isdigit():
+            or_clauses.append(User.id == int(search_q))
+        query = query.filter(db.or_(*or_clauses))
+
+    if role_filter in ['user', 'reseller', 'vip']:
+        query = query.filter(User.role == role_filter)
+
+    if status_filter == 'active':
+        query = query.filter(User.is_active == True)
+    elif status_filter == 'blocked':
+        query = query.filter(User.is_active == False)
+
+    if balance_filter == 'low':
+        query = query.filter(db.func.coalesce(User.balance, 0.0) < 100000)
+    elif balance_filter == 'zero':
+        query = query.filter(db.func.coalesce(User.balance, 0.0) <= 0)
+    elif balance_filter == 'positive':
+        query = query.filter(db.func.coalesce(User.balance, 0.0) > 0)
+
+    # Sorting
+    if sort_by == 'saldo_desc':
+        query = query.order_by(db.func.coalesce(User.balance, 0.0).desc(), User.id.desc())
+    elif sort_by == 'saldo_asc':
+        query = query.order_by(db.func.coalesce(User.balance, 0.0).asc(), User.id.desc())
+    elif sort_by == 'name_asc':
+        query = query.order_by(User.name.asc())
+    elif sort_by == 'name_desc':
+        query = query.order_by(User.name.desc())
+    elif sort_by == 'points_desc':
+        query = query.order_by(db.func.coalesce(User.points, 0).desc(), User.id.desc())
+    elif sort_by == 'commission_desc':
+        query = query.order_by(db.func.coalesce(User.commission_balance, 0.0).desc(), User.id.desc())
+    elif sort_by == 'id_asc':
+        query = query.order_by(User.id.asc())
+    else:
+        sort_by = 'id_desc'
+        query = query.order_by(User.id.desc())
+
+    all_users = query.all()
+
+    # Hitung statistik untuk daftar user yang sedang ditampilkan
+    displayed_balance = sum(float(u.balance or 0.0) for u in all_users)
+    displayed_commission = sum(float(u.commission_balance or 0.0) for u in all_users)
+    displayed_points = sum(int(u.points or 0) for u in all_users)
+
+    # Hitung total saldo cabang
+    overall_branch_balance = sum(float(u.total_branch_balance or 0.0) for u in all_users)
+    overall_asset_balance = total_user_balance + overall_branch_balance
+
+    return render_template(
+        'admin/users.html',
+        users=all_users,
+        sort_by=sort_by,
+        search_q=search_q,
+        role_filter=role_filter,
+        status_filter=status_filter,
+        balance_filter=balance_filter,
+        total_user_count=total_user_count,
+        count_member=count_member,
+        count_reseller=count_reseller,
+        count_vip=count_vip,
+        count_blocked=count_blocked,
+        total_user_balance=total_user_balance,
+        total_commission_balance=total_commission_balance,
+        total_user_points=total_user_points,
+        displayed_balance=displayed_balance,
+        displayed_commission=displayed_commission,
+        displayed_points=displayed_points,
+        overall_branch_balance=overall_branch_balance,
+        overall_asset_balance=overall_asset_balance
+    )
 
 @admin_bp.route('/users/scan_low_balance', methods=['POST'])
 def scan_low_balance():
