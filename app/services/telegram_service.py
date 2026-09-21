@@ -259,16 +259,31 @@ def send_trx_notification(trx, title="TRANSAKSI MASUK"):
     user_id = getattr(trx, 'user_id', '-')
     sn = getattr(trx, 'sn', None)
 
+    # Resolusi Nama Pengguna / Toko
+    user_name = getattr(trx, 'user_name', None)
+    if not user_name and user_id and str(user_id) != '-' and str(user_id).isdigit():
+        try:
+            from app.models.user import User
+            u_db = User.query.get(int(user_id))
+            if u_db:
+                user_name = u_db.name
+        except Exception:
+            pass
+
+    user_info = f"#{user_id}"
+    if user_name:
+        user_info = f"#{user_id} ({user_name})"
+
     lines = [
         f"{icon} <b>{title.upper()}</b>",
         "━━━━━━━━━━━━━━━━━━━━━━",
         f"📋 <b>Ref ID:</b> <code>{ref_id}</code>",
-        f"📦 <b>Produk:</b> {product_name}",
+        f"📦 <b>Produk:</b> <code>{product_name}</code>",
         f"📱 <b>Tujuan:</b> <code>{target_number}</code>",
         f"💰 <b>Nominal:</b> Rp {amount:,.0f}",
         f"💳 <b>Metode:</b> {payment_method} (<b>{payment_status}</b>)",
         f"📊 <b>Status:</b> <b>{status_upper}</b>",
-        f"👤 <b>User ID:</b> #{user_id}",
+        f"👤 <b>User ID:</b> {user_info}",
         f"⏰ <b>Waktu:</b> {wib_now}",
         "━━━━━━━━━━━━━━━━━━━━━━"
     ]
@@ -307,6 +322,21 @@ def async_send_trx_notification(trx, title="TRANSAKSI MASUK"):
     """
     import threading
     try:
+        user_name = getattr(trx, 'user_name', None)
+        user_obj = getattr(trx, 'user', None)
+        if not user_name and user_obj and hasattr(user_obj, 'name'):
+            user_name = user_obj.name
+        if not user_name:
+            uid = getattr(trx, 'user_id', None)
+            if uid and str(uid).isdigit():
+                try:
+                    from app.models.user import User
+                    u_db = User.query.get(int(uid))
+                    if u_db:
+                        user_name = u_db.name
+                except Exception:
+                    pass
+
         trx_snapshot = {
             'ref_id': getattr(trx, 'ref_id', '-'),
             'product_name': getattr(trx, 'product_name', '-'),
@@ -316,6 +346,7 @@ def async_send_trx_notification(trx, title="TRANSAKSI MASUK"):
             'payment_status': getattr(trx, 'payment_status', 'UNPAID'),
             'status': getattr(trx, 'status', '-'),
             'user_id': getattr(trx, 'user_id', '-'),
+            'user_name': user_name,
             'sn': getattr(trx, 'sn', None)
         }
         
@@ -1063,10 +1094,26 @@ def handle_admin_callback(app, callback_query):
         elif data == 'cmd_saldo':
             is_ok, bal, msg = check_balance()
             if is_ok:
+                from app.extensions import db
+                from app.models.user import User
+                total_user_balance = db.session.query(db.func.sum(User.balance)).scalar() or 0.0
+                total_users = User.query.count()
+
+                diff = float(bal) - float(total_user_balance)
+                if diff > 0:
+                    diff_str = f"+Rp {diff:,.0f} (Surplus / Aman ✅)"
+                elif diff < 0:
+                    diff_str = f"-Rp {abs(diff):,.0f} (Defisit / Kurang ⚠️)"
+                else:
+                    diff_str = f"Rp 0 (Seimbang / Pas)"
+
                 text = (
                     "💰 <b>INFORMASI SALDO DIGIFLAZZ</b>\n"
                     "━━━━━━━━━━━━━━━━━━━━━━\n"
-                    f"• <b>Saldo Tersedia:</b> <code>Rp {bal:,.0f}</code>\n"
+                    f"• <b>Saldo Digiflazz:</b> <code>Rp {bal:,.0f}</code>\n"
+                    f"• <b>Total Saldo User:</b> <code>Rp {total_user_balance:,.0f}</code> ({total_users} user)\n"
+                    f"• <b>Selisih (Digiflazz - User):</b> <code>{diff_str}</code>\n"
+                    "━━━━━━━━━━━━━━━━━━━━━━\n"
                     f"• <b>Status API:</b> Terhubung Normal (200 OK)\n"
                     f"• <b>Update:</b> {format_wib(fmt='%d/%m/%Y %H:%M:%S WIB')}"
                 )
@@ -1551,6 +1598,40 @@ def handle_admin_message(app, message):
                 ]
             }
             _send_message(token, chat_id, text_msg, reply_markup=store_keyboard)
+        return
+
+    # Perintah /saldo atau /saldodigi
+    if text.strip().lower() in ['/saldo', '/saldodigi', 'saldo', 'saldo digiflazz', 'cek saldo digiflazz']:
+        with app.app_context():
+            from app.services.digiflazz import check_balance
+            from app.extensions import db
+            from app.models.user import User
+            is_ok, bal, msg = check_balance()
+            if is_ok:
+                total_user_balance = db.session.query(db.func.sum(User.balance)).scalar() or 0.0
+                total_users = User.query.count()
+
+                diff = float(bal) - float(total_user_balance)
+                if diff > 0:
+                    diff_str = f"+Rp {diff:,.0f} (Surplus / Aman ✅)"
+                elif diff < 0:
+                    diff_str = f"-Rp {abs(diff):,.0f} (Defisit / Kurang ⚠️)"
+                else:
+                    diff_str = f"Rp 0 (Seimbang / Pas)"
+
+                text_reply = (
+                    "💰 <b>INFORMASI SALDO DIGIFLAZZ</b>\n"
+                    "━━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"• <b>Saldo Digiflazz:</b> <code>Rp {bal:,.0f}</code>\n"
+                    f"• <b>Total Saldo User:</b> <code>Rp {total_user_balance:,.0f}</code> ({total_users} user)\n"
+                    f"• <b>Selisih (Digiflazz - User):</b> <code>{diff_str}</code>\n"
+                    "━━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"• <b>Status API:</b> Terhubung Normal (200 OK)\n"
+                    f"• <b>Update:</b> {format_wib(fmt='%d/%m/%Y %H:%M:%S WIB')}"
+                )
+            else:
+                text_reply = f"🚨 <b>GAGAL CEK SALDO:</b>\n{msg}"
+            _send_message(token, chat_id, text_reply, reply_markup=get_admin_inline_keyboard())
         return
 
     # Perintah /ceksaldo atau /ceksaldominim

@@ -128,6 +128,7 @@ class TestTelegramAndOtp(unittest.TestCase):
             payment_status = "PAID"
             status = "SUCCESS"
             user_id = 1
+            user_name = "Anggoro Toko"
             sn = "081234567890/SN998877"
 
         # Simulasikan setting environment
@@ -137,9 +138,13 @@ class TestTelegramAndOtp(unittest.TestCase):
             mock_post.assert_called_once()
             call_kwargs = mock_post.call_args[1]
             payload = call_kwargs.get('json', {})
-            self.assertIn("TRANSAKSI BERHASIL", payload.get('text', ''))
-            self.assertIn("GT-TEST-123456", payload.get('text', ''))
-            self.assertIn("Telkomsel 50K", payload.get('text', ''))
+            text = payload.get('text', '')
+            self.assertIn("TRANSAKSI BERHASIL", text)
+            self.assertIn("GT-TEST-123456", text)
+            # Produk harus dalam format <code> agar bisa di-copy saat diklik
+            self.assertIn("<code>Telkomsel 50K</code>", text)
+            # User ID harus menampilkan nama user di sampingnya
+            self.assertIn("#1 (Anggoro Toko)", text)
 
     @patch('requests.post')
     def test_admin_bot_command_otp(self, mock_post):
@@ -160,5 +165,46 @@ class TestTelegramAndOtp(unittest.TestCase):
             self.assertIn("OTP DARURAT BERHASIL DICIPTAKAN", payload.get('text', ''))
             self.assertIn("081298765432", payload.get('text', ''))
 
+    @patch('app.services.digiflazz.check_balance')
+    @patch('requests.post')
+    def test_admin_bot_saldo_diff(self, mock_post, mock_check_balance):
+        """Tes bot admin menampilkan saldo digiflazz, saldo user, dan selisihnya."""
+        mock_check_balance.return_value = (True, 1000000.0, "OK")
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_post.return_value = mock_response
+
+        with patch.dict(os.environ, {'BOT_ADMIN_TOKEN': '123456:FAKE_ADMIN_TOKEN', 'BOT_ADMIN_CHAT_ID': '12345678'}):
+            # 1. Tes via Callback cmd_saldo
+            cb_query = {
+                'id': 'cb_123',
+                'data': 'cmd_saldo',
+                'message': {
+                    'chat': {'id': '12345678'},
+                    'message_id': 99
+                }
+            }
+            handle_admin_callback(self.app, cb_query)
+            call_kwargs = mock_post.call_args[1]
+            payload = call_kwargs.get('json', {})
+            text = payload.get('text', '')
+            self.assertIn("Saldo Digiflazz:", text)
+            self.assertIn("Total Saldo User:", text)
+            self.assertIn("Selisih (Digiflazz - User):", text)
+
+            # 2. Tes via Text /saldo
+            msg = {
+                'chat': {'id': '12345678'},
+                'text': '/saldo'
+            }
+            handle_admin_message(self.app, msg)
+            call_kwargs = mock_post.call_args[1]
+            payload = call_kwargs.get('json', {})
+            text = payload.get('text', '')
+            self.assertIn("Saldo Digiflazz:", text)
+            self.assertIn("Total Saldo User:", text)
+            self.assertIn("Selisih (Digiflazz - User):", text)
+
 if __name__ == '__main__':
     unittest.main()
+
