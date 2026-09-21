@@ -1,9 +1,10 @@
 import hashlib
 import json
 import requests
+import os
 
-merchant = "PKM78524949"
-secret = "PKSK_CLghtzsf4tU3WVqbb9CBArmcgVZ1OWl5HiRNGC1j"
+merchant = os.getenv("PAYMENTKITA_MERCHANT_ID", "PKM_YOUR_MERCHANT_ID")
+secret = os.getenv("PAYMENTKITA_SECRET", "PKSK_YOUR_SECRET_KEY")
 
 signature = hashlib.md5(
     f"{merchant}:{secret}".encode("utf-8")
