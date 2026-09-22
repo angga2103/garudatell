@@ -1,6 +1,6 @@
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import login_required, current_user
-from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for, session
+from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for, session, send_from_directory
 from app.models.product import Product
 from app.extensions import db, csrf, limiter
 from sqlalchemy import or_
@@ -2563,5 +2563,29 @@ def delete_device_route(device_id):
     return jsonify({'status': 'error', 'message': msg}), 400
 
 
+# ==========================================
+# DOKUMEN RESMI & SOP PANDUAN MITRA
+# ==========================================
+@user_bp.route('/download/sop-paket-data')
+def download_sop_paket_data():
+    """Mengunduh file resmi PDF SOP Transaksi Paket Data & Masa Aktif."""
+    docs_dir = os.path.join(BASE_DIR, 'app', 'static', 'docs')
+    filename = 'SOP_Transaksi_Paket_Data.pdf'
+    return send_from_directory(
+        docs_dir,
+        filename,
+        as_attachment=True,
+        download_name='SOP_Transaksi_Paket_Data_IPAY.pdf'
+    )
 
 
+@user_bp.route('/docs/sop-paket-data')
+def preview_sop_paket_data():
+    """Membuka pratinjau PDF SOP Transaksi Paket Data & Masa Aktif langsung di browser."""
+    docs_dir = os.path.join(BASE_DIR, 'app', 'static', 'docs')
+    filename = 'SOP_Transaksi_Paket_Data.pdf'
+    return send_from_directory(
+        docs_dir,
+        filename,
+        as_attachment=False
+    )
