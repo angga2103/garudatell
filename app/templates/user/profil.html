@@ -155,6 +155,34 @@
         }
         </script>
 
+        <!-- PUSAT REGULASI, DOKUMEN & BANTUAN -->
+        <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;">
+            <a href="/syarat-ketentuan" style="text-decoration: none; background: #f8fafc; border: 1.5px solid #e2e8f0; padding: 12px 16px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; transition: 0.2s;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 36px; height: 36px; border-radius: 10px; background: #e0f2fe; color: #0284c7; display: flex; align-items: center; justify-content: center; font-size: 16px;">
+                        <i class="fas fa-file-contract"></i>
+                    </div>
+                    <div>
+                        <div style="font-weight: 800; color: #1e293b; font-size: 0.88rem;">Syarat & Ketentuan Layanan</div>
+                        <div style="font-size: 0.72rem; color: #64748b;">Perjanjian perantara & pelepasan tuntutan hukum</div>
+                    </div>
+                </div>
+                <i class="fas fa-chevron-right" style="color: #94a3b8; font-size: 12px;"></i>
+            </a>
+            <a href="/bantuan" style="text-decoration: none; background: #f8fafc; border: 1.5px solid #e2e8f0; padding: 12px 16px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; transition: 0.2s;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 36px; height: 36px; border-radius: 10px; background: #dcfce7; color: #15803d; display: flex; align-items: center; justify-content: center; font-size: 16px;">
+                        <i class="fas fa-headset"></i>
+                    </div>
+                    <div>
+                        <div style="font-weight: 800; color: #1e293b; font-size: 0.88rem;">Pusat Bantuan & CS 24 Jam</div>
+                        <div style="font-size: 0.72rem; color: #64748b;">Tiket keluhan & layanan mediasi provider</div>
+                    </div>
+                </div>
+                <i class="fas fa-chevron-right" style="color: #94a3b8; font-size: 12px;"></i>
+            </a>
+        </div>
+
         <form action="/profil" method="POST">
             <input type="hidden" name="action" value="logout">
             <button type="submit" style="width: 100%; padding: 12px; border: none; background: #FEE2E2; color: #DC2626; border-radius: 10px; font-weight: 800; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
@@ -276,6 +304,12 @@
                     </div>
                     <div style="font-size: 0.7rem; color: #64748B; margin-top: 4px; font-weight: 600;"><i class="fas fa-info-circle" style="color: #0EA5E9;"></i> Masukkan kode referral jika diajak oleh mitra VIP.</div>
                 </div>
+                <div style="margin-bottom: 20px;">
+                    <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 0.78rem; color: #475569; line-height: 1.4;">
+                        <input type="checkbox" id="reg_agree_terms" required checked style="width: 16px; height: 16px; margin-top: 2px; accent-color: #10B981; cursor: pointer;">
+                        <span>Saya telah membaca dan menyetujui <a href="/syarat-ketentuan" target="_blank" style="color: #0284c7; font-weight: 800; text-decoration: underline;">Syarat & Ketentuan Layanan</a> serta pelepasan tanggung jawab hukum.</span>
+                    </label>
+                </div>
                 <button type="button" id="btn-req-otp" onclick="requestOTP()" style="width: 100%; padding: 14px; border: none; background: #10B981; color: white; border-radius: 10px; font-weight: 800; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
                     <i class="fas fa-user-plus"></i> Daftar & Verifikasi WA
                 </button>
@@ -298,6 +332,10 @@
                     </a>
                 </div>
             </div>
+        <!-- Ketentuan Hukum Guest -->
+        <div style="text-align: center; margin-top: 24px; padding-top: 16px; border-top: 1px dashed #E5E7EB; font-size: 0.76rem; color: #64748B; line-height: 1.5;">
+            Dengan masuk atau mendaftar, Anda menyetujui <br>
+            <a href="/syarat-ketentuan" target="_blank" style="color: #0284c7; font-weight: 700; text-decoration: underline;">Syarat & Ketentuan Layanan</a> serta pelepasan tanggung jawab hukum.
         </div>
 
     </div>
@@ -589,6 +627,12 @@
         const psw = document.getElementById('reg_new_password').value.trim();
         if (!user || !wa || !psw) {
             Swal.fire('Perhatian', 'Lengkapi semua kolom formulir pendaftaran!', 'warning');
+            return;
+        }
+
+        const agree = document.getElementById('reg_agree_terms');
+        if (agree && !agree.checked) {
+            Swal.fire('Persetujuan Layanan', 'Anda wajib membaca dan menyetujui Syarat & Ketentuan Layanan untuk mendaftar akun.', 'warning');
             return;
         }
 

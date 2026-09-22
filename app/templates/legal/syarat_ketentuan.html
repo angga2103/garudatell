@@ -1,0 +1,437 @@
+{% extends "base.html" %}
+
+{% block title %}Syarat & Ketentuan Layanan - {{ store.name if store and store.name else 'IPAY.my.id' }}{% endblock %}
+
+{% block head %}
+<style>
+    .snk-page-wrapper {
+        max-width: 780px;
+        margin: 0 auto;
+        padding-bottom: 50px;
+    }
+    .snk-header {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        border-bottom-left-radius: 28px;
+        border-bottom-right-radius: 28px;
+        padding: 22px 20px 32px 20px;
+        margin: -15px -15px 22px -15px;
+        color: white;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.2);
+    }
+    .snk-top-nav {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+    .snk-back-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: white;
+        text-decoration: none;
+        font-weight: 800;
+        font-size: 13px;
+        background: rgba(255, 255, 255, 0.15);
+        padding: 6px 14px;
+        border-radius: 20px;
+        backdrop-filter: blur(8px);
+        transition: all 0.2s ease;
+    }
+    .snk-back-btn:hover { background: rgba(255, 255, 255, 0.25); color: white; }
+
+    .snk-badge-official {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 10.5px;
+        font-weight: 800;
+        background: rgba(56, 189, 248, 0.2);
+        color: #7dd3fc;
+        border: 1px solid rgba(56, 189, 248, 0.35);
+        padding: 4px 10px;
+        border-radius: 20px;
+        letter-spacing: 0.5px;
+    }
+
+    .snk-summary-box {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 16px;
+        padding: 14px;
+        margin-top: 16px;
+        font-size: 11.5px;
+        line-height: 1.5;
+        color: #cbd5e1;
+    }
+
+    /* QUICK TOC (DAFTAR ISI) */
+    .snk-toc-container {
+        background: white;
+        border-radius: 18px;
+        padding: 16px;
+        margin-bottom: 22px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+    }
+    .snk-toc-title {
+        font-size: 12px;
+        font-weight: 800;
+        color: #475569;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .snk-toc-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+    @media (max-width: 600px) {
+        .snk-toc-grid { grid-template-columns: 1fr; }
+    }
+    .snk-toc-link {
+        font-size: 11px;
+        font-weight: 700;
+        color: #0284c7;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        padding: 7px 10px;
+        border-radius: 8px;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: 0.15s;
+    }
+    .snk-toc-link:hover {
+        background: #e0f2fe;
+        border-color: #7dd3fc;
+    }
+
+    /* PASAL CARDS */
+    .pasal-card {
+        background: white;
+        border-radius: 20px;
+        padding: 20px;
+        margin-bottom: 18px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.03);
+        scroll-margin-top: 20px;
+    }
+    .pasal-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 12px;
+        padding-bottom: 10px;
+        border-bottom: 1.5px solid #f1f5f9;
+    }
+    .pasal-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        flex-shrink: 0;
+    }
+    .pasal-title {
+        font-size: 14px;
+        font-weight: 900;
+        color: #1e293b;
+        margin: 0;
+        line-height: 1.35;
+    }
+
+    /* HIGHLIGHT ALERT BOXES */
+    .legal-alert {
+        border-radius: 12px;
+        padding: 12px 14px;
+        margin: 12px 0;
+        font-size: 11.5px;
+        line-height: 1.5;
+    }
+    .legal-alert.danger {
+        background: #fef2f2;
+        border: 1.5px solid #fecaca;
+        color: #991b1b;
+    }
+    .legal-alert.info {
+        background: #eff6ff;
+        border: 1.5px solid #bfdbfe;
+        color: #1e40af;
+    }
+    .legal-alert.warning {
+        background: #fffbeb;
+        border: 1.5px solid #fde68a;
+        color: #92400e;
+    }
+
+    .pasal-body ol, .pasal-body ul {
+        margin: 0;
+        padding-left: 18px;
+        color: #334155;
+        font-size: 12.5px;
+        line-height: 1.65;
+    }
+    .pasal-body li {
+        margin-bottom: 8px;
+    }
+    .pasal-body li:last-child {
+        margin-bottom: 0;
+    }
+
+    .btn-print-snk {
+        background: #f1f5f9;
+        border: 1px solid #cbd5e1;
+        color: #334155;
+        padding: 10px 18px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: 0.15s;
+    }
+    .btn-print-snk:hover { background: #e2e8f0; }
+
+    @media print {
+        .snk-top-nav, .bottom-nav, .snk-toc-container, .btn-print-snk, .snk-footer-actions { display: none !important; }
+        .snk-header { background: #0f172a !important; color: black !important; -webkit-print-color-adjust: exact; }
+        .pasal-card { box-shadow: none !important; border: 1px solid #ccc !important; page-break-inside: avoid; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="snk-page-wrapper">
+    <!-- HEADER -->
+    <div class="snk-header">
+        <div class="snk-top-nav">
+            <a href="javascript:void(0)" onclick="if(window.history.length > 1) { window.history.back(); } else { window.location.href='/'; }" class="snk-back-btn">
+                <i class="fas fa-arrow-left"></i>
+                <span>Kembali</span>
+            </a>
+            <span class="snk-badge-official">
+                <i class="fas fa-shield-alt"></i> DOKUMEN RESMI & MENGIKAT
+            </span>
+        </div>
+
+        <div>
+            <h1 style="font-size: 21px; font-weight: 900; margin: 0; letter-spacing: -0.3px;">Syarat & Ketentuan Layanan</h1>
+            <div style="font-size: 12px; opacity: 0.85; margin-top: 4px;">Perjanjian Penggunaan Layanan Aplikasi Web {{ store.name if store and store.name else 'IPAY.my.id' }}</div>
+        </div>
+
+        <div class="snk-summary-box">
+            <b>PEMBERITAHUAN HUKUM:</b> Dengan mendaftar, mengakses, menyetorkan saldo deposit, atau melakukan transaksi di platform ini, Pengguna secara sadar dan mengikat diri menyatakan telah membaca, memahami, dan menyetujui seluruh ketentuan perantara, batas tanggung jawab hukum, dan prosedur komplain yang tercantum di bawah ini.
+        </div>
+    </div>
+
+    <!-- QUICK DAFTAR ISI (TOC) -->
+    <div class="snk-toc-container">
+        <div class="snk-toc-title">
+            <i class="fas fa-list-ol"></i> Daftar Pasal Ketentuan
+        </div>
+        <div class="snk-toc-grid">
+            <a href="#pasal-1" class="snk-toc-link"><i class="fas fa-network-wired" style="color: #0284c7;"></i> Pasal 1: Peran Jasa Perantara Teknologi</a>
+            <a href="#pasal-2" class="snk-toc-link"><i class="fas fa-server" style="color: #f59e0b;"></i> Pasal 2: Ketergantungan Provider & Biller</a>
+            <a href="#pasal-3" class="snk-toc-link"><i class="fas fa-gavel" style="color: #ef4444;"></i> Pasal 3: Pelepasan Tuntutan & Ganti Rugi</a>
+            <a href="#pasal-4" class="snk-toc-link"><i class="fas fa-headset" style="color: #10b981;"></i> Pasal 4: Prosedur Komplain & Mediasi</a>
+            <a href="#pasal-5" class="snk-toc-link"><i class="fas fa-user-check" style="color: #6366f1;"></i> Pasal 5: Kewajiban & Keamanan Pengguna</a>
+            <a href="#pasal-6" class="snk-toc-link"><i class="fas fa-wallet" style="color: #0d9488;"></i> Pasal 6: Kebijakan Saldo & Refund</a>
+            <a href="#pasal-7" class="snk-toc-link"><i class="fas fa-cloud-showers-heavy" style="color: #64748b;"></i> Pasal 7: Keadaan Kahar (Force Majeure)</a>
+            <a href="#pasal-8" class="snk-toc-link"><i class="fas fa-balance-scale" style="color: #8b5cf6;"></i> Pasal 8: Hukum & Yurisdiksi</a>
+        </div>
+    </div>
+
+    <!-- PASAL 1 -->
+    <div class="pasal-card" id="pasal-1">
+        <div class="pasal-header">
+            <div class="pasal-icon" style="background: #e0f2fe; color: #0284c7;">
+                <i class="fas fa-network-wired"></i>
+            </div>
+            <div>
+                <h3 class="pasal-title">PASAL 1: DEFINISI & PERAN PLATFORM SEBAGAI PERANTARA TEKNOLOGI</h3>
+            </div>
+        </div>
+        <div class="pasal-body">
+            <div class="legal-alert info">
+                <i class="fas fa-info-circle"></i> <b>Kedudukan Hukum:</b> Platform ini berkedudukan murni sebagai <b>Penyedia Jasa Perantara Teknologi (Technology Aggregator Interface)</b> yang menjembatani transaksi Pengguna ke sistem prinsipal.
+            </div>
+            <ol>
+                <li><b>Platform</b> ("Kami", "Aplikasi", "Sistem", "{{ store.name if store and store.name else 'IPAY.my.id' }}") adalah piranti lunak antarmuka web yang memfasilitasi penerusan instruksi transaksi digital dari Pengguna kepada pihak penyedia server/biller pihak ketiga.</li>
+                <li>Platform <b>BUKANLAH</b> prinsipal resmi operator telekomunikasi (seperti Telkomsel, Indosat, XL, Tri, Smartfren), <b>BUKAN</b> penerbit resmi pulsa/kuota, dan <b>BUKAN</b> pemilik jaringan fisik perbankan atau utilitas PLN/PDAM.</li>
+                <li>Pengguna memahami bahwa hubungan hukum yang tercipta adalah hubungan penyediaan fasilitas teknologi pemesanan, bukan hubungan keagenan langsung ataupun perwakilan hukum resmi dari operator telekomunikasi.</li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- PASAL 2 -->
+    <div class="pasal-card" id="pasal-2">
+        <div class="pasal-header">
+            <div class="pasal-icon" style="background: #fef3c7; color: #b45309;">
+                <i class="fas fa-server"></i>
+            </div>
+            <div>
+                <h3 class="pasal-title">PASAL 2: KETERGANTUNGAN KECEPATAN & KETEPATAN PADA PIHAK KETIGA</h3>
+            </div>
+        </div>
+        <div class="pasal-body">
+            <div class="legal-alert warning">
+                <i class="fas fa-exclamation-triangle"></i> <b>Ketergantungan Provider:</b> Keberhasilan, kecepatan masuknya pulsa/kuota, dan ketersediaan stok sepenuhnya berada di bawah kendali teknis server provider atau biller terkait.
+            </div>
+            <ol>
+                <li>Kecepatan penyelesaian transaksi (*fulfillment speed*), keakuratan pelaporan Serial Number (SN), dan ketersediaan stok produk sewaktu-waktu sepenuhnya dikendalikan oleh sistem eksternal milik Pihak Ketiga (Aggregator, Biller, dan Operator Telekomunikasi).</li>
+                <li>Pengguna memaklumi bahwa gangguan konektivitas, pemutusan API mendadak oleh operator (*cut-off*), pemeliharaan berkala (*maintenance*), lonjakan antrean transaksi (*traffic surge*), maupun kendala BTS/jaringan seluler lokal merupakan peristiwa teknis di luar kendali Platform.</li>
+                <li>Platform tidak menjamin bahwa setiap transaksi akan selalu sukses seketika dalam hitungan detik tanpa adanya kemungkinan *pending* atau tertunda saat server provider sedang mengalami gangguan.</li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- PASAL 3 -->
+    <div class="pasal-card" id="pasal-3">
+        <div class="pasal-header">
+            <div class="pasal-icon" style="background: #fee2e2; color: #dc2626;">
+                <i class="fas fa-gavel"></i>
+            </div>
+            <div>
+                <h3 class="pasal-title">PASAL 3: PELEPASAN DARI SEGALA TUNTUTAN HUKUM & GANTI RUGI</h3>
+            </div>
+        </div>
+        <div class="pasal-body">
+            <div class="legal-alert danger">
+                <i class="fas fa-shield-alt"></i> <b>Klausul Pelepasan Tanggung Jawab (*Limitation of Liability & Indemnity*):</b> Pengguna membebaskan Platform dan pengelolanya dari segala bentuk tuntutan pidana, gugatan perdata, serta ganti rugi materiel maupun imateriel.
+            </div>
+            <ol>
+                <li>Pengguna secara tegas dan sadar membebaskan Platform, pemilik, pengembang perangkat lunak, jajaran manajemen, staf teknis, dan afiliasinya dari:
+                    <ul>
+                        <li>Segala bentuk tuntutan hukum, laporan kepolisian, delik pidana, atau gugatan perdata di pengadilan mana pun;</li>
+                        <li>Klaim ganti rugi materiel, imateriel, kompensasi denda, atau kerugian kehilangan potensi keuntungan bisnis (*lost profit*);</li>
+                        <li>Segala tuntutan atau perselisihan yang datang dari pembeli akhir / konsumen konter Pengguna yang diakibatkan oleh keterlambatan atau gangguan server provider.</li>
+                    </ul>
+                </li>
+                <li><b>Batas Tanggung Jawab Maksimal:</b> Dalam hal terjadi kekeliruan teknis internal yang terbukti sah dan tak terbantahkan, tanggung jawab finansial maksimal Platform kepada Pengguna <b>dibatasi secara mutlak hanya sebesar nilai saldo pokok transaksi (Rp)</b> yang terpotong pada nomor transaksi (*Ref ID*) bersangkutan, tanpa kewajiban menanggung kerugian ikutan lainnya.</li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- PASAL 4 -->
+    <div class="pasal-card" id="pasal-4">
+        <div class="pasal-header">
+            <div class="pasal-icon" style="background: #dcfce7; color: #15803d;">
+                <i class="fas fa-headset"></i>
+            </div>
+            <div>
+                <h3 class="pasal-title">PASAL 4: PENANGANAN KOMPLAIN & KEPUTUSAN FINAL PENYEDIA (PROVIDER)</h3>
+            </div>
+        </div>
+        <div class="pasal-body">
+            <div class="legal-alert info">
+                <i class="fas fa-handshake"></i> <b>Mediasi Beritikad Baik:</b> Setiap komplain akan Kami teruskan (*escalate*) secara resmi ke pihak provider, dan keputusan akhir mengikuti hasil investigasi server provider tersebut.
+            </div>
+            <ol>
+                <li>Platform berkomitmen membantu Pengguna dengan meneruskan (*up/escalate*) setiap tiket kendala transaksi secara beritikad baik kepada helpdesk resmi server provider terkait.</li>
+                <li><b>Keputusan Provider Bersifat Final & Mengikat:</b>
+                    <ul>
+                        <li>Apabila provider menyatakan transaksi telah <b>SUKSES</b> dan melampirkan Serial Number (SN) atau bukti pengiriman sah dari operator, maka transaksi dianggap tuntas dan saldo tidak dapat dibatalkan atau ditarik kembali.</li>
+                        <li>Apabila hasil investigasi provider menyatakan transaksi <b>GAGAL</b> dan saldo modal toko telah dikembalikan oleh provider, maka Platform akan mengembalikan dana (*refund*) saldo pokok ke saldo akun Pengguna/Kasir.</li>
+                        <li>Durasi waktu investigasi (*SLA Investigasi*) sepenuhnya bergantung pada jam operasional dan kecepatan respon pihak provider (biasanya berkisar 1x24 jam hingga 3x24 jam kerja untuk kasus gangguan massal).</li>
+                    </ul>
+                </li>
+                <li>Pengguna dilarang melakukan intimidasi, pemaksaan refund sepihak, atau penyebaran narasi pencemaran nama baik di ruang publik selama proses mediasi provider berlangsung.</li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- PASAL 5 -->
+    <div class="pasal-card" id="pasal-5">
+        <div class="pasal-header">
+            <div class="pasal-icon" style="background: #ede9fe; color: #7c3aed;">
+                <i class="fas fa-user-check"></i>
+            </div>
+            <div>
+                <h3 class="pasal-title">PASAL 5: KEWAJIBAN, AKURASI DATA & KEAMANAN PENGGUNA</h3>
+            </div>
+        </div>
+        <div class="pasal-body">
+            <ol>
+                <li><b>Akurasi Nomor Tujuan:</b> Pengguna bertanggung jawab penuh atas ketelitian nomor handphone, nomor meter/ID pelanggan, atau ID akun target. Transaksi yang telah terkirim dan sukses akibat kekeliruan nomor oleh Pengguna tidak dapat dibatalkan atau diminta pengembalian saldo.</li>
+                <li><b>Kepatuhan SOP Masa Aktif Kartu:</b> Pengguna wajib mematuhi SOP penjualan paket data, termasuk melakukan pengecekan sisa masa aktif kartu pembeli. Kuota yang gagal aktif atau hangus akibat nomor pembeli berada di masa tenggang adalah risiko operasional Pengguna.</li>
+                <li><b>Keamanan Kredensial Akun:</b> Pengguna wajib menjaga kerahasiaan username, password, PIN transaksi, dan kode OTP. Segala transaksi yang terverifikasi menggunakan kredensial akun Pengguna dianggap sah dan mengikat Pengguna sepenuhnya.</li>
+                <li><b>Larangan Transaksi Berulang (*Anti-Spam*):</b> Pengguna dilarang menekan tombol beli berulang kali saat transaksi masih berstatus 'PENDING' atau 'PROSES' guna mencegah pemotongan saldo ganda pada sistem provider.</li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- PASAL 6 -->
+    <div class="pasal-card" id="pasal-6">
+        <div class="pasal-header">
+            <div class="pasal-icon" style="background: #ccfbf1; color: #0f766e;">
+                <i class="fas fa-wallet"></i>
+            </div>
+            <div>
+                <h3 class="pasal-title">PASAL 6: KEBIJAKAN SALDO DEPOSIT & PENGEMBALIAN DANA (REFUND)</h3>
+            </div>
+        </div>
+        <div class="pasal-body">
+            <ol>
+                <li>Dana deposit yang telah masuk ke saldo akun Pengguna digunakan khusus untuk perputaran transaksi produk digital di Platform dan <b>tidak dapat diuangkan kembali (*non-refundable cash*)</b> ke rekening perbankan pribadi secara sembarangan, kecuali atas persetujuan khusus penutupan akun permanen.</li>
+                <li>Seluruh pengembalian dana (*refund*) atas transaksi produk yang berstatus gagal resmi dari provider akan otomatis dikreditkan kembali ke **SALDO AKUN** Pengguna atau Saldo Kasir Cabang terkait di dalam aplikasi.</li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- PASAL 7 -->
+    <div class="pasal-card" id="pasal-7">
+        <div class="pasal-header">
+            <div class="pasal-icon" style="background: #f1f5f9; color: #475569;">
+                <i class="fas fa-cloud-showers-heavy"></i>
+            </div>
+            <div>
+                <h3 class="pasal-title">PASAL 7: KEADAAN KAHAR (FORCE MAJEURE)</h3>
+            </div>
+        </div>
+        <div class="pasal-body">
+            <p style="margin: 0; color: #334155; font-size: 12.5px; line-height: 1.65;">
+                Platform dibebaskan dari segala bentuk tanggung jawab dan kewajiban atas kegagalan atau keterlambatan pemrosesan transaksi yang diakibatkan oleh kejadian di luar kendali wajar manusia (*Force Majeure*), termasuk namun tidak terbatas pada: bencana alam, kebakaran, perang, huru-hara, pemadaman listrik skala luas, putusnya kabel optik bawah laut internasional, serangan peretasan/siber (DDoS), kebijakan pembatasan darurat dari Pemerintah/Kominfo/Bank Indonesia, atau penutupan layanan sepihak dari prinsipal operator telekomunikasi.
+            </p>
+        </div>
+    </div>
+
+    <!-- PASAL 8 -->
+    <div class="pasal-card" id="pasal-8">
+        <div class="pasal-header">
+            <div class="pasal-icon" style="background: #f5f3ff; color: #6d28d9;">
+                <i class="fas fa-balance-scale"></i>
+            </div>
+            <div>
+                <h3 class="pasal-title">PASAL 8: HUKUM YANG BERLAKU & PENYELESAIAN SENGKETA</h3>
+            </div>
+        </div>
+        <div class="pasal-body">
+            <ol>
+                <li>Seluruh ketentuan dalam dokumen ini diatur, ditafsirkan, dan tunduk sepenuhnya pada hukum yang berlaku di Negara Kesatuan Republik Indonesia.</li>
+                <li>Segala bentuk perselisihan atau sengketa yang timbul antara Pengguna dan Platform wajib diselesaikan terlebih dahulu melalui musyawarah mufakat secara kekeluargaan sebelum menempuh jalur lain.</li>
+                <li>Platform berhak sewaktu-waktu memperbarui atau menyempurnakan Syarat & Ketentuan ini seiring dengan perkembangan regulasi hukum dan pembaruan teknis sistem. Pembaruan akan ditampilkan secara terbuka pada halaman ini.</li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- FOOTER ACTIONS -->
+    <div class="snk-footer-actions" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 25px; padding: 15px 0; border-top: 1px solid #e2e8f0; flex-wrap: wrap;">
+        <button type="button" class="btn-print-snk" onclick="window.print()">
+            <i class="fas fa-print"></i> Cetak / Simpan Dokumen
+        </button>
+        <a href="/" style="background: #00877a; color: white; text-decoration: none; padding: 10px 20px; border-radius: 12px; font-weight: 800; font-size: 12.5px; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(0, 135, 122, 0.3);">
+            <i class="fas fa-check-circle"></i> Saya Memahami & Setuju
+        </a>
+    </div>
+</div>
+{% endblock %}

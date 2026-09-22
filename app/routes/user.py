@@ -2589,3 +2589,12 @@ def preview_sop_paket_data():
         filename,
         as_attachment=False
     )
+
+
+@user_bp.route('/syarat-ketentuan')
+@user_bp.route('/terms')
+@user_bp.route('/snk')
+def syarat_ketentuan():
+    """Halaman resmi Syarat & Ketentuan Layanan (Terms of Service) dan Pelepasan Tanggung Jawab Hukum."""
+    return render_template('legal/syarat_ketentuan.html')
+
