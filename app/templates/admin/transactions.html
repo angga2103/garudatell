@@ -271,6 +271,13 @@
                                 data-status="{{ t.status }}" 
                                 data-payment="{{ t.payment_status }}" 
                                 data-sn="{{ t.sn or '' }}" 
+                                data-amount="{{ t.amount }}"
+                                data-amount-formatted="Rp {{ '{:,.0f}'.format(t.amount) }}"
+                                data-target-user="{{ t.user.name if t.user else 'Pengguna' }}"
+                                data-target-phone="{{ t.user.phone if t.user else '' }}"
+                                data-device-id="{{ t.device_id or '' }}"
+                                data-device-name="{{ t.device_name or '' }}"
+                                data-sku="{{ t.sku_code }}"
                                 onclick="openTrxModalBtn(this)" 
                                 class="btn-action-edit">
                             <i class="fas fa-edit"></i> Edit
@@ -337,6 +344,25 @@
                         <option value="PENDING">PENDING</option>
                         <option value="FAILED">FAILED</option>
                     </select>
+                </div>
+            </div>
+
+            <!-- KOTAK FITUR REFUND SALDO MANUAL -->
+            <div id="refund_section" style="display: none; background: #FEF2F2; border: 1.5px solid #FCA5A5; border-radius: 8px; padding: 12px; margin-bottom: 14px; transition: all 0.2s ease;">
+                <div style="display: flex; align-items: flex-start; gap: 10px;">
+                    <input type="checkbox" name="do_refund" id="modal_do_refund" value="1" style="width: 18px; height: 18px; margin-top: 2px; cursor: pointer; accent-color: #DC2626;">
+                    <label for="modal_do_refund" style="cursor: pointer; font-size: 12px; color: #991B1B; line-height: 1.4; margin: 0; flex: 1;">
+                        <span style="font-weight: 800; display: flex; align-items: center; gap: 6px; font-size: 13px; margin-bottom: 2px;">
+                            <i class="fas fa-undo-alt" style="color: #DC2626;"></i> Kembalikan Saldo (Refund)
+                        </span>
+                        <span>Kembalikan saldo pemotongan <b id="refund_amount_label" style="color: #991B1B;">Rp 0</b> ke <b id="refund_target_label" style="color: #991B1B;">Pembeli</b>?</span>
+                    </label>
+                </div>
+                <div id="refund_warning_note" style="font-size: 11px; color: #B91C1C; margin-top: 8px; padding-top: 6px; border-top: 1px dashed #FECACA; display: none;">
+                    <i class="fas fa-exclamation-triangle"></i> <b>Perhatian:</b> Transaksi ini sebelumnya sudah berstatus <b>FAILED</b>. Centang hanya jika Anda yakin saldo belum pernah dikembalikan.
+                </div>
+                <div id="refund_unpaid_warning" style="font-size: 11px; color: #B91C1C; margin-top: 8px; padding-top: 6px; border-top: 1px dashed #FECACA; display: none;">
+                    <i class="fas fa-info-circle"></i> <b>Catatan:</b> Pembayaran berstatus <b>UNPAID</b>. Saldo hanya dapat di-refund jika status pembayaran adalah <b>PAID (Lunas)</b>.
                 </div>
             </div>
 
@@ -482,24 +508,104 @@
         }
     }
 
+    let currentTrxOldStatus = '';
+    let currentTrxIsDeposit = false;
+
+    function updateRefundVisibility() {
+        const statusSelect = document.getElementById('modal_status');
+        const paymentSelect = document.getElementById('modal_payment_status');
+        const refundSection = document.getElementById('refund_section');
+        const refundCheckbox = document.getElementById('modal_do_refund');
+        const refundWarningNote = document.getElementById('refund_warning_note');
+        const refundUnpaidWarning = document.getElementById('refund_unpaid_warning');
+
+        if (!refundSection) return;
+
+        if (statusSelect.value === 'FAILED' && !currentTrxIsDeposit) {
+            refundSection.style.display = 'block';
+            const isPaid = (paymentSelect.value === 'PAID');
+
+            if (!isPaid) {
+                refundCheckbox.checked = false;
+                refundCheckbox.disabled = true;
+                refundUnpaidWarning.style.display = 'block';
+                refundWarningNote.style.display = 'none';
+            } else {
+                refundCheckbox.disabled = false;
+                refundUnpaidWarning.style.display = 'none';
+                if (currentTrxOldStatus === 'FAILED') {
+                    refundWarningNote.style.display = 'block';
+                } else {
+                    refundWarningNote.style.display = 'none';
+                }
+            }
+        } else {
+            refundSection.style.display = 'none';
+            refundCheckbox.checked = false;
+        }
+    }
+
     function openTrxModalBtn(btn) {
         const id = btn.getAttribute('data-id');
         const refId = btn.getAttribute('data-ref');
-        const status = btn.getAttribute('data-status');
-        const paymentStatus = btn.getAttribute('data-payment');
-        const sn = btn.getAttribute('data-sn');
+        const status = (btn.getAttribute('data-status') || '').toUpperCase();
+        const paymentStatus = (btn.getAttribute('data-payment') || 'PAID').toUpperCase();
+        const sn = btn.getAttribute('data-sn') || '';
+        const amountFormatted = btn.getAttribute('data-amount-formatted') || 'Rp 0';
+        const targetUser = btn.getAttribute('data-target-user') || 'Pengguna';
+        const targetPhone = btn.getAttribute('data-target-phone') || '';
+        const deviceName = btn.getAttribute('data-device-name') || '';
+        const sku = btn.getAttribute('data-sku') || '';
+
+        currentTrxOldStatus = status;
+        currentTrxIsDeposit = (sku === 'DEPOSIT_SALDO' || sku === 'DEPOSIT_MANUAL' || sku === 'MANUAL_DEDUCTION');
 
         document.getElementById('trxForm').action = "/admin/transactions/update_status/" + id;
         document.getElementById('modal_ref_id').value = refId;
         document.getElementById('modal_status').value = status;
         document.getElementById('modal_payment_status').value = paymentStatus;
-        document.getElementById('modal_sn').value = sn || '';
+        document.getElementById('modal_sn').value = sn;
+
+        document.getElementById('refund_amount_label').textContent = amountFormatted;
+        if (deviceName) {
+            document.getElementById('refund_target_label').textContent = `Kasir Cabang (${deviceName})`;
+        } else if (targetPhone) {
+            document.getElementById('refund_target_label').textContent = `${targetUser} (${targetPhone})`;
+        } else {
+            document.getElementById('refund_target_label').textContent = targetUser;
+        }
+
+        const refundCheckbox = document.getElementById('modal_do_refund');
+        if (currentTrxOldStatus === 'FAILED') {
+            refundCheckbox.checked = false;
+        } else {
+            refundCheckbox.checked = true;
+        }
+
+        updateRefundVisibility();
         document.getElementById('trxModal').style.display = 'flex';
     }
 
     function closeTrxModal() {
         document.getElementById('trxModal').style.display = 'none';
     }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const modalStatus = document.getElementById('modal_status');
+        const modalPayment = document.getElementById('modal_payment_status');
+        if (modalStatus) {
+            modalStatus.addEventListener('change', function() {
+                const refundCheckbox = document.getElementById('modal_do_refund');
+                if (this.value === 'FAILED' && currentTrxOldStatus !== 'FAILED') {
+                    refundCheckbox.checked = true;
+                }
+                updateRefundVisibility();
+            });
+        }
+        if (modalPayment) {
+            modalPayment.addEventListener('change', updateRefundVisibility);
+        }
+    });
 
     function syncSingleTrx(id, btn) {
         const originalHtml = btn.innerHTML;

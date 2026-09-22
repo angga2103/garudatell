@@ -581,8 +581,11 @@ def update_transaction_status(id):
     new_status = request.form.get('status')
     new_payment_status = request.form.get('payment_status')
     sn = request.form.get('sn')
+    do_refund = request.form.get('do_refund') == '1'
 
     old_status = trx.status
+    old_payment_status = trx.payment_status
+
     if new_status:
         trx.status = new_status.upper()
     if new_payment_status:
@@ -590,10 +593,13 @@ def update_transaction_status(id):
     if sn is not None and sn.strip():
         trx.sn = sn.strip()
 
-    # Jika admin meng-approve transaksi deposit menjadi SUCCESS
+    refund_success = False
+    refund_msg = ""
+
+    # KASUS 1: Admin meng-approve transaksi deposit menjadi SUCCESS
     if trx.status == 'SUCCESS' and old_status != 'SUCCESS':
         if trx.sku_code in ['DEPOSIT_SALDO', 'DEPOSIT_MANUAL']:
-            user = User.query.get(trx.user_id)
+            user = User.query.filter_by(id=trx.user_id).with_for_update().first()
             if user:
                 old_bal = float(user.balance or 0.0)
                 user.balance += trx.amount
@@ -605,10 +611,86 @@ def update_transaction_status(id):
                 except Exception:
                     pass
 
+    # KASUS 2: Admin mengubah status ke FAILED dengan opsi REFUND SALDO
+    elif trx.status == 'FAILED' and do_refund:
+        # Validasi 1: Pastikan bukan transaksi tiket deposit atau penyesuaian manual
+        if trx.sku_code in ['DEPOSIT_SALDO', 'DEPOSIT_MANUAL', 'MANUAL_DEDUCTION']:
+            flash(f"Peringatan: Transaksi tiket deposit / penyesuaian saldo tidak dapat di-refund pembelian.", "warning")
+        # Validasi 2: Pastikan pembayaran sudah PAID (Lunas)
+        elif trx.payment_status != 'PAID':
+            flash(f"Peringatan: Refund dibatalkan karena status pembayaran transaksi {trx.ref_id} belum lunas (UNPAID).", "warning")
+        else:
+            refund_amount = float(trx.amount or 0.0)
+            if refund_amount > 0:
+                # A. Jika transaksi dari Kasir Cabang (device_id ada)
+                if trx.device_id:
+                    from app.models.trusted_device import TrustedDevice
+                    from app.models.branch_mutation import BranchMutation
+                    b_dev = db.session.query(TrustedDevice).filter_by(id=trx.device_id).with_for_update().first()
+                    if b_dev:
+                        # Cek proteksi double refund jika status sebelumnya sudah FAILED
+                        existing_mut = BranchMutation.query.filter(
+                            BranchMutation.device_id == b_dev.id,
+                            BranchMutation.type == 'REFUND',
+                            BranchMutation.description.like(f"%{trx.ref_id}%")
+                        ).first()
+                        if existing_mut and old_status == 'FAILED':
+                            flash(f"Peringatan: Transaksi {trx.ref_id} sudah pernah di-refund ke cabang {b_dev.device_name} pada {existing_mut.created_at_wib}. Saldo tidak di-refund ganda.", "warning")
+                        else:
+                            b_before = float(b_dev.branch_balance or 0.0)
+                            b_dev.branch_balance = b_before + refund_amount
+                            mut_rf = BranchMutation(
+                                device_id=b_dev.id,
+                                user_id=trx.user_id,
+                                type='REFUND',
+                                amount=refund_amount,
+                                balance_before=b_before,
+                                balance_after=b_dev.branch_balance,
+                                description=f"Refund transaksi gagal ({trx.ref_id}) oleh Admin",
+                                shift_name="Admin Web",
+                                created_at=datetime.utcnow()
+                            )
+                            db.session.add(mut_rf)
+                            refund_success = True
+                            refund_msg = f" serta saldo Rp {refund_amount:,.0f} berhasil dikembalikan ke cabang {b_dev.device_name}"
+                            print(f"[ADMIN MANUAL REFUND KASIR] Branch #{b_dev.id} ({b_dev.device_name}) +Rp {refund_amount:,.0f} for trx {trx.ref_id}")
+                # B. Transaksi dari Pengguna Reguler
+                else:
+                    user = User.query.filter_by(id=trx.user_id).with_for_update().first()
+                    if user:
+                        old_bal = float(user.balance or 0.0)
+                        user.balance = old_bal + refund_amount
+                        refund_success = True
+                        refund_msg = f" serta saldo Rp {refund_amount:,.0f} berhasil dikembalikan ke akun {user.name}"
+                        print(f"[ADMIN MANUAL REFUND USER] User #{user.id} ({user.name}) +Rp {refund_amount:,.0f} for trx {trx.ref_id}")
+
+                        try:
+                            from app.services.balance_notification_service import (
+                                notify_admin_balance_adjustment,
+                                check_and_notify_low_balance
+                            )
+                            notify_admin_balance_adjustment(
+                                user_id=user.id,
+                                old_balance=old_bal,
+                                amount=refund_amount,
+                                new_balance=user.balance,
+                                action='add',
+                                note=f"Refund pesanan {trx.product_name} ({trx.ref_id})",
+                                admin_source='Admin Web Refund',
+                                ref_id=trx.ref_id
+                            )
+                            check_and_notify_low_balance(user.id, old_bal, user.balance)
+                        except Exception as e_wa:
+                            print(f"[REFUND NOTIF WA ERR]: {e_wa}")
+
+    trx.updated_at = datetime.utcnow()
     db.session.commit()
+
     from app.services.telegram_service import async_send_trx_notification
-    async_send_trx_notification(trx, title=f"ADMIN UPDATE: {trx.status}")
-    flash(f"Status transaksi {trx.ref_id} berhasil diperbarui!", 'success')
+    notif_title = f"ADMIN MANUAL REFUND: {trx.status}" if refund_success else f"ADMIN UPDATE: {trx.status}"
+    async_send_trx_notification(trx, title=notif_title)
+
+    flash(f"Status transaksi {trx.ref_id} berhasil diperbarui{refund_msg}!", 'success')
     return redirect(request.referrer or url_for('admin.transactions'))
 
 

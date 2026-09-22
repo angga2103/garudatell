@@ -192,6 +192,29 @@ def get_user_mutations(user_id, limit=100):
                     'is_refund': True
                 })
 
+        # KASUS C2: Refund Transaksi Non-Saldo (misal QRIS) yang Gagal dan Sudah Lunas
+        elif pay_status in ['PAID', 'SUCCESS', 'SUKSES', 'SETTLEMENT'] and trx_status in ['FAILED', 'GAGAL', 'CANCELLED', 'BATAL']:
+            events.append({
+                'id': f"ref-{trx.id}",
+                'raw_id': trx.id,
+                'type': 'refund',
+                'title': 'Penambahan Saldo/Refund',
+                'subtitle': f"Pengembalian Dana: {prod_name} ({target_num})",
+                'product_name': f"Refund: {prod_name}",
+                'target': target_num,
+                'amount': amount,
+                'direction': '+',
+                'status': 'Refund Selesai',
+                'status_badge': 'Refund Selesai',
+                'status_color': 'info',
+                'ref_id': ref_id,
+                'sn': sn_val if sn_val != '-' else f'Refund pembayaran {pay_method} ke saldo pengguna',
+                'payment_method': f'{pay_method} (REFUND)' if pay_method else 'REFUND',
+                '_sort_key': (u_time if u_time > c_time else (c_time + timedelta(seconds=2))).timestamp(),
+                'date_str': u_str if u_time > c_time else c_str,
+                'is_refund': True
+            })
+
     # 2. Ambil PointLog klaim poin menjadi saldo jika tabel tersedia
     try:
         from sqlalchemy import inspect
