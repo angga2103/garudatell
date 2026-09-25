@@ -35,7 +35,8 @@ def format_product_dict(prod, user, provider_tag=None, extra=None):
         'is_discounted': u_price < float(prod.sell_price or 0.0),
         'provider': p_tag,
         'brand': (prod.brand or '').replace('VIP-', '').strip().upper(),
-        'is_active': bool(prod.is_active)
+        'is_active': bool(prod.is_active),
+        'description': getattr(prod, 'description', '') or ''
     }
     if extra:
         d.update(extra)

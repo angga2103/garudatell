@@ -794,6 +794,43 @@ def reset_margin(id):
     flash(f'Harga {product.name} dikembalikan ke Auto Tier.', 'success')
     return redirect(url_for('admin.produk'))
 
+@admin_bp.route('/product/edit/<int:id>', methods=['POST'])
+def edit_product(id):
+    product = Product.query.get_or_404(id)
+    
+    # 1. Update Harga Jual (jika ada input valid)
+    new_price = request.form.get('sell_price')
+    if new_price and new_price.strip():
+        try:
+            val_p = float(new_price.strip().replace('.', '').replace(',', ''))
+            product.sell_price = val_p
+            product.is_manual_margin = True
+        except ValueError:
+            pass
+
+    # 2. Update Deskripsi Produk
+    new_desc = request.form.get('description', '').strip()
+    is_lock_desc = request.form.get('is_manual_desc') in ['1', 'on', 'true', 'True']
+    
+    product.description = new_desc if new_desc else None
+    # Jika admin mengisi deskripsi atau mencentang kunci, tandai sebagai manual
+    if new_desc or is_lock_desc:
+        product.is_manual_desc = True
+    else:
+        product.is_manual_desc = False
+
+    db.session.commit()
+    flash(f'Produk {product.name} ({product.sku_code}) berhasil diperbarui!', 'success')
+    return redirect(url_for('admin.produk'))
+
+@admin_bp.route('/product/reset_desc/<int:id>', methods=['POST'])
+def reset_product_desc(id):
+    product = Product.query.get_or_404(id)
+    product.is_manual_desc = False
+    db.session.commit()
+    flash(f'Kunci deskripsi {product.name} telah dibuka. Deskripsi akan otomatis disinkronkan dari Digiflazz pada sinkronisasi berikutnya.', 'info')
+    return redirect(url_for('admin.produk'))
+
 @admin_bp.route('/users')
 def users():
     if not session.get('admin_logged_in'):

@@ -218,6 +218,23 @@ def create_app(test_config=None):
                 except Exception as ex_tbl:
                     app.logger.warning(f"Gagal buat tabel branch_mutation: {ex_tbl}")
 
+            # Auto-migrate kolom baru tabel product jika belum ada (description & is_manual_desc)
+            if 'product' in inspector.get_table_names():
+                prod_cols = [c['name'] for c in inspector.get_columns('product')]
+                new_prod_cols = [
+                    ('description', 'TEXT'),
+                    ('is_manual_desc', 'BOOLEAN DEFAULT 0')
+                ]
+                with db.engine.connect() as conn:
+                    for c_name, c_type in new_prod_cols:
+                        if c_name not in prod_cols:
+                            try:
+                                conn.execute(db.text(f'ALTER TABLE product ADD COLUMN {c_name} {c_type}'))
+                                app.logger.info(f"[AUTO-MIGRATE] Kolom product.{c_name} berhasil ditambahkan ke database.")
+                            except Exception as ex_col:
+                                app.logger.warning(f"Gagal tambah kolom product.{c_name}: {ex_col}")
+                    conn.commit()
+
             if 'otp_codes' in inspector.get_table_names():
                 cols = [c['name'] for c in inspector.get_columns('otp_codes')]
                 if 'attempts' not in cols:

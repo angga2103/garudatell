@@ -13,6 +13,10 @@ class Product(db.Model):
     # Kolom baru pendeteksi edit manual
     is_manual_margin = db.Column(db.Boolean, default=False)
 
+    # Kolom deskripsi produk (dari Digiflazz atau edit manual admin)
+    description = db.Column(db.Text, nullable=True)
+    is_manual_desc = db.Column(db.Boolean, default=False)
+
     __table_args__ = (
         db.Index('idx_product_category_active', 'category', 'is_active'),
         db.Index('idx_product_brand_active', 'brand', 'is_active'),

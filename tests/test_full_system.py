@@ -113,7 +113,10 @@ def run_all_tests():
         test_uid = u_test.id
 
         # Dapatkan produk aktif prepaid
-        sample_prod = Product.query.filter(Product.is_active == True, Product.category == 'PULSA').first() or Product.query.filter_by(is_active=True).first()
+        sample_prod = Product.query.filter(Product.is_active == True, ~Product.category.ilike('%pasca%')).first() or Product.query.filter_by(sku_code='TSEL5').first()
+        if sample_prod and not sample_prod.is_active:
+            sample_prod.is_active = True
+            db.session.commit()
         sample_sku = sample_prod.sku_code if sample_prod else 'TSEL5'
 
     # Simulasikan login

@@ -93,8 +93,16 @@
                     <tr>
                         <td><strong>{{ p.sku_code }}</strong></td>
                         <td>
-                            <div>{{ p.name }}</div>
-                            <div style="font-size: 10px; color: #64748B;">{{ p.category }} | {{ p.brand }}</div>
+                            <div style="font-weight: 700; color: #1e293b;">{{ p.name }}</div>
+                            <div style="font-size: 10px; color: #64748B; margin-top: 2px;">{{ p.category }} | {{ p.brand }}</div>
+                            {% if p.description %}
+                            <div style="font-size: 11px; color: #0284c7; margin-top: 5px; line-height: 1.35; background: #f0f9ff; padding: 4px 8px; border-radius: 6px; border: 1px solid #bae6fd; max-width: 320px;" title="{{ p.description }}">
+                                <i class="fas fa-file-alt"></i> {{ p.description }}
+                                {% if p.is_manual_desc %}
+                                <span style="font-size: 9px; font-weight: 800; background: #e0f2fe; color: #0369a1; padding: 1px 4px; border-radius: 4px; margin-left: 4px;">MANUAL</span>
+                                {% endif %}
+                            </div>
+                            {% endif %}
                         </td>
                         <td>Rp {{ "{:,.0f}".format(p.base_price) }}</td>
                         <td style="min-width: 140px;">
@@ -108,18 +116,23 @@
                             
                             <button type="button" 
                                     data-id="{{ p.id }}" 
+                                    data-sku="{{ p.sku_code }}"
                                     data-name="{{ p.name }}" 
-                                    data-price="{{ p.sell_price }}" 
-                                    onclick="editMarginBtn(this)" 
+                                    data-base-price="{{ '{:,.0f}'.format(p.base_price) }}"
+                                    data-price="{{ '{:,.0f}'.format(p.sell_price)|replace(',', '') }}" 
+                                    data-desc="{{ p.description or '' }}"
+                                    data-manual-desc="{{ '1' if p.is_manual_desc else '0' }}"
+                                    data-manual-margin="{{ '1' if p.is_manual_margin else '0' }}"
+                                    onclick="openEditProductModal(this)" 
                                     class="btn-icon btn-edit" 
-                                    title="Edit Harga Jual">
+                                    title="Edit Harga & Deskripsi Produk">
                                 <i class="fas fa-pencil-alt"></i>
                             </button>
 
                             {% if p.is_manual_margin %}
                             <form action="{{ url_for('admin.reset_margin', id=p.id) }}" method="POST" style="display:inline;">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                <button type="submit" class="btn-icon btn-reset" title="Kembalikan ke Auto Tier" onclick="return confirm('Kembalikan harga ke mode Auto Tier?');">
+                                <button type="submit" class="btn-icon btn-reset" title="Kembalikan harga ke Auto Tier" onclick="return confirm('Kembalikan harga ke mode Auto Tier?');">
                                     <i class="fas fa-sync-alt"></i>
                                 </button>
                             </form>
@@ -152,23 +165,94 @@
         </div>
     </div>
 
-    <form id="editMarginForm" method="POST" style="display:none;">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-        <input type="number" name="sell_price" id="newSellPrice">
-    </form>
+    <!-- ================= MODAL EDIT PRODUK & DESKRIPSI ================= -->
+    <div id="modalEditProduct" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.65); backdrop-filter: blur(4px); z-index: 99999; align-items: center; justify-content: center; padding: 15px; box-sizing: border-box;">
+        <div style="background: white; border-radius: 20px; max-width: 520px; width: 100%; padding: 24px; box-shadow: 0 15px 35px rgba(0,0,0,0.25); position: relative; box-sizing: border-box; max-height: 90vh; overflow-y: auto;">
+            <button type="button" onclick="closeEditProductModal()" style="position: absolute; right: 18px; top: 18px; background: none; border: none; font-size: 20px; color: #94A3B8; cursor: pointer;">
+                <i class="fas fa-times"></i>
+            </button>
+
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                <div style="width: 42px; height: 42px; border-radius: 12px; background: #e6f7f5; color: #00877a; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                    <i class="fas fa-box-open"></i>
+                </div>
+                <div>
+                    <h4 style="margin: 0; font-size: 16px; font-weight: 800; color: #1e293b;">Edit Produk & Deskripsi</h4>
+                    <div id="modalProductSku" style="font-size: 11px; color: #64748b; font-weight: 700; font-family: monospace;">SKU: -</div>
+                </div>
+            </div>
+
+            <form id="formEditProduct" method="POST" action="">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+                <!-- Nama Produk (Read-Only) -->
+                <div style="margin-bottom: 14px;">
+                    <label style="font-size: 11px; font-weight: 800; color: #475569; display: block; margin-bottom: 5px;">Nama Produk</label>
+                    <input type="text" id="modalProductName" readonly style="width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; font-weight: 700; color: #334155; background: #f8fafc; box-sizing: border-box; outline: none;">
+                </div>
+
+                <!-- Grid Harga Modal & Harga Jual -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+                    <div>
+                        <label style="font-size: 11px; font-weight: 800; color: #64748b; display: block; margin-bottom: 5px;">Harga Modal</label>
+                        <input type="text" id="modalProductBasePrice" readonly style="width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; font-weight: 700; color: #64748b; background: #f1f5f9; box-sizing: border-box; outline: none;">
+                    </div>
+                    <div>
+                        <label style="font-size: 11px; font-weight: 800; color: #00877a; display: block; margin-bottom: 5px;">Harga Jual Toko (Rp)</label>
+                        <input type="number" name="sell_price" id="modalProductSellPrice" required style="width: 100%; padding: 10px 12px; border: 1.5px solid #00877a; border-radius: 8px; font-size: 13px; font-weight: 800; color: #1e293b; background: white; box-sizing: border-box; outline: none;">
+                    </div>
+                </div>
+
+                <!-- Deskripsi Produk -->
+                <div style="margin-bottom: 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                        <label style="font-size: 11px; font-weight: 800; color: #475569;">
+                            <i class="fas fa-file-alt" style="color: #0284c7;"></i> Deskripsi / Rincian Kuota Produk
+                        </label>
+                        <span id="badgeDescStatus" style="font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px;"></span>
+                    </div>
+                    <textarea name="description" id="modalProductDesc" rows="4" placeholder="Tuliskan rincian paket, pembagian kuota, atau masa aktif (misal: 10GB Kuota Utama + Nelpon 30 Menit. Masa aktif 30 hari)..." style="width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 12.5px; line-height: 1.5; color: #1e293b; background: white; box-sizing: border-box; outline: none; font-family: inherit; resize: vertical;"></textarea>
+                    <div style="font-size: 10.5px; color: #64748b; margin-top: 4px;">
+                        <i class="fas fa-info-circle" style="color: #0284c7;"></i> Deskripsi ini akan ditampilkan di popup konfirmasi saat pelanggan membeli produk ini.
+                    </div>
+                </div>
+
+                <!-- Checkbox Kunci Deskripsi Manual -->
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 12px; margin-bottom: 20px;">
+                    <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 11.5px; color: #334155; line-height: 1.4;">
+                        <input type="checkbox" name="is_manual_desc" id="modalProductManualDesc" value="1" style="width: 16px; height: 16px; margin-top: 2px; accent-color: #00877a; cursor: pointer;">
+                        <span>
+                            <b>Kunci Deskripsi Manual</b><br>
+                            <span style="font-size: 10px; color: #64748b;">Cegah deskripsi kustom ini tertimpa otomatis saat sinkronisasi katalog Digiflazz berikutnya.</span>
+                        </span>
+                    </label>
+                </div>
+
+                <!-- Actions -->
+                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" onclick="closeEditProductModal()" style="padding: 10px 16px; border: 1px solid #cbd5e1; background: #f8fafc; color: #64748b; border-radius: 8px; font-weight: 700; font-size: 12px; cursor: pointer;">
+                        Batal
+                    </button>
+                    <button type="submit" style="padding: 10px 20px; border: none; background: #00877a; color: white; border-radius: 8px; font-weight: 800; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                        <i class="fas fa-save"></i> Simpan Perubahan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <script>
         // FUNGSI PENCARIAN REAL-TIME
         function searchTable() {
             let input = document.getElementById("searchInput");
+            if (!input) return;
             let filter = input.value.toUpperCase();
             let table = document.getElementById("productTable");
             let tr = table.getElementsByTagName("tr");
 
-            // Looping semua baris tabel, sembunyikan yang tidak cocok dengan kata pencarian
-            for (let i = 1; i < tr.length; i++) { // Mulai dari 1 untuk melewati <thead>
-                let tdCode = tr[i].getElementsByTagName("td")[0]; // Kolom Kode
-                let tdName = tr[i].getElementsByTagName("td")[1]; // Kolom Nama Produk
+            for (let i = 1; i < tr.length; i++) {
+                let tdCode = tr[i].getElementsByTagName("td")[0];
+                let tdName = tr[i].getElementsByTagName("td")[1];
                 
                 if (tdCode || tdName) {
                     let txtValueCode = tdCode.textContent || tdCode.innerText;
@@ -183,23 +267,57 @@
             }
         }
 
-        // FUNGSI EDIT MARGIN MANUAL
-        function editMarginBtn(btn) {
+        // FUNGSI BUKA MODAL EDIT PRODUK LENGKAP
+        function openEditProductModal(btn) {
             let id = btn.getAttribute('data-id');
-            let name = btn.getAttribute('data-name');
-            let currentPrice = btn.getAttribute('data-price');
-            let newPrice = prompt("Ubah Harga Jual untuk produk:\n" + name + "\n\n(Hanya masukkan angka tanpa titik)", currentPrice);
-            if (newPrice != null && newPrice != "") {
-                if(!isNaN(newPrice)) {
-                    let form = document.getElementById('editMarginForm');
-                    form.action = "/admin/edit_margin/" + id;
-                    document.getElementById('newSellPrice').value = newPrice;
-                    form.submit();
-                } else {
-                    alert("Error: Harap masukkan format angka saja!");
-                }
+            let sku = btn.getAttribute('data-sku') || '-';
+            let name = btn.getAttribute('data-name') || '';
+            let basePrice = btn.getAttribute('data-base-price') || '0';
+            let sellPrice = btn.getAttribute('data-price') || '0';
+            let desc = btn.getAttribute('data-desc') || '';
+            let isManualDesc = btn.getAttribute('data-manual-desc') === '1';
+
+            document.getElementById('modalProductSku').innerText = 'SKU: ' + sku;
+            document.getElementById('modalProductName').value = name;
+            document.getElementById('modalProductBasePrice').value = 'Rp ' + basePrice;
+            document.getElementById('modalProductSellPrice').value = sellPrice;
+            document.getElementById('modalProductDesc').value = desc;
+            document.getElementById('modalProductManualDesc').checked = isManualDesc || (desc.trim().length > 0);
+
+            let badge = document.getElementById('badgeDescStatus');
+            if (isManualDesc) {
+                badge.innerText = 'STATUS: MANUAL KUSTOM';
+                badge.style.background = '#fef3c7';
+                badge.style.color = '#92400e';
+            } else if (desc.trim().length > 0) {
+                badge.innerText = 'STATUS: AUTO DIGIFLAZZ';
+                badge.style.background = '#e0f2fe';
+                badge.style.color = '#0284c7';
+            } else {
+                badge.innerText = 'STATUS: KOSONG';
+                badge.style.background = '#f1f5f9';
+                badge.style.color = '#64748b';
             }
+
+            let form = document.getElementById('formEditProduct');
+            form.action = '/admin/product/edit/' + id;
+
+            let modal = document.getElementById('modalEditProduct');
+            modal.style.display = 'flex';
         }
+
+        function closeEditProductModal() {
+            let modal = document.getElementById('modalEditProduct');
+            modal.style.display = 'none';
+        }
+
+        // Tutup modal jika klik di luar area konten
+        window.addEventListener('click', function(e) {
+            let modal = document.getElementById('modalEditProduct');
+            if (e.target === modal) {
+                closeEditProductModal();
+            }
+        });
     </script>
 </body>
 </html>

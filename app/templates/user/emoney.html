@@ -731,6 +731,7 @@
                  data-harga="{{ '{:,.0f}'.format(p.harga)|replace(',', '.') }}"
                  data-rawprice="{{ p.harga }}"
                  data-active="{{ 'true' if p.is_active else 'false' }}"
+                 data-desc="{{ p.description or '' }}"
                  data-type="{{ 'BEBAS' if p.is_bebas else 'TOPUP' }}"
                  onclick="beliProdukModal(this)">
                 
@@ -804,6 +805,18 @@
             <div class="sheet-title" id="mProdName">Nama Produk</div>
             <div class="sheet-price" id="mProdPrice">Rp 0</div>
         </div>
+
+        <!-- KOTAK RINCIAN DESKRIPSI KONDISIONAL -->
+        <div id="mDescContainer" style="display: none; background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 14px; padding: 12px 14px; margin-bottom: 14px; text-align: left;">
+            <div style="font-size: 11px; font-weight: 800; color: #166534; margin-bottom: 5px; display: flex; align-items: center; gap: 6px;">
+                <i class="fas fa-info-circle"></i> Rincian Paket / Keterangan:
+            </div>
+            <div id="mProdDesc" style="font-size: 12px; color: #1e293b; line-height: 1.5; white-space: pre-line;"></div>
+            <div style="font-size: 10px; color: #64748b; margin-top: 6px; border-top: 1px dashed #cbd5e1; padding-top: 4px;">
+                *Ketentuan pembagian kuota/bonus sepenuhnya mengikuti kebijakan resmi operator.
+            </div>
+        </div>
+
 
         <!-- CONTAINER KHUSUS BEBAS NOMINAL -->
         <div id="bebasNominalBox" style="display: none; background: #f0fdfa; border: 1.5px solid #99f6e4; border-radius: 14px; padding: 14px; margin-bottom: 15px;">
@@ -1131,12 +1144,25 @@
 
         selectedSku = card.getAttribute('data-sku');
         const harga = card.getAttribute('data-harga');
+        const desc = card.getAttribute('data-desc') || '';
         const rawPrice = parseFloat(card.getAttribute('data-rawprice') || 0);
         const cardType = card.getAttribute('data-type');
         isBebasSelected = (cardType === 'BEBAS');
 
         document.getElementById('mProdName').innerText = nama;
         document.getElementById('mTargetNo').innerText = noHp;
+
+        const descBox = document.getElementById('mDescContainer');
+        const descText = document.getElementById('mProdDesc');
+        if (descBox && descText) {
+            const cleanDesc = desc.trim();
+            if (cleanDesc.length > 3 && cleanDesc !== '-') {
+                descText.innerText = cleanDesc;
+                descBox.style.display = 'block';
+            } else {
+                descBox.style.display = 'none';
+            }
+        }
 
         const bebasBox = document.getElementById('bebasNominalBox');
         const inputNominal = document.getElementById('inputBebasNominal');

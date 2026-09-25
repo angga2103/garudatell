@@ -820,6 +820,7 @@
                  data-harga="{{ '{:,.0f}'.format(p.harga)|replace(',', '.') }}"
                  data-rawprice="{{ p.harga }}"
                  data-active="{{ 'true' if p.is_active else 'false' }}"
+                 data-desc="{{ p.description or '' }}"
                  onclick="beliProdukModal(this)">
                 
                 <div style="flex: 1;">
@@ -836,6 +837,8 @@
                     <p class="p-desc">
                         {% if not p.is_active %}
                             <i class="fas fa-wrench" style="color: #ef4444;"></i> Dalam Pemeliharaan Server
+                        {% elif p.description %}
+                            <i class="fas fa-info-circle" style="color: #0284c7;"></i> {{ p.description }}
                         {% else %}
                             ⚡ Masuk Otomatis 24 Jam
                         {% endif %}
@@ -881,6 +884,17 @@
         <div class="sheet-card-header">
             <div class="sheet-title" id="mProdName">Nama Paket Game</div>
             <div class="sheet-price" id="mProdPrice">Rp 0</div>
+        </div>
+
+        <!-- KOTAK RINCIAN DESKRIPSI KONDISIONAL -->
+        <div id="mDescContainer" style="display: none; background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 14px; padding: 12px 14px; margin-bottom: 14px; text-align: left;">
+            <div style="font-size: 11px; font-weight: 800; color: #166534; margin-bottom: 5px; display: flex; align-items: center; gap: 6px;">
+                <i class="fas fa-info-circle"></i> Rincian Paket / Keterangan:
+            </div>
+            <div id="mProdDesc" style="font-size: 12px; color: #1e293b; line-height: 1.5; white-space: pre-line;"></div>
+            <div style="font-size: 10px; color: #64748b; margin-top: 6px; border-top: 1px dashed #cbd5e1; padding-top: 4px;">
+                *Ketentuan item/diamond sepenuhnya mengikuti kebijakan resmi developer game.
+            </div>
         </div>
 
         <div class="detail-box">
@@ -1129,11 +1143,24 @@
 
         selectedSku = card.getAttribute('data-sku');
         const harga = card.getAttribute('data-harga');
+        const desc = card.getAttribute('data-desc') || '';
         selectedPrice = parseFloat(card.getAttribute('data-rawprice') || 0);
 
         document.getElementById('mProdName').innerText = nama;
         document.getElementById('mProdPrice').innerText = 'Rp ' + harga;
         document.getElementById('mTargetNo').innerText = validatedTarget;
+
+        const descBox = document.getElementById('mDescContainer');
+        const descText = document.getElementById('mProdDesc');
+        if (descBox && descText) {
+            const cleanDesc = desc.trim();
+            if (cleanDesc.length > 3 && cleanDesc !== '-') {
+                descText.innerText = cleanDesc;
+                descBox.style.display = 'block';
+            } else {
+                descBox.style.display = 'none';
+            }
+        }
 
         document.getElementById('sheetOverlay').classList.add('show');
         document.getElementById('checkoutModal').classList.add('show');

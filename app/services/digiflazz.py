@@ -275,6 +275,10 @@ def sync_products(force=False, notify_admin_bot=True, include_pasca=False):
             price = item.get('price', item.get('admin', 0))
             sell_price_calc = calculate_sell_price(price, tiers)
 
+            # Ekstrak deskripsi produk dari Digiflazz jika tersedia
+            raw_desc = clean_str(item.get('desc'))
+            desc_val = raw_desc if raw_desc and raw_desc.strip() != '-' else None
+
             product = Product.query.filter_by(sku_code=sku).first()
 
             if not product:
@@ -286,7 +290,9 @@ def sync_products(force=False, notify_admin_bot=True, include_pasca=False):
                     base_price=price,
                     sell_price=sell_price_calc,
                     is_active=product_active,
-                    is_manual_margin=False
+                    is_manual_margin=False,
+                    description=desc_val,
+                    is_manual_desc=False
                 )
                 db.session.add(new_product)
                 new_count += 1
@@ -301,6 +307,12 @@ def sync_products(force=False, notify_admin_bot=True, include_pasca=False):
                 if product.is_active != product_active:
                     product.is_active = product_active
                     update_count += 1
+
+                # Sinkronkan deskripsi jika tidak dikunci manual oleh admin
+                if not getattr(product, 'is_manual_desc', False):
+                    if product.description != desc_val:
+                        product.description = desc_val
+                        update_count += 1
 
     # 2. ALL-OR-NOTHING CHECK:
     # Jika perintah gagal, BATALKAN proses pembersihan dan amankan katalog!
