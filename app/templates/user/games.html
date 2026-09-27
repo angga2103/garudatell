@@ -346,6 +346,8 @@
         box-sizing: border-box;
         min-width: 0;
         width: 100%;
+        content-visibility: auto;
+        contain-intrinsic-size: 85px;
     }
     .product-card:hover { 
         transform: translateY(-2px); 
@@ -793,7 +795,7 @@
 <div class="filter-bar">
     <div class="search-box">
         <i class="fas fa-search"></i>
-        <input type="text" id="searchInput" placeholder="Cari nominal (contoh: 86 diamonds, 100 uc, pass)..." onkeyup="filterProduk()">
+        <input type="text" id="searchInput" placeholder="Cari nominal (contoh: 86 diamonds, 100 uc, pass)..." oninput="filterProduk()" onkeyup="filterProduk()">
     </div>
     <div class="sort-container">
         <div class="tool-btn" id="btnSort" onclick="toggleSortMenu()" title="Urutkan"><i class="fas fa-sort-amount-down"></i></div>
@@ -810,10 +812,29 @@
 
 <!-- DAFTAR KARTU PRODUK -->
 <div class="product-container">
+    <!-- PANDUAN AWAL TAMPILAN BERSIH (RASA APLIKASI NATIVE PPOB) -->
+    <div id="initialGuideState" style="{% if active_game != 'ALL' or active_brand or search_query %}display: none;{% endif %} text-align: center; padding: 35px 18px; background: white; border-radius: 16px; border: 1.5px dashed #cbd5e1; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.02);">
+        <div style="width: 58px; height: 58px; background: #e6f7f5; color: #00877a; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 26px; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(0,135,122,0.15);">
+            <i class="fas fa-gamepad"></i>
+        </div>
+        <h4 style="margin: 0 0 6px 0; font-size: 14.5px; font-weight: 800; color: #1e293b;">Voucher & Top Up Game</h4>
+        <p style="margin: 0 auto; font-size: 12px; color: #64748b; line-height: 1.5; max-width: 320px;">
+            Pilih jenis game pada tab slider di atas (Mobile Legends, Free Fire, dll) atau ketik nama paket/game di kolom pencarian.
+        </p>
+    </div>
+
+    <!-- NOTIFIKASI KETIKA PRODUK TIDAK DITEMUKAN -->
+    <div id="emptyFilterState" style="display: none; text-align: center; padding: 35px 18px; background: white; border-radius: 16px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
+        <i class="fas fa-search" style="font-size: 32px; color: #cbd5e1; margin-bottom: 10px;"></i>
+        <h4 style="margin: 0 0 4px 0; font-size: 14px; font-weight: 800; color: #475569;">Paket Game Tidak Ditemukan</h4>
+        <p style="margin: 0 auto; font-size: 12px; color: #64748b; line-height: 1.5; max-width: 320px;">Coba kata kunci lain atau pilih game yang sesuai.</p>
+    </div>
+
     <div class="product-list" id="daftarProduk">
         {% if products %}
             {% for p in products %}
             <div class="product-card item-produk {% if not p.is_active %}card-gangguan{% endif %}" 
+                 {% if active_game == 'ALL' and not active_brand and not search_query %}style="display: none;"{% endif %}
                  data-provider="{{ p.provider | upper }}"
                  data-sku="{{ p.kode_produk }}"
                  data-nama="{{ p.nama_produk }}"
@@ -980,11 +1001,25 @@
         tabsSlider.scrollLeft = scrollLeftVal - walk;
     });
 
-    // Otomatis scroll tab aktif ke tengah saat dimuat
+    // SCROLL HORIZONTAL MURNI: Hanya menggeser kotak slider tab, tidak pernah menarik window vertikal ke atas
+    function geserTabHorisontal(targetTab) {
+        if (tabsSlider && targetTab) {
+            const containerWidth = tabsSlider.clientWidth;
+            const tabOffset = targetTab.offsetLeft;
+            const tabWidth = targetTab.offsetWidth;
+            const scrollTarget = tabOffset - (containerWidth / 2) + (tabWidth / 2);
+            tabsSlider.scrollTo({
+                left: Math.max(0, scrollTarget),
+                behavior: 'smooth'
+            });
+        }
+    }
+
+    // Otomatis scroll tab aktif ke tengah saat dimuat tanpa forced window scroll
     window.addEventListener('DOMContentLoaded', () => {
         const activeTab = tabsSlider.querySelector('.tab-pill.active');
         if (activeTab) {
-            activeTab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+            geserTabHorisontal(activeTab);
         }
     });
 
@@ -1028,27 +1063,52 @@
         }
     }
 
-    // 6. FILTER PRODUK
+    // 6. FILTER PRODUK (DEBOUNCED 120ms & ZERO FORCED REFLOW)
+    let searchDebounceTimer = null;
     function filterProduk() {
-        const query = document.getElementById('searchInput').value.toLowerCase().trim();
-        const items = document.querySelectorAll('.item-produk');
-        let visibleCount = 0;
+        clearTimeout(searchDebounceTimer);
+        searchDebounceTimer = setTimeout(() => {
+            const query = (document.getElementById('searchInput').value || '').toLowerCase().trim();
+            const items = document.querySelectorAll('.item-produk');
+            const guideState = document.getElementById('initialGuideState');
+            const emptyFilterState = document.getElementById('emptyFilterState');
+            const emptySearch = document.getElementById('emptySearch');
+            const isAllMode = {{ 'true' if (active_game == 'ALL' and not active_brand) else 'false' }};
 
-        items.forEach(item => {
-            const nama = item.getAttribute('data-nama').toLowerCase();
-            const harga = item.getAttribute('data-harga').replace('.', '').toLowerCase();
-
-            let matchSearch = !query || nama.includes(query) || harga.includes(query);
-
-            if (matchSearch) {
-                item.style.display = 'flex';
-                visibleCount++;
-            } else {
-                item.style.display = 'none';
+            // Jika mode ALL dan query kosong, tampilkan panduan dan sembunyikan semua kartu
+            if (isAllMode && !query) {
+                if (guideState) guideState.style.display = 'block';
+                if (emptyFilterState) emptyFilterState.style.display = 'none';
+                if (emptySearch) emptySearch.style.display = 'none';
+                items.forEach(item => item.style.display = 'none');
+                return;
             }
-        });
 
-        document.getElementById('emptySearch').style.display = (visibleCount === 0) ? 'block' : 'none';
+            if (guideState) guideState.style.display = 'none';
+
+            let visibleCount = 0;
+            items.forEach(item => {
+                const nama = (item.getAttribute('data-nama') || '').toLowerCase();
+                const harga = (item.getAttribute('data-harga') || '').replace('.', '').toLowerCase();
+                const provider = (item.getAttribute('data-provider') || '').toLowerCase();
+
+                let matchSearch = !query || nama.includes(query) || harga.includes(query) || provider.includes(query);
+
+                if (matchSearch) {
+                    item.style.display = 'flex';
+                    visibleCount++;
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+
+            if (emptyFilterState) {
+                emptyFilterState.style.display = (visibleCount === 0) ? 'block' : 'none';
+            }
+            if (emptySearch) {
+                emptySearch.style.display = 'none';
+            }
+        }, 120);
     }
 
     // 7. SORT

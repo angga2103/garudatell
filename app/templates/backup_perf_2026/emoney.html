@@ -293,7 +293,7 @@
         border-radius: 14px; 
         padding: 12px; 
         border: 1px solid #e2e8f0; 
-        display: none; 
+        display: flex; 
         justify-content: space-between; 
         align-items: center; 
         box-shadow: 0 2px 6px rgba(0,0,0,0.02); 
@@ -303,8 +303,6 @@
         box-sizing: border-box;
         min-width: 0;
         width: 100%;
-        content-visibility: auto;
-        contain-intrinsic-size: 85px;
     }
     .product-card:hover { 
         transform: translateY(-2px); 
@@ -723,24 +721,6 @@
 
 <!-- DAFTAR KARTU PRODUK -->
 <div class="product-container">
-    <!-- PANDUAN AWAL TAMPILAN BERSIH (RASA APLIKASI NATIVE PPOB) -->
-    <div id="initialGuideState" style="text-align: center; padding: 35px 18px; background: white; border-radius: 16px; border: 1.5px dashed #cbd5e1; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.02);">
-        <div style="width: 58px; height: 58px; background: #e6f7f5; color: #00877a; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 26px; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(0,135,122,0.15);">
-            <i class="fas fa-wallet"></i>
-        </div>
-        <h4 style="margin: 0 0 6px 0; font-size: 14.5px; font-weight: 800; color: #1e293b;">Top Up Saldo E-Money</h4>
-        <p style="margin: 0 auto; font-size: 12px; color: #64748b; line-height: 1.5; max-width: 310px;">
-            Pilih jenis e-wallet pada tab di atas (DANA, OVO, GoPay, ShopeePay, dll.) atau masukkan nomor HP akun.
-        </p>
-    </div>
-
-    <!-- NOTIFIKASI KETIKA PRODUK TIDAK DITEMUKAN -->
-    <div id="emptyFilterState" style="display: none; text-align: center; padding: 35px 18px; background: white; border-radius: 16px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
-        <i class="fas fa-search" style="font-size: 32px; color: #cbd5e1; margin-bottom: 10px;"></i>
-        <h4 style="margin: 0 0 4px 0; font-size: 14px; font-weight: 800; color: #475569;">Produk E-Money Tidak Ditemukan</h4>
-        <p style="margin: 0; font-size: 12px; color: #94a3b8;">Tidak ada produk yang cocok dengan pencarian atau filter ini.</p>
-    </div>
-
     <div class="product-list" id="daftarProduk">
         {% if products %}
             {% for p in products %}
@@ -947,22 +927,18 @@
 
     noHpInput.addEventListener('input', function() {
         let val = this.value.replace(/[^0-9]/g, '');
-        if (this.value !== val) {
-            this.value = val;
-        }
+        this.value = val;
         btnClear.style.display = val.length > 0 ? 'flex' : 'none';
         
         if (val.length >= 4) {
             inputContainer.classList.remove('error');
         }
-        filterProduk();
     });
 
     function clearInput() {
         noHpInput.value = '';
         btnClear.style.display = 'none';
         noHpInput.focus();
-        filterProduk();
     }
 
     // 4. CONTACT PICKER
@@ -976,7 +952,6 @@
                     if (clean.startsWith('62')) clean = '0' + clean.substring(2);
                     noHpInput.value = clean;
                     btnClear.style.display = 'flex';
-                    filterProduk();
                 }
             } catch (err) {
                 console.log('Kontak dibatalkan:', err);
@@ -986,21 +961,7 @@
         }
     }
 
-    // 5. TABS PROVIDER (SAFE HORIZONTAL SCROLL)
-    function geserTabHorisontal(targetTab) {
-        const opTabs = document.querySelector('.operator-tabs');
-        if (opTabs && targetTab) {
-            const containerWidth = opTabs.clientWidth;
-            const tabOffset = targetTab.offsetLeft;
-            const tabWidth = targetTab.offsetWidth;
-            const scrollTarget = tabOffset - (containerWidth / 2) + (tabWidth / 2);
-            opTabs.scrollTo({
-                left: Math.max(0, scrollTarget),
-                behavior: 'smooth'
-            });
-        }
-    }
-
+    // 5. TABS PROVIDER
     let activeOperator = 'ALL';
     const pills = document.querySelectorAll('.tab-pill');
 
@@ -1009,63 +970,42 @@
             pills.forEach(p => p.classList.remove('active'));
             this.classList.add('active');
             activeOperator = this.getAttribute('data-op');
-            geserTabHorisontal(this);
             filterProduk();
         });
     });
 
-    // 6. FILTER PRODUK (DEBOUNCED & ZERO FORCED REFLOW)
-    let searchDebounceTimer = null;
+    // 6. FILTER PRODUK
     function filterProduk() {
-        clearTimeout(searchDebounceTimer);
-        searchDebounceTimer = setTimeout(() => {
-            const query = document.getElementById('searchInput').value.toLowerCase().trim();
-            const items = document.querySelectorAll('.item-produk');
-            const guideState = document.getElementById('initialGuideState');
-            const emptyFilterState = document.getElementById('emptyFilterState');
-            const elInput = document.getElementById('noHpInput');
-            const noHp = elInput ? elInput.value.trim() : '';
+        const query = document.getElementById('searchInput').value.toLowerCase().trim();
+        const items = document.querySelectorAll('.item-produk');
+        let visibleCount = 0;
 
-            // Jika tab ALL dan nomor kosong dan query kosong, tampilkan guide state dan sembunyikan kartu
-            if (activeOperator === 'ALL' && (!noHp || noHp.length < 4) && !query) {
-                if (guideState) guideState.style.display = 'block';
-                if (emptyFilterState) emptyFilterState.style.display = 'none';
-                items.forEach(item => item.style.display = 'none');
-                return;
+        items.forEach(item => {
+            const provider = item.getAttribute('data-provider') || '';
+            const type = item.getAttribute('data-type') || '';
+            const nama = item.getAttribute('data-nama').toLowerCase();
+            const harga = item.getAttribute('data-harga').replace('.', '').toLowerCase();
+
+            let matchOp = false;
+            if (activeOperator === 'ALL') {
+                matchOp = true;
+            } else if (activeOperator === 'BEBAS') {
+                matchOp = (type === 'BEBAS');
+            } else {
+                matchOp = (provider === activeOperator);
             }
 
-            if (guideState) guideState.style.display = 'none';
+            let matchSearch = !query || nama.includes(query) || harga.includes(query);
 
-            let visibleCount = 0;
-            items.forEach(item => {
-                const provider = (item.getAttribute('data-provider') || '').toUpperCase();
-                const type = (item.getAttribute('data-type') || '').toUpperCase();
-                const nama = (item.getAttribute('data-nama') || '').toLowerCase();
-                const harga = (item.getAttribute('data-harga') || '').replace('.', '').toLowerCase();
-
-                let matchOp = false;
-                if (activeOperator === 'ALL') {
-                    matchOp = true;
-                } else if (activeOperator === 'BEBAS') {
-                    matchOp = (type === 'BEBAS');
-                } else {
-                    matchOp = (provider === activeOperator);
-                }
-
-                let matchSearch = !query || nama.includes(query) || harga.includes(query);
-
-                if (matchOp && matchSearch) {
-                    item.style.display = 'flex';
-                    visibleCount++;
-                } else {
-                    item.style.display = 'none';
-                }
-            });
-
-            if (emptyFilterState) {
-                emptyFilterState.style.display = (visibleCount === 0) ? 'block' : 'none';
+            if (matchOp && matchSearch) {
+                item.style.display = 'flex';
+                visibleCount++;
+            } else {
+                item.style.display = 'none';
             }
-        }, 120);
+        });
+
+        document.getElementById('emptySearch').style.display = (visibleCount === 0) ? 'block' : 'none';
     }
 
     // 7. SORT
