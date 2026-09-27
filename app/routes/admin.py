@@ -2581,6 +2581,8 @@ def point_settings():
                 else:
                     s.value = val
             db.session.commit()
+            from app.services.setting_service import invalidate_setting_cache
+            invalidate_setting_cache()
             flash('Pengaturan & Aturan Poin Member berhasil disimpan!', 'success')
         except Exception as e:
             db.session.rollback()
@@ -2773,6 +2775,8 @@ def tier_settings():
                 else:
                     s.value = val
             db.session.commit()
+            from app.services.setting_service import invalidate_setting_cache
+            invalidate_setting_cache()
             flash('Pengaturan Golongan Akun & Skema Downline VIP berhasil disimpan!', 'success')
         except Exception as e:
             db.session.rollback()

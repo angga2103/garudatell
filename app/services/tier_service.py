@@ -13,28 +13,12 @@ def get_wib_now():
     """Mengembalikan objek datetime saat ini dalam zona waktu WIB (UTC+7) naive."""
     return datetime.now(timezone(timedelta(hours=7))).replace(tzinfo=None)
 
-def get_setting_value(key, default=""):
-    try:
-        s = Setting.query.filter_by(key=key).first()
-        if s and s.value is not None and str(s.value).strip() != "":
-            return str(s.value).strip()
-    except Exception:
-        pass
-    return default
-
-def get_setting_float(key, default=0.0):
-    val = get_setting_value(key, "")
-    try:
-        return float(val) if val else default
-    except (ValueError, TypeError):
-        return default
-
-def get_setting_int(key, default=0):
-    val = get_setting_value(key, "")
-    try:
-        return int(val) if val else default
-    except (ValueError, TypeError):
-        return default
+from app.services.setting_service import (
+    get_setting_value,
+    get_setting_float,
+    get_setting_int,
+    invalidate_setting_cache
+)
 
 def get_tier_settings():
     """Mengembalikan konfigurasi sistem tingkatan akun dan langganan."""

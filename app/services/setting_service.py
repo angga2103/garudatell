@@ -4,22 +4,77 @@ from werkzeug.utils import secure_filename
 from app.extensions import db
 from app.models.setting import Setting
 
+import threading
+
 ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
 DEFAULT_STORE_NAME = ""
 DEFAULT_TAGLINE = ""
 DEFAULT_FOOTER = "Terima kasih atas kepercayaan Anda!"
 
+# In-Memory Cache (RAM) untuk eliminasi N+1 database queries
+_SETTING_CACHE = {}
+_SETTING_CACHE_LOCK = threading.Lock()
+_CACHE_TTL_SECONDS = 60  # Cache berlaku selama 60 detik
+
+_STORE_SETTINGS_CACHE = None
+_STORE_SETTINGS_EXPIRY = 0
+
+def invalidate_setting_cache(key=None):
+    """
+    Menghapus cache setting di memori RAM.
+    Jika key diberikan, hanya key tersebut yang dihapus.
+    Jika key=None, seluruh cache setting dan store_settings dibersihkan seketika.
+    """
+    global _STORE_SETTINGS_CACHE, _STORE_SETTINGS_EXPIRY
+    with _SETTING_CACHE_LOCK:
+        if key:
+            _SETTING_CACHE.pop(key, None)
+        else:
+            _SETTING_CACHE.clear()
+        _STORE_SETTINGS_CACHE = None
+        _STORE_SETTINGS_EXPIRY = 0
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
 
 def get_setting_value(key, default=""):
+    """
+    Mengambil nilai setting dari in-memory cache jika masih valid.
+    Jika belum ada atau expired, ambil dari database dan simpan di cache.
+    """
+    now = time.time()
+    with _SETTING_CACHE_LOCK:
+        if key in _SETTING_CACHE:
+            val, expiry = _SETTING_CACHE[key]
+            if now < expiry:
+                return val
+
+    # Query ke database
+    val = default
     try:
         s = Setting.query.filter_by(key=key).first()
-        if s and s.value is not None and s.value.strip() != "":
-            return s.value.strip()
+        if s and s.value is not None and str(s.value).strip() != "":
+            val = str(s.value).strip()
     except Exception:
-        pass
-    return default
+        return default
+
+    with _SETTING_CACHE_LOCK:
+        _SETTING_CACHE[key] = (val, now + _CACHE_TTL_SECONDS)
+    return val
+
+def get_setting_float(key, default=0.0):
+    val = get_setting_value(key, "")
+    try:
+        return float(val) if val else default
+    except (ValueError, TypeError):
+        return default
+
+def get_setting_int(key, default=0):
+    val = get_setting_value(key, "")
+    try:
+        return int(val) if val else default
+    except (ValueError, TypeError):
+        return default
 
 def get_store_name():
     """Mengembalikan nama toko dinamis saat ini dari tabel Setting (Profil Toko)."""
@@ -27,7 +82,7 @@ def get_store_name():
 
 def get_store_settings():
     """
-    Mengembalikan dictionary lengkap pengaturan toko dinamis:
+    Mengembalikan dictionary lengkap pengaturan toko dinamis dari RAM cache:
     - name: Nama Toko
     - tagline: Slogan / Sub-header
     - whatsapp_group: Link / info channel grup WhatsApp
@@ -35,8 +90,14 @@ def get_store_settings():
     - logo: Path relatif file logo (misal: /static/uploads/logo.png)
     - logo_url: URL lengkap/relatif untuk template
     """
+    global _STORE_SETTINGS_CACHE, _STORE_SETTINGS_EXPIRY
+    now = time.time()
+    with _SETTING_CACHE_LOCK:
+        if _STORE_SETTINGS_CACHE and now < _STORE_SETTINGS_EXPIRY:
+            return _STORE_SETTINGS_CACHE.copy()
+
     logo_path = get_setting_value('store_logo', '')
-    return {
+    res = {
         'name': get_setting_value('store_name', DEFAULT_STORE_NAME),
         'tagline': get_setting_value('store_tagline', DEFAULT_TAGLINE),
         'whatsapp_group': get_setting_value('store_whatsapp_group', ''),
@@ -44,6 +105,11 @@ def get_store_settings():
         'logo': logo_path,
         'logo_url': logo_path if logo_path else ''
     }
+    with _SETTING_CACHE_LOCK:
+        _STORE_SETTINGS_CACHE = res
+        _STORE_SETTINGS_EXPIRY = now + _CACHE_TTL_SECONDS
+
+    return res.copy()
 
 def save_store_settings(form_data, logo_file=None, upload_folder=None):
     """
@@ -89,6 +155,7 @@ def save_store_settings(form_data, logo_file=None, upload_folder=None):
             s_logo.value = web_path
 
     db.session.commit()
+    invalidate_setting_cache()
     return True
 
 def delete_store_logo(upload_folder=None):
@@ -110,6 +177,7 @@ def delete_store_logo(upload_folder=None):
                 
         s_logo.value = ""
         db.session.commit()
+        invalidate_setting_cache()
     return True
 
 
@@ -137,6 +205,7 @@ def set_vip_reseller_status(enabled: bool):
     else:
         s.value = val_str
     db.session.commit()
+    invalidate_setting_cache('vip_reseller_enabled')
     
     # Sinkronisasi opsional ke .env jika file ada
     try:
@@ -225,5 +294,6 @@ def save_manual_deposit_settings(form_data):
                 s.description = desc
 
     db.session.commit()
+    invalidate_setting_cache()
     return True
 

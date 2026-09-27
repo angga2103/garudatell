@@ -4,6 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>{% block title %}{{ store.name }} - {{ store.tagline }}{% endblock %}</title>
+    <!-- Resource Hints & Preconnect untuk Akselerasi Aset Eksternal -->
+    <link rel="dns-prefetch" href="//fonts.googleapis.com">
+    <link rel="dns-prefetch" href="//fonts.gstatic.com">
+    <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+    <link rel="dns-prefetch" href="//cdn.jsdelivr.net">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -143,7 +152,53 @@
     </div>
     {% endblock %}
 
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
     {% block scripts %}{% endblock %}
+
+    <!-- GarudaTel Satset Engine: Instant Touch Prefetcher (Sensasi Navigasi Instan Native App) -->
+    <script>
+    (function() {
+        if ('connection' in navigator && (navigator.connection.saveData || /2g/.test(navigator.connection.effectiveType))) return;
+        var prefetched = new Set();
+        function prefetch(url) {
+            if (!url || prefetched.has(url)) return;
+            try {
+                var parsed = new URL(url, window.location.href);
+                if (parsed.origin !== window.location.origin) return;
+                var path = parsed.pathname;
+                if (path === window.location.pathname) return;
+                // Jangan prefetch link logout, API, admin aksi, transaksi pembayaran
+                if (/logout|api|admin|delete|confirm|checkout|trx|action|order|pay/i.test(path)) return;
+                prefetched.add(url);
+                var link = document.createElement('link');
+                link.rel = 'prefetch';
+                link.href = url;
+                link.as = 'document';
+                document.head.appendChild(link);
+            } catch(e) {}
+        }
+
+        var hoverTimer = null;
+        // 1. Sentuhan Jari di Layar HP (Prefetch seketika saat jari menyentuh link)
+        document.addEventListener('touchstart', function(e) {
+            var a = e.target.closest('a');
+            if (a && a.href) prefetch(a.href);
+        }, { passive: true });
+
+        // 2. Kursor Hover di PC/Desktop (Prefetch jika kursor berada di tombol > 65ms)
+        document.addEventListener('mouseover', function(e) {
+            var a = e.target.closest('a');
+            if (a && a.href) {
+                clearTimeout(hoverTimer);
+                hoverTimer = setTimeout(function() { prefetch(a.href); }, 65);
+            }
+        }, { passive: true });
+
+        document.addEventListener('mouseout', function(e) {
+            var a = e.target.closest('a');
+            if (a) clearTimeout(hoverTimer);
+        }, { passive: true });
+    })();
+    </script>
 </body>
 </html>
