@@ -957,6 +957,61 @@ def scan_low_balance():
 
     return redirect(url_for('admin.users'))
 
+@admin_bp.route('/users/<int:user_id>/kickout', methods=['POST'])
+def user_kickout(user_id):
+    if not session.get('admin_logged_in'):
+        return jsonify({'status': 'error', 'message': 'Akses ditolak. Silakan login kembali.'}), 403
+
+    from app.models.user import User
+    from app.services.session_service import revoke_user_session
+    user = User.query.get_or_404(user_id)
+    admin_user = session.get('admin_username', 'Admin')
+
+    ok, msg = revoke_user_session(user, reason='ADMIN_KICKOUT', actor_name=f"Admin ({admin_user})")
+    if ok:
+        return jsonify({'status': 'success', 'message': f'Sesi login akun {user.name} berhasil diputus (Kick Out). Akun kini bebas login.'})
+    return jsonify({'status': 'error', 'message': msg}), 400
+
+@admin_bp.route('/device-logs')
+def device_logs():
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin.login'))
+
+    from app.models.device_session_log import DeviceSessionLog
+    from app.models.user import User
+
+    page = request.args.get('page', 1, type=int)
+    per_page = 30
+    event_filter = request.args.get('event', '').strip()
+    search_q = request.args.get('q', '').strip()
+
+    query = DeviceSessionLog.query.order_by(DeviceSessionLog.id.desc())
+
+    if event_filter:
+        query = query.filter(DeviceSessionLog.event_type == event_filter)
+
+    if search_q:
+        q_clean = f"%{search_q}%"
+        query = query.join(User).filter(
+            db.or_(
+                User.name.ilike(q_clean),
+                DeviceSessionLog.phone.ilike(q_clean),
+                DeviceSessionLog.device_name.ilike(q_clean),
+                DeviceSessionLog.ip_address.ilike(q_clean),
+                DeviceSessionLog.details.ilike(q_clean)
+            )
+        )
+
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    logs = pagination.items
+
+    return render_template(
+        'admin/device_logs.html',
+        logs=logs,
+        pagination=pagination,
+        event_filter=event_filter,
+        search_q=search_q
+    )
 
 @admin_bp.route('/user/update_action', methods=['POST'])
 def update_user_action():

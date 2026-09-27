@@ -1,0 +1,188 @@
+{% extends 'admin/layout.html' %}
+
+{% block title %}GarudaTel - Riwayat Sesi & Perangkat{% endblock %}
+
+{% set page_title = "Audit Sesi & Perangkat" %}
+
+{% block admin_content %}
+<div style="margin-bottom: 25px;">
+    <!-- HEADER BAR -->
+    <div style="background: white; border-radius: 20px; padding: 22px 25px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+            <div>
+                <h3 style="margin: 0; font-size: 19px; font-weight: 900; color: #1e293b; display: flex; align-items: center; gap: 10px;">
+                    <span style="width: 38px; height: 38px; border-radius: 10px; background: #ede9fe; color: #7c3aed; display: inline-flex; align-items: center; justify-content: center; font-size: 18px;">
+                        <i class="fas fa-mobile-alt"></i>
+                    </span>
+                    Riwayat Sesi & Perangkat (1 Akun 1 Login)
+                </h3>
+                <p style="margin: 6px 0 0 0; font-size: 12.5px; color: #64748b; font-weight: 600;">
+                    Log komprehensif aktivitas login, pergantian HP darurat, pemutusan admin (Kick Out), dan auto-expiry 23 jam.
+                </p>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                <a href="{{ url_for('admin.users') }}" style="background: #f1f5f9; color: #475569; padding: 8px 14px; border-radius: 10px; text-decoration: none; font-weight: 800; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #cbd5e1;">
+                    <i class="fas fa-arrow-left"></i> Kembali ke User Center
+                </a>
+                <button onclick="window.location.reload()" style="background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; padding: 8px 14px; border-radius: 10px; font-weight: 800; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+        </div>
+
+        <!-- FILTER & SEARCH -->
+        <form method="GET" action="{{ url_for('admin.device_logs') }}" style="margin-top: 20px; padding-top: 18px; border-top: 1px solid #f1f5f9; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+            <div style="flex: 1; min-width: 220px;">
+                <div style="position: relative;">
+                    <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 13px;"></i>
+                    <input type="text" name="q" value="{{ search_q or '' }}" placeholder="Cari nama toko, no HP, HP, IP, catatan..." 
+                           style="width: 100%; padding: 9px 12px 9px 36px; border-radius: 10px; border: 1.5px solid #e2e8f0; font-size: 13px; font-weight: 600; outline: none;">
+                </div>
+            </div>
+
+            <div style="min-width: 180px;">
+                <select name="event" style="width: 100%; padding: 9px 12px; border-radius: 10px; border: 1.5px solid #e2e8f0; font-size: 13px; font-weight: 700; color: #334155; outline: none; background: white;">
+                    <option value="">Semua Jenis Aktivitas</option>
+                    <option value="LOGIN" {% if event_filter == 'LOGIN' %}selected{% endif %}>🟢 LOGIN (Masuk)</option>
+                    <option value="LOGOUT" {% if event_filter == 'LOGOUT' %}selected{% endif %}>⚪ LOGOUT (Keluar)</option>
+                    <option value="EMERGENCY_SWITCH" {% if event_filter == 'EMERGENCY_SWITCH' %}selected{% endif %}>🟠 EMERGENCY SWITCH (Ganti HP)</option>
+                    <option value="ADMIN_KICKOUT" {% if event_filter == 'ADMIN_KICKOUT' %}selected{% endif %}>🔴 ADMIN KICKOUT (Diputus Admin)</option>
+                    <option value="AUTO_EXPIRED" {% if event_filter == 'AUTO_EXPIRED' %}selected{% endif %}>🔵 AUTO EXPIRED (23 Jam)</option>
+                </select>
+            </div>
+
+            <button type="submit" style="background: #008779; color: white; border: none; padding: 9px 18px; border-radius: 10px; font-weight: 800; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                <i class="fas fa-filter"></i> Filter
+            </button>
+
+            {% if search_q or event_filter %}
+            <a href="{{ url_for('admin.device_logs') }}" style="background: #f8fafc; color: #64748b; border: 1px solid #cbd5e1; padding: 9px 14px; border-radius: 10px; font-weight: 800; font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                <i class="fas fa-times"></i> Reset
+            </a>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- TABLE CARD -->
+    <div style="background: white; border-radius: 20px; padding: 22px; box-shadow: 0 10px 30px rgba(0,0,0,0.03); overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 12.5px;">
+            <thead>
+                <tr style="border-bottom: 2px solid #f1f5f9; color: #64748b; font-size: 11px; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">
+                    <th style="padding: 12px 10px; width: 140px;">Waktu (WIB)</th>
+                    <th style="padding: 12px 10px; width: 180px;">Toko / Pengguna</th>
+                    <th style="padding: 12px 10px; width: 150px;">Aktivitas</th>
+                    <th style="padding: 12px 10px; width: 170px;">Perangkat</th>
+                    <th style="padding: 12px 10px; width: 120px;">Alamat IP</th>
+                    <th style="padding: 12px 10px;">Detail / Catatan Keamanan</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr style="border-bottom: 1px solid #f8fafc; transition: 0.15s; background: {% if loop.index % 2 == 0 %}#ffffff{% else %}#fafafa{% endif %};">
+                    <td style="padding: 14px 10px; white-space: nowrap; color: #475569; font-weight: 700; font-size: 11.5px;">
+                        <i class="far fa-clock" style="color: #94a3b8; margin-right: 4px;"></i>
+                        {{ log.created_at_wib }}
+                    </td>
+                    <td style="padding: 14px 10px;">
+                        {% if log.user %}
+                        <div style="font-weight: 900; color: #1e293b;">{{ log.user.name }}</div>
+                        <div style="font-size: 11px; color: #64748b; font-weight: 600;">{{ log.phone or log.user.phone }}</div>
+                        {% else %}
+                        <div style="font-weight: 800; color: #64748b;">(User #{{ log.user_id }})</div>
+                        <div style="font-size: 11px; color: #94a3b8;">{{ log.phone or '-' }}</div>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 14px 10px;">
+                        {% if log.event_type == 'LOGIN' %}
+                            <span style="background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; padding: 4px 10px; border-radius: 8px; font-weight: 900; font-size: 11px; display: inline-flex; align-items: center; gap: 5px;">
+                                <i class="fas fa-sign-in-alt"></i> LOGIN
+                            </span>
+                        {% elif log.event_type == 'LOGOUT' %}
+                            <span style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 4px 10px; border-radius: 8px; font-weight: 800; font-size: 11px; display: inline-flex; align-items: center; gap: 5px;">
+                                <i class="fas fa-sign-out-alt"></i> LOGOUT
+                            </span>
+                        {% elif log.event_type == 'EMERGENCY_SWITCH' %}
+                            <span style="background: #fef3c7; color: #b45309; border: 1px solid #fde68a; padding: 4px 10px; border-radius: 8px; font-weight: 900; font-size: 11px; display: inline-flex; align-items: center; gap: 5px;">
+                                <i class="fas fa-random"></i> PINDAH HP
+                            </span>
+                        {% elif log.event_type == 'ADMIN_KICKOUT' %}
+                            <span style="background: #fff1f2; color: #e11d48; border: 1px solid #fecdd3; padding: 4px 10px; border-radius: 8px; font-weight: 900; font-size: 11px; display: inline-flex; align-items: center; gap: 5px;">
+                                <i class="fas fa-ban"></i> KICK OUT
+                            </span>
+                        {% elif log.event_type == 'AUTO_EXPIRED' %}
+                            <span style="background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; padding: 4px 10px; border-radius: 8px; font-weight: 800; font-size: 11px; display: inline-flex; align-items: center; gap: 5px;">
+                                <i class="fas fa-hourglass-end"></i> 23 JAM TIMEOUT
+                            </span>
+                        {% else %}
+                            <span style="background: #f8fafc; color: #64748b; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 800;">
+                                {{ log.event_type }}
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 14px 10px; color: #334155; font-weight: 700;">
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <i class="fas fa-mobile-alt" style="color: #64748b;"></i>
+                            <span title="{{ log.device_name or '-' }}">{{ log.device_name or '-' }}</span>
+                        </div>
+                    </td>
+                    <td style="padding: 14px 10px; font-family: monospace; font-size: 11.5px; color: #475569; font-weight: 700;">
+                        {{ log.ip_address or '-' }}
+                    </td>
+                    <td style="padding: 14px 10px; color: #475569; font-size: 12px; line-height: 1.4;">
+                        {{ log.details or '-' }}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" style="padding: 40px; text-align: center; color: #94a3b8; font-weight: 600;">
+                        <i class="fas fa-shield-alt" style="font-size: 28px; margin-bottom: 10px; color: #cbd5e1;"></i><br>
+                        Belum ada data riwayat sesi atau audit log perangkat.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- PAGINATION -->
+        {% if pagination and pagination.pages > 1 %}
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding-top: 15px; border-top: 1px solid #f1f5f9; flex-wrap: wrap; gap: 10px;">
+            <div style="font-size: 12px; color: #64748b; font-weight: 700;">
+                Menampilkan halaman {{ pagination.page }} dari {{ pagination.pages }} (Total {{ pagination.total }} log)
+            </div>
+            <div style="display: flex; gap: 6px;">
+                {% if pagination.has_prev %}
+                <a href="{{ url_for('admin.device_logs', page=pagination.prev_num, event=event_filter, q=search_q) }}" 
+                   style="background: #f1f5f9; color: #334155; padding: 6px 12px; border-radius: 8px; text-decoration: none; font-weight: 800; font-size: 12px;">
+                    &laquo; Sebelumnya
+                </a>
+                {% endif %}
+
+                {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                    {% if p %}
+                        {% if p == pagination.page %}
+                        <span style="background: #008779; color: white; padding: 6px 12px; border-radius: 8px; font-weight: 900; font-size: 12px;">
+                            {{ p }}
+                        </span>
+                        {% else %}
+                        <a href="{{ url_for('admin.device_logs', page=p, event=event_filter, q=search_q) }}" 
+                           style="background: #f8fafc; color: #475569; padding: 6px 12px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 12px; border: 1px solid #e2e8f0;">
+                            {{ p }}
+                        </a>
+                        {% endif %}
+                    {% else %}
+                    <span style="padding: 6px 8px; color: #94a3b8; font-weight: 800;">...</span>
+                    {% endif %}
+                {% endfor %}
+
+                {% if pagination.has_next %}
+                <a href="{{ url_for('admin.device_logs', page=pagination.next_num, event=event_filter, q=search_q) }}" 
+                   style="background: #f1f5f9; color: #334155; padding: 6px 12px; border-radius: 8px; text-decoration: none; font-weight: 800; font-size: 12px;">
+                    Selanjutnya &raquo;
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

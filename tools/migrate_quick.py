@@ -25,7 +25,12 @@ def run_migration():
         ("commission_balance", "REAL DEFAULT 0.0"),
         ("last_reminded_at", "DATETIME"),
         ("referral_code", "VARCHAR(20)"),
-        ("is_device_lock_enabled", "BOOLEAN DEFAULT 0")
+        ("is_device_lock_enabled", "BOOLEAN DEFAULT 0"),
+        ("current_session_token", "VARCHAR(64)"),
+        ("last_active_at", "DATETIME"),
+        ("active_device_name", "VARCHAR(150)"),
+        ("active_device_ip", "VARCHAR(50)"),
+        ("active_device_uuid", "VARCHAR(64)")
     ]
 
     for col_name, col_type in new_cols:
@@ -153,6 +158,23 @@ def run_migration():
     cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_device_activation ON trusted_device (activation_token);")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_trx_device ON `transaction` (device_id);")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_trx_device_name ON `transaction` (device_name);")
+
+    # 6. Buat tabel device_session_log jika belum ada
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS device_session_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL REFERENCES user(id),
+        phone VARCHAR(20),
+        event_type VARCHAR(30) NOT NULL,
+        device_name VARCHAR(150),
+        ip_address VARCHAR(50),
+        details TEXT,
+        created_at DATETIME
+    );
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_devlog_user ON device_session_log (user_id);")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_devlog_event ON device_session_log (event_type);")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_devlog_created ON device_session_log (created_at);")
 
     conn.commit()
     conn.close()

@@ -4,6 +4,7 @@ from flask import Blueprint, render_template, request, jsonify, flash, redirect,
 from app.models.product import Product
 from app.extensions import db, csrf, limiter
 from sqlalchemy import or_
+from datetime import datetime, timedelta
 import os
 from app.services.tier_service import (
     get_user_product_price,
@@ -669,6 +670,17 @@ def profil():
         
         # LOGIKA LOGOUT
         if action == 'logout':
+            if current_user and current_user.is_authenticated:
+                from app.services.session_service import log_session_event
+                old_dev = getattr(current_user, 'active_device_name', '-')
+                old_ip = getattr(current_user, 'active_device_ip', '-')
+                log_session_event(current_user.id, current_user.phone, 'LOGOUT', old_dev, old_ip, 'Logout manual oleh pengguna')
+                current_user.current_session_token = None
+                current_user.last_active_at = None
+                current_user.active_device_uuid = None
+                db.session.commit()
+            from flask import session as flask_sess
+            flask_sess.pop('session_token', None)
             logout_user()
             flash('Anda telah berhasil keluar.', 'success')
             return redirect(url_for('user.dashboard'))
@@ -829,6 +841,7 @@ def profil():
 
             identifier = (request.form.get('username') or request.json.get('username') if request.is_json else request.form.get('username') or '').strip()
             password = (request.form.get('password') or request.json.get('password') if request.is_json else request.form.get('password') or '').strip()
+            req_device_uuid = (request.form.get('device_uuid') or request.json.get('device_uuid') if request.is_json else request.form.get('device_uuid') or '').strip()
 
             if not identifier or not password:
                 return jsonify({'status': 'error', 'message': 'Username dan Kata Sandi wajib diisi.'})
@@ -846,13 +859,28 @@ def profil():
             if not user.is_active:
                 return jsonify({'status': 'error', 'message': 'Akun Anda dinonaktifkan. Silakan hubungi Admin.'})
 
-            # Kredensial cocok! Cek status bot WhatsApp
+            # =====================================================================
+            # PENCEGATAN 1 AKUN 1 LOGIN AKTIF (SEBELUM MENGIRIMKAN KODE OTP)
+            # =====================================================================
+            if user.is_session_active(timeout_hours=23):
+                is_same_device = bool(user.active_device_uuid and req_device_uuid and user.active_device_uuid == req_device_uuid)
+                if not is_same_device:
+                    # JANGAN KIRIM KODE OTP DULU! Berikan peringatan konflik perangkat
+                    return jsonify({
+                        'status': 'device_conflict',
+                        'message': f'Akun ini masih aktif login di perangkat lain ({user.active_device_name or "Perangkat Lain"}).',
+                        'active_device': user.active_device_name or 'Perangkat Lain',
+                        'last_active': user.last_active_at_wib,
+                        'has_pin': bool(user.pin_hash),
+                        'phone': user.phone
+                    })
+
+            # Kredensial cocok & tidak ada konflik sesi! Kirim OTP via bot WhatsApp
             bot_online = is_wa_bot_connected()
             if bot_online:
                 otp_code = create_otp(user.phone, action='login', username=user.name)
                 terkirim = kirim_wa_otp_login(user.phone, otp_code)
                 if terkirim:
-                    # Masking nomor HP untuk tampilan aman (contoh: 0812****789)
                     p_str = str(user.phone)
                     masked = p_str[:4] + "****" + p_str[-3:] if len(p_str) > 7 else p_str
                     return jsonify({
@@ -875,13 +903,16 @@ def profil():
             })
 
         elif action == 'login_step2':
-            from flask import jsonify
+            from flask import jsonify, session as flask_sess
+            import secrets
             from app.models.user import User
             from app.services.otp_service import verify_otp, get_phone_variants
+            from app.services.session_service import parse_device_info, get_client_ip, log_session_event
             from flask_login import login_user
 
             phone = request.form.get('phone') or (request.json.get('phone') if request.is_json else None)
             otp_input = request.form.get('otp') or (request.json.get('otp') if request.is_json else None)
+            req_device_uuid = (request.form.get('device_uuid') or request.json.get('device_uuid') if request.is_json else request.form.get('device_uuid') or '').strip()
 
             if not phone or not otp_input:
                 return jsonify({'status': 'error', 'message': 'Nomor WhatsApp dan kode OTP wajib diisi.'})
@@ -896,8 +927,155 @@ def profil():
             if not user:
                 return jsonify({'status': 'error', 'message': 'Akun pengguna tidak ditemukan.'})
 
+            # Terbitkan Kunci Token Sesi Baru
+            new_token = secrets.token_hex(32)
+            dev_name = parse_device_info(request.headers.get('User-Agent'))
+            client_ip = get_client_ip(request)
+
+            user.current_session_token = new_token
+            user.last_active_at = datetime.utcnow()
+            user.active_device_name = dev_name
+            user.active_device_ip = client_ip
+            user.active_device_uuid = req_device_uuid or secrets.token_hex(16)
+            db.session.commit()
+
+            flask_sess['session_token'] = new_token
+            flask_sess['device_uuid'] = user.active_device_uuid
+
+            log_session_event(
+                user_id=user.id,
+                phone=user.phone,
+                event_type='LOGIN',
+                device_name=dev_name,
+                ip_address=client_ip,
+                details='Login berhasil dengan verifikasi OTP'
+            )
+
             login_user(user, remember=True)
             return jsonify({'status': 'success', 'message': 'Login berhasil! Mengalihkan...'})
+
+        # =====================================================================
+        # 3B. LOGIKA MINTA OTP PEMINDAHAN PERANGKAT DARURAT (GANTI HP MANDIRI)
+        # =====================================================================
+        elif action == 'request_otp_emergency_switch':
+            from flask import jsonify
+            from app.models.user import User
+            from app.services.otp_service import get_phone_variants
+            from app.services.session_service import send_emergency_switch_otp
+
+            identifier = (request.form.get('username') or request.json.get('username') if request.is_json else request.form.get('username') or '').strip()
+            password = (request.form.get('password') or request.json.get('password') if request.is_json else request.form.get('password') or '').strip()
+
+            if not identifier or not password:
+                return jsonify({'status': 'error', 'message': 'Username dan Kata Sandi wajib diisi.'})
+
+            clean_id = ''.join(filter(str.isdigit, str(identifier)))
+            variants = get_phone_variants(clean_id) if clean_id else []
+            user = User.query.filter(
+                (User.name == identifier) | (User.phone.in_(variants)) if variants else (User.name == identifier)
+            ).first()
+
+            if not user or not user.check_password(password):
+                return jsonify({'status': 'error', 'message': 'Kredensial akun tidak valid.'})
+
+            if not user.is_active:
+                return jsonify({'status': 'error', 'message': 'Akun dinonaktifkan. Silakan hubungi Admin.'})
+
+            terkirim, otp_code = send_emergency_switch_otp(user, request)
+            if terkirim:
+                p_str = str(user.phone)
+                masked = p_str[:4] + "****" + p_str[-3:] if len(p_str) > 7 else p_str
+                return jsonify({
+                    'status': 'otp_sent',
+                    'phone': user.phone,
+                    'masked_phone': masked,
+                    'has_pin': bool(user.pin_hash),
+                    'message': f'Kode OTP darurat pemindahan akun telah dikirim ke WhatsApp Anda ({masked}).'
+                })
+            else:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Gagal mengirim OTP darurat via WhatsApp. Pastikan bot aktif atau hubungi Admin.'
+                })
+
+        # =====================================================================
+        # 3C. LOGIKA EKSEKUSI PEMINDAHAN MANDIRI DARURAT KE HP BARU
+        # =====================================================================
+        elif action == 'emergency_switch_device':
+            from flask import jsonify, session as flask_sess
+            import secrets
+            from werkzeug.security import check_password_hash
+            from app.models.user import User
+            from app.services.otp_service import verify_otp, get_phone_variants
+            from app.services.session_service import parse_device_info, get_client_ip, log_session_event, send_switch_success_notification
+            from flask_login import login_user
+
+            phone = request.form.get('phone') or (request.json.get('phone') if request.is_json else None)
+            password = request.form.get('password') or (request.json.get('password') if request.is_json else None)
+            otp_input = request.form.get('otp') or (request.json.get('otp') if request.is_json else None)
+            pin_input = request.form.get('pin') or (request.json.get('pin') if request.is_json else None)
+            req_device_uuid = (request.form.get('device_uuid') or request.json.get('device_uuid') if request.is_json else request.form.get('device_uuid') or '').strip()
+
+            if not phone or not otp_input:
+                return jsonify({'status': 'error', 'message': 'Nomor WhatsApp dan kode OTP wajib diisi.'})
+
+            clean_p = ''.join(filter(str.isdigit, str(phone)))
+            variants = get_phone_variants(clean_p)
+            user = User.query.filter(User.phone.in_(variants)).first()
+            if not user:
+                return jsonify({'status': 'error', 'message': 'Akun pengguna tidak ditemukan.'})
+
+            # 1. Validasi Password
+            if password and not user.check_password(password):
+                return jsonify({'status': 'error', 'message': 'Kata Sandi salah!'})
+
+            # 2. Validasi PIN Adaptif (Jika akun memiliki PIN Transaksi)
+            if user.pin_hash:
+                if not pin_input:
+                    return jsonify({'status': 'error', 'message': 'PIN Transaksi 6-digit wajib diisi!'})
+                if not check_password_hash(user.pin_hash, str(pin_input).strip()):
+                    return jsonify({'status': 'error', 'message': 'PIN Transaksi yang Anda masukkan salah!'})
+
+            # 3. Validasi Kode OTP Darurat
+            is_valid, msg, _ = verify_otp(phone, otp_input, action='emergency_switch')
+            if not is_valid:
+                return jsonify({'status': 'error', 'message': msg})
+
+            # 4. EKSEKUSI PEMINDAHAN PERANGKAT & HANGUSKAN SESI LAMA
+            old_device = user.active_device_name or "Perangkat Sebelumnya"
+            old_ip = user.active_device_ip or "-"
+            new_device = parse_device_info(request.headers.get('User-Agent'))
+            new_ip = get_client_ip(request)
+            new_token = secrets.token_hex(32)
+
+            user.current_session_token = new_token
+            user.last_active_at = datetime.utcnow()
+            user.active_device_name = new_device
+            user.active_device_ip = new_ip
+            user.active_device_uuid = req_device_uuid or secrets.token_hex(16)
+            db.session.commit()
+
+            flask_sess['session_token'] = new_token
+            flask_sess['device_uuid'] = user.active_device_uuid
+
+            # Catat ke Log Audit Admin
+            log_session_event(
+                user_id=user.id,
+                phone=user.phone,
+                event_type='EMERGENCY_SWITCH',
+                device_name=new_device,
+                ip_address=new_ip,
+                details=f"Pemindahan mandiri darurat dari {old_device} ({old_ip}) ke {new_device} ({new_ip})"
+            )
+
+            # Kirim notifikasi keamanan WhatsApp ke nomor toko
+            send_switch_success_notification(user, new_device, new_ip)
+
+            login_user(user, remember=True)
+            return jsonify({
+                'status': 'success',
+                'message': 'Akun berhasil dipindahkan ke perangkat ini! Sesi di perangkat sebelumnya telah di-logout otomatis.'
+            })
 
         # =====================================================================
         # 4. LOGIKA LUPA PASSWORD (BERBASIS OTP)

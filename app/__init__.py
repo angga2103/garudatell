@@ -139,7 +139,7 @@ def create_app(test_config=None):
         print(f"[{'SUCCESS' if ok else 'FAILED'}] {msg}")
 
     with app.app_context():
-        from app.models import CommissionLog, TrustedDevice, PostpaidInquiry  # Pastikan seluruh model terdaftar di metadata SQLAlchemy
+        from app.models import CommissionLog, TrustedDevice, PostpaidInquiry, DeviceSessionLog  # Pastikan seluruh model terdaftar di metadata SQLAlchemy
         db.create_all()
         try:
             inspector = inspect(db.engine)
@@ -154,7 +154,12 @@ def create_app(test_config=None):
                     ('last_reminded_at', 'DATETIME'),
                     ('referral_code', 'VARCHAR(20)'),
                     ('is_device_lock_enabled', 'BOOLEAN DEFAULT 0'),
-                    ('last_low_balance_notified_at', 'DATETIME')
+                    ('last_low_balance_notified_at', 'DATETIME'),
+                    ('current_session_token', 'VARCHAR(64)'),
+                    ('last_active_at', 'DATETIME'),
+                    ('active_device_name', 'VARCHAR(150)'),
+                    ('active_device_ip', 'VARCHAR(50)'),
+                    ('active_device_uuid', 'VARCHAR(64)')
                 ]
                 with db.engine.connect() as conn:
                     for c_name, c_type in new_user_cols:
@@ -272,6 +277,79 @@ def create_app(test_config=None):
     # Pastikan direktori uploads untuk logo toko tersedia
     uploads_dir = os.path.join(basedir, 'static', 'uploads')
     os.makedirs(uploads_dir, exist_ok=True)
+
+    # Middleware: Validasi 1 Akun 1 Login Aktif & Inaktivitas 23 Jam
+    @app.before_request
+    def validate_single_session():
+        # Jangan proses jika request asset statis, health check, webhook callback
+        if not request.endpoint or request.endpoint == 'static' or request.path.startswith('/static') or request.path in ['/health', '/api/health'] or request.path.startswith('/callback') or request.path.startswith('/api/callback'):
+            return
+
+        from flask_login import current_user, logout_user
+        from flask import session, jsonify, redirect, flash
+        from datetime import datetime
+        from app.services.session_service import adopt_session_gracefully, is_session_expired_inactivity, log_session_event
+
+        # Hanya proses untuk akun pengguna (bukan Admin panel)
+        if current_user and current_user.is_authenticated and hasattr(current_user, 'current_session_token'):
+            # 1. ADOPSI SESI MULUS (Zero Disruption untuk akun yang sedang login di produksi)
+            if not current_user.current_session_token:
+                adopt_session_gracefully(current_user, request, session)
+                return
+
+            client_token = session.get('session_token')
+            
+            # Jika cookie session belum memiliki token (misal login aktif sebelum update), sinkronkan
+            if not client_token and current_user.current_session_token:
+                session['session_token'] = current_user.current_session_token
+                client_token = current_user.current_session_token
+
+            # 2. CEK KECOCOKAN TOKEN SESI (Apakah sesi telah diputus oleh Admin atau Perangkat Baru)
+            if client_token and client_token != current_user.current_session_token:
+                logout_user()
+                session.pop('session_token', None)
+                if request.is_json or request.path.startswith('/api/') or request.path.startswith('/trx/'):
+                    return jsonify({
+                        'status': 'session_expired',
+                        'message': 'Sesi Anda telah berakhir karena akun telah dipindahkan ke perangkat lain.'
+                    }), 401
+                flash('Sesi Anda telah berakhir karena akun Anda aktif di perangkat lain.', 'warning')
+                return redirect('/profil')
+
+            # 3. CEK KEDALUWARSA INAKTIVITAS 23 JAM
+            if is_session_expired_inactivity(current_user, timeout_hours=23):
+                old_dev = current_user.active_device_name
+                old_ip = current_user.active_device_ip
+                log_session_event(
+                    user_id=current_user.id,
+                    phone=current_user.phone,
+                    event_type='AUTO_EXPIRED',
+                    device_name=old_dev,
+                    ip_address=old_ip,
+                    details='Sesi otomatis kedaluwarsa setelah 23 jam tanpa aktivitas'
+                )
+                current_user.current_session_token = None
+                current_user.last_active_at = None
+                current_user.active_device_uuid = None
+                db.session.commit()
+                logout_user()
+                session.pop('session_token', None)
+                if request.is_json or request.path.startswith('/api/') or request.path.startswith('/trx/'):
+                    return jsonify({
+                        'status': 'session_expired',
+                        'message': 'Sesi Anda telah berakhir setelah 23 jam tidak aktif.'
+                    }), 401
+                flash('Sesi Anda telah berakhir setelah 23 jam tidak aktif. Silakan masuk kembali.', 'info')
+                return redirect('/profil')
+
+            # 4. THROTTLED TIMESTAMP UPDATE (Update last_active_at maksimal 1x per 60 detik)
+            now = datetime.utcnow()
+            if not current_user.last_active_at or (now - current_user.last_active_at).total_seconds() > 60:
+                current_user.last_active_at = now
+                try:
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
 
     # Global Context Processor: Injeksi Pengaturan Toko Dinamis ke Seluruh Template Jinja2
     @app.context_processor

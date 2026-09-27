@@ -300,6 +300,16 @@ def auth_ajax():
 @auth_bp.route('/logout')
 @login_required
 def logout():
+    if current_user and current_user.is_authenticated and hasattr(current_user, 'current_session_token'):
+        from app.services.session_service import log_session_event
+        old_dev = getattr(current_user, 'active_device_name', '-')
+        old_ip = getattr(current_user, 'active_device_ip', '-')
+        log_session_event(current_user.id, current_user.phone, 'LOGOUT', old_dev, old_ip, 'Logout manual oleh pengguna')
+        current_user.current_session_token = None
+        current_user.last_active_at = None
+        current_user.active_device_uuid = None
+        db.session.commit()
+    session.pop('session_token', None)
     logout_user()
     return redirect(url_for('user.dashboard'))
 

@@ -498,6 +498,20 @@
     // ==========================================
     // ALUR LOGIN (2-STEP: KREDENSIAL -> OTP)
     // ==========================================
+    // HELPER IDENTITAS PERANGKAT (DEVICE UUID)
+    // ==========================================
+    function getOrCreateDeviceUUID() {
+        let uuid = localStorage.getItem('gt_device_uuid');
+        if (!uuid) {
+            uuid = 'dev_' + Math.random().toString(36).substring(2, 12) + '_' + Date.now().toString(36);
+            localStorage.setItem('gt_device_uuid', uuid);
+        }
+        return uuid;
+    }
+
+    // ==========================================
+    // ALUR LOGIN (2-STEP: KREDENSIAL -> OTP)
+    // ==========================================
     function handleLoginStep1() {
         const username = document.getElementById('login_username').value.trim();
         const password = document.getElementById('login_password').value.trim();
@@ -514,6 +528,7 @@
         formData.append('action', 'login_step1');
         formData.append('username', username);
         formData.append('password', password);
+        formData.append('device_uuid', getOrCreateDeviceUUID());
 
         fetch('/profil', { method: 'POST', body: formData })
         .then(r => r.json())
@@ -534,6 +549,9 @@
                     timer: 2500,
                     showConfirmButton: false
                 });
+            } else if (data.status === 'device_conflict') {
+                // PENCEGATAN 1 AKUN 1 LOGIN AKTIF (SEBELUM KIRIM OTP)
+                handleDeviceConflict(username, password, data);
             } else if (data.status === 'bot_offline') {
                 activeLoginPhone = data.phone;
                 activeLoginUser = data.name || username;
@@ -578,6 +596,7 @@
         formData.append('action', 'login_step2');
         formData.append('phone', activeLoginPhone);
         formData.append('otp', otp);
+        formData.append('device_uuid', getOrCreateDeviceUUID());
 
         fetch('/profil', { method: 'POST', body: formData })
         .then(r => r.json())
@@ -616,6 +635,234 @@
         document.getElementById('login-step-2').style.display = 'block';
         document.getElementById('login-display-phone').innerText = activeLoginPhone;
         document.getElementById('login_otp_code').focus();
+    }
+
+    // =========================================================================
+    // SISTEM PENCEGATAN 1 AKUN 1 LOGIN AKTIF & GANTI HP DARURAT (MANDIRI)
+    // =========================================================================
+    function handleDeviceConflict(username, password, conflictData) {
+        const csPhone = '{{ (store.whatsapp_group or "628123456789") | replace("https://wa.me/", "") | replace("https://chat.whatsapp.com/", "") | replace("+", "") | replace("-", "") | replace(" ", "") }}';
+        const waMsg = encodeURIComponent(`Halo Admin, akun saya *${username}* (${conflictData.phone || ''}) terdeteksi sedang login aktif di perangkat: ${conflictData.active_device || 'HP Lain'}. Mohon bantuannya untuk Kick Out sesi agar saya bisa login di HP ini.`);
+        const waHelpUrl = `https://wa.me/${csPhone}?text=${waMsg}`;
+
+        Swal.fire({
+            title: 'Akun Sedang Digunakan!',
+            html: `
+                <div style="text-align: left; font-size: 13px; color: #334155; line-height: 1.5;">
+                    <div style="background: #fff1f2; border: 1.5px solid #fecdd3; border-radius: 12px; padding: 12px 14px; margin-bottom: 14px;">
+                        <div style="display: flex; align-items: center; gap: 8px; color: #e11d48; font-weight: 800; font-size: 13.5px; margin-bottom: 4px;">
+                            <i class="fas fa-exclamation-triangle"></i> Kebijakan 1 Akun 1 Login Aktif
+                        </div>
+                        <div style="font-size: 12px; color: #9f1239;">
+                            Demi keamanan saldo transaksi, akun Anda saat ini terdeteksi masih aktif di perangkat lain. Kode OTP belum dikirimkan.
+                        </div>
+                    </div>
+
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; font-size: 12px;">
+                        <div style="color: #64748b; font-size: 11px; font-weight: 700; text-transform: uppercase;">Perangkat Aktif Saat Ini:</div>
+                        <div style="color: #1e293b; font-weight: 800; margin-top: 2px;">
+                            📱 ${conflictData.active_device || 'Perangkat Lain'}
+                        </div>
+                        <div style="color: #64748b; font-size: 11px; margin-top: 4px;">
+                            🕒 Terakhir aktif: <b>${conflictData.last_active || '-'}</b>
+                        </div>
+                    </div>
+
+                    <div style="font-size: 12px; color: #475569; margin-bottom: 6px;">
+                        <b>Solusi & Tindakan:</b>
+                        <ul style="margin: 4px 0 0 0; padding-left: 18px; color: #64748b;">
+                            <li>Buka HP lama Anda dan lakukan <b>Logout</b> terlebih dahulu.</li>
+                            <li>Atau hubungi Admin Toko untuk me-reset sesi login akun.</li>
+                            <li>Atau gunakan <b>Pindahkan ke HP Ini</b> (Verifikasi Darurat).</li>
+                        </ul>
+                    </div>
+                </div>
+            `,
+            icon: 'warning',
+            showCancelButton: true,
+            showDenyButton: true,
+            confirmButtonColor: '#008779',
+            denyButtonColor: '#2563eb',
+            cancelButtonColor: '#94a3b8',
+            confirmButtonText: '<i class="fas fa-random"></i> Pindahkan ke HP Ini (Darurat)',
+            denyButtonText: '<i class="fab fa-whatsapp"></i> Hubungi Admin',
+            cancelButtonText: 'Tutup'
+        }).then((res) => {
+            if (res.isConfirmed) {
+                startEmergencySwitchFlow(username, password, conflictData);
+            } else if (res.isDenied) {
+                window.open(waHelpUrl, '_blank');
+            }
+        });
+    }
+
+    function startEmergencySwitchFlow(username, password, conflictData) {
+        Swal.fire({
+            title: 'Mengirim OTP Darurat...',
+            html: '<p style="font-size: 13px; color: #64748b;">Menghubungkan ke WhatsApp untuk kode pemindahan perangkat...</p>',
+            allowOutsideClick: false,
+            didOpen: () => { Swal.showLoading(); }
+        });
+
+        let fd = new FormData();
+        fd.append('action', 'request_otp_emergency_switch');
+        fd.append('username', username);
+        fd.append('password', password);
+
+        fetch('/profil', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(res => {
+            if (res.status === 'otp_sent') {
+                showEmergencySwitchModal(username, password, res);
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal Mengirim OTP',
+                    text: res.message || 'Gagal mengirimkan kode OTP darurat.'
+                });
+            }
+        })
+        .catch(err => {
+            Swal.fire('Error', 'Gagal menghubungi server.', 'error');
+        });
+    }
+
+    function showEmergencySwitchModal(username, password, resData) {
+        const hasPin = resData.has_pin;
+        const phone = resData.phone;
+        const maskedPhone = resData.masked_phone || phone;
+
+        let secondFieldHtml = '';
+        if (hasPin) {
+            secondFieldHtml = `
+                <div style="margin-top: 14px; text-align: left;">
+                    <label style="font-size: 12px; font-weight: 800; color: #1e293b; display: block; margin-bottom: 4px;">
+                        <i class="fas fa-key" style="color: #10b981;"></i> PIN Transaksi Akun (6 Digit):
+                    </label>
+                    <input type="password" id="emg_pin" pattern="[0-9]*" inputmode="numeric" maxlength="6" placeholder="------" 
+                           style="width: 100%; padding: 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 1.4rem; text-align: center; letter-spacing: 6px; font-weight: 800; outline: none; background: white; box-sizing: border-box;">
+                    <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Wajib memasukkan PIN transaksi kasir yang biasa Anda gunakan.</div>
+                </div>
+            `;
+        } else {
+            secondFieldHtml = `
+                <div style="margin-top: 14px; text-align: left;">
+                    <label style="font-size: 12px; font-weight: 800; color: #1e293b; display: block; margin-bottom: 4px;">
+                        <i class="fas fa-lock" style="color: #f59e0b;"></i> Konfirmasi Kata Sandi Akun:
+                    </label>
+                    <input type="password" id="emg_password" value="${password || ''}" placeholder="Masukkan kata sandi akun" 
+                           style="width: 100%; padding: 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; font-weight: 600; outline: none; background: white; box-sizing: border-box;">
+                    <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Akun belum memiliki PIN transaksi, verifikasi via kata sandi akun.</div>
+                </div>
+            `;
+        }
+
+        Swal.fire({
+            title: 'Verifikasi Ganti HP Darurat',
+            html: `
+                <div style="font-size: 13px; color: #334155; line-height: 1.5;">
+                    <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 10px 12px; margin-bottom: 14px; text-align: left;">
+                        <span style="color: #166534; font-weight: 800;">🔒 Keamanan Ganda (2-Factor):</span>
+                        <div style="font-size: 11.5px; color: #15803d; margin-top: 3px;">
+                            Kode OTP darurat dikirim ke WhatsApp <b>${maskedPhone}</b>.<br>
+                            Setelah verifikasi ini berhasil, HP lama akan langsung <b>ter-logout seketika</b>.
+                        </div>
+                    </div>
+
+                    <div style="text-align: left;">
+                        <label style="font-size: 12px; font-weight: 800; color: #1e293b; display: block; margin-bottom: 4px;">
+                            <i class="fab fa-whatsapp" style="color: #25d366;"></i> Kode OTP WhatsApp (6 Digit):
+                        </label>
+                        <input type="number" id="emg_otp" maxlength="6" placeholder="------" 
+                               style="width: 100%; padding: 12px; border: 2px dashed #008f89; border-radius: 8px; font-size: 1.6rem; text-align: center; letter-spacing: 6px; font-weight: 900; color: #008f89; background: #f0fdfa; outline: none; box-sizing: border-box;">
+                    </div>
+
+                    ${secondFieldHtml}
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonColor: '#008779',
+            cancelButtonColor: '#94a3b8',
+            confirmButtonText: '<i class="fas fa-check-circle"></i> Konfirmasi & Pindahkan Akun',
+            cancelButtonText: 'Batal',
+            preConfirm: () => {
+                const otpVal = document.getElementById('emg_otp').value.trim();
+                if (!otpVal || otpVal.length < 4) {
+                    Swal.showValidationMessage('Masukkan 6 digit kode OTP darurat!');
+                    return false;
+                }
+                let pinVal = '';
+                let passVal = '';
+                if (hasPin) {
+                    pinVal = document.getElementById('emg_pin').value.trim();
+                    if (!pinVal || pinVal.length < 6) {
+                        Swal.showValidationMessage('PIN Transaksi 6 digit wajib diisi!');
+                        return false;
+                    }
+                } else {
+                    passVal = document.getElementById('emg_password').value.trim();
+                    if (!passVal) {
+                        Swal.showValidationMessage('Konfirmasi kata sandi wajib diisi!');
+                        return false;
+                    }
+                }
+                return { otp: otpVal, pin: pinVal, pass: passVal };
+            }
+        }).then((modalRes) => {
+            if (modalRes.isConfirmed) {
+                const { otp, pin, pass } = modalRes.value;
+                executeEmergencySwitch(phone, otp, pin, pass || password);
+            }
+        });
+    }
+
+    function executeEmergencySwitch(phone, otp, pin, password) {
+        Swal.fire({
+            title: 'Memproses Pemindahan...',
+            html: '<p style="font-size: 13px; color: #64748b;">Memverifikasi kredensial dan memutus sesi HP sebelumnya...</p>',
+            allowOutsideClick: false,
+            didOpen: () => { Swal.showLoading(); }
+        });
+
+        let fd = new FormData();
+        fd.append('action', 'emergency_switch_device');
+        fd.append('phone', phone);
+        fd.append('otp', otp);
+        if (pin) fd.append('pin', pin);
+        if (password) fd.append('password', password);
+        fd.append('device_uuid', getOrCreateDeviceUUID());
+
+        fetch('/profil', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'success') {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil Pindah Perangkat!',
+                    html: `
+                        <div style="font-size: 13px; color: #334155; line-height: 1.5;">
+                            <b>${data.message || 'Sesi akun berhasil dipindahkan ke perangkat ini!'}</b><br><br>
+                            <span style="font-size: 12px; color: #059669;">
+                                HP sebelumnya telah berhasil di-logout secara otomatis.
+                            </span>
+                        </div>
+                    `,
+                    timer: 2000,
+                    showConfirmButton: false
+                }).then(() => {
+                    window.location.reload();
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal Pindah Perangkat',
+                    text: data.message || 'Verifikasi gagal. Pastikan OTP dan PIN/Password benar.'
+                });
+            }
+        })
+        .catch(err => {
+            Swal.fire('Error', 'Gagal memproses ke server.', 'error');
+        });
     }
 
     // ==========================================

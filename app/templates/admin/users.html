@@ -243,9 +243,14 @@
         <i class="fas fa-users-cog"></i>
         User Center
     </div>
-    <a href="{{ url_for('admin.tier_settings') }}" style="font-size: 12px; background: #fef3c7; color: #b45309; padding: 6px 14px; border-radius: 8px; text-decoration: none; font-weight: 800; display: inline-flex; align-items: center; gap: 6px;">
-        <i class="fas fa-crown"></i> Pengaturan Tier & Downline
-    </a>
+    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <a href="{{ url_for('admin.device_logs') }}" style="font-size: 12px; background: #ede9fe; color: #6d28d9; padding: 6px 14px; border-radius: 8px; text-decoration: none; font-weight: 800; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #ddd6fe;">
+            <i class="fas fa-mobile-alt"></i> Riwayat Sesi Perangkat
+        </a>
+        <a href="{{ url_for('admin.tier_settings') }}" style="font-size: 12px; background: #fef3c7; color: #b45309; padding: 6px 14px; border-radius: 8px; text-decoration: none; font-weight: 800; display: inline-flex; align-items: center; gap: 6px;">
+            <i class="fas fa-crown"></i> Pengaturan Tier & Downline
+        </a>
+    </div>
 </div>
 
 <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));">
@@ -520,14 +525,41 @@
                         </span>
                     </td>
                     <td style="padding: 14px 8px;">
-                        {% if u.is_active %}
-                            <span style="background: #ecfdf5; color: #10b981; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 900; letter-spacing: 0.5px;">AKTIF</span>
-                        {% else %}
-                            <span style="background: #fef2f2; color: #ef4444; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 900; letter-spacing: 0.5px;">DIBLOKIR</span>
-                        {% endif %}
+                        <div style="margin-bottom: 6px;">
+                            {% if u.is_active %}
+                                <span style="background: #ecfdf5; color: #10b981; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 900; letter-spacing: 0.5px;">AKTIF</span>
+                            {% else %}
+                                <span style="background: #fef2f2; color: #ef4444; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 900; letter-spacing: 0.5px;">DIBLOKIR</span>
+                            {% endif %}
+                        </div>
+                        <div>
+                            {% if u.is_session_active(23) %}
+                                <span title="Login Aktif: {{ u.active_device_name or 'Perangkat' }} (Aktif terakhir: {{ u.last_active_at_wib.strftime('%d/%m %H:%M') if u.last_active_at else '-' }})" 
+                                      style="background: #e0f2fe; color: #0284c7; padding: 3px 6px; border-radius: 6px; font-size: 10px; font-weight: 800; display: inline-flex; align-items: center; gap: 4px;">
+                                    <span style="width: 6px; height: 6px; border-radius: 50%; background: #0284c7; display: inline-block;"></span>
+                                    1 Login Aktif
+                                </span>
+                                <div style="font-size: 9px; color: #64748b; margin-top: 2px; max-width: 105px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ u.active_device_name or '-' }}">
+                                    {{ u.active_device_name or '-' }}
+                                </div>
+                            {% else %}
+                                <span style="background: #f1f5f9; color: #64748b; padding: 3px 6px; border-radius: 6px; font-size: 10px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
+                                    <span style="width: 6px; height: 6px; border-radius: 50%; background: #94a3b8; display: inline-block;"></span>
+                                    Bebas Login
+                                </span>
+                            {% endif %}
+                        </div>
                     </td>
                     <td style="padding: 14px 8px; text-align: right;">
                         <div style="display: inline-flex; gap: 6px; align-items: center; justify-content: flex-end;">
+                            {% if u.is_session_active(23) %}
+                            <button type="button" 
+                                    onclick="kickoutUser('{{ u.id }}', '{{ u.name|replace('\'', '\\\'') }}', '{{ (u.active_device_name or 'Perangkat Aktif')|replace('\'', '\\\'') }}')"
+                                    title="Kick Out / Putuskan Sesi Perangkat Ini"
+                                    style="background: #fff1f2; color: #e11d48; border: 1px solid #fecdd3; padding: 6px 10px; border-radius: 8px; font-weight: 800; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; transition: 0.2s;">
+                                <i class="fas fa-sign-out-alt"></i> Kick
+                            </button>
+                            {% endif %}
                             <a href="{{ url_for('admin.transactions', store_id=u.id) }}" 
                                title="Lihat Riwayat & Analisa Transaksi Toko Ini"
                                style="background: #f0f9ff; color: #0369a1; border: 1px solid #bae6fd; padding: 6px 10px; border-radius: 8px; font-weight: 800; font-size: 11px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; transition: 0.2s;">
@@ -869,6 +901,82 @@
 
             btn.style.background = '#EF4444';
             btn.innerHTML = '<i class="fas fa-minus-circle"></i> Eksekusi Potong Saldo';
+        }
+    }
+
+    function kickoutUser(userId, userName, deviceName) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: 'Kick Out Perangkat?',
+                html: `Apakah Anda yakin ingin memutuskan sesi login untuk toko <b>${userName}</b>?<br><br><div style="background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 12px; color: #475569; text-align: left;">📱 Perangkat aktif: <b>${deviceName}</b></div><br><span style="font-size: 12px; color: #e11d48; font-weight: 700;">Pengguna akan langsung ter-logout seketika dan akun bebas login kembali.</span>`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#e11d48',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: '<i class="fas fa-sign-out-alt"></i> Ya, Kick Out!',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'Memproses...',
+                        allowOutsideClick: false,
+                        didOpen: () => { Swal.showLoading(); }
+                    });
+
+                    fetch(`/admin/users/${userId}/kickout`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Berhasil!',
+                                text: data.message || 'Sesi login berhasil diputus.',
+                                timer: 1500,
+                                showConfirmButton: false
+                            }).then(() => {
+                                location.reload();
+                            });
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Gagal',
+                                text: data.message || 'Gagal memutuskan sesi pengguna.'
+                            });
+                        }
+                    })
+                    .catch(err => {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error Jaringan',
+                            text: 'Terjadi kesalahan sistem saat menghubungi server.'
+                        });
+                    });
+                }
+            });
+        } else {
+            if (confirm(`Kick Out perangkat untuk ${userName}? Sesi login akan langsung diputus.`)) {
+                fetch(`/admin/users/${userId}/kickout`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    alert(data.message || 'Sesi login berhasil diputus.');
+                    location.reload();
+                })
+                .catch(err => {
+                    alert('Gagal menghubungi server.');
+                });
+            }
         }
     }
 </script>

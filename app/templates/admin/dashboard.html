@@ -92,6 +92,7 @@
             <a href="{{ url_for('admin.tickets') }}" class="menu-item {% if request.endpoint == 'admin.tickets' %}active{% endif %}"><i class="fas fa-headset" style="color: #0284c7;"></i><span>Tiket CS</span></a>
             <a href="{{ url_for('admin.reports') }}" class="menu-item {% if request.endpoint == 'admin.reports' %}active{% endif %}"><i class="fas fa-chart-line"></i><span>Laporan</span></a>
             <a href="{{ url_for('admin.store_settings') }}" class="menu-item {% if request.endpoint == 'admin.store_settings' %}active{% endif %}"><i class="fas fa-store" style="color: #0d9488;"></i><span>Profil Toko</span></a>
+            <a href="{{ url_for('admin.device_logs') }}" class="menu-item {% if request.endpoint == 'admin.device_logs' %}active{% endif %}"><i class="fas fa-mobile-alt" style="color: #7c3aed;"></i><span>Sesi & Device</span></a>
         </div>
 
         <div class="section-header"><i class="fas fa-plug"></i> Konfigurasi API & Gateway</div>

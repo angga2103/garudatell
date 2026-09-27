@@ -25,11 +25,32 @@ class User(db.Model, UserMixin):
     # Proteksi Kasir & Kunci Perangkat (Eksklusif VIP)
     is_device_lock_enabled = db.Column(db.Boolean, default=False)
 
+    # 1 Akun 1 Login Aktif (Single Active Session & Anti-Dual Login)
+    current_session_token = db.Column(db.String(64), nullable=True, index=True)
+    last_active_at = db.Column(db.DateTime, nullable=True)
+    active_device_name = db.Column(db.String(150), nullable=True)
+    active_device_ip = db.Column(db.String(50), nullable=True)
+    active_device_uuid = db.Column(db.String(64), nullable=True)
+
     # Relasi Self-Referential Downlines
     downlines = db.relationship('User', backref=db.backref('upline', remote_side=[id]), lazy='dynamic')
     
     # Relasi Perangkat Kasir Terpercaya
     trusted_devices = db.relationship('TrustedDevice', backref='owner', lazy='dynamic', cascade='all, delete-orphan')
+
+    def is_session_active(self, timeout_hours=23):
+        """Memeriksa apakah sesi akun sedang aktif dalam batas inaktivitas (default 23 jam)."""
+        if not self.current_session_token or not self.last_active_at:
+            return False
+        delta = datetime.utcnow() - self.last_active_at
+        return delta.total_seconds() < timeout_hours * 3600
+
+    @property
+    def last_active_at_wib(self):
+        if self.last_active_at:
+            wib = self.last_active_at + timedelta(hours=7)
+            return wib.strftime('%d-%m-%Y %H:%M WIB')
+        return '-'
 
     def set_password(self, password):
         from werkzeug.security import generate_password_hash
@@ -40,6 +61,19 @@ class User(db.Model, UserMixin):
         if not self.password_hash:
             return False
         return check_password_hash(self.password_hash, password)
+
+    def set_pin(self, pin):
+        from werkzeug.security import generate_password_hash
+        if pin:
+            self.pin_hash = generate_password_hash(str(pin).strip())
+        else:
+            self.pin_hash = None
+
+    def check_pin(self, pin):
+        from werkzeug.security import check_password_hash
+        if not self.pin_hash:
+            return False
+        return check_password_hash(self.pin_hash, str(pin).strip())
 
     def is_vip_active(self):
         """Memeriksa apakah akun berstatus VIP dan masa aktif masih berlaku."""
