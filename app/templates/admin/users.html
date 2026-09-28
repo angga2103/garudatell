@@ -534,7 +534,7 @@
                         </div>
                         <div>
                             {% if u.is_session_active(23) %}
-                                <span title="Login Aktif: {{ u.active_device_name or 'Perangkat' }} (Aktif terakhir: {{ u.last_active_at_wib.strftime('%d/%m %H:%M') if u.last_active_at else '-' }})" 
+                                <span title="Login Aktif: {{ u.active_device_name or 'Perangkat' }} (Aktif terakhir: {{ u.last_active_at_wib }})" 
                                       style="background: #e0f2fe; color: #0284c7; padding: 3px 6px; border-radius: 6px; font-size: 10px; font-weight: 800; display: inline-flex; align-items: center; gap: 4px;">
                                     <span style="width: 6px; height: 6px; border-radius: 50%; background: #0284c7; display: inline-block;"></span>
                                     1 Login Aktif

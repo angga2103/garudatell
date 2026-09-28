@@ -2777,3 +2777,122 @@ def syarat_ketentuan():
     """Halaman resmi Syarat & Ketentuan Layanan (Terms of Service) dan Pelepasan Tanggung Jawab Hukum."""
     return render_template('legal/syarat_ketentuan.html')
 
+
+# ==========================================
+# REST API RESMI UNTUK MOBILE APP NATIVE (FLUTTER)
+# ==========================================
+@user_bp.route('/api/user/info', methods=['GET'])
+@csrf.exempt
+def api_user_info():
+    """Mengembalikan informasi profil, saldo, dan status sesi pengguna terautentikasi."""
+    from app.services.setting_service import get_store_name
+    if not current_user.is_authenticated:
+        return jsonify({
+            'status': 'unauthenticated',
+            'is_authenticated': False,
+            'message': 'Sesi belum terautentikasi',
+            'store_name': get_store_name()
+        }), 200
+
+    return jsonify({
+        'status': 'success',
+        'is_authenticated': True,
+        'user': {
+            'id': current_user.id,
+            'name': current_user.name,
+            'phone': current_user.phone,
+            'balance': float(current_user.balance or 0.0),
+            'points': int(getattr(current_user, 'points', 0) or 0),
+            'role': current_user.role,
+            'is_vip': current_user.is_vip_active() if hasattr(current_user, 'is_vip_active') else False,
+            'store_name': get_store_name(),
+            'active_device_name': getattr(current_user, 'active_device_name', None),
+            'last_active_at': current_user.last_active_at.isoformat() if getattr(current_user, 'last_active_at', None) else None
+        }
+    }), 200
+
+
+@user_bp.route('/api/products/<path:nama_kategori>', methods=['GET'])
+@csrf.exempt
+def api_get_products_by_category(nama_kategori):
+    """
+    Mengembalikan daftar produk siap transaksi dalam format JSON murni untuk aplikasi mobile.
+    Menggunakan harga tier dinamis (Member/Reseller/VIP) dan validasi cut-off PLN.
+    """
+    kat = nama_kategori.lower().strip()
+    from app.services.setting_service import is_vip_reseller_enabled
+    from app.services.digiflazz import is_pln_cutoff_time
+    from sqlalchemy import or_
+
+    vip_enabled = is_vip_reseller_enabled()
+    is_cutoff = False
+    title = nama_kategori.upper()
+    db_products = []
+    produk_final = []
+
+    if kat == 'pulsa':
+        q_pulsa = Product.query.filter(Product.category.ilike('%pulsa%'))
+        if not vip_enabled:
+            q_pulsa = q_pulsa.filter(~Product.brand.ilike('VIP-%'), ~Product.name.ilike('%[VIP]%'))
+        db_products = q_pulsa.order_by(Product.is_active.desc(), Product.sell_price.asc()).all()
+        for prod in db_products:
+            brand_clean = (prod.brand or '').replace('VIP-', '').strip().upper()
+            if brand_clean == 'BY.U': brand_clean = 'BYU'
+            produk_final.append(format_product_dict(prod, current_user, provider_tag=brand_clean))
+
+    elif kat in ['data', 'paket-data']:
+        keywords = ['data', 'kuota', 'paket', 'internet', 'inject', 'internetmax']
+        filters = [Product.category.ilike(f'%{kw}%') for kw in keywords]
+        q_data = Product.query.filter(or_(*filters))
+        if not vip_enabled:
+            q_data = q_data.filter(~Product.brand.ilike('VIP-%'), ~Product.name.ilike('%[VIP]%'))
+        db_products = q_data.order_by(Product.is_active.desc(), Product.sell_price.asc()).all()
+        for prod in db_products:
+            brand_clean = (prod.brand or '').replace('VIP-', '').strip().upper()
+            if brand_clean == 'BY.U': brand_clean = 'BYU'
+            produk_final.append(format_product_dict(prod, current_user, provider_tag=brand_clean))
+
+    elif kat in ['pln', 'token-pln', 'listrik']:
+        title = 'TOKEN & TAGIHAN PLN'
+        is_cutoff = is_pln_cutoff_time()
+        q_pln = Product.query.filter(Product.category.ilike('%pln%'))
+        if not vip_enabled:
+            q_pln = q_pln.filter(~Product.brand.ilike('VIP-%'), ~Product.name.ilike('%[VIP]%'))
+        db_products = q_pln.order_by(Product.is_active.desc(), Product.sell_price.asc()).all()
+        for prod in db_products:
+            brand_clean = (prod.brand or '').replace('VIP-', '').strip().upper()
+            is_pasca = 'PASCA' in (prod.name or '').upper() or 'NONTAGLIS' in (prod.name or '').upper() or 'PASCA' in brand_clean
+            kategori_tag = 'PASCABAYAR' if is_pasca else 'PRABAYAR'
+            produk_final.append(format_product_dict(prod, current_user, provider_tag=kategori_tag, extra={'brand': brand_clean, 'is_pasca': is_pasca}))
+
+    elif kat in ['emoney', 'e-money', 'wallet']:
+        title = 'E-MONEY'
+        q_emoney = Product.query.filter(or_(Product.category.ilike('%emoney%'), Product.category.ilike('%e-money%'), Product.category.ilike('%wallet%')))
+        if not vip_enabled:
+            q_emoney = q_emoney.filter(~Product.brand.ilike('VIP-%'), ~Product.name.ilike('%[VIP]%'))
+        db_products = q_emoney.order_by(Product.is_active.desc(), Product.sell_price.asc()).all()
+        for prod in db_products:
+            brand_clean = (prod.brand or '').replace('VIP-', '').strip().upper()
+            produk_final.append(format_product_dict(prod, current_user, provider_tag=brand_clean))
+
+    else:
+        # Fallback pencarian umum
+        q_gen = Product.query.filter(or_(Product.category.ilike(f'%{kat}%'), Product.brand.ilike(f'%{kat}%')))
+        if not vip_enabled:
+            q_gen = q_gen.filter(~Product.brand.ilike('VIP-%'), ~Product.name.ilike('%[VIP]%'))
+        db_products = q_gen.order_by(Product.is_active.desc(), Product.sell_price.asc()).all()
+        for prod in db_products:
+            brand_clean = (prod.brand or '').replace('VIP-', '').strip().upper()
+            produk_final.append(format_product_dict(prod, current_user, provider_tag=brand_clean))
+
+    return jsonify({
+        'status': 'success',
+        'category': nama_kategori,
+        'title': title,
+        'is_cutoff': is_cutoff,
+        'cutoff_message': 'Biller pusat PLN sedang dalam jadwal pemeliharaan harian (cut off 23:30 - 01:00 WIB). Transaksi PLN dihentikan sementara.' if is_cutoff else None,
+        'total': len(produk_final),
+        'products': produk_final
+    }), 200
+
+
