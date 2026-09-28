@@ -38,9 +38,11 @@ from app import create_app
 from app.services.telegram_service import (
     get_bot_admin_credentials,
     get_bot_notif_credentials,
+    get_bot_cs_credentials,
     handle_admin_callback,
     handle_admin_message,
-    handle_notif_callback
+    handle_notif_callback,
+    handle_cs_bot_update
 )
 
 # Flag stop global
@@ -107,12 +109,58 @@ def poll_bot_notif_worker(app, token, allowed_chat):
     logger.info("🔴 [Bot 2 Notif] Listener Worker dihentikan.")
 
 
+def poll_bot_cs_worker(app, token, allowed_chat):
+    """
+    Worker thread khusus untuk Bot 1 : CS & Balas Inbox.
+    Mendengarkan balasan manual dari admin Telegram dan meneruskannya ke web pengguna.
+    """
+    logger.info(f"🟢 [Bot 1 CS] Listener Balasan aktif untuk Bot 1 (Token: ...{token[-6:]})")
+    offset = 0
+    poll_url = f"https://api.telegram.org/bot{token}/getUpdates"
+
+    while running:
+        try:
+            params = {
+                'offset': offset,
+                'timeout': 20,
+                'allowed_updates': ['message', 'callback_query']
+            }
+            resp = requests.get(poll_url, params=params, timeout=30)
+            if resp.status_code != 200:
+                time.sleep(3)
+                continue
+
+            data = resp.json()
+            if not data.get('ok'):
+                time.sleep(3)
+                continue
+
+            updates = data.get('result', [])
+            for update in updates:
+                offset = update['update_id'] + 1
+                try:
+                    handle_cs_bot_update(app, update, token)
+                except Exception as err:
+                    logger.error(f"[Bot 1 CS] Error handle update: {err}")
+
+        except requests.exceptions.Timeout:
+            continue
+        except requests.exceptions.RequestException:
+            time.sleep(3)
+        except Exception as e:
+            logger.error(f"[Bot 1 CS] Polling error: {e}")
+            time.sleep(3)
+
+    logger.info("🔴 [Bot 1 CS] Listener Worker dihentikan.")
+
+
 def main():
     admin_token, admin_chat = get_bot_admin_credentials()
     notif_token, notif_chat = get_bot_notif_credentials()
+    cs_token, cs_chat = get_bot_cs_credentials()
 
-    if not admin_token and not notif_token:
-        logger.error("BOT_ADMIN_TOKEN atau BOT_NOTIF_TOKEN belum diatur di .env! Bot tidak dapat dijalankan.")
+    if not admin_token and not notif_token and not cs_token:
+        logger.error("Token bot Telegram belum diatur di .env! Bot tidak dapat dijalankan.")
         sys.exit(1)
 
     logger.info("=======================================================")
@@ -122,8 +170,19 @@ def main():
 
     app = create_app()
 
-    # Jalankan Bot 2 Notif Listener di thread terpisah jika token berbeda
-    if notif_token and notif_token != admin_token:
+    # 1. Jalankan Bot 1 CS Listener di thread terpisah jika token ada
+    if cs_token:
+        cs_thread = threading.Thread(
+            target=poll_bot_cs_worker,
+            args=(app, cs_token, cs_chat),
+            daemon=True,
+            name="BotCSWorker"
+        )
+        cs_thread.start()
+        logger.info(f"🚀 [Bot 1 CS] Bot 1 CS Listener aktif (Token: ...{cs_token[-6:]})")
+
+    # 2. Jalankan Bot 2 Notif Listener di thread terpisah jika token berbeda
+    if notif_token and notif_token != admin_token and notif_token != cs_token:
         notif_thread = threading.Thread(
             target=poll_bot_notif_worker,
             args=(app, notif_token, notif_chat),
@@ -132,10 +191,10 @@ def main():
         )
         notif_thread.start()
     else:
-        logger.info("[Bot Daemon] Bot 2 dan Bot 3 menggunakan token yang sama atau Bot 2 tidak diatur terpisah.")
+        logger.info("[Bot Daemon] Bot 2 menggunakan token yang sama dengan Bot 3 atau tidak diatur terpisah.")
 
     if not admin_token:
-        logger.info("[Bot Daemon] BOT_ADMIN_TOKEN tidak diatur. Hanya menjalankan Bot 2 listener.")
+        logger.info("[Bot Daemon] BOT_ADMIN_TOKEN tidak diatur. Hanya menjalankan Bot CS/Notif listener.")
         while running:
             time.sleep(1)
         return

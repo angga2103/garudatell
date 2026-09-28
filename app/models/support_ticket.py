@@ -16,8 +16,11 @@ class SupportTicket(db.Model):
     status = db.Column(db.String(20), default='OPEN')  # 'OPEN', 'PROCESS', 'RESOLVED', 'CLOSED'
     telegram_sent = db.Column(db.Boolean, default=False)
     telegram_response = db.Column(db.Text, nullable=True)
-    cs_reply = db.Column(db.Text, nullable=True)
+    cs_reply = db.Column(db.Text, nullable=True)  # Balasan formalitas awal otomatis
     cs_replied_at = db.Column(db.DateTime, nullable=True)
+    admin_reply = db.Column(db.Text, nullable=True)  # Balasan resmi manual Admin via Telegram
+    admin_replied_at = db.Column(db.DateTime, nullable=True)
+    admin_name = db.Column(db.String(100), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -42,6 +45,13 @@ class SupportTicket(db.Model):
     def cs_replied_at_wib(self):
         if self.cs_replied_at:
             wib = self.cs_replied_at + timedelta(hours=7)
+            return wib.strftime("%d %b %Y, %H:%M WIB")
+        return "-"
+
+    @property
+    def admin_replied_at_wib(self):
+        if self.admin_replied_at:
+            wib = self.admin_replied_at + timedelta(hours=7)
             return wib.strftime("%d %b %Y, %H:%M WIB")
         return "-"
 

@@ -102,6 +102,12 @@ def create_app(test_config=None):
                     db.session.execute(text('ALTER TABLE support_tickets ADD COLUMN cs_reply TEXT'))
                 if 'cs_replied_at' not in existing_cols:
                     db.session.execute(text('ALTER TABLE support_tickets ADD COLUMN cs_replied_at DATETIME'))
+                if 'admin_reply' not in existing_cols:
+                    db.session.execute(text('ALTER TABLE support_tickets ADD COLUMN admin_reply TEXT'))
+                if 'admin_replied_at' not in existing_cols:
+                    db.session.execute(text('ALTER TABLE support_tickets ADD COLUMN admin_replied_at DATETIME'))
+                if 'admin_name' not in existing_cols:
+                    db.session.execute(text('ALTER TABLE support_tickets ADD COLUMN admin_name VARCHAR(100)'))
                 db.session.commit()
         except Exception:
             pass

@@ -131,30 +131,40 @@
     .btn-submit-ticket:hover { opacity: 0.95; }
     .btn-submit-ticket:active { transform: scale(0.98); }
 
-    .wa-direct-box {
+    .chat-bubble-user {
+        align-self: flex-end;
+        max-width: 88%;
+        background: #f1f5f9;
+        border: 1px solid #cbd5e1;
+        border-radius: 14px 14px 2px 14px;
+        padding: 10px 14px;
+    }
+    .chat-bubble-bot {
+        align-self: flex-start;
+        max-width: 88%;
+        background: #f0fdfa;
+        border: 1.5px solid #99f6e4;
+        border-radius: 14px 14px 14px 2px;
+        padding: 10px 14px;
+    }
+    .chat-bubble-admin {
+        align-self: flex-start;
+        max-width: 92%;
         background: #f0fdf4;
-        border: 1px solid #bbf7d0;
-        border-radius: 18px;
-        padding: 18px;
-        text-align: center;
-        margin-bottom: 25px;
+        border: 2px solid #86efac;
+        border-left: 5px solid #16a34a;
+        border-radius: 14px 14px 14px 2px;
+        padding: 12px 14px;
+        box-shadow: 0 2px 10px rgba(34,197,94,0.08);
     }
-    .btn-wa-direct {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        background: #22c55e;
-        color: white;
-        text-decoration: none;
-        padding: 11px 22px;
-        border-radius: 12px;
-        font-size: 12px;
-        font-weight: 800;
-        margin-top: 10px;
-        box-shadow: 0 4px 12px rgba(34,197,94,0.3);
-        transition: 0.15s;
+    .chat-bubble-pending {
+        align-self: flex-start;
+        max-width: 90%;
+        background: #fffbeb;
+        border: 1.5px dashed #fcd34d;
+        border-radius: 14px;
+        padding: 12px 14px;
     }
-    .btn-wa-direct:hover { background: #16a34a; color: white; }
 
     @keyframes typingBlink {
         0%, 80%, 100% { transform: scale(0.6); opacity: 0.3; }
@@ -354,72 +364,245 @@
         </form>
     </div>
 
-    <!-- RIWAYAT TIKET & BALASAN CS SAYA -->
+    <!-- RIWAYAT TIKET & BALASAN CS SAYA (2 ARAH TELEGRAM BOT <-> WEB) -->
     <div class="ticket-card" id="section-riwayat-tiket">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
             <h3 style="font-size: 15px; font-weight: 800; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 8px;">
-                <i class="fas fa-history" style="color: #0284c7;"></i>
-                <span>Riwayat Tiket & Balasan CS Saya</span>
+                <i class="fas fa-comments" style="color: #0284c7;"></i>
+                <span>Pusat Komplain & Balasan CS (2 Arah)</span>
             </h3>
             {% if user_tickets %}
             <span style="font-size: 11px; font-weight: 800; background: #e0f2fe; color: #0284c7; padding: 4px 10px; border-radius: 12px;">
-                {{ user_tickets|length }} Tiket
+                {{ user_tickets|length }} Tiket Anda
             </span>
             {% endif %}
         </div>
 
+        <!-- FORM CARI / LACAK NOMOR TIKET -->
+        <form method="GET" action="/bantuan#section-riwayat-tiket" style="display: flex; gap: 8px; margin-bottom: 16px;">
+            <input type="text" name="cari_tiket" placeholder="Lacak tiket, misal: CS-20260928-1234" value="{{ search_ticket or '' }}" class="form-control-custom" style="padding: 10px 14px; font-size: 12px;">
+            <button type="submit" style="background: #0284c7; color: white; border: none; border-radius: 12px; padding: 0 16px; font-size: 12px; font-weight: 800; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;">
+                <i class="fas fa-search"></i> <span>Lacak</span>
+            </button>
+            {% if search_ticket %}
+            <a href="/bantuan#section-riwayat-tiket" style="background: #e2e8f0; color: #475569; border-radius: 12px; padding: 10px 14px; font-size: 12px; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center;">Reset</a>
+            {% endif %}
+        </form>
+
+        <!-- JIKA ADA HASIL PENCARIAN TIKET TERTENTU -->
+        {% if tracked_ticket %}
+        <div style="background: #eff6ff; border: 2px solid #3b82f6; border-radius: 16px; padding: 16px; margin-bottom: 20px;">
+            <div style="font-size: 12px; font-weight: 800; color: #1d4ed8; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+                <span><i class="fas fa-bullseye mr-1"></i> Hasil Pelacakan Tiket: #{{ tracked_ticket.ticket_number }}</span>
+                <span style="font-size: 10.5px; background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 8px;">Ditemukan</span>
+            </div>
+
+            <!-- Kartu Tiket Pelacakan -->
+            <div style="border: 1.5px solid #bfdbfe; border-radius: 14px; padding: 14px; background: #ffffff;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 6px;">
+                    <div>
+                        <span style="font-weight: 800; font-size: 13.5px; color: #0284c7;">#{{ tracked_ticket.ticket_number }}</span>
+                        <span style="font-size: 11px; color: #64748b; margin-left: 6px;"><i class="far fa-clock"></i> {{ tracked_ticket.created_at_wib }}</span>
+                    </div>
+                    <div>
+                        {% if tracked_ticket.status == 'OPEN' %}
+                        <span style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; font-size: 10.5px; font-weight: 800; padding: 3px 10px; border-radius: 8px;"><i class="fas fa-clock mr-1"></i> MENUNGGU CS</span>
+                        {% elif tracked_ticket.status == 'PROCESS' %}
+                        <span style="background: #fef3c7; color: #b45309; border: 1px solid #fde68a; font-size: 10.5px; font-weight: 800; padding: 3px 10px; border-radius: 8px;"><i class="fas fa-spinner fa-spin mr-1"></i> DIPROSES CS</span>
+                        {% elif tracked_ticket.status == 'RESOLVED' %}
+                        <span style="background: #dcfce7; color: #15803d; border: 1px solid #86efac; font-size: 10.5px; font-weight: 800; padding: 3px 10px; border-radius: 8px;"><i class="fas fa-check-circle mr-1"></i> SELESAI</span>
+                        {% else %}
+                        <span style="background: #f1f5f9; color: #64748b; font-size: 10.5px; font-weight: 800; padding: 3px 10px; border-radius: 8px;">{{ tracked_ticket.status }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% if tracked_ticket.transaction %}
+                <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 10px 14px; margin-bottom: 12px;">
+                    <div style="font-size: 11px; font-weight: 800; color: #475569; margin-bottom: 4px; display: flex; justify-content: space-between;">
+                        <span><i class="fas fa-box text-sky-600 mr-1"></i> Produk Komplain:</span>
+                        <span>Ref: <code>{{ tracked_ticket.transaction.ref_id }}</code></span>
+                    </div>
+                    <div style="font-size: 13px; font-weight: 800; color: #0f172a;">{{ tracked_ticket.transaction.product_name or 'Produk' }}</div>
+                    <div style="font-size: 11.5px; color: #64748b; margin-top: 2px;">
+                        Tujuan / Meter: <code>{{ tracked_ticket.transaction.target_number or '-' }}</code> • Rp {{ "{:,.0f}".format(tracked_ticket.transaction.amount or 0) }}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Percakapan 2 Arah -->
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <!-- 1. Pesan User -->
+                    <div class="chat-bubble-user">
+                        <div style="font-size: 10.5px; font-weight: 700; color: #64748b; margin-bottom: 3px; display: flex; justify-content: space-between;">
+                            <span><i class="fas fa-user mr-1"></i> Pelapor ({{ tracked_ticket.user_name }})</span>
+                            <span>{{ tracked_ticket.created_at_wib }}</span>
+                        </div>
+                        <div style="font-size: 12.5px; color: #1e293b; font-weight: 600;">"{{ tracked_ticket.message }}"</div>
+                    </div>
+
+                    <!-- 2. Balasan Otomatis Formalitas -->
+                    {% if tracked_ticket.cs_reply %}
+                    <div class="chat-bubble-bot">
+                        <div style="font-size: 10.5px; font-weight: 800; color: #0d9488; margin-bottom: 3px; display: flex; justify-content: space-between;">
+                            <span><i class="fas fa-robot mr-1"></i> Bot 1 CS (Respon Otomatis Sistem)</span>
+                            <span>{{ tracked_ticket.cs_replied_at_wib }}</span>
+                        </div>
+                        <div style="font-size: 12.5px; color: #134e4a; font-weight: 600;">"{{ tracked_ticket.cs_reply }}"</div>
+                    </div>
+                    {% endif %}
+
+                    <!-- 3. Balasan Manual Admin dari Telegram -->
+                    {% if tracked_ticket.admin_reply %}
+                    <div class="chat-bubble-admin">
+                        <div style="font-size: 11px; font-weight: 800; color: #15803d; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center;">
+                            <span><i class="fas fa-headset mr-1"></i> {{ tracked_ticket.admin_name or 'Admin Customer Service' }} (via Telegram Bot)</span>
+                            <span style="font-size: 10px; color: #16a34a; font-weight: 700;">{{ tracked_ticket.admin_replied_at_wib }}</span>
+                        </div>
+                        <div style="font-size: 13px; color: #14532d; line-height: 1.5; font-weight: 700; white-space: pre-line;">{{ tracked_ticket.admin_reply }}</div>
+                        <div style="margin-top: 6px; font-size: 10px; font-weight: 800; color: #16a34a;"><i class="fas fa-check-double"></i> Balasan Resmi CS Terverifikasi</div>
+                    </div>
+                    {% else %}
+                    <div class="chat-bubble-pending" id="pending-ticket-{{ tracked_ticket.ticket_number }}" data-ticket="{{ tracked_ticket.ticket_number }}">
+                        <div style="display: flex; gap: 10px; align-items: flex-start;">
+                            <i class="fas fa-hourglass-half fa-spin" style="font-size: 18px; color: #d97706; margin-top: 2px;"></i>
+                            <div style="flex: 1;">
+                                <div style="font-size: 11.5px; font-weight: 800; color: #92400e;">Sedang Ditangani Admin di Telegram</div>
+                                <div style="font-size: 11px; color: #78350f; margin-top: 2px;">Keluhan telah masuk ke Telegram CS. Balasan manual admin akan otomatis muncul di sini.</div>
+                                <button type="button" onclick="checkTicketStatus('{{ tracked_ticket.ticket_number }}')" style="background: white; border: 1px solid #f59e0b; color: #b45309; padding: 4px 10px; border-radius: 8px; font-size: 10.5px; font-weight: 800; margin-top: 6px; cursor: pointer;">
+                                    <i class="fas fa-sync-alt"></i> Cek Pembaruan
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% elif search_ticket and not tracked_ticket %}
+        <div style="background: #fee2e2; border: 1.5px solid #fca5a5; border-radius: 14px; padding: 14px; margin-bottom: 18px; font-size: 12px; color: #b91c1c; text-align: center;">
+            <i class="fas fa-exclamation-circle mr-1"></i> Tiket dengan nomor <b>"{{ search_ticket }}"</b> tidak ditemukan di sistem.
+        </div>
+        {% endif %}
+
+        <!-- DAFTAR TIKET PENGGUNA TERDAFTAR -->
         {% if current_user and current_user.is_authenticated %}
             {% if user_tickets %}
-            <div style="display: flex; flex-direction: column; gap: 14px;">
+            <div style="display: flex; flex-direction: column; gap: 16px;" id="user-tickets-container">
                 {% for ut in user_tickets %}
-                <div style="border: 1.5px solid #e2e8f0; border-radius: 16px; padding: 16px; background: #ffffff; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+                <div style="border: 1.5px solid #e2e8f0; border-radius: 18px; padding: 18px; background: #ffffff; box-shadow: 0 4px 14px rgba(0,0,0,0.03);" id="ticket-card-{{ ut.ticket_number }}">
+                    <!-- Header Tiket -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-weight: 800; font-size: 13px; color: #0284c7; background: #f0f9ff; padding: 3px 8px; border-radius: 8px; border: 1px solid #bae6fd;">#{{ ut.ticket_number }}</span>
+                            <span style="font-weight: 800; font-size: 13.5px; color: #0284c7; background: #f0f9ff; padding: 4px 10px; border-radius: 8px; border: 1px solid #bae6fd;">#{{ ut.ticket_number }}</span>
                             <span style="font-size: 11px; color: #64748b;"><i class="far fa-clock"></i> {{ ut.created_at_wib }}</span>
                         </div>
                         <div>
                             {% if ut.status == 'OPEN' %}
-                            <span style="background: #e0f2fe; color: #0284c7; font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 10px;"><i class="fas fa-clock mr-1"></i> MENUNGGU CS</span>
+                            <span style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; font-size: 10.5px; font-weight: 800; padding: 4px 10px; border-radius: 8px;"><i class="fas fa-clock mr-1"></i> MENUNGGU CS</span>
                             {% elif ut.status == 'PROCESS' %}
-                            <span style="background: #fef3c7; color: #d97706; font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 10px;"><i class="fas fa-search mr-1"></i> SEDANG DICEK</span>
+                            <span style="background: #fef3c7; color: #b45309; border: 1px solid #fde68a; font-size: 10.5px; font-weight: 800; padding: 4px 10px; border-radius: 8px;"><i class="fas fa-spinner fa-spin mr-1"></i> DIPROSES CS</span>
                             {% elif ut.status == 'RESOLVED' %}
-                            <span style="background: #dcfce7; color: #16a34a; font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 10px;"><i class="fas fa-check-circle mr-1"></i> SELESAI</span>
+                            <span style="background: #dcfce7; color: #15803d; border: 1px solid #86efac; font-size: 10.5px; font-weight: 800; padding: 4px 10px; border-radius: 8px;"><i class="fas fa-check-circle mr-1"></i> SELESAI</span>
                             {% else %}
-                            <span style="background: #f1f5f9; color: #64748b; font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 10px;">{{ ut.status }}</span>
+                            <span style="background: #f1f5f9; color: #64748b; font-size: 10.5px; font-weight: 800; padding: 4px 10px; border-radius: 8px;">{{ ut.status }}</span>
                             {% endif %}
                         </div>
                     </div>
 
-                    <div style="font-size: 11.5px; color: #475569; margin-bottom: 6px;">
-                        <b>Kategori:</b> {{ ut.category }}
-                        {% if ut.transaction %}
-                        <span style="margin: 0 4px; color: #cbd5e1;">•</span>
-                        <b>Ref ID:</b> <code>{{ ut.transaction.ref_id }}</code> ({{ ut.transaction.product_name or 'Produk' }})
-                        {% endif %}
+                    <!-- Kategori & Kotak Produk yang Dikomplain -->
+                    <div style="font-size: 11.5px; color: #475569; margin-bottom: 8px;">
+                        <b>Kategori:</b> <span style="background: #f1f5f9; padding: 2px 8px; border-radius: 6px; font-weight: 700; color: #334155;">{{ ut.category }}</span>
                     </div>
 
-                    <div style="font-size: 12.5px; color: #334155; background: #f8fafc; padding: 10px 12px; border-radius: 10px; border: 1px solid #f1f5f9; margin-bottom: 8px; line-height: 1.45;">
-                        <span style="font-size: 11px; font-weight: 700; color: #64748b; display: block; margin-bottom: 2px;">Keluhan:</span>
-                        "{{ ut.message }}"
-                    </div>
-
-                    {% if ut.cs_reply %}
-                    <div style="background: #f0fdf4; border: 1.5px solid #86efac; border-left: 4px solid #16a34a; padding: 10px 14px; border-radius: 10px; margin-top: 8px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                            <span style="font-size: 11px; font-weight: 800; color: #15803d; display: flex; align-items: center; gap: 5px;">
-                                <i class="fas fa-robot"></i> Balasan Otomatis Bot 1 CS:
-                            </span>
-                            <span style="font-size: 10.5px; color: #16a34a; font-weight: 600;">{{ ut.cs_replied_at_wib }}</span>
+                    {% if ut.transaction %}
+                    <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 12px 14px; margin-bottom: 14px;">
+                        <div style="font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
+                            <span><i class="fas fa-box text-sky-600 mr-1"></i> Detail Produk yang Dikomplain:</span>
+                            <span style="font-weight: 700; color: #64748b;">Ref: <code>{{ ut.transaction.ref_id }}</code></span>
                         </div>
-                        <div style="font-size: 13px; font-weight: 700; color: #14532d; line-height: 1.45;">
-                            "{{ ut.cs_reply }}"
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                            <div>
+                                <div style="font-size: 13.5px; font-weight: 800; color: #0f172a;">{{ ut.transaction.product_name or 'Produk Transaksi' }}</div>
+                                <div style="font-size: 11.5px; color: #64748b; margin-top: 2px;">
+                                    Tujuan / Meter: <code>{{ ut.transaction.target_number or '-' }}</code> • Rp {{ "{:,.0f}".format(ut.transaction.amount or 0) }}
+                                </div>
+                            </div>
+                            <div>
+                                <span style="font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 6px; {% if ut.transaction.status == 'SUCCESS' %}background: #dcfce7; color: #16a34a;{% elif ut.transaction.status == 'FAILED' %}background: #fee2e2; color: #dc2626;{% else %}background: #fef3c7; color: #d97706;{% endif %}">
+                                    {{ ut.transaction.status }}
+                                </span>
+                            </div>
                         </div>
                     </div>
                     {% endif %}
 
+                    <!-- Skema Percakapan 2 Arah (Chat Timeline) -->
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <!-- 1. Pesan Keluhan Pengguna -->
+                        <div class="chat-bubble-user">
+                            <div style="font-size: 10.5px; font-weight: 700; color: #64748b; margin-bottom: 3px; display: flex; justify-content: space-between; gap: 12px;">
+                                <span><i class="fas fa-user mr-1"></i> Anda (Pelapor)</span>
+                                <span>{{ ut.created_at_wib }}</span>
+                            </div>
+                            <div style="font-size: 12.5px; color: #1e293b; line-height: 1.45; font-weight: 600;">
+                                "{{ ut.message }}"
+                            </div>
+                        </div>
+
+                        <!-- 2. Balasan Formalitas Otomatis Sistem Bot CS -->
+                        {% if ut.cs_reply %}
+                        <div class="chat-bubble-bot">
+                            <div style="font-size: 10.5px; font-weight: 800; color: #0d9488; margin-bottom: 3px; display: flex; justify-content: space-between; gap: 12px;">
+                                <span><i class="fas fa-robot mr-1"></i> Bot 1 CS (Respon Otomatis Sistem)</span>
+                                <span>{{ ut.cs_replied_at_wib }}</span>
+                            </div>
+                            <div style="font-size: 12.5px; color: #134e4a; line-height: 1.45; font-weight: 600;">
+                                "{{ ut.cs_reply }}"
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- 3. Balasan Resmi Manual Admin via Telegram Bot -->
+                        {% if ut.admin_reply %}
+                        <div class="chat-bubble-admin" id="admin-reply-box-{{ ut.ticket_number }}">
+                            <div style="font-size: 11px; font-weight: 800; color: #15803d; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                                <span style="display: flex; align-items: center; gap: 6px;">
+                                    <i class="fas fa-headset" style="font-size: 13px;"></i>
+                                    <span>{{ ut.admin_name or 'Admin Customer Service' }} (via Telegram Bot)</span>
+                                </span>
+                                <span style="font-size: 10px; color: #16a34a; font-weight: 700;">{{ ut.admin_replied_at_wib }}</span>
+                            </div>
+                            <div style="font-size: 13px; color: #14532d; line-height: 1.5; font-weight: 700; white-space: pre-line;">
+                                {{ ut.admin_reply }}
+                            </div>
+                            <div style="margin-top: 6px; font-size: 10px; font-weight: 800; color: #16a34a; display: flex; align-items: center; gap: 4px;">
+                                <i class="fas fa-check-double"></i> Balasan Resmi CS Terverifikasi
+                            </div>
+                        </div>
+                        {% else %}
+                        <!-- Belum Ada Balasan Manual: Tampilkan Indikator Live Menunggu -->
+                        <div class="chat-bubble-pending pending-cs-reply-box" id="pending-ticket-{{ ut.ticket_number }}" data-ticket="{{ ut.ticket_number }}">
+                            <div style="display: flex; gap: 10px; align-items: flex-start;">
+                                <div style="font-size: 18px; color: #d97706; flex-shrink: 0; margin-top: 2px;">
+                                    <i class="fas fa-hourglass-half fa-spin"></i>
+                                </div>
+                                <div style="flex: 1;">
+                                    <div style="font-size: 11.5px; font-weight: 800; color: #92400e;">Sedang Ditangani Admin di Telegram</div>
+                                    <div style="font-size: 11px; color: #78350f; line-height: 1.4; margin-top: 2px;">
+                                        Keluhan telah diteruskan ke Bot 1 CS Telegram. Admin kami sedang menindaklanjuti dan balasan manual akan otomatis muncul di sini.
+                                    </div>
+                                    <button type="button" onclick="checkTicketStatus('{{ ut.ticket_number }}')" style="background: white; border: 1px solid #f59e0b; color: #b45309; padding: 4px 10px; border-radius: 8px; font-size: 10.5px; font-weight: 800; margin-top: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+                                        <i class="fas fa-sync-alt"></i> Cek Pembaruan Balasan
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+
                     {% if ut.transaction %}
-                    <div style="margin-top: 10px; text-align: right;">
+                    <div style="margin-top: 12px; text-align: right;">
                         <a href="/riwayat?ref={{ ut.transaction.ref_id }}" style="font-size: 11.5px; font-weight: 700; color: #0284c7; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
                             <span>Cek di Halaman Riwayat Transaksi</span>
                             <i class="fas fa-arrow-right"></i>
@@ -436,24 +619,13 @@
             </div>
             {% endif %}
         {% else %}
-        <div style="text-align: center; padding: 20px 15px; background: #f8fafc; border-radius: 12px; border: 1.5px dashed #cbd5e1;">
-            <p style="font-size: 12px; color: #64748b; margin: 0 0 10px 0;">Silakan login terlebih dahulu untuk melihat riwayat keluhan dan balasan CS Anda.</p>
-            <a href="/login?next=/bantuan" style="display: inline-block; background: #0284c7; color: white; padding: 7px 18px; border-radius: 10px; font-size: 12px; font-weight: 800; text-decoration: none;">
+        <div style="text-align: center; padding: 20px 15px; background: #f8fafc; border-radius: 14px; border: 1.5px dashed #cbd5e1;">
+            <p style="font-size: 12px; color: #64748b; margin: 0 0 10px 0;">Silakan login terlebih dahulu untuk melihat seluruh riwayat keluhan dan balasan resmi CS Anda.</p>
+            <a href="/login?next=/bantuan" style="display: inline-block; background: #0284c7; color: white; padding: 8px 20px; border-radius: 10px; font-size: 12px; font-weight: 800; text-decoration: none;">
                 Login Akun
             </a>
         </div>
         {% endif %}
-    </div>
-
-    <!-- OPSI CHAT WA LANGSUNG -->
-    <div class="wa-direct-box">
-        <i class="fab fa-whatsapp" style="font-size: 36px; color: #22c55e;"></i>
-        <h4 style="margin: 8px 0 4px 0; font-size: 14px; font-weight: 800; color: #15803d;">Butuh Bantuan Mendesak?</h4>
-        <p style="font-size: 12px; color: #475569; margin: 0;">Anda juga dapat langsung berkonsultasi dengan Customer Service kami melalui WhatsApp resmi.</p>
-        <a href="whatsapp://send?phone=6281775700114&text=Halo%20CS%20GarudaTel,%20saya%20butuh%20bantuan%20terkait%20layanan%20GarudaTel:" class="btn-wa-direct">
-            <i class="fab fa-whatsapp" style="font-size: 15px;"></i>
-            <span>Chat WhatsApp CS</span>
-        </a>
     </div>
 </div>
 
@@ -488,12 +660,97 @@
         }
     }
 
-    // Panggil saat pertama kali load jika ada pre-selected ref
+    // Fungsi Cek Status & Balasan Manual Tiket secara Instan (AJAX)
+    async function checkTicketStatus(ticketNumber) {
+        try {
+            const resp = await fetch(`/api/tiket/${ticketNumber}`);
+            if (!resp.ok) return;
+            const data = await resp.json();
+            if (data.success && data.has_admin_reply) {
+                const pendingBox = document.getElementById(`pending-ticket-${ticketNumber}`);
+                if (pendingBox) {
+                    pendingBox.outerHTML = `
+                        <div class="chat-bubble-admin" style="animation: fadeIn 0.4s ease;">
+                            <div style="font-size: 11px; font-weight: 800; color: #15803d; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                                <span style="display: flex; align-items: center; gap: 6px;">
+                                    <i class="fas fa-headset" style="font-size: 13px;"></i>
+                                    <span>${data.admin_name || 'Admin CS'} (via Telegram Bot)</span>
+                                </span>
+                                <span style="font-size: 10px; color: #16a34a; font-weight: 700;">${data.admin_replied_at_wib || 'Baru saja'}</span>
+                            </div>
+                            <div style="font-size: 13px; color: #14532d; line-height: 1.5; font-weight: 700; white-space: pre-line;">
+                                ${data.admin_reply}
+                            </div>
+                            <div style="margin-top: 6px; font-size: 10px; font-weight: 800; color: #16a34a; display: flex; align-items: center; gap: 4px;">
+                                <i class="fas fa-check-double"></i> Balasan Resmi CS Terverifikasi
+                            </div>
+                        </div>
+                    `;
+                }
+            } else {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Belum Ada Balasan Baru',
+                        text: 'Admin sedang menindaklanjuti keluhan Anda di Telegram. Mohon ditunggu sebentar ya kak.',
+                        confirmButtonColor: '#0284c7'
+                    });
+                }
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    // Live Auto-Polling untuk tiket yang masih menunggu respon admin (setiap 8 detik)
+    function startTicketPolling() {
+        const pendingBoxes = document.querySelectorAll('.pending-cs-reply-box');
+        if (pendingBoxes.length === 0) return;
+
+        setInterval(async () => {
+            try {
+                const resp = await fetch('/api/tiket/user-tickets');
+                if (!resp.ok) return;
+                const json = await resp.json();
+                if (!json.success || !json.tickets) return;
+
+                json.tickets.forEach(t => {
+                    if (t.has_admin_reply) {
+                        const pendingBox = document.getElementById(`pending-ticket-${t.ticket_number}`);
+                        if (pendingBox) {
+                            pendingBox.outerHTML = `
+                                <div class="chat-bubble-admin" style="animation: fadeIn 0.4s ease;">
+                                    <div style="font-size: 11px; font-weight: 800; color: #15803d; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                                        <span style="display: flex; align-items: center; gap: 6px;">
+                                            <i class="fas fa-headset" style="font-size: 13px;"></i>
+                                            <span>${t.admin_name || 'Admin CS'} (via Telegram Bot)</span>
+                                        </span>
+                                        <span style="font-size: 10px; color: #16a34a; font-weight: 700;">${t.admin_replied_at_wib || 'Baru saja'}</span>
+                                    </div>
+                                    <div style="font-size: 13px; color: #14532d; line-height: 1.5; font-weight: 700; white-space: pre-line;">
+                                        ${t.admin_reply}
+                                    </div>
+                                    <div style="margin-top: 6px; font-size: 10px; font-weight: 800; color: #16a34a; display: flex; align-items: center; gap: 4px;">
+                                        <i class="fas fa-check-double"></i> Balasan Resmi CS Terverifikasi
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    }
+                });
+            } catch (err) {
+                // Silently ignore polling network hiccup
+            }
+        }, 8000);
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
         const selectTrx = document.getElementById('select-transaction');
         if (selectTrx && selectTrx.value !== 'NONE') {
             onTransactionChange();
         }
+
+        startTicketPolling();
 
         // Handler Submit Tiket dengan Jeda 2 Detik & Auto-Reply Bot 1 CS
         const ticketForm = document.getElementById('ticket-form');
@@ -573,7 +830,7 @@
                                             </div>
                                         </div>
                                         <div style="margin-top: 14px; font-size: 12px; color: #64748b; text-align: center;">
-                                            Detail produk & keluhan telah diteruskan ke Bot 1 Telegram CS. Silakan pantau perkembangannya di halaman riwayat.
+                                            Detail produk komplain sudah masuk ke Bot 1 Telegram CS. Balasan manual admin akan otomatis muncul di bawah.
                                         </div>
                                     `,
                                     confirmButtonText: '<i class="fas fa-check"></i> Siap, Mengerti',

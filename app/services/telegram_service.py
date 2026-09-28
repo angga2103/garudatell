@@ -122,18 +122,24 @@ def send_cs_ticket(ticket, transaction=None):
     lines.append("")
     lines.append("━━━━━━━━━━━━━━━━━━━━━━")
 
-    # Link & Tombol Direct WhatsApp
-    wa_num = getattr(ticket, 'clean_phone_for_wa', '') or ''
-    reply_markup = None
-    if wa_num:
-        wa_text = f"Halo kak {ticket.user_name}, kami dari CS {s_name} menindaklanjuti tiket bantuan #{ticket.ticket_number}:"
-        wa_url = f"https://wa.me/{wa_num}?text={urllib.parse.quote(wa_text)}"
-        lines.append(f"👉 <a href=\"{wa_url}\">Klik untuk Balas WhatsApp Pelapor</a>")
-        reply_markup = {
-            "inline_keyboard": [
-                [{"text": f"💬 Hubungi WhatsApp Pelapor ({ticket.user_name})", "url": wa_url}]
+    lines.append("💡 <b>CARA BALAS KE WEB PELAPOR:</b>")
+    lines.append("1. Cukup <b>Reply (Balas) pesan ini</b> di Telegram dengan teks balasan Anda.")
+    lines.append(f"2. Atau ketik perintah: <code>/balas {ticket.ticket_number} [pesan]</code>")
+    lines.append("3. Atau klik tombol cepat di bawah ini:")
+    lines.append("")
+    lines.append("📌 <i>Balasan Anda langsung muncul secara real-time di halaman Pusat Bantuan web pengguna!</i>")
+
+    reply_markup = {
+        "inline_keyboard": [
+            [
+                {"text": "✍️ Balas Manual", "callback_data": f"reply_prompt:{ticket.ticket_number}"},
+                {"text": "⏳ Sedang Dicek", "callback_data": f"reply_tpl:{ticket.ticket_number}:process"}
+            ],
+            [
+                {"text": "✅ Selesaikan Tiket", "callback_data": f"reply_tpl:{ticket.ticket_number}:resolved"}
             ]
-        }
+        ]
+    }
 
     full_text = "\n".join(lines)
 
@@ -167,6 +173,274 @@ def send_cs_ticket(ticket, transaction=None):
         ticket.telegram_response = f"Exception: {str(e)}"
         logger.error(f"Koneksi ke Bot CS Telegram gagal: {str(e)}")
         return False, f"Koneksi error: {str(e)}"
+
+
+def handle_cs_bot_update(app, update, bot_token=None):
+    """
+    Menangani pesan dan callback query yang masuk ke Bot 1 : CS & Balas Inbox di Telegram.
+    Meneruskan balasan manual Admin langsung ke database tiket keluhan pengguna
+    agar tampil di halaman web Pusat Bantuan & Tiket CS.
+    """
+    import re
+    if not bot_token:
+        bot_token, _ = get_bot_cs_credentials()
+        if not bot_token:
+            return
+
+    with app.app_context():
+        from app.extensions import db
+        from app.models.support_ticket import SupportTicket
+        from app.models.notification import Notification
+
+        # 1. TANGANI CALLBACK QUERY (KLIK TOMBOL INLINE TELEGRAM)
+        if 'callback_query' in update:
+            cb = update['callback_query']
+            cb_id = cb.get('id')
+            cb_data = cb.get('data', '')
+            from_user = cb.get('from', {})
+            admin_name = from_user.get('first_name') or from_user.get('username') or 'Admin CS'
+            chat_id = cb.get('message', {}).get('chat', {}).get('id')
+            orig_msg_id = cb.get('message', {}).get('message_id')
+
+            def answer_cb(text, show_alert=False):
+                try:
+                    requests.post(
+                        f"https://api.telegram.org/bot{bot_token}/answerCallbackQuery",
+                        json={"callback_query_id": cb_id, "text": text, "show_alert": show_alert},
+                        timeout=8
+                    )
+                except Exception:
+                    pass
+
+            def send_tg_msg(text, reply_to=None, reply_markup=None):
+                payload = {
+                    "chat_id": chat_id,
+                    "text": text,
+                    "parse_mode": "HTML"
+                }
+                if reply_to:
+                    payload["reply_to_message_id"] = reply_to
+                if reply_markup:
+                    payload["reply_markup"] = reply_markup
+                try:
+                    requests.post(
+                        f"https://api.telegram.org/bot{bot_token}/sendMessage",
+                        json=payload,
+                        timeout=10
+                    )
+                except Exception:
+                    pass
+
+            # A. Balas Manual Prompt
+            if cb_data.startswith('reply_prompt:'):
+                ticket_num = cb_data.split(':', 1)[1]
+                answer_cb("Silakan ketik balasan Anda...")
+                force_reply = {
+                    "force_reply": True,
+                    "input_field_placeholder": f"Ketik balasan untuk tiket #{ticket_num}...",
+                    "selective": True
+                }
+                send_tg_msg(
+                    f"✍️ <b>Ketik balasan Anda untuk tiket #{ticket_num}:</b>\n\n"
+                    f"<i>(Balasan yang Anda kirim akan langsung tampil di halaman Pusat Bantuan web pengguna)</i>",
+                    reply_to=orig_msg_id,
+                    reply_markup=force_reply
+                )
+                return
+
+            # B. Balas Template Cepat (Diproses / Selesai)
+            elif cb_data.startswith('reply_tpl:'):
+                parts = cb_data.split(':')
+                if len(parts) >= 3:
+                    ticket_num = parts[1]
+                    tpl_type = parts[2]
+
+                    ticket = SupportTicket.query.filter_by(ticket_number=ticket_num).first()
+                    if not ticket:
+                        answer_cb("Tiket tidak ditemukan!", show_alert=True)
+                        return
+
+                    if tpl_type == 'process':
+                        reply_text = "Halo kak, laporan keluhan sedang kami lakukan investigasi mendalam ke pihak provider biller. Mohon ditunggu pembaruannya ya kak 🙏"
+                        ticket.status = 'PROCESS'
+                        action_label = "DIPROSES"
+                    elif tpl_type == 'resolved':
+                        reply_text = "Halo kak, kendala pada transaksi ini telah berhasil diselesaikan oleh tim CS kami. Silakan cek pembaruan saldo / status transaksi Anda. Terima kasih atas kesabarannya 🙏"
+                        ticket.status = 'RESOLVED'
+                        action_label = "SELESAI (RESOLVED)"
+                    else:
+                        reply_text = "Baik kak, laporan sudah dalam penanganan admin kami."
+                        action_label = "DIPROSES"
+
+                    # Simpan balasan manual admin
+                    ticket.admin_reply = reply_text
+                    ticket.admin_replied_at = datetime.utcnow()
+                    ticket.admin_name = admin_name
+
+                    # Tambahkan notifikasi in-app untuk user
+                    if ticket.user_id:
+                        try:
+                            notif = Notification(
+                                title=f"Balasan CS: Tiket #{ticket.ticket_number}",
+                                message=reply_text,
+                                type='info',
+                                link='/bantuan',
+                                target_user_id=ticket.user_id,
+                                is_broadcast=False
+                            )
+                            db.session.add(notif)
+                        except Exception:
+                            pass
+
+                    db.session.commit()
+
+                    answer_cb(f"Tiket #{ticket_num} diupdate ke {action_label}!")
+                    send_tg_msg(
+                        f"✅ <b>Balasan Terkirim ke Web Pengguna!</b>\n"
+                        f"━━━━━━━━━━━━━━━━━━━━━━\n"
+                        f"🎫 <b>Tiket:</b> <code>#{ticket.ticket_number}</code>\n"
+                        f"👤 <b>Pelapor:</b> {ticket.user_name}\n"
+                        f"📊 <b>Status Baru:</b> <b>{action_label}</b>\n"
+                        f"💬 <b>Balasan yang Tampil di Web:</b>\n<i>\"{reply_text}\"</i>\n\n"
+                        f"📌 <i>Pengguna dapat melihat balasan ini secara real-time di halaman Pusat Bantuan web mereka.</i>",
+                        reply_to=orig_msg_id
+                    )
+                    return
+
+        # 2. TANGANI PESAN TEKS (REPLY ATAU COMMAND /balas)
+        elif 'message' in update:
+            msg = update['message']
+            chat_id = msg.get('chat', {}).get('id')
+            msg_id = msg.get('message_id')
+            text = (msg.get('text') or '').strip()
+            from_user = msg.get('from', {})
+            admin_name = from_user.get('first_name') or from_user.get('username') or 'Admin CS'
+
+            def send_tg_msg(resp_text, reply_to=None):
+                try:
+                    requests.post(
+                        f"https://api.telegram.org/bot{bot_token}/sendMessage",
+                        json={
+                            "chat_id": chat_id,
+                            "text": resp_text,
+                            "parse_mode": "HTML",
+                            "reply_to_message_id": reply_to
+                        },
+                        timeout=10
+                    )
+                except Exception:
+                    pass
+
+            if not text:
+                return
+
+            # A. Cek apakah ini Reply ke Pesan Tiket Sebelumnya
+            target_ticket_num = None
+            reply_to_msg = msg.get('reply_to_message')
+            if reply_to_msg:
+                parent_text = reply_to_msg.get('text') or ''
+                match = re.search(r'#(CS-\d{8}-\d+)', parent_text)
+                if match:
+                    target_ticket_num = match.group(1)
+
+            # B. Cek apakah menggunakan format command /balas atau /jawab
+            reply_content = text
+            if text.startswith(('/balas', '/jawab', '/reply')):
+                parts = text.split(maxsplit=2)
+                if len(parts) >= 3:
+                    target_ticket_num = parts[1].replace('#', '').strip()
+                    reply_content = parts[2].strip()
+                elif target_ticket_num and len(parts) == 2:
+                    reply_content = parts[1].strip()
+                else:
+                    send_tg_msg(
+                        "⚠️ <b>Format Perintah Balas:</b>\n"
+                        "<code>/balas [Nomor Tiket] [Pesan Balasan]</code>\n"
+                        "Contoh: <code>/balas CS-20260928-6938 Pulsa sudah kami cek dan sukses ya kak</code>",
+                        reply_to=msg_id
+                    )
+                    return
+
+            elif text.startswith(('/selesai', '/done', '/close')):
+                parts = text.split(maxsplit=2)
+                if len(parts) >= 2:
+                    target_ticket_num = parts[1].replace('#', '').strip()
+                    reply_content = parts[2].strip() if len(parts) >= 3 else "Keluhan transaksi ini telah selesai ditangani oleh tim CS. Terima kasih!"
+                elif target_ticket_num:
+                    reply_content = parts[1].strip() if len(parts) >= 2 else "Keluhan transaksi ini telah selesai ditangani oleh tim CS. Terima kasih!"
+                else:
+                    send_tg_msg("⚠️ <b>Format Selesai:</b>\n<code>/selesai [Nomor Tiket] [Pesan Penutup]</code>", reply_to=msg_id)
+                    return
+
+            elif text in ['/start', '/help', '/menu']:
+                send_tg_msg(
+                    "🤖 <b>Bot 1 : CS & Balas Inbox GarudaTel</b>\n\n"
+                    "Bot ini menerima seluruh tiket keluhan dari pelanggan web secara langsung.\n\n"
+                    "<b>Cara Balas ke Web Pengguna:</b>\n"
+                    "1. <b>Swipe / Reply</b> langsung pesan tiket di atas, lalu ketik balasan Anda.\n"
+                    "2. Gunakan perintah: <code>/balas CS-XXXX pesan balasan</code>\n"
+                    "3. Selesaikan tiket: <code>/selesai CS-XXXX pesan penutup</code>\n"
+                    "4. Atau tekan tombol <b>[✍️ Balas Manual]</b> di bawah tiket.\n\n"
+                    "<i>Balasan Anda langsung dikirim ke halaman Pusat Bantuan web pengguna!</i>",
+                    reply_to=msg_id
+                )
+                return
+
+            # C. Eksekusi penyimpanan balasan jika tiket ditemukan
+            if target_ticket_num:
+                ticket = SupportTicket.query.filter_by(ticket_number=target_ticket_num).first()
+                if not ticket:
+                    ticket = SupportTicket.query.filter(SupportTicket.ticket_number.ilike(f"%{target_ticket_num}%")).first()
+
+                if not ticket:
+                    send_tg_msg(f"❌ <b>Tiket #{target_ticket_num} tidak ditemukan di sistem!</b>", reply_to=msg_id)
+                    return
+
+                # Update status
+                is_closing = text.startswith(('/selesai', '/done', '/close'))
+                if is_closing:
+                    ticket.status = 'RESOLVED'
+                elif ticket.status == 'OPEN':
+                    ticket.status = 'PROCESS'
+
+                # Simpan balasan admin (bisa bertahap jika admin membalas lebih dari 1 kali)
+                if ticket.admin_reply:
+                    ticket.admin_reply = f"{ticket.admin_reply}\n\n[Pesan Tambahan CS]: {reply_content}"
+                else:
+                    ticket.admin_reply = reply_content
+
+                ticket.admin_replied_at = datetime.utcnow()
+                ticket.admin_name = admin_name
+
+                # Buat notifikasi in-app
+                if ticket.user_id:
+                    try:
+                        notif = Notification(
+                            title=f"Balasan CS: Tiket #{ticket.ticket_number}",
+                            message=reply_content,
+                            type='info',
+                            link='/bantuan',
+                            target_user_id=ticket.user_id,
+                            is_broadcast=False
+                        )
+                        db.session.add(notif)
+                    except Exception:
+                        pass
+
+                db.session.commit()
+
+                st_badge = "✅ SELESAI" if ticket.status == 'RESOLVED' else "⏳ SEDANG DIPROSES"
+                send_tg_msg(
+                    f"✅ <b>Balasan Berhasil Dikirim ke Web Pelapor!</b>\n"
+                    f"━━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"🎫 <b>No. Tiket:</b> <code>#{ticket.ticket_number}</code>\n"
+                    f"👤 <b>Pelapor:</b> {ticket.user_name} ({ticket.user_phone})\n"
+                    f"📊 <b>Status Tiket:</b> <b>{st_badge}</b>\n"
+                    f"💬 <b>Balasan yang Tampil di Web:</b>\n"
+                    f"<i>\"{reply_content}\"</i>\n\n"
+                    f"📌 <i>Pelapor sudah bisa melihat balasan resmi ini langsung di halaman Pusat Bantuan web mereka.</i>",
+                    reply_to=msg_id
+                )
 
 
 def send_emergency_otp_request(phone, otp_code=None, user_name=None, action_type='Pendaftaran / Masuk', expiry_minutes=10, request_id=None, status='PENDING'):

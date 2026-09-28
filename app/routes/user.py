@@ -2288,9 +2288,11 @@ def bantuan():
     """Halaman Tiket Bantuan & CS Pengguna"""
     from app.models.support_ticket import SupportTicket
     selected_ref = request.args.get('ref', '').strip()
+    search_ticket = request.args.get('cari_tiket', '').strip()
     recent_trxs = []
     selected_trx = None
     user_tickets = []
+    tracked_ticket = None
 
     if current_user.is_authenticated:
         from app.models.transaction import Transaction
@@ -2299,11 +2301,89 @@ def bantuan():
             selected_trx = Transaction.query.filter_by(user_id=current_user.id, ref_id=selected_ref).first()
         user_tickets = SupportTicket.query.filter_by(user_id=current_user.id).order_by(SupportTicket.created_at.desc()).limit(15).all()
 
+    if search_ticket:
+        clean_search = search_ticket.replace('#', '').strip()
+        tracked_ticket = SupportTicket.query.filter(
+            (SupportTicket.ticket_number == clean_search) | 
+            (SupportTicket.ticket_number.ilike(f"%{clean_search}%"))
+        ).first()
+
     return render_template('user/bantuan.html',
                            recent_trxs=recent_trxs,
                            selected_ref=selected_ref,
                            selected_trx=selected_trx,
-                           user_tickets=user_tickets)
+                           user_tickets=user_tickets,
+                           tracked_ticket=tracked_ticket,
+                           search_ticket=search_ticket)
+
+
+@user_bp.route('/api/tiket/<ticket_number>')
+def api_get_ticket_detail(ticket_number):
+    """Mengambil status terbaru dan balasan manual/otomatis suatu tiket."""
+    from app.models.support_ticket import SupportTicket
+    clean_num = ticket_number.replace('#', '').strip()
+    ticket = SupportTicket.query.filter(
+        (SupportTicket.ticket_number == clean_num) | 
+        (SupportTicket.ticket_number.ilike(f"%{clean_num}%"))
+    ).first()
+    if not ticket:
+        return jsonify({'success': False, 'message': 'Tiket tidak ditemukan'}), 404
+
+    trx_data = None
+    if ticket.transaction:
+        t = ticket.transaction
+        trx_data = {
+            'ref_id': t.ref_id,
+            'product_name': t.product_name or 'Produk',
+            'target_number': t.target_number or '-',
+            'amount': t.amount,
+            'status': t.status,
+            'sn': t.sn or '-'
+        }
+
+    return jsonify({
+        'success': True,
+        'ticket_number': ticket.ticket_number,
+        'status': ticket.status,
+        'category': ticket.category,
+        'message': ticket.message,
+        'created_at_wib': ticket.created_at_wib,
+        'cs_reply': ticket.cs_reply,
+        'cs_replied_at_wib': ticket.cs_replied_at_wib,
+        'admin_reply': ticket.admin_reply,
+        'admin_replied_at_wib': ticket.admin_replied_at_wib,
+        'admin_name': ticket.admin_name or 'Admin CS',
+        'has_admin_reply': bool(ticket.admin_reply),
+        'transaction': trx_data
+    })
+
+
+@user_bp.route('/api/tiket/user-tickets')
+def api_user_tickets():
+    """Mengambil daftar status tiket user terbaru untuk live auto-polling."""
+    if not current_user.is_authenticated:
+        return jsonify({'success': True, 'tickets': []})
+
+    from app.models.support_ticket import SupportTicket
+    tickets = SupportTicket.query.filter_by(user_id=current_user.id).order_by(SupportTicket.created_at.desc()).limit(15).all()
+
+    data = []
+    for t in tickets:
+        data.append({
+            'ticket_number': t.ticket_number,
+            'status': t.status,
+            'category': t.category,
+            'message': t.message,
+            'created_at_wib': t.created_at_wib,
+            'cs_reply': t.cs_reply,
+            'cs_replied_at_wib': t.cs_replied_at_wib,
+            'admin_reply': t.admin_reply,
+            'admin_replied_at_wib': t.admin_replied_at_wib,
+            'admin_name': t.admin_name or 'Admin CS',
+            'has_admin_reply': bool(t.admin_reply)
+        })
+
+    return jsonify({'success': True, 'tickets': data})
 
 
 @user_bp.route('/api/user/recent-transactions')
