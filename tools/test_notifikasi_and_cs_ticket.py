@@ -97,6 +97,9 @@ def test_notifikasi_and_cs_ticket():
 
     # 4. Uji Menandai Notifikasi Telah Dibaca (Menghilangkan Titik Merah)
     print("\n[4/7] Menguji API Tandai Notifikasi Dibaca (/api/notifikasi/read-all)...")
+    with client.session_transaction() as sess:
+        sess['_user_id'] = str(test_uid)
+        sess['_fresh'] = True
     res_read = client.post('/api/notifikasi/read-all')
     assert res_read.status_code == 200
     data_read = res_read.get_json()

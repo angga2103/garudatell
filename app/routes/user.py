@@ -2271,25 +2271,39 @@ def notifikasi_read_single(id):
 # ==========================================
 # RUTE TIKET CS TELEGRAM (BOT 1 CS)
 # ==========================================
+CS_RANDOM_AUTO_REPLIES = [
+    "Baik kak segera kami cek.. tunggu ya 🙏",
+    "Siap bos.. wait kami cek transaksinya ditunggu di halaman riwayat ya.. 👍",
+    "ok kak siap kami cek dulu silahkan tunggu update laporannya di halalam riwayat ya.. ✨",
+    "Halo kak, laporan sudah kami terima dan sedang diproses tim CS. Silahkan cek berkala di halaman riwayat ya.. 🙏",
+    "Siap kak! Kendala transaksi sedang dicek ke provider. Ditunggu laporannya di halaman riwayat ya bos 👍",
+    "Baik kak, pesan keluhan sudah diteruskan ke sistem CS kami. Mohon ditunggu updatenya di halaman riwayat ya kak 😊"
+]
+
+
 @user_bp.route('/tiket')
 @user_bp.route('/bantuan')
 @user_bp.route('/cs')
 def bantuan():
     """Halaman Tiket Bantuan & CS Pengguna"""
+    from app.models.support_ticket import SupportTicket
     selected_ref = request.args.get('ref', '').strip()
     recent_trxs = []
     selected_trx = None
+    user_tickets = []
 
     if current_user.is_authenticated:
         from app.models.transaction import Transaction
         recent_trxs = Transaction.query.filter_by(user_id=current_user.id).order_by(Transaction.created_at.desc()).limit(20).all()
         if selected_ref:
             selected_trx = Transaction.query.filter_by(user_id=current_user.id, ref_id=selected_ref).first()
+        user_tickets = SupportTicket.query.filter_by(user_id=current_user.id).order_by(SupportTicket.created_at.desc()).limit(15).all()
 
     return render_template('user/bantuan.html',
                            recent_trxs=recent_trxs,
                            selected_ref=selected_ref,
-                           selected_trx=selected_trx)
+                           selected_trx=selected_trx,
+                           user_tickets=user_tickets)
 
 
 @user_bp.route('/api/user/recent-transactions')
@@ -2313,13 +2327,18 @@ def api_recent_transactions():
     return jsonify({'transactions': data})
 
 
-@user_bp.route('/tiket/kirim', methods=['POST'])
+@user_bp.route('/tiket/kirim', methods=['GET', 'POST'])
 @csrf.exempt
 def kirim_tiket():
-    """Menerima keluhan pengguna, mencatat tiket, dan mengirim ke Bot 1 CS Telegram."""
+    """Menerima keluhan pengguna, mencatat tiket, mengirim ke Bot 1 CS Telegram, dan memberikan balasan otomatis."""
+    if request.method == 'GET':
+        return redirect(url_for('user.bantuan'))
+
     from app.models.support_ticket import SupportTicket
     from app.models.transaction import Transaction
+    from app.models.notification import Notification
     from app.services.telegram_service import send_cs_ticket
+    import random
 
     user_name = request.form.get('user_name', '').strip()
     user_phone = request.form.get('user_phone', '').strip()
@@ -2334,6 +2353,8 @@ def kirim_tiket():
             user_phone = current_user.phone
 
     if not user_name or not user_phone or not message:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+            return jsonify({'success': False, 'message': 'Mohon lengkapi nama, nomor telepon, dan detail pesan keluhan Anda.'}), 400
         flash('Mohon lengkapi nama, nomor telepon, dan detail pesan keluhan Anda.', 'warning')
         return redirect(request.referrer or url_for('user.bantuan'))
 
@@ -2342,6 +2363,9 @@ def kirim_tiket():
         trx = Transaction.query.filter_by(ref_id=transaction_ref).first()
         if not trx and transaction_ref.isdigit():
             trx = Transaction.query.get(int(transaction_ref))
+
+    # Pilih jawaban ramah acak dari CS
+    chosen_reply = random.choice(CS_RANDOM_AUTO_REPLIES)
 
     ticket_num = SupportTicket.generate_ticket_number()
     ticket = SupportTicket(
@@ -2352,13 +2376,31 @@ def kirim_tiket():
         transaction_id=trx.id if trx else None,
         category=category,
         message=message,
-        status='OPEN'
+        status='OPEN',
+        cs_reply=chosen_reply,
+        cs_replied_at=datetime.utcnow()
     )
     db.session.add(ticket)
     db.session.commit()
 
     # Kirim langsung ke Bot 1 : CS & Balas Inbox di Telegram
     sent_ok, tg_msg = send_cs_ticket(ticket, trx)
+
+    # Tambahkan notifikasi in-app untuk pengguna
+    if current_user.is_authenticated:
+        try:
+            notif = Notification(
+                title=f"Tiket #{ticket.ticket_number} Diterima",
+                message=chosen_reply,
+                type='info',
+                link='/bantuan',
+                target_user_id=current_user.id,
+                is_broadcast=False
+            )
+            db.session.add(notif)
+        except Exception:
+            pass
+
     db.session.commit()
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
@@ -2366,10 +2408,11 @@ def kirim_tiket():
             'success': True,
             'ticket_number': ticket.ticket_number,
             'telegram_sent': sent_ok,
+            'auto_reply': chosen_reply,
             'message': 'Tiket berhasil dikirim ke Tim CS!'
         })
 
-    flash(f'✅ Tiket bantuan #{ticket.ticket_number} berhasil dikirim ke CS. Kami akan segera menghubungi Anda!', 'success')
+    flash(f'✅ Tiket #{ticket.ticket_number} berhasil dikirim! Balasan CS: "{chosen_reply}"', 'success')
     return redirect(url_for('user.bantuan', ticket_success=ticket.ticket_number))
 
 

@@ -1,5 +1,6 @@
 import os
 import json
+import urllib.parse
 import requests
 import logging
 from datetime import datetime, timezone, timedelta
@@ -42,7 +43,8 @@ def get_bot_cs_credentials():
 
 def send_cs_ticket(ticket, transaction=None):
     """
-    Mengirimkan laporan tiket bantuan CS ke Bot 1 : CS & Balas Inbox di Telegram.
+    Mengirimkan laporan tiket bantuan CS ke Bot 1 : CS & Balas Inbox di Telegram
+    dengan rincian produk, transaksi, dan tombol aksi balas cepat.
     
     Args:
         ticket (SupportTicket): Objek tiket keluhan
@@ -57,45 +59,81 @@ def send_cs_ticket(ticket, transaction=None):
         logger.warning(err_msg)
         return False, err_msg
 
-    # Susun Pesan HTML Telegram yang Rapi
+    try:
+        from app.services.setting_service import get_store_name
+        s_name = get_store_name() or "GarudaTel"
+    except Exception:
+        s_name = "GarudaTel"
+
+    # Susun Pesan HTML Telegram yang Lengkap & Informatif
+    ticket_time = getattr(ticket, 'created_at_wib', None) or format_wib(fmt='%d %b %Y, %H:%M WIB')
     lines = [
         f"🎫 <b>TIKET BANTUAN CS BARU #{ticket.ticket_number}</b>",
         "━━━━━━━━━━━━━━━━━━━━━━",
         f"👤 <b>Pelapor:</b> {ticket.user_name}",
-        f"📱 <b>No. HP:</b> <code>{ticket.user_phone}</code>",
+        f"📱 <b>No. HP/WA:</b> <code>{ticket.user_phone}</code>",
         f"📂 <b>Kategori:</b> {ticket.category}",
-        f"⏰ <b>Waktu:</b> {ticket.created_at_wib}",
+        f"⏰ <b>Waktu Masuk:</b> {ticket_time}",
         ""
     ]
 
     if transaction:
-        lines.append("📦 <b>DATA TRANSAKSI TERKAIT:</b>")
+        prod_cat = "-"
+        prod_brand = "-"
+        try:
+            if hasattr(transaction, 'product') and transaction.product:
+                prod_cat = transaction.product.category or "-"
+                prod_brand = transaction.product.brand or "-"
+            else:
+                from app.models.product import Product
+                p = Product.query.filter_by(sku_code=transaction.sku_code).first()
+                if p:
+                    prod_cat = p.category or "-"
+                    prod_brand = p.brand or "-"
+        except Exception:
+            pass
+
+        st = (transaction.status or "UNKNOWN").upper()
+        st_icon = "⏳" if st == "PENDING" else ("✅" if st == "SUCCESS" else "🚨")
+        trx_time = format_wib(transaction.created_at, "%d/%m/%Y %H:%M:%S WIB") if transaction.created_at else "-"
+
+        lines.append("📦 <b>DETAIL PRODUK & TRANSAKSI KOMPLAIN:</b>")
         lines.append(f"• <b>Ref ID:</b> <code>{transaction.ref_id}</code>")
-        lines.append(f"• <b>Produk:</b> {transaction.product_name or '-'}")
-        lines.append(f"• <b>Tujuan:</b> <code>{transaction.target_number or '-'}</code>")
-        lines.append(f"• <b>Status:</b> <b>{transaction.status}</b>")
-        lines.append(f"• <b>Nominal:</b> Rp {transaction.amount:,.0f}")
+        lines.append(f"• <b>Nama Produk:</b> <b>{transaction.product_name or '-'}</b>")
+        if transaction.sku_code:
+            lines.append(f"• <b>SKU / Kode:</b> <code>{transaction.sku_code}</code>")
+        if prod_cat != "-":
+            lines.append(f"• <b>Kategori/Brand:</b> {prod_cat} {f'({prod_brand})' if prod_brand != '-' else ''}")
+        lines.append(f"• <b>Tujuan / No. Meter:</b> <code>{transaction.target_number or '-'}</code>")
+        lines.append(f"• <b>Status Trx:</b> {st_icon} <b>{st}</b>")
+        lines.append(f"• <b>Nominal / Harga:</b> Rp {float(transaction.amount or 0.0):,.0f}")
         if transaction.sn:
-            lines.append(f"• <b>SN/Ket:</b> <code>{transaction.sn}</code>")
+            lines.append(f"• <b>SN / Ket. Biller:</b> <code>{transaction.sn}</code>")
+        else:
+            lines.append("• <b>SN / Ket. Biller:</b> <i>(Belum ada SN dari provider)</i>")
+        lines.append(f"• <b>Waktu Transaksi:</b> {trx_time}")
         lines.append("")
     else:
-        lines.append("ℹ️ <i>Tiket Pertanyaan Umum (Tanpa Spesifik Transaksi)</i>")
+        lines.append("ℹ️ <i>Tiket Pertanyaan Umum (Tidak Terikat Transaksi Tertentu)</i>")
         lines.append("")
 
-    lines.append("💬 <b>DETAIL KELUHAN / PERTANYAAN:</b>")
+    lines.append("💬 <b>DETAIL KELUHAN PENGGUNA:</b>")
     lines.append(f"<i>\"{ticket.message}\"</i>")
     lines.append("")
     lines.append("━━━━━━━━━━━━━━━━━━━━━━")
 
-    # Link direct WhatsApp
-    wa_num = ticket.clean_phone_for_wa
+    # Link & Tombol Direct WhatsApp
+    wa_num = getattr(ticket, 'clean_phone_for_wa', '') or ''
+    reply_markup = None
     if wa_num:
-        try:
-            from app.services.setting_service import get_store_name
-            s_name = get_store_name()
-        except Exception:
-            s_name = "GarudaTel"
-        lines.append(f"👉 <a href=\"https://wa.me/{wa_num}?text=Halo%20{ticket.user_name},%20terkait%20tiket%20bantuan%20{ticket.ticket_number}%20di%20{urllib.parse.quote(s_name)}:\">Klik untuk Balas via WhatsApp Pelapor</a>")
+        wa_text = f"Halo kak {ticket.user_name}, kami dari CS {s_name} menindaklanjuti tiket bantuan #{ticket.ticket_number}:"
+        wa_url = f"https://wa.me/{wa_num}?text={urllib.parse.quote(wa_text)}"
+        lines.append(f"👉 <a href=\"{wa_url}\">Klik untuk Balas WhatsApp Pelapor</a>")
+        reply_markup = {
+            "inline_keyboard": [
+                [{"text": f"💬 Hubungi WhatsApp Pelapor ({ticket.user_name})", "url": wa_url}]
+            ]
+        }
 
     full_text = "\n".join(lines)
 
@@ -107,12 +145,15 @@ def send_cs_ticket(ticket, transaction=None):
             "parse_mode": "HTML",
             "disable_web_page_preview": True
         }
+        if reply_markup:
+            payload["reply_markup"] = reply_markup
+
         resp = requests.post(api_url, json=payload, timeout=12)
         res_data = resp.json()
 
         if res_data.get('ok'):
             ticket.telegram_sent = True
-            ticket.telegram_response = f"Pesan terkirim ke Telegram ID {chat_id}"
+            ticket.telegram_response = f"Pesan terkirim ke Bot CS (Telegram ID {chat_id})"
             return True, "Tiket berhasil dikirim ke Bot CS Telegram!"
         else:
             ticket.telegram_sent = False

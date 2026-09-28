@@ -16,6 +16,8 @@ class SupportTicket(db.Model):
     status = db.Column(db.String(20), default='OPEN')  # 'OPEN', 'PROCESS', 'RESOLVED', 'CLOSED'
     telegram_sent = db.Column(db.Boolean, default=False)
     telegram_response = db.Column(db.Text, nullable=True)
+    cs_reply = db.Column(db.Text, nullable=True)
+    cs_replied_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -32,8 +34,16 @@ class SupportTicket(db.Model):
 
     @property
     def created_at_wib(self):
-        wib = self.created_at + timedelta(hours=7)
+        dt = self.created_at or datetime.utcnow()
+        wib = dt + timedelta(hours=7)
         return wib.strftime("%d %b %Y, %H:%M WIB")
+
+    @property
+    def cs_replied_at_wib(self):
+        if self.cs_replied_at:
+            wib = self.cs_replied_at + timedelta(hours=7)
+            return wib.strftime("%d %b %Y, %H:%M WIB")
+        return "-"
 
     @property
     def clean_phone_for_wa(self):

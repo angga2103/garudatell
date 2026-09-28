@@ -85,9 +85,26 @@ def create_app(test_config=None):
     @login_manager.user_loader
     def load_user(user_id):
         from app.models.user import User
-        return User.query.get(int(user_id))
-        
+        try:
+            return User.query.get(int(user_id))
+        except (ValueError, TypeError):
+            return None
     migrate.init_app(app, db)
+
+    # Auto-migration ringan untuk kolom cs_reply pada support_tickets
+    with app.app_context():
+        try:
+            from sqlalchemy import inspect, text
+            inspector = inspect(db.engine)
+            if 'support_tickets' in inspector.get_table_names():
+                existing_cols = [c['name'] for c in inspector.get_columns('support_tickets')]
+                if 'cs_reply' not in existing_cols:
+                    db.session.execute(text('ALTER TABLE support_tickets ADD COLUMN cs_reply TEXT'))
+                if 'cs_replied_at' not in existing_cols:
+                    db.session.execute(text('ALTER TABLE support_tickets ADD COLUMN cs_replied_at DATETIME'))
+                db.session.commit()
+        except Exception:
+            pass
 
     # Impor Blueprint
     from app.routes.user import user_bp
