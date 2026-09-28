@@ -99,6 +99,44 @@ def test_cs_two_way():
         assert ticket.status == 'RESOLVED', f"Status ticket harus berubah ke RESOLVED tapi didapat {ticket.status}"
         print(f"  [PASS] Klik tombol inline [✅ Selesaikan Tiket] sukses! Status: {ticket.status}")
 
+        print("\n=== 2C. TEST BOT 1 CS CALLBACK BUTTON [BALAS MANUAL] ===")
+        sample_prompt_update = {
+            'update_id': 1003,
+            'callback_query': {
+                'id': 'cb_test_prompt',
+                'from': {'id': 1234, 'first_name': 'Admin Super', 'username': 'admin_garuda'},
+                'message': {'message_id': 9999, 'chat': {'id': 7236113204}},
+                'data': f'reply_prompt:{t_num}'
+            }
+        }
+        with patch('requests.post') as mock_post:
+            mock_post.return_value.json.return_value = {'ok': True}
+            handle_cs_bot_update(app, sample_prompt_update, bot_token='test_token')
+            assert mock_post.called
+            calls = [c[1].get('json', {}) for c in mock_post.call_args_list]
+            prompt_sent = any(f"/balas {t_num}" in c.get('text', '') for c in calls)
+            assert prompt_sent, "Pesan panduan balas manual dengan format /balas harus dikirim ke Telegram"
+        print("  [PASS] Klik tombol inline [✍️ Balas Manual] mengirimkan panduan /balas ke Telegram!")
+
+        print("\n=== 2D. TEST COMMAND /balas CS-XXXX (PERSIS SEPERTI DI SCREENSHOT) ===")
+        sample_cmd_update = {
+            'update_id': 1004,
+            'message': {
+                'message_id': 5556,
+                'chat': {'id': 7236113204},
+                'from': {'id': 1234, 'first_name': 'Admin Super', 'username': 'admin_garuda'},
+                'text': f"/balas {t_num} penyesuaian saldo ini kaka"
+            }
+        }
+        with patch('requests.post') as mock_post:
+            mock_post.return_value.json.return_value = {'ok': True}
+            handle_cs_bot_update(app, sample_cmd_update, bot_token='test_token')
+
+        db.session.expire_all()
+        ticket = SupportTicket.query.filter_by(ticket_number=t_num).first()
+        assert "penyesuaian saldo ini kaka" in ticket.admin_reply
+        print(f"  [PASS] Perintah /balas {t_num} sukses tersimpan di DB: \"{ticket.admin_reply}\"")
+
         print("\n=== 3. TEST WEB API /api/tiket/<num> & /api/tiket/user-tickets ===")
         res_api_single = client.get(f'/api/tiket/{t_num}')
         assert res_api_single.status_code == 200

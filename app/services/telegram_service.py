@@ -198,19 +198,26 @@ def handle_cs_bot_update(app, update, bot_token=None):
             cb_id = cb.get('id')
             cb_data = cb.get('data', '')
             from_user = cb.get('from', {})
-            admin_name = from_user.get('first_name') or from_user.get('username') or 'Admin CS'
-            chat_id = cb.get('message', {}).get('chat', {}).get('id')
-            orig_msg_id = cb.get('message', {}).get('message_id')
+            first_n = from_user.get('first_name', '')
+            last_n = from_user.get('last_name', '')
+            admin_name = f"{first_n} {last_n}".strip() or from_user.get('username') or 'Admin CS'
+            cb_msg = cb.get('message') or {}
+            chat_id = cb_msg.get('chat', {}).get('id') if isinstance(cb_msg, dict) else from_user.get('id')
+            orig_msg_id = cb_msg.get('message_id') if isinstance(cb_msg, dict) else None
+
+            logger.info(f"[Bot 1 CS] Callback Query: data='{cb_data}' dari @{from_user.get('username')} ({admin_name})")
 
             def answer_cb(text, show_alert=False):
                 try:
-                    requests.post(
+                    res = requests.post(
                         f"https://api.telegram.org/bot{bot_token}/answerCallbackQuery",
                         json={"callback_query_id": cb_id, "text": text, "show_alert": show_alert},
                         timeout=8
                     )
-                except Exception:
-                    pass
+                    if not res.json().get('ok'):
+                        logger.warning(f"[Bot 1 CS] answerCallbackQuery warning: {res.text}")
+                except Exception as ex:
+                    logger.warning(f"[Bot 1 CS] answerCallbackQuery error: {ex}")
 
             def send_tg_msg(text, reply_to=None, reply_markup=None):
                 payload = {
@@ -223,26 +230,30 @@ def handle_cs_bot_update(app, update, bot_token=None):
                 if reply_markup:
                     payload["reply_markup"] = reply_markup
                 try:
-                    requests.post(
+                    res = requests.post(
                         f"https://api.telegram.org/bot{bot_token}/sendMessage",
                         json=payload,
                         timeout=10
                     )
-                except Exception:
-                    pass
+                    if not res.json().get('ok'):
+                        logger.error(f"[Bot 1 CS] Gagal sendMessage: {res.text}")
+                except Exception as ex:
+                    logger.error(f"[Bot 1 CS] sendMessage exception: {ex}")
 
             # A. Balas Manual Prompt
             if cb_data.startswith('reply_prompt:'):
-                ticket_num = cb_data.split(':', 1)[1]
-                answer_cb("Silakan ketik balasan Anda...")
+                ticket_num = cb_data.split(':', 1)[1].replace('#', '').strip()
+                answer_cb(f"Silakan ketik balasan untuk tiket #{ticket_num}")
                 force_reply = {
                     "force_reply": True,
-                    "input_field_placeholder": f"Ketik balasan untuk tiket #{ticket_num}...",
-                    "selective": True
+                    "input_field_placeholder": f"Ketik balasan untuk tiket #{ticket_num}..."
                 }
                 send_tg_msg(
-                    f"✍️ <b>Ketik balasan Anda untuk tiket #{ticket_num}:</b>\n\n"
-                    f"<i>(Balasan yang Anda kirim akan langsung tampil di halaman Pusat Bantuan web pengguna)</i>",
+                    f"✍️ <b>PANDUAN BALAS TIKET #{ticket_num}:</b>\n\n"
+                    f"Silakan salin atau klik perintah berikut:\n"
+                    f"<code>/balas {ticket_num} Tulis balasan Anda di sini</code>\n\n"
+                    f"Atau cukup <b>Reply (Kutip) pesan ini</b> langsung dengan teks balasan Anda.\n\n"
+                    f"📌 <i>Balasan Anda langsung muncul secara real-time di halaman Pusat Bantuan web pengguna!</i>",
                     reply_to=orig_msg_id,
                     reply_markup=force_reply
                 )
@@ -252,10 +263,13 @@ def handle_cs_bot_update(app, update, bot_token=None):
             elif cb_data.startswith('reply_tpl:'):
                 parts = cb_data.split(':')
                 if len(parts) >= 3:
-                    ticket_num = parts[1]
+                    ticket_num = parts[1].replace('#', '').strip()
                     tpl_type = parts[2]
 
                     ticket = SupportTicket.query.filter_by(ticket_number=ticket_num).first()
+                    if not ticket:
+                        ticket = SupportTicket.query.filter(SupportTicket.ticket_number.ilike(f"%{ticket_num}%")).first()
+
                     if not ticket:
                         answer_cb("Tiket tidak ditemukan!", show_alert=True)
                         return
@@ -293,6 +307,7 @@ def handle_cs_bot_update(app, update, bot_token=None):
                             pass
 
                     db.session.commit()
+                    logger.info(f"[Bot 1 CS] Tiket #{ticket.ticket_number} berhasil diupdate via template '{tpl_type}' oleh {admin_name}")
 
                     answer_cb(f"Tiket #{ticket_num} diupdate ke {action_label}!")
                     send_tg_msg(
@@ -312,13 +327,17 @@ def handle_cs_bot_update(app, update, bot_token=None):
             msg = update['message']
             chat_id = msg.get('chat', {}).get('id')
             msg_id = msg.get('message_id')
-            text = (msg.get('text') or '').strip()
+            text = (msg.get('text') or msg.get('caption') or '').strip()
             from_user = msg.get('from', {})
-            admin_name = from_user.get('first_name') or from_user.get('username') or 'Admin CS'
+            first_n = from_user.get('first_name', '')
+            last_n = from_user.get('last_name', '')
+            admin_name = f"{first_n} {last_n}".strip() or from_user.get('username') or 'Admin CS'
+
+            logger.info(f"[Bot 1 CS] Pesan teks dari @{from_user.get('username')} ({admin_name}): '{text}'")
 
             def send_tg_msg(resp_text, reply_to=None):
                 try:
-                    requests.post(
+                    res = requests.post(
                         f"https://api.telegram.org/bot{bot_token}/sendMessage",
                         json={
                             "chat_id": chat_id,
@@ -328,8 +347,10 @@ def handle_cs_bot_update(app, update, bot_token=None):
                         },
                         timeout=10
                     )
-                except Exception:
-                    pass
+                    if not res.json().get('ok'):
+                        logger.error(f"[Bot 1 CS] Gagal sendMessage: {res.text}")
+                except Exception as ex:
+                    logger.error(f"[Bot 1 CS] sendMessage exception: {ex}")
 
             if not text:
                 return
@@ -338,17 +359,18 @@ def handle_cs_bot_update(app, update, bot_token=None):
             target_ticket_num = None
             reply_to_msg = msg.get('reply_to_message')
             if reply_to_msg:
-                parent_text = reply_to_msg.get('text') or ''
-                match = re.search(r'#(CS-\d{8}-\d+)', parent_text)
+                parent_text = reply_to_msg.get('text') or reply_to_msg.get('caption') or ''
+                match = re.search(r'#?(CS-\d{4,8}-\d+)', parent_text, re.IGNORECASE)
                 if match:
-                    target_ticket_num = match.group(1)
+                    target_ticket_num = match.group(1).upper()
 
-            # B. Cek apakah menggunakan format command /balas atau /jawab
+            # B. Cek apakah menggunakan format command /balas, /jawab, atau tanpa slash
             reply_content = text
-            if text.startswith(('/balas', '/jawab', '/reply')):
+            text_lower = text.lower()
+            if text_lower.startswith(('/balas', '/jawab', '/reply', 'balas ', 'jawab ')):
                 parts = text.split(maxsplit=2)
                 if len(parts) >= 3:
-                    target_ticket_num = parts[1].replace('#', '').strip()
+                    target_ticket_num = parts[1].replace('#', '').strip().upper()
                     reply_content = parts[2].strip()
                 elif target_ticket_num and len(parts) == 2:
                     reply_content = parts[1].strip()
@@ -356,15 +378,15 @@ def handle_cs_bot_update(app, update, bot_token=None):
                     send_tg_msg(
                         "⚠️ <b>Format Perintah Balas:</b>\n"
                         "<code>/balas [Nomor Tiket] [Pesan Balasan]</code>\n"
-                        "Contoh: <code>/balas CS-20260928-6938 Pulsa sudah kami cek dan sukses ya kak</code>",
+                        "Contoh: <code>/balas CS-20260928-9520 Pulsa sudah kami cek dan sukses ya kak</code>",
                         reply_to=msg_id
                     )
                     return
 
-            elif text.startswith(('/selesai', '/done', '/close')):
+            elif text_lower.startswith(('/selesai', '/done', '/close', 'selesai ', 'done ', 'close ')):
                 parts = text.split(maxsplit=2)
                 if len(parts) >= 2:
-                    target_ticket_num = parts[1].replace('#', '').strip()
+                    target_ticket_num = parts[1].replace('#', '').strip().upper()
                     reply_content = parts[2].strip() if len(parts) >= 3 else "Keluhan transaksi ini telah selesai ditangani oleh tim CS. Terima kasih!"
                 elif target_ticket_num:
                     reply_content = parts[1].strip() if len(parts) >= 2 else "Keluhan transaksi ini telah selesai ditangani oleh tim CS. Terima kasih!"
@@ -372,7 +394,7 @@ def handle_cs_bot_update(app, update, bot_token=None):
                     send_tg_msg("⚠️ <b>Format Selesai:</b>\n<code>/selesai [Nomor Tiket] [Pesan Penutup]</code>", reply_to=msg_id)
                     return
 
-            elif text in ['/start', '/help', '/menu']:
+            elif text_lower in ['/start', '/help', '/menu']:
                 send_tg_msg(
                     "🤖 <b>Bot 1 : CS & Balas Inbox GarudaTel</b>\n\n"
                     "Bot ini menerima seluruh tiket keluhan dari pelanggan web secara langsung.\n\n"
@@ -386,7 +408,23 @@ def handle_cs_bot_update(app, update, bot_token=None):
                 )
                 return
 
-            # C. Eksekusi penyimpanan balasan jika tiket ditemukan
+            # C. Fallback: Jika pengguna menulis nomor tiket langsung (contoh: CS-20260928-9520 pesan)
+            if not target_ticket_num:
+                parts_check = text.split(maxsplit=1)
+                first_word = parts_check[0].replace('#', '').strip().upper()
+                if first_word.startswith('CS-') and len(parts_check) >= 2:
+                    target_ticket_num = first_word
+                    reply_content = parts_check[1].strip()
+                else:
+                    match_inline = re.search(r'#?(CS-\d{4,8}-\d+)', text, re.IGNORECASE)
+                    if match_inline:
+                        target_ticket_num = match_inline.group(1).upper()
+                        cleaned_msg = re.sub(r'#?CS-\d{4,8}-\d+', '', text, flags=re.IGNORECASE).strip()
+                        cleaned_msg = re.sub(r'^(/balas|balas|/jawab|jawab)\s*', '', cleaned_msg, flags=re.IGNORECASE).strip()
+                        if cleaned_msg:
+                            reply_content = cleaned_msg
+
+            # D. Eksekusi penyimpanan balasan jika tiket ditemukan
             if target_ticket_num:
                 ticket = SupportTicket.query.filter_by(ticket_number=target_ticket_num).first()
                 if not ticket:
@@ -397,7 +435,7 @@ def handle_cs_bot_update(app, update, bot_token=None):
                     return
 
                 # Update status
-                is_closing = text.startswith(('/selesai', '/done', '/close'))
+                is_closing = text_lower.startswith(('/selesai', '/done', '/close', 'selesai ', 'done ', 'close '))
                 if is_closing:
                     ticket.status = 'RESOLVED'
                 elif ticket.status == 'OPEN':
@@ -428,6 +466,7 @@ def handle_cs_bot_update(app, update, bot_token=None):
                         pass
 
                 db.session.commit()
+                logger.info(f"[Bot 1 CS] Balasan admin '{reply_content[:40]}...' tersimpan untuk tiket #{ticket.ticket_number} oleh {admin_name}")
 
                 st_badge = "✅ SELESAI" if ticket.status == 'RESOLVED' else "⏳ SEDANG DIPROSES"
                 send_tg_msg(

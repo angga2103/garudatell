@@ -49,8 +49,8 @@ function loadEnvConfig() {
         } catch (e) {}
     }
     return {
-        telegramToken: process.env.BOT_ADMIN_TOKEN || config.BOT_ADMIN_TOKEN || process.env.BOT_CS_TOKEN || config.BOT_CS_TOKEN || '',
-        telegramChatId: process.env.BOT_ADMIN_CHAT_ID || config.BOT_ADMIN_CHAT_ID || process.env.BOT_CS_CHAT_ID || config.BOT_CS_CHAT_ID || ''
+        telegramToken: process.env.BOT_ADMIN_TOKEN || config.BOT_ADMIN_TOKEN || '',
+        telegramChatId: process.env.BOT_ADMIN_CHAT_ID || config.BOT_ADMIN_CHAT_ID || ''
     };
 }
 

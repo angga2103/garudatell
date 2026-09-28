@@ -115,6 +115,18 @@ def poll_bot_cs_worker(app, token, allowed_chat):
     Mendengarkan balasan manual dari admin Telegram dan meneruskannya ke web pengguna.
     """
     logger.info(f"🟢 [Bot 1 CS] Listener Balasan aktif untuk Bot 1 (Token: ...{token[-6:]})")
+
+    # Pastikan webhook dinonaktifkan agar getUpdates selalu diizinkan oleh Telegram API
+    try:
+        del_res = requests.post(
+            f"https://api.telegram.org/bot{token}/deleteWebhook",
+            json={"drop_pending_updates": False},
+            timeout=10
+        )
+        logger.info(f"[Bot 1 CS] Webhook status check: {del_res.json().get('description', 'OK')}")
+    except Exception as ex_wh:
+        logger.warning(f"[Bot 1 CS] Gagal cek deleteWebhook: {ex_wh}")
+
     offset = 0
     poll_url = f"https://api.telegram.org/bot{token}/getUpdates"
 
@@ -127,28 +139,35 @@ def poll_bot_cs_worker(app, token, allowed_chat):
             }
             resp = requests.get(poll_url, params=params, timeout=30)
             if resp.status_code != 200:
+                logger.warning(f"[Bot 1 CS] Polling HTTP {resp.status_code}: {resp.text}")
                 time.sleep(3)
                 continue
 
             data = resp.json()
             if not data.get('ok'):
+                logger.warning(f"[Bot 1 CS] Polling not OK: {data.get('description')}")
                 time.sleep(3)
                 continue
 
             updates = data.get('result', [])
+            if updates:
+                logger.info(f"[Bot 1 CS] Mendapatkan {len(updates)} update baru dari Telegram.")
+
             for update in updates:
                 offset = update['update_id'] + 1
                 try:
+                    logger.info(f"[Bot 1 CS] Memproses update ID: {update.get('update_id')}")
                     handle_cs_bot_update(app, update, token)
                 except Exception as err:
-                    logger.error(f"[Bot 1 CS] Error handle update: {err}")
+                    logger.error(f"[Bot 1 CS] Error handle update {update.get('update_id')}: {err}", exc_info=True)
 
         except requests.exceptions.Timeout:
             continue
-        except requests.exceptions.RequestException:
+        except requests.exceptions.RequestException as req_err:
+            logger.warning(f"[Bot 1 CS] Network request error: {req_err}")
             time.sleep(3)
         except Exception as e:
-            logger.error(f"[Bot 1 CS] Polling error: {e}")
+            logger.error(f"[Bot 1 CS] Polling error: {e}", exc_info=True)
             time.sleep(3)
 
     logger.info("🔴 [Bot 1 CS] Listener Worker dihentikan.")
