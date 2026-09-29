@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Koneksi Terputus - iPay GarudaTel</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#008779">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #008779;
+            --primary-dark: #005f56;
+            --bg: #f5f8fa;
+        }
+        * { box-sizing: border-box; font-family: 'Nunito', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body {
+            margin: 0; padding: 0;
+            background: var(--bg);
+            color: #1e293b;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        .offline-card {
+            background: white;
+            border-radius: 28px;
+            padding: 36px 24px;
+            max-width: 420px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+            border: 1.5px solid #e2e8f0;
+            animation: fadeIn 0.4s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .icon-circle {
+            width: 90px; height: 90px;
+            background: #fee2e2;
+            color: #dc2626;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 38px;
+            margin-bottom: 20px;
+            position: relative;
+            animation: pulse-red 2s infinite ease-in-out;
+        }
+        @keyframes pulse-red {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.25); }
+            50% { transform: scale(1.05); box-shadow: 0 0 0 14px rgba(220, 38, 38, 0); }
+        }
+        .app-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #e6f4f2;
+            color: var(--primary-dark);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 800;
+            margin-bottom: 16px;
+        }
+        .app-badge img {
+            width: 20px; height: 20px; border-radius: 6px;
+        }
+        h2 {
+            font-size: 20px;
+            font-weight: 900;
+            color: #0f172a;
+            margin: 0 0 10px 0;
+        }
+        p {
+            font-size: 13.5px;
+            color: #64748b;
+            line-height: 1.55;
+            margin: 0 0 24px 0;
+        }
+        .btn-reload {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            border: none;
+            width: 100%;
+            padding: 14px 20px;
+            border-radius: 16px;
+            font-size: 14px;
+            font-weight: 800;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 6px 18px rgba(0, 135, 121, 0.35);
+            transition: all 0.2s ease;
+        }
+        .btn-reload:active {
+            transform: scale(0.98);
+        }
+        .status-pill {
+            margin-top: 18px;
+            font-size: 11.5px;
+            color: #94a3b8;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .status-dot {
+            width: 8px; height: 8px;
+            background: #f59e0b;
+            border-radius: 50%;
+            animation: blink 1.2s infinite;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+    </style>
+</head>
+<body>
+    <div class="offline-card">
+        <div class="app-badge">
+            <img src="/static/img/icons/icon-192x192.png" alt="iPay">
+            <span>iPay GarudaTel</span>
+        </div>
+
+        <div class="icon-circle">
+            <i class="fas fa-wifi-slash"></i>
+        </div>
+
+        <h2>Koneksi Internet Terputus</h2>
+        <p>
+            Ups! Sinyal internet Anda tampaknya sedang tidak stabil atau mati. Aplikasi iPay membutuhkan koneksi aktif untuk memproses data dan transaksi Anda.
+        </p>
+
+        <button class="btn-reload" onclick="handleReload(this)">
+            <i class="fas fa-rotate-right" id="reload-icon"></i>
+            <span>Coba Muat Ulang</span>
+        </button>
+
+        <div class="status-pill">
+            <div class="status-dot" id="network-dot"></div>
+            <span id="network-text">Menunggu jaringan kembali online...</span>
+        </div>
+    </div>
+
+    <script>
+        function handleReload(btn) {
+            const icon = document.getElementById('reload-icon');
+            if (icon) icon.classList.add('fa-spin');
+            btn.disabled = true;
+            btn.style.opacity = '0.8';
+            setTimeout(() => {
+                window.location.reload();
+            }, 600);
+        }
+
+        // Auto reload saat koneksi kembali terhubung
+        window.addEventListener('online', () => {
+            const dot = document.getElementById('network-dot');
+            const txt = document.getElementById('network-text');
+            if (dot) dot.style.background = '#10b981';
+            if (txt) txt.innerText = 'Koneksi kembali online! Memuat ulang...';
+            setTimeout(() => {
+                window.location.reload();
+            }, 800);
+        });
+
+        window.addEventListener('offline', () => {
+            const dot = document.getElementById('network-dot');
+            const txt = document.getElementById('network-text');
+            if (dot) dot.style.background = '#ef4444';
+            if (txt) txt.innerText = 'Perangkat masih offline.';
+        });
+    </script>
+</body>
+</html>

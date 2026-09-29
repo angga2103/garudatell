@@ -3019,3 +3019,30 @@ def api_get_products_by_category(nama_kategori):
     }), 200
 
 
+# ==============================================================================
+# RUTE PWA (PROGRESSIVE WEB APP) iPay
+# ==============================================================================
+@user_bp.route('/manifest.json')
+def pwa_manifest():
+    """Menyajikan file Web App Manifest PWA iPay."""
+    from flask import current_app, send_from_directory
+    return send_from_directory(current_app.static_folder, 'manifest.json', mimetype='application/manifest+json')
+
+
+@user_bp.route('/sw.js')
+def pwa_service_worker():
+    """Menyajikan Service Worker PWA iPay dengan scope seluruh root domain."""
+    from flask import current_app, send_from_directory, make_response
+    resp = make_response(send_from_directory(current_app.static_folder, 'sw.js', mimetype='application/javascript'))
+    resp.headers['Service-Worker-Allowed'] = '/'
+    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    return resp
+
+
+@user_bp.route('/offline')
+def pwa_offline():
+    """Menyajikan halaman fallback saat koneksi internet terputus."""
+    return render_template('offline.html')
+
+
+

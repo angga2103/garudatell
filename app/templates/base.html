@@ -4,6 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>{% block title %}{{ store.name }} - {{ store.tagline }}{% endblock %}</title>
+
+    <!-- PWA & Mobile Web App Meta Tags iPay -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#008779">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="iPay">
+    <link rel="apple-touch-icon" href="/static/img/icons/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/img/icons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/img/icons/favicon-16x16.png">
+    <link rel="icon" type="image/svg+xml" href="/static/img/icons/icon.svg">
+
     <!-- Resource Hints & Preconnect untuk Akselerasi Aset Eksternal -->
     <link rel="dns-prefetch" href="//fonts.googleapis.com">
     <link rel="dns-prefetch" href="//fonts.gstatic.com">
@@ -119,12 +132,194 @@
         }
         
         .card { background: var(--card-bg); border-radius: var(--radius-lg); padding: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
+
+        /* PWA SMART INSTALL BANNER */
+        .pwa-install-banner {
+            position: fixed;
+            bottom: 78px;
+            left: 0; right: 0;
+            z-index: 999;
+            padding: 0 12px;
+            pointer-events: none;
+            animation: slideUpPWA 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes slideUpPWA {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .pwa-banner-card {
+            pointer-events: auto;
+            max-width: 480px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border-radius: 20px;
+            padding: 12px 14px;
+            box-shadow: 0 12px 28px -5px rgba(0, 135, 121, 0.22), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
+            border: 1.5px solid #bfeae3;
+            position: relative;
+        }
+        .pwa-btn-close {
+            position: absolute;
+            top: 10px; right: 10px;
+            width: 24px; height: 24px;
+            background: #f1f5f9;
+            border: none;
+            border-radius: 50%;
+            color: #64748b;
+            font-size: 11px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .pwa-btn-close:hover { background: #e2e8f0; color: #0f172a; }
+        .pwa-banner-content {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .pwa-icon-wrapper {
+            position: relative;
+            flex-shrink: 0;
+        }
+        .pwa-app-icon {
+            width: 46px; height: 46px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0, 135, 121, 0.25);
+            display: block;
+        }
+        .pwa-badge-check {
+            position: absolute;
+            bottom: -3px; right: -3px;
+            background: #10b981;
+            color: white;
+            font-size: 8px;
+            width: 14px; height: 14px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            border: 2px solid white;
+        }
+        .pwa-text-wrapper {
+            flex: 1;
+            min-width: 0;
+            padding-right: 20px;
+        }
+        .pwa-app-title {
+            font-size: 13.5px;
+            font-weight: 800;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .pwa-tag-pill {
+            font-size: 9.5px;
+            font-weight: 800;
+            color: #008779;
+            background: #e6f7f5;
+            padding: 1px 6px;
+            border-radius: 6px;
+        }
+        .pwa-app-desc {
+            font-size: 11.5px;
+            color: #475569;
+            margin-top: 2px;
+            line-height: 1.35;
+        }
+        .pwa-feature-tags {
+            display: flex;
+            gap: 8px;
+            font-size: 10px;
+            color: #64748b;
+            font-weight: 700;
+            margin-top: 4px;
+        }
+        .pwa-action-row {
+            margin-top: 10px;
+        }
+        .pwa-btn-install {
+            width: 100%;
+            background: linear-gradient(135deg, #008779 0%, #005f56 100%);
+            color: white;
+            border: none;
+            padding: 9px 16px;
+            border-radius: 12px;
+            font-size: 12.5px;
+            font-weight: 800;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            box-shadow: 0 4px 12px rgba(0, 135, 121, 0.3);
+            transition: all 0.2s ease;
+        }
+        .pwa-btn-install:active { transform: scale(0.98); }
+        .pwa-ios-guide {
+            margin-top: 8px;
+            background: #f8fafc;
+            border: 1px dashed #99f6e4;
+            border-radius: 10px;
+            padding: 8px 10px;
+            font-size: 11px;
+            color: #334155;
+            text-align: center;
+            line-height: 1.4;
+        }
+        .pwa-ios-icon {
+            color: #0284c7;
+            font-size: 13px;
+            margin: 0 2px;
+        }
     </style>
     {% block head %}{% endblock %}
 </head>
 <body>
     <div class="app-container">
         {% block content %}{% endblock %}
+    </div>
+
+    <!-- PWA Smart Install Banner / Drawer -->
+    <div id="pwa-install-banner" class="pwa-install-banner" style="display: none;">
+        <div class="pwa-banner-card">
+            <button type="button" class="pwa-btn-close" id="pwa-btn-dismiss" title="Tutup">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="pwa-banner-content">
+                <div class="pwa-icon-wrapper">
+                    <img src="/static/img/icons/icon-192x192.png" alt="iPay" class="pwa-app-icon">
+                    <span class="pwa-badge-check"><i class="fas fa-check"></i></span>
+                </div>
+                <div class="pwa-text-wrapper">
+                    <div class="pwa-app-title">
+                        <span>Aplikasi iPay</span>
+                        <span class="pwa-tag-pill">PWA Resmi</span>
+                    </div>
+                    <div class="pwa-app-desc">
+                        Akses sat-set, hemat kuota & pasang langsung di layar HP.
+                    </div>
+                    <div class="pwa-feature-tags">
+                        <span><i class="fas fa-bolt text-amber-500"></i> ~300 KB</span>
+                        <span><i class="fas fa-star text-amber-400"></i> 4.9</span>
+                        <span><i class="fas fa-shield-alt text-teal-600"></i> Aman</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="pwa-action-row" id="pwa-action-android">
+                <button type="button" class="pwa-btn-install" id="pwa-btn-install">
+                    <i class="fas fa-download mr-1"></i> Pasang Aplikasi iPay
+                </button>
+            </div>
+
+            <!-- Khusus Petunjuk iPhone/iPad (iOS Safari) -->
+            <div class="pwa-ios-guide" id="pwa-action-ios" style="display: none;">
+                <div class="pwa-ios-text">
+                    Khusus iPhone/iPad: Tekan <i class="fas fa-arrow-up-from-bracket pwa-ios-icon"></i> di menu Safari, lalu pilih <b>"Tambah ke Layar Utama"</b> ⊞
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- NAVBAR BAWAH (Hanya muncul jika tidak disembunyikan via blok) -->
@@ -198,6 +393,100 @@
             var a = e.target.closest('a');
             if (a) clearTimeout(hoverTimer);
         }, { passive: true });
+    })();
+    </script>
+
+    <!-- iPay PWA Engine: Service Worker & Smart Install Prompt -->
+    <script>
+    (function() {
+        // 1. Registrasi Service Worker PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js', { scope: '/' })
+                    .then(function(reg) {
+                        console.log('[PWA] Service Worker aktif di scope:', reg.scope);
+                    })
+                    .catch(function(err) {
+                        console.warn('[PWA] Gagal daftarkan Service Worker:', err);
+                    });
+            });
+        }
+
+        // 2. Deteksi Apakah Sudah Berjalan dalam Mode Standalone PWA
+        var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+        if (isStandalone) {
+            console.log('[PWA] Berjalan dalam mode aplikasi standalone.');
+            return;
+        }
+
+        // Cek riwayat dismiss (jangan tampilkan jika ditutup dalam 3 hari terakhir)
+        var dismissedTime = localStorage.getItem('pwa_prompt_dismissed');
+        if (dismissedTime && (Date.now() - parseInt(dismissedTime, 10) < 3 * 24 * 60 * 60 * 1000)) {
+            return;
+        }
+
+        // Cek jika sudah pernah install
+        if (localStorage.getItem('pwa_installed') === 'true') {
+            return;
+        }
+
+        var deferredPrompt = null;
+        var banner = document.getElementById('pwa-install-banner');
+        var btnInstall = document.getElementById('pwa-btn-install');
+        var btnDismiss = document.getElementById('pwa-btn-dismiss');
+        var actionAndroid = document.getElementById('pwa-action-android');
+        var actionIos = document.getElementById('pwa-action-ios');
+
+        // Deteksi iOS Safari
+        var isIos = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
+        var isSafari = /safari/i.test(window.navigator.userAgent) && !/crios|fxios|chrome/i.test(window.navigator.userAgent);
+
+        if (isIos && isSafari && banner) {
+            if (actionAndroid) actionAndroid.style.display = 'none';
+            if (actionIos) actionIos.style.display = 'block';
+            setTimeout(function() {
+                banner.style.display = 'block';
+            }, 2500);
+        }
+
+        // Listener Event beforeinstallprompt (Android Chrome, Edge, Samsung Internet)
+        window.addEventListener('beforeinstallprompt', function(e) {
+            e.preventDefault();
+            deferredPrompt = e;
+            if (banner) {
+                setTimeout(function() {
+                    banner.style.display = 'block';
+                }, 2000);
+            }
+        });
+
+        if (btnInstall) {
+            btnInstall.addEventListener('click', async function() {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    var choice = await deferredPrompt.userChoice;
+                    if (choice.outcome === 'accepted') {
+                        console.log('[PWA] Pengguna memasang aplikasi iPay!');
+                        localStorage.setItem('pwa_installed', 'true');
+                    }
+                    deferredPrompt = null;
+                    if (banner) banner.style.display = 'none';
+                }
+            });
+        }
+
+        if (btnDismiss) {
+            btnDismiss.addEventListener('click', function() {
+                if (banner) banner.style.display = 'none';
+                localStorage.setItem('pwa_prompt_dismissed', Date.now().toString());
+            });
+        }
+
+        window.addEventListener('appinstalled', function() {
+            console.log('[PWA] iPay berhasil dipasang di layar utama!');
+            if (banner) banner.style.display = 'none';
+            localStorage.setItem('pwa_installed', 'true');
+        });
     })();
     </script>
 </body>

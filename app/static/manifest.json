@@ -1,0 +1,77 @@
+{
+  "id": "/?source=pwa",
+  "name": "iPay GarudaTel - Agen Pulsa & PPOB",
+  "short_name": "iPay",
+  "description": "Aplikasi Agen Pulsa, Paket Data, Token PLN, dan PPOB Terlengkap & Termurah",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f5f8fa",
+  "theme_color": "#008779",
+  "lang": "id",
+  "dir": "ltr",
+  "categories": ["finance", "shopping", "utilities", "business"],
+  "icons": [
+    {
+      "src": "/static/img/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/img/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/img/icons/icon-maskable-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/static/img/icons/icon-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/static/img/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Beli Pulsa & Kuota",
+      "short_name": "Pulsa/Data",
+      "description": "Isi ulang pulsa dan paket data semua operator",
+      "url": "/kategori/pulsa?source=shortcut",
+      "icons": [{ "src": "/static/img/icons/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Riwayat Transaksi",
+      "short_name": "Riwayat",
+      "description": "Pantau status transaksi dan nomor seri (SN)",
+      "url": "/riwayat?source=shortcut",
+      "icons": [{ "src": "/static/img/icons/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Kasir & Cetak Struk",
+      "short_name": "Kasir POS",
+      "description": "Buka modul kasir toko dan cetak struk Bluetooth",
+      "url": "/kasir?source=shortcut",
+      "icons": [{ "src": "/static/img/icons/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Pusat Bantuan & CS",
+      "short_name": "Bantuan CS",
+      "description": "Layanan komplain transaksi langsung ke Bot CS Telegram",
+      "url": "/bantuan?source=shortcut",
+      "icons": [{ "src": "/static/img/icons/icon-192x192.png", "sizes": "192x192" }]
+    }
+  ]
+}
