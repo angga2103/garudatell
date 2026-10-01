@@ -90,6 +90,7 @@ def create_app(test_config=None):
         except (ValueError, TypeError):
             return None
     migrate.init_app(app, db)
+    app.jinja_env.globals['hasattr'] = hasattr
 
     # Auto-migration ringan untuk kolom cs_reply pada support_tickets
     with app.app_context():

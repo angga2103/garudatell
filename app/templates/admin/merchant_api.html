@@ -132,7 +132,7 @@
                 </div>
                 <div style="font-size: 12px; color: #64748b; margin-top: 4px;">
                     Pemilik Akun: <b>{{ m.user.name or 'User #' ~ m.user_id }}</b> ({{ m.user.phone }}) &bull; 
-                    Role: <span style="text-transform: uppercase; font-weight: 800; color: #0284c7;">{{ m.user.get_effective_role() if hasattr(m.user, 'get_effective_role') else m.user.role }}</span> &bull; 
+                    Role: <span style="text-transform: uppercase; font-weight: 800; color: #0284c7;">{{ m.user.get_effective_role() }}</span> &bull; 
                     Saldo Deposit: <b style="color: #15803d;">Rp {{ "{:,.0f}".format(m.user.balance or 0).replace(',', '.') }}</b>
                 </div>
             </div>
@@ -229,7 +229,7 @@
                     <option value="">-- Pilih Akun User / Agen --</option>
                     {% for u in users %}
                     <option value="{{ u.id }}">
-                        {{ u.name or u.phone }} ({{ u.phone }}) &bull; Saldo: Rp {{ "{:,.0f}".format(u.balance or 0).replace(',', '.') }} &bull; [{{ (u.get_effective_role() if hasattr(u, 'get_effective_role') else u.role)|upper }}]
+                        {{ u.name or u.phone }} ({{ u.phone }}) &bull; Saldo: Rp {{ "{:,.0f}".format(u.balance or 0).replace(',', '.') }} &bull; [{{ u.get_effective_role()|upper }}]
                     </option>
                     {% endfor %}
                 </select>
