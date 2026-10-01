@@ -17,7 +17,8 @@ from app.models.commission import CommissionLog
 from app.models.trusted_device import TrustedDevice
 from app.models.inquiry import PostpaidInquiry
 from app.models.device_session_log import DeviceSessionLog
+from app.models.merchant import MerchantApiKey
 
-__all__ = ['Admin', 'User', 'Product', 'Transaction', 'MarginTier', 'OtpCode', 'OtpManualRequest', 'Banner', 'BroadcastLog', 'DigiDepositTicket', 'PointLog', 'Setting', 'Notification', 'NotificationRead', 'SupportTicket', 'MuslimTrackRecord', 'CommissionLog', 'TrustedDevice', 'PostpaidInquiry', 'DeviceSessionLog']
+__all__ = ['Admin', 'User', 'Product', 'Transaction', 'MarginTier', 'OtpCode', 'OtpManualRequest', 'Banner', 'BroadcastLog', 'DigiDepositTicket', 'PointLog', 'Setting', 'Notification', 'NotificationRead', 'SupportTicket', 'MuslimTrackRecord', 'CommissionLog', 'TrustedDevice', 'PostpaidInquiry', 'DeviceSessionLog', 'MerchantApiKey']
 
 

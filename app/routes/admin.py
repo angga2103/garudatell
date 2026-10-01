@@ -2834,6 +2834,122 @@ def send_tier_reminders_action():
     return redirect(url_for('admin.tier_settings'))
 
 
+# =====================================================================
+# MANAJEMEN DEVELOPER / MERCHANT OPEN API GATEWAY (POS IPAY)
+# =====================================================================
+@admin_bp.route('/merchant_api', methods=['GET'])
+@admin_bp.route('/merchant-api', methods=['GET'])
+def merchant_api_index():
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin.login'))
+
+    from app.models.merchant import MerchantApiKey
+    from app.models.user import User
+
+    merchants = MerchantApiKey.query.order_by(MerchantApiKey.id.desc()).all()
+    users = User.query.filter_by(is_active=True).order_by(User.name.asc()).all()
+
+    return render_template(
+        'admin/merchant_api.html',
+        merchants=merchants,
+        users=users,
+        page_title='API Merchant (POS)'
+    )
+
+
+@admin_bp.route('/merchant_api/create', methods=['POST'])
+def merchant_api_create():
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin.login'))
+
+    from app.services.merchant_service import generate_merchant_credentials
+
+    user_id = request.form.get('user_id', type=int)
+    name = request.form.get('name', '').strip()
+    webhook_url = request.form.get('webhook_url', '').strip()
+    ip_whitelist = request.form.get('ip_whitelist', '').strip()
+
+    if not user_id:
+        flash('Silakan pilih akun pengguna pemilik API Key.', 'danger')
+        return redirect(url_for('admin.merchant_api_index'))
+
+    mch, err = generate_merchant_credentials(
+        user_id=user_id,
+        name=name,
+        webhook_url=webhook_url,
+        ip_whitelist=ip_whitelist
+    )
+
+    if err:
+        flash(f'Gagal membuat API Key: {err}', 'danger')
+    else:
+        flash(f'Kredensial API {mch.merchant_id} berhasil dibuat untuk kasir "{mch.name}".', 'success')
+
+    return redirect(url_for('admin.merchant_api_index'))
+
+
+@admin_bp.route('/merchant_api/toggle/<int:key_id>', methods=['POST'])
+def merchant_api_toggle(key_id):
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin.login'))
+
+    from app.models.merchant import MerchantApiKey
+    mch = MerchantApiKey.query.get_or_404(key_id)
+    mch.is_active = not mch.is_active
+    db.session.commit()
+
+    flash(f"Status API Key {mch.merchant_id} diubah menjadi {'AKTIF' if mch.is_active else 'NONAKTIF'}.", 'info')
+    return redirect(url_for('admin.merchant_api_index'))
+
+
+@admin_bp.route('/merchant_api/regenerate/<int:key_id>', methods=['POST'])
+def merchant_api_regenerate(key_id):
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin.login'))
+
+    import secrets
+    from app.models.merchant import MerchantApiKey
+
+    mch = MerchantApiKey.query.get_or_404(key_id)
+    mch.secret_key = f"SEC_{secrets.token_hex(16)}"
+    db.session.commit()
+
+    flash(f"Secret Key untuk {mch.merchant_id} berhasil di-reset dengan nilai baru.", 'warning')
+    return redirect(url_for('admin.merchant_api_index'))
+
+
+@admin_bp.route('/merchant_api/update/<int:key_id>', methods=['POST'])
+def merchant_api_update(key_id):
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin.login'))
+
+    from app.models.merchant import MerchantApiKey
+    mch = MerchantApiKey.query.get_or_404(key_id)
+    mch.name = request.form.get('name', mch.name).strip()
+    mch.webhook_url = request.form.get('webhook_url', '').strip() or None
+    mch.ip_whitelist = request.form.get('ip_whitelist', '').strip() or None
+    db.session.commit()
+
+    flash(f"Konfigurasi {mch.merchant_id} berhasil diperbarui.", 'success')
+    return redirect(url_for('admin.merchant_api_index'))
+
+
+@admin_bp.route('/merchant_api/delete/<int:key_id>', methods=['POST'])
+def merchant_api_delete(key_id):
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin.login'))
+
+    from app.models.merchant import MerchantApiKey
+    mch = MerchantApiKey.query.get_or_404(key_id)
+    m_id = mch.merchant_id
+    db.session.delete(mch)
+    db.session.commit()
+
+    flash(f"Kredensial API {m_id} berhasil dihapus permanen.", 'success')
+    return redirect(url_for('admin.merchant_api_index'))
+
+
+
 
 
 

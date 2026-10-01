@@ -88,3 +88,6 @@ app/static/uploads/*
 
 # Temporary test scripts
 scratch/
+
+# Flutter Prototype
+flutterl_app/

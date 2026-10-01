@@ -93,6 +93,7 @@
             <a href="{{ url_for('admin.reports') }}" class="menu-item {% if request.endpoint == 'admin.reports' %}active{% endif %}"><i class="fas fa-chart-line"></i><span>Laporan</span></a>
             <a href="{{ url_for('admin.store_settings') }}" class="menu-item {% if request.endpoint == 'admin.store_settings' %}active{% endif %}"><i class="fas fa-store" style="color: #0d9488;"></i><span>Profil Toko</span></a>
             <a href="{{ url_for('admin.device_logs') }}" class="menu-item {% if request.endpoint == 'admin.device_logs' %}active{% endif %}"><i class="fas fa-mobile-alt" style="color: #7c3aed;"></i><span>Sesi & Device</span></a>
+            <a href="{{ url_for('admin.merchant_api_index') }}" class="menu-item {% if request.endpoint == 'admin.merchant_api_index' %}active{% endif %}"><i class="fas fa-cash-register" style="color: #10b981;"></i><span>API POS / Kasir</span></a>
         </div>
 
         <div class="section-header"><i class="fas fa-plug"></i> Konfigurasi API & Gateway</div>

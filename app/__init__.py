@@ -119,6 +119,7 @@ def create_app(test_config=None):
     from app.routes.transaction import trx_bp
     from app.routes.kasir import kasir_bp
     from app.routes.admin_provider import admin_provider_bp
+    from app.routes.merchant_api import merchant_api_bp
     
     # Daftarkan Blueprint
     app.register_blueprint(user_bp) 
@@ -127,6 +128,7 @@ def create_app(test_config=None):
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(trx_bp, url_prefix='/trx')
     app.register_blueprint(kasir_bp, url_prefix='/kasir')
+    app.register_blueprint(merchant_api_bp, url_prefix='/api/v1')
 
     # Daftarkan Alias Route Webhook Callback (/api/callback/... & /callback/...)
     from app.routes.transaction import callback_digiflazz, callback_paymentkita, callback_pakasir, callback_vipreseller
@@ -162,7 +164,7 @@ def create_app(test_config=None):
         print(f"[{'SUCCESS' if ok else 'FAILED'}] {msg}")
 
     with app.app_context():
-        from app.models import CommissionLog, TrustedDevice, PostpaidInquiry, DeviceSessionLog  # Pastikan seluruh model terdaftar di metadata SQLAlchemy
+        from app.models import CommissionLog, TrustedDevice, PostpaidInquiry, DeviceSessionLog, MerchantApiKey  # Pastikan seluruh model terdaftar di metadata SQLAlchemy
         db.create_all()
         try:
             inspector = inspect(db.engine)

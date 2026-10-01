@@ -1,0 +1,290 @@
+{% extends 'admin/layout.html' %}
+
+{% block title %}GarudaTel - Open API Gateway & Integrasi POS{% endblock %}
+
+{% set page_title = "API Merchant & POS" %}
+
+{% block page_css %}
+<style>
+    .api-card {
+        background: white;
+        border-radius: 14px;
+        padding: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        margin-bottom: 24px;
+        border: 1px solid #e2e8f0;
+    }
+    .api-badge {
+        font-size: 11px;
+        font-weight: 800;
+        padding: 4px 10px;
+        border-radius: 20px;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .badge-active { background: #dcfce7; color: #15803d; }
+    .badge-inactive { background: #fee2e2; color: #b91c1c; }
+    .code-box {
+        background: #0f172a;
+        color: #38bdf8;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 12px;
+        word-break: break-all;
+        position: relative;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+    }
+    .copy-btn {
+        background: #1e293b;
+        color: white;
+        border: none;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 11px;
+        cursor: pointer;
+        transition: 0.2s;
+        flex-shrink: 0;
+    }
+    .copy-btn:hover { background: #334155; }
+    .btn-action-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        cursor: pointer;
+        transition: 0.2s;
+    }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="section-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+    <div>
+        <i class="fas fa-network-wired" style="color: #10b981;"></i>
+        Open API Gateway (Merchant & POS Kasir)
+    </div>
+    <button type="button" onclick="document.getElementById('modalCreateApiKey').style.display='flex'" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; padding: 8px 16px; border-radius: 10px; font-weight: 800; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);">
+        <i class="fas fa-plus-circle"></i> Buat API Key Baru
+    </button>
+</div>
+
+<!-- STATS -->
+<div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-bottom: 24px;">
+    <div class="stat-card">
+        <i class="fas fa-key stat-icon" style="color: #10b981;"></i>
+        <div class="stat-value">{{ merchants|length }}</div>
+        <div class="stat-label">TOTAL KREDENSIAL API</div>
+    </div>
+    <div class="stat-card">
+        <i class="fas fa-cash-register stat-icon" style="color: #0284c7;"></i>
+        <div class="stat-value">{{ merchants|selectattr('is_active')|list|length }}</div>
+        <div class="stat-label">KASIR / MERCHANT AKTIF</div>
+    </div>
+    <div class="stat-card">
+        <i class="fas fa-shield-alt stat-icon" style="color: #f59e0b;"></i>
+        <div class="stat-value">v1 (REST)</div>
+        <div class="stat-label">PROTOKOL GATEWAY</div>
+    </div>
+</div>
+
+<!-- PANDUAN PENGATURAN POS IPAY -->
+<div class="api-card" style="background: #f8fafc; border-left: 4px solid #0ea5e9;">
+    <div style="font-weight: 800; color: #0369a1; font-size: 14px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+        <i class="fas fa-info-circle"></i> Panduan Sambungan ke Aplikasi Kasir POS IPAY:
+    </div>
+    <div style="font-size: 12px; color: #475569; line-height: 1.6;">
+        Masukkan parameter berikut pada menu <b>Pengaturan PPOB</b> di aplikasi POS IPAY kasir Anda:
+        <ul style="margin: 8px 0 0 20px; padding: 0;">
+            <li><b>Base URL API:</b> <code>https://ipay.my.id</code></li>
+            <li><b>Header Auth:</b> <code>X-API-KEY</code></li>
+            <li><b>Algoritma Signature:</b> <code>MD5(merchant_id + secret_key + ref_id)</code></li>
+            <li><b>Otomatisasi:</b> Saldo akun iPay pemilik key akan terpotong secara instan dan otomatis saat kasir mengeksekusi pesanan pulsa/token/tagihan.</li>
+        </ul>
+    </div>
+</div>
+
+<!-- DAFTAR API KEY -->
+<div class="section-header" style="margin-top: 10px;">
+    <i class="fas fa-list"></i> Daftar Kredensial API Merchant
+</div>
+
+{% if merchants %}
+    {% for m in merchants %}
+    <div class="api-card">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; border-bottom: 1px solid #f1f5f9; padding-bottom: 14px;">
+            <div>
+                <div style="font-size: 16px; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-store" style="color: #64748b;"></i>
+                    {{ m.name }}
+                    {% if m.is_active %}
+                    <span class="api-badge badge-active"><i class="fas fa-check-circle"></i> AKTIF</span>
+                    {% else %}
+                    <span class="api-badge badge-inactive"><i class="fas fa-times-circle"></i> NONAKTIF</span>
+                    {% endif %}
+                </div>
+                <div style="font-size: 12px; color: #64748b; margin-top: 4px;">
+                    Pemilik Akun: <b>{{ m.user.name or 'User #' ~ m.user_id }}</b> ({{ m.user.phone }}) &bull; 
+                    Role: <span style="text-transform: uppercase; font-weight: 800; color: #0284c7;">{{ m.user.get_effective_role() if hasattr(m.user, 'get_effective_role') else m.user.role }}</span> &bull; 
+                    Saldo Deposit: <b style="color: #15803d;">Rp {{ "{:,.0f}".format(m.user.balance or 0).replace(',', '.') }}</b>
+                </div>
+            </div>
+            <div style="display: flex; gap: 6px; align-items: center;">
+                <!-- Toggle Aktif/Nonaktif -->
+                <form method="POST" action="{{ url_for('admin.merchant_api_toggle', key_id=m.id) }}" style="display: inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn-action-icon" style="background: {% if m.is_active %}#fef3c7; color: #b45309;{% else %}#dcfce7; color: #15803d;{% endif %}" title="{% if m.is_active %}Nonaktifkan Kunci{% else %}Aktifkan Kunci{% endif %}">
+                        <i class="fas {% if m.is_active %}fa-pause{% else %}fa-play{% endif %}"></i>
+                    </button>
+                </form>
+
+                <!-- Reset Secret Key -->
+                <form method="POST" action="{{ url_for('admin.merchant_api_regenerate', key_id=m.id) }}" style="display: inline;" onsubmit="return confirm('Apakah Anda yakin ingin me-reset Secret Key ini? Kredensial pada aplikasi kasir POS harus diperbarui dengan kunci baru!');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn-action-icon" style="background: #f1f5f9; color: #475569;" title="Buat Ulang Secret Key">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </form>
+
+                <!-- Hapus Permanen -->
+                <form method="POST" action="{{ url_for('admin.merchant_api_delete', key_id=m.id) }}" style="display: inline;" onsubmit="return confirm('Hapus permanen API Key ini? Kasir yang menggunakan kunci ini tidak akan bisa bertransaksi!');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn-action-icon" style="background: #fee2e2; color: #b91c1c;" title="Hapus Kredensial">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-bottom: 14px;">
+            <div>
+                <div style="font-size: 11px; font-weight: 800; color: #64748b; margin-bottom: 4px;">MERCHANT ID</div>
+                <div class="code-box">
+                    <span>{{ m.merchant_id }}</span>
+                    <button type="button" class="copy-btn" onclick="copyText('{{ m.merchant_id }}', this)"><i class="fas fa-copy"></i> Salin</button>
+                </div>
+            </div>
+            <div>
+                <div style="font-size: 11px; font-weight: 800; color: #64748b; margin-bottom: 4px;">API KEY (HEADER X-API-KEY)</div>
+                <div class="code-box">
+                    <span>{{ m.api_key }}</span>
+                    <button type="button" class="copy-btn" onclick="copyText('{{ m.api_key }}', this)"><i class="fas fa-copy"></i> Salin</button>
+                </div>
+            </div>
+            <div>
+                <div style="font-size: 11px; font-weight: 800; color: #64748b; margin-bottom: 4px;">SECRET KEY (MD5 SIGNATURE)</div>
+                <div class="code-box">
+                    <span id="sec_{{ m.id }}">{{ m.secret_key[:8] }}••••••••••••••••</span>
+                    <div style="display: flex; gap: 4px;">
+                        <button type="button" class="copy-btn" onclick="toggleSecret('{{ m.id }}', '{{ m.secret_key }}', this)" title="Lihat/Sembunyikan"><i class="fas fa-eye"></i></button>
+                        <button type="button" class="copy-btn" onclick="copyText('{{ m.secret_key }}', this)"><i class="fas fa-copy"></i> Salin</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; font-size: 11px; color: #94a3b8; background: #f8fafc; padding: 10px 14px; border-radius: 8px;">
+            <div>
+                <i class="fas fa-globe"></i> Webhook: <code>{{ m.webhook_url or 'Tidak dikonfigurasi (Polling)' }}</code>
+            </div>
+            <div>
+                <i class="fas fa-clock"></i> Terakhir Digunakan: <b>{{ m.last_used_at.strftime('%d/%m/%Y %H:%M WIB') if m.last_used_at else 'Belum pernah digunakan' }}</b>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+    <div class="api-card" style="text-align: center; padding: 40px 20px;">
+        <i class="fas fa-key" style="font-size: 48px; color: #cbd5e1; margin-bottom: 14px;"></i>
+        <div style="font-weight: 800; font-size: 16px; color: #475569;">Belum Ada Kredensial API Merchant</div>
+        <div style="font-size: 13px; color: #94a3b8; margin-top: 6px; max-width: 480px; margin-left: auto; margin-right: auto;">
+            Klik tombol <b>"Buat API Key Baru"</b> di atas untuk menghasilkan kredensial API pertama bagi kasir POS Anda.
+        </div>
+    </div>
+{% endif %}
+
+<!-- MODAL BUAT API KEY BARU -->
+<div id="modalCreateApiKey" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 99999; align-items: center; justify-content: center; padding: 15px;">
+    <div style="background: white; border-radius: 16px; width: 100%; max-width: 500px; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.2);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <div style="font-size: 16px; font-weight: 900; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-key" style="color: #10b981;"></i> Buat Kredensial API Baru
+            </div>
+            <button type="button" onclick="document.getElementById('modalCreateApiKey').style.display='none'" style="background: none; border: none; font-size: 18px; color: #94a3b8; cursor: pointer;">&times;</button>
+        </div>
+
+        <form method="POST" action="{{ url_for('admin.merchant_api_create') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div style="margin-bottom: 14px;">
+                <label style="display: block; font-size: 12px; font-weight: 800; color: #334155; margin-bottom: 6px;">Pilih Akun Pemilik API Key *</label>
+                <select name="user_id" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px;">
+                    <option value="">-- Pilih Akun User / Agen --</option>
+                    {% for u in users %}
+                    <option value="{{ u.id }}">
+                        {{ u.name or u.phone }} ({{ u.phone }}) &bull; Saldo: Rp {{ "{:,.0f}".format(u.balance or 0).replace(',', '.') }} &bull; [{{ (u.get_effective_role() if hasattr(u, 'get_effective_role') else u.role)|upper }}]
+                    </option>
+                    {% endfor %}
+                </select>
+                <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Saldo akun ini yang akan dipotong otomatis saat transaksi API berlangsung.</div>
+            </div>
+
+            <div style="margin-bottom: 14px;">
+                <label style="display: block; font-size: 12px; font-weight: 800; color: #334155; margin-bottom: 6px;">Nama / Label Kasir</label>
+                <input type="text" name="name" placeholder="Contoh: Kasir Minimarket Cabang 1" value="Kasir Utama" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; box-sizing: border-box;">
+            </div>
+
+            <div style="margin-bottom: 14px;">
+                <label style="display: block; font-size: 12px; font-weight: 800; color: #334155; margin-bottom: 6px;">URL Webhook Callback (Opsional)</label>
+                <input type="url" name="webhook_url" placeholder="Contoh: http://192.168.1.100:3002/api/ppob/webhook" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; box-sizing: border-box;">
+                <div style="font-size: 11px; color: #64748b; margin-top: 4px;">URL notifikasi otomatis saat status transaksi provider berubah.</div>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-size: 12px; font-weight: 800; color: #334155; margin-bottom: 6px;">IP Whitelist (Opsional)</label>
+                <input type="text" name="ip_whitelist" placeholder="Kosongkan jika IP Kasir dinamis / belum pasti" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; box-sizing: border-box;">
+                <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Pisahkan dengan koma jika lebih dari satu IP publik.</div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                <button type="button" onclick="document.getElementById('modalCreateApiKey').style.display='none'" style="padding: 10px 18px; border: 1px solid #cbd5e1; background: white; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer;">Batal</button>
+                <button type="submit" style="padding: 10px 20px; border: none; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border-radius: 8px; font-weight: 800; font-size: 13px; cursor: pointer;">Generate Kunci API</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function copyText(text, btn) {
+    navigator.clipboard.writeText(text).then(() => {
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check"></i> Tersalin!';
+        btn.style.background = '#059669';
+        setTimeout(() => {
+            btn.innerHTML = orig;
+            btn.style.background = '';
+        }, 2000);
+    });
+}
+
+function toggleSecret(id, rawVal, btn) {
+    const el = document.getElementById('sec_' + id);
+    if (el.getAttribute('data-shown') === 'true') {
+        el.innerText = rawVal.substring(0, 8) + '••••••••••••••••';
+        el.setAttribute('data-shown', 'false');
+        btn.innerHTML = '<i class="fas fa-eye"></i>';
+    } else {
+        el.innerText = rawVal;
+        el.setAttribute('data-shown', 'true');
+        btn.innerHTML = '<i class="fas fa-eye-slash"></i>';
+    }
+}
+</script>
+{% endblock %}
