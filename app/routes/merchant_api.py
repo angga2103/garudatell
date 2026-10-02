@@ -22,6 +22,46 @@ merchant_api_bp = Blueprint("merchant_api_bp", __name__)
 # Seluruh rute API di bawah blueprint ini dikecualikan dari proteksi form CSRF
 csrf.exempt(merchant_api_bp)
 
+# ============================================================
+# SAFE UNIVERSAL DIGIFLAZZ IMPORT
+# ============================================================
+submit_transaction = None
+inquiry_postpaid = None
+pay_postpaid = None
+
+# 1. Coba import dari modul root (yang dipakai oleh routes/user.py)
+try:
+    from digiflazz import submit_transaction as df_submit, inquiry_postpaid as df_inq, pay_postpaid as df_pay
+    submit_transaction = df_submit
+    inquiry_postpaid = df_inq
+    pay_postpaid = df_pay
+except ImportError:
+    pass
+
+# 2. Jika belum ketemu, coba import dari app.services.digiflazz
+if not submit_transaction:
+    try:
+        import app.services.digiflazz as df_srv
+        if hasattr(df_srv, 'submit_transaction'):
+            submit_transaction = df_srv.submit_transaction
+        elif hasattr(df_srv, 'create_transaction'):
+            submit_transaction = df_srv.create_transaction
+        elif hasattr(df_srv, 'transaksi'):
+            submit_transaction = df_srv.transaksi
+
+        inquiry_postpaid = getattr(df_srv, 'inquiry_postpaid', None) or getattr(df_srv, 'inquiry_pasca', None)
+        pay_postpaid = getattr(df_srv, 'pay_postpaid', None) or getattr(df_srv, 'pay_pasca', None)
+    except ImportError:
+        pass
+
+if not submit_transaction:
+    try:
+        from app.services.digiflazz import create_transaction as df_create
+        submit_transaction = df_create
+    except Exception:
+        raise ImportError("Fungsi submit_transaction tidak ditemukan di digiflazz maupun app.services.digiflazz")
+
+
 
 # =====================================================================
 # 1. CEK SALDO MERCHANT (POST & GET /api/v1/profile/balance)
@@ -108,8 +148,25 @@ def inquiry_bill():
         }), 400
 
     # Eksekusi inquiry ke Digiflazz
-    from app.services.digiflazz import inquiry_pasca
-    ok, res_data, msg = inquiry_pasca(sku, customer_no, ref_id)
+    inq_func = inquiry_postpaid
+    if not inq_func:
+        from app.services.digiflazz import inquiry_pasca
+        inq_func = inquiry_pasca
+
+    inq_res = inq_func(sku, customer_no, ref_id)
+    if isinstance(inq_res, tuple):
+        ok = inq_res[0]
+        res_data = inq_res[1] if len(inq_res) > 1 and isinstance(inq_res[1], dict) else {}
+        msg = inq_res[2] if len(inq_res) > 2 else ''
+    elif isinstance(inq_res, dict):
+        res_data = inq_res.get('data', {}) if isinstance(inq_res.get('data'), dict) else inq_res
+        msg = res_data.get('message', '')
+        rc_val = str(res_data.get('rc') or '').strip()
+        ok = rc_val == '00' or 'sukses' in str(res_data.get('status', '')).lower()
+    else:
+        ok = bool(inq_res)
+        res_data = {}
+        msg = ''
 
     if not ok or not res_data:
         return jsonify({
@@ -279,8 +336,27 @@ def create_transaction():
 
         elif not is_prepaid:
             # Pascabayar Digiflazz
-            from app.services.digiflazz import pay_pasca
-            ok, p_data, p_msg = pay_pasca(sku, customer_no, ref_id)
+            p_func = pay_postpaid
+            if not p_func:
+                from app.services.digiflazz import pay_pasca
+                p_func = pay_pasca
+
+            p_call = p_func(sku, customer_no, ref_id)
+            if isinstance(p_call, tuple):
+                ok = p_call[0]
+                p_data = p_call[1] if len(p_call) > 1 and isinstance(p_call[1], dict) else {}
+                p_msg = p_call[2] if len(p_call) > 2 else ''
+            elif isinstance(p_call, dict):
+                p_data = p_call.get('data', {}) if isinstance(p_call.get('data'), dict) else p_call
+                p_msg = p_data.get('message', '')
+                rc_val = str(p_data.get('rc') or '').strip()
+                st_val = str(p_data.get('status') or '').lower()
+                ok = (rc_val == '00' or 'sukses' in st_val or 'success' in st_val)
+            else:
+                ok = bool(p_call)
+                p_data = {}
+                p_msg = ''
+
             res_msg = p_msg
             if ok:
                 res_status = 'success'
@@ -290,21 +366,30 @@ def create_transaction():
 
         else:
             # Prabayar Digiflazz
-            from app.services.digiflazz import create_transaction
-            try:
-                from app.services.digiflazz import submit_transaction
-                ok, d_data, d_msg = submit_transaction(sku, customer_no, ref_id, testing=False)
-            except Exception:
-                res_raw = create_transaction(sku, customer_no, ref_id, testing=False)
-                d_data = res_raw.get('data', {}) if isinstance(res_raw, dict) else {}
+            s_func = submit_transaction
+            if not s_func:
+                from app.services.digiflazz import create_transaction
+                s_func = create_transaction
+
+            res_call = s_func(sku, customer_no, ref_id, testing=False)
+            if isinstance(res_call, tuple):
+                ok = res_call[0]
+                d_data = res_call[1] if len(res_call) > 1 and isinstance(res_call[1], dict) else {}
+                d_msg = res_call[2] if len(res_call) > 2 else (d_data.get('message', '') if d_data else '')
+            elif isinstance(res_call, dict):
+                d_data = res_call.get('data', {}) if isinstance(res_call.get('data'), dict) else res_call
                 d_msg = d_data.get('message', '')
-                rc_raw = (d_data.get('rc') or '').strip()
-                st_raw = (d_data.get('status') or '').lower()
+                rc_raw = str(d_data.get('rc') or '').strip()
+                st_raw = str(d_data.get('status') or '').lower()
                 ok = (rc_raw == '00' or 'sukses' in st_raw or 'success' in st_raw or rc_raw == '03' or 'pending' in st_raw)
+            else:
+                ok = bool(res_call)
+                d_data = {}
+                d_msg = str(res_call)
 
             res_msg = d_msg
-            rc = (d_data.get('rc') or '').strip() if d_data else ''
-            d_stat = (d_data.get('status') or '').lower() if d_data else ''
+            rc = str(d_data.get('rc') or '').strip() if d_data else ''
+            d_stat = str(d_data.get('status') or '').lower() if d_data else ''
             # Tangkap SN atau keterangan dari provider (penting untuk cek kuota / token)
             res_sn = (d_data.get('sn') or '') if d_data else ''
             if not res_sn and d_data:

@@ -639,6 +639,10 @@ def pay_pasca(sku, customer_no, ref_id, testing=None):
     except Exception as e:
         return False, {}, f"Gagal menghubungi server Digiflazz: {str(e)}"
 
+# Alias fungsi pascabayar untuk kompatibilitas universal
+inquiry_postpaid = inquiry_pasca
+pay_postpaid = pay_pasca
+
 # =====================================================================
 # 7. CEK STATUS TRANSAKSI (https://developer.digiflazz.com/api/buyer/cek-status/)
 # =====================================================================
