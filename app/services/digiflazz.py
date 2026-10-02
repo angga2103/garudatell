@@ -428,6 +428,20 @@ def create_transaction(sku, tujuan, ref_id, testing=None, max_price=None, cb_url
     except Exception as e:
         return {"data": {"status": "Gagal", "message": str(e), "rc": "46"}}
 
+def submit_transaction(sku, customer_no, ref_id, testing=None, **kwargs):
+    """
+    Wrapper standar untuk transaksi prabayar Digiflazz.
+    Mengembalikan tuple (ok: bool, data: dict, msg: str).
+    """
+    res = create_transaction(sku, customer_no, ref_id, testing=testing, **kwargs)
+    data = res.get('data', {}) if isinstance(res, dict) else {}
+    status = str(data.get('status', '')).lower()
+    rc = str(data.get('rc', '')).strip()
+    msg = data.get('message', '')
+    ok = (rc == '00' or 'sukses' in status or 'success' in status or rc == '03' or 'pending' in status or 'menunggu' in status)
+    return ok, data, msg
+
+
 def check_balance():
     from dotenv import load_dotenv
     load_dotenv(override=False)

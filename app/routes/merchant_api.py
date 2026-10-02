@@ -290,16 +290,29 @@ def create_transaction():
 
         else:
             # Prabayar Digiflazz
-            from app.services.digiflazz import submit_transaction
-            ok, d_data, d_msg = submit_transaction(sku, customer_no, ref_id, testing=False)
+            from app.services.digiflazz import create_transaction
+            try:
+                from app.services.digiflazz import submit_transaction
+                ok, d_data, d_msg = submit_transaction(sku, customer_no, ref_id, testing=False)
+            except Exception:
+                res_raw = create_transaction(sku, customer_no, ref_id, testing=False)
+                d_data = res_raw.get('data', {}) if isinstance(res_raw, dict) else {}
+                d_msg = d_data.get('message', '')
+                rc_raw = (d_data.get('rc') or '').strip()
+                st_raw = (d_data.get('status') or '').lower()
+                ok = (rc_raw == '00' or 'sukses' in st_raw or 'success' in st_raw or rc_raw == '03' or 'pending' in st_raw)
+
             res_msg = d_msg
             rc = (d_data.get('rc') or '').strip() if d_data else ''
             d_stat = (d_data.get('status') or '').lower() if d_data else ''
+            # Tangkap SN atau keterangan dari provider (penting untuk cek kuota / token)
             res_sn = (d_data.get('sn') or '') if d_data else ''
+            if not res_sn and d_data:
+                res_sn = d_data.get('message') or ''
 
-            if rc == '00' or 'sukses' in d_stat:
+            if rc == '00' or 'sukses' in d_stat or 'success' in d_stat:
                 res_status = 'success'
-            elif rc == '03' or 'pending' in d_stat:
+            elif rc == '03' or 'pending' in d_stat or 'menunggu' in d_stat or 'processing' in d_stat:
                 res_status = 'pending'
             else:
                 res_status = 'failed'
