@@ -101,6 +101,146 @@ def check_balance():
 
 
 # =====================================================================
+# 1.1 INFORMASI DEPOSIT & REKENING PEMBAYARAN (GET /api/v1/profile/deposit/info)
+# =====================================================================
+@merchant_api_bp.route("/profile/deposit/info", methods=["GET"])
+def get_deposit_info():
+    """
+    Mengambil informasi saldo terkini dan saluran pembayaran deposit yang tersedia
+    (DANA, ShopeePay, GoPay, Rekening Transfer Bank, QRIS).
+    """
+    merchant, err = authenticate_merchant(request)
+    if err:
+        return jsonify({"status": "failed", "message": err[0]}), err[1]
+
+    from app.services.setting_service import get_manual_deposit_settings
+    manual_depo = get_manual_deposit_settings()
+    user = merchant.user
+    balance_val = float(user.balance or 0.0) if user else 0.0
+
+    channels = []
+    if manual_depo.get('dana_number'):
+        channels.append({
+            "code": "DANA",
+            "name": "DANA E-Wallet",
+            "account_no": manual_depo['dana_number'],
+            "account_name": manual_depo.get('dana_name', 'GarudaTel / Kasir'),
+            "type": "ewallet"
+        })
+    if manual_depo.get('gopay_number'):
+        channels.append({
+            "code": "GOPAY",
+            "name": "GoPay E-Wallet",
+            "account_no": manual_depo['gopay_number'],
+            "account_name": manual_depo.get('gopay_name', 'GarudaTel / Kasir'),
+            "type": "ewallet"
+        })
+    if manual_depo.get('shopee_number'):
+        channels.append({
+            "code": "SHOPEEPAY",
+            "name": "ShopeePay",
+            "account_no": manual_depo['shopee_number'],
+            "account_name": manual_depo.get('shopee_name', 'GarudaTel / Kasir'),
+            "type": "ewallet"
+        })
+
+    return jsonify({
+        "status": "success",
+        "data": {
+            "merchant_id": merchant.merchant_id,
+            "username": user.phone if user else "",
+            "balance": balance_val,
+            "min_deposit": 10000,
+            "wa_target": manual_depo.get('wa_target', '081775700114'),
+            "instructions": manual_depo.get('instructions', ''),
+            "channels": channels
+        }
+    }), 200
+
+
+# =====================================================================
+# 1.2 BUAT TIKET PERMINTAAN DEPOSIT POS (POST /api/v1/profile/deposit/create)
+# =====================================================================
+@merchant_api_bp.route("/profile/deposit/create", methods=["POST"])
+def create_deposit_request():
+    """
+    Membuat tiket permintaan top-up deposit dari Web POS IPAY.
+    Mencatat pesanan deposit ke database GarudaTel dan mengirim notifikasi Telegram ke Admin.
+    """
+    merchant, err = authenticate_merchant(request)
+    if err:
+        return jsonify({"status": "failed", "message": err[0]}), err[1]
+
+    data = request.get_json(silent=True) or request.form.to_dict() or {}
+    try:
+        amount = float(data.get("amount") or 0)
+    except (ValueError, TypeError):
+        amount = 0.0
+
+    if amount < 10000:
+        return jsonify({
+            "status": "failed",
+            "message": "Minimal deposit adalah Rp 10.000"
+        }), 400
+
+    channel_code = str(data.get("channel") or data.get("payment_method") or "MANUAL").upper()
+    notes = str(data.get("notes") or f"Deposit via Web POS IPAY ({merchant.merchant_id})").strip()
+
+    import time
+    import random
+    ref_id = f"DEP-POS-{int(time.time())}-{random.randint(100, 999)}"
+
+    user = merchant.user
+    trx = Transaction(
+        ref_id=ref_id,
+        user_id=user.id,
+        sku_code='DEPOSIT_SALDO',
+        product_name=f"Deposit Saldo POS ({merchant.merchant_id})",
+        target_number=user.phone or getattr(merchant, 'name', 'POS Merchant'),
+        amount=amount,
+        payment_method=channel_code,
+        payment_status='UNPAID',
+        status='PENDING',
+        notes=notes,
+        is_prepaid=True
+    )
+    db.session.add(trx)
+    db.session.commit()
+
+    # Kirim notifikasi Telegram ke admin jika aktif
+    try:
+        from app.services.telegram_service import async_send_trx_notification
+        async_send_trx_notification(trx, title=f"TOPUP DEPOSIT POS ({merchant.merchant_id})")
+    except Exception:
+        pass
+
+    from app.services.setting_service import get_manual_deposit_settings
+    manual_depo = get_manual_deposit_settings()
+    wa_num = manual_depo.get('wa_target', '081775700114')
+    clean_wa = wa_num.replace('-', '').replace(' ', '')
+    if clean_wa.startswith('0'):
+        clean_wa = '62' + clean_wa[1:]
+
+    wa_text = f"Halo Admin iPay, saya telah mengajukan deposit saldo POS via {channel_code} sebesar Rp {amount:,.0f} dengan No Ref: {ref_id} (Merchant: {merchant.merchant_id}). Mohon segera dikonfirmasi. Terima kasih."
+    import urllib.parse
+    wa_url = f"https://wa.me/{clean_wa}?text={urllib.parse.quote(wa_text)}"
+
+    return jsonify({
+        "status": "success",
+        "data": {
+            "ref_id": ref_id,
+            "amount": amount,
+            "channel": channel_code,
+            "status": "pending",
+            "wa_confirm_url": wa_url,
+            "instructions": manual_depo.get('instructions', ''),
+            "message": f"Tiket deposit {ref_id} berhasil dibuat. Silakan selesaikan pembayaran dan konfirmasi ke admin."
+        }
+    }), 200
+
+
+
+# =====================================================================
 # 2. INQUIRY TAGIHAN PASCABAYAR (POST /api/v1/transaction/inquiry)
 # =====================================================================
 @merchant_api_bp.route("/transaction/inquiry", methods=["POST"])
