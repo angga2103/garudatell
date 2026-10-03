@@ -44,7 +44,91 @@ Platform web modern untuk penjualan produk digital Pulsa, Paket Data, Token PLN,
 - **SQLite WAL Mode**: Write-Ahead Logging & non-blocking concurrency mencegah error database locked saat lonjakan transaksi.
 - **Rate Limiting**: Proteksi endpoint sensitif dengan Flask-Limiter.
 
+### 6. Open API Gateway B2B & Integrasi POS IPAY
+- **Standar API H2H / B2B Modern**: Gateway transaksi PPOB, pulsa, token listrik, voucher, dan top up game langsung untuk mesin Kasir Web POS ([Ipay-POS](https://github.com/angga2103/Ipay-POS)).
+- **Dual Auth & Anti-Tamper Security**: Header autentikasi `X-API-KEY` digabung dengan kalkulasi signature kriptografis MD5 (`md5(merchant_id + secret_key + ref_id)`) untuk mencegah spoofing atau manipulasi data.
+- **Idempotency Guard**: Anti-dobel transaksi berbasis `ref_id`. Request berulang dengan `ref_id` sama tidak akan memotong saldo ganda ataupun menduplikasi order ke provider.
+- **Safe Universal Digiflazz Import**: Arsitektur import cerdas bersyarat (`try from digiflazz ... except ...`) yang tahan terhadap perbedaan path root/service di berbagai lingkungan server.
+- **Atomic Concurrency Balance Check & Auto-Refund**: Penguncian baris akun (`SELECT FOR UPDATE`) mencegah race condition / double spending. Jika transaksi ditolak provider, saldo dikembalikan instan 100% ke akun merchant.
+- **Real-Time Webhook Dispatcher**: Mengirim callback status transaksi (`success` / `failed`) langsung ke endpoint Web POS secara otomatis.
+
 ---
+
+## 🔌 Open API Gateway & Integrasi Ekosistem Web POS
+
+GarudaTel v2 terintegrasi secara native dengan ekosistem **[Ipay-POS](https://github.com/angga2103/Ipay-POS)** (Aplikasi Kasir Web POS Konter HP Modern dengan Pembukuan Akuntansi Buku Besar, Cloudflare Zero Trust, dan Dynamic Auto-Backup). Melalui Open API Gateway ini, kasir dapat menjual pulsa, kuota data, voucher game, dan membayar tagihan langsung dari antarmuka POS dengan memotong saldo deposit merchant iPay.
+
+### 1. Manajemen Kredensial API Merchant
+Admin atau Member dapat mengaktifkan dan mengelola kredensial API melalui menu **Dashboard Admin > API Gateway** (`/admin/merchant_api`):
+- **Merchant ID**: Pengenal unik merchant (contoh: `MCH-000001`).
+- **Secret Key**: Kunci rahasia 32 karakter untuk kalkulasi signature MD5 anti-tamper.
+- **API Key**: Token autentikasi yang dikirimkan via HTTP Header `X-API-KEY`.
+- **Webhook URL**: URL callback penerima notifikasi status dari POS (contoh: `https://pos.domain-anda.com/api/ppob/webhook`).
+
+### 2. Format Header & Rumus Signature Keamanan
+Setiap request ke endpoint transaksi wajib menyertakan header dan signature:
+```http
+Content-Type: application/json
+X-API-KEY: your_merchant_api_key_here
+```
+
+**Formula Perhitungan MD5 Signature**:
+- **Cek Saldo (POST)**: `MD5(merchant_id + secret_key + "balance")`
+- **Inquiry & Transaksi (POST)**: `MD5(merchant_id + secret_key + ref_id)`
+
+### 3. Daftar Endpoint REST API v1
+
+| Metode | Endpoint | Deskripsi & Kegunaan |
+| :--- | :--- | :--- |
+| `GET / POST` | `/api/v1/profile/balance` | Cek sisa saldo akun merchant & verifikasi koneksi API |
+| `GET` | `/api/v1/profile/deposit/info` | Ambil info saluran deposit (DANA, GoPay, ShopeePay, Bank, QRIS) |
+| `POST` | `/api/v1/profile/deposit/create` | Buat tiket deposit dari POS & generate link konfirmasi WhatsApp |
+| `POST` | `/api/v1/transaction/inquiry` | Cek nama pelanggan & jumlah tagihan pascabayar (PLN, PDAM, BPJS) |
+| `POST` | `/api/v1/transaction/create` | Eksekusi transaksi prabayar & pascabayar (Atomic & Idempotent) |
+| `GET / POST` | `/api/v1/transaction/status` | Cek status transaksi spesifik berdasarkan parameter `ref_id` |
+| `GET` | `/api/v1/products` | Sinkronisasi katalog produk aktif & harga jual sesuai tier akun |
+
+### 4. Contoh Payload Eksekusi Transaksi (`POST /api/v1/transaction/create`)
+```json
+{
+  "buyer_sku_code": "xld5",
+  "customer_no": "087812345678",
+  "ref_id": "POS-TRX-1740000000-123",
+  "sign": "5d41402abc4b2a76b9719d911017c592"
+}
+```
+**Respon Berhasil (`200 OK`)**:
+```json
+{
+  "status": "success",
+  "data": {
+    "ref_id": "POS-TRX-1740000000-123",
+    "status": "success",
+    "sn": "021938210391203",
+    "buyer_sku_code": "xld5",
+    "customer_no": "087812345678",
+    "price": 5800,
+    "message": "Transaksi Berhasil"
+  },
+  "message": "Transaksi Berhasil"
+}
+```
+
+### 5. Webhook Callback Otomatis ke Web POS
+Saat status transaksi diperbarui oleh provider (Digiflazz / VIP-Reseller), GarudaTel secara otomatis mengirimkan callback HTTP POST ke Web POS:
+```json
+{
+  "ref_id": "POS-TRX-1740000000-123",
+  "status": "success",
+  "sn": "021938210391203",
+  "sku_code": "xld5",
+  "price": 5800
+}
+```
+
+### 6. Repositori Terkait
+- **Web POS Konter IPAY**: [https://github.com/angga2103/Ipay-POS](https://github.com/angga2103/Ipay-POS)
+
 
 ## 🚀 Panduan Deployment VPS (One-Click Installer)
 
@@ -184,8 +268,11 @@ sudo systemctl status garudatel-bot-admin
 # Snapshot backup database cepat ke Telegram
 ./venv/bin/python -c "from app.services.telegram_service import perform_database_backup; print(perform_database_backup())"
 
-# Jalankan pengujian otomatis sistem
+# Jalankan pengujian otomatis sistem Telegram & OTP
 ./venv/bin/python tools/test_telegram_and_otp.py
+
+# Jalankan pengujian otomatis Open API Gateway & integrasi POS
+./venv/bin/python tools/test_merchant_api.py
 ```
 
 ---
