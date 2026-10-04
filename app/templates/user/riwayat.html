@@ -192,8 +192,8 @@
         cursor: pointer;
     }
     .sn-box span {
-        word-break: break-all;
-        overflow-wrap: anywhere;
+        overflow-wrap: break-word;
+        word-break: break-word;
         min-width: 0;
         flex: 1;
         line-height: 1.4;
@@ -207,6 +207,229 @@
         background: #fff7ed;
         border-color: #fed7aa;
         color: #c2410c;
+    }
+
+    /* Enhanced SN / Keterangan Presentation */
+    .sn-wrapper {
+        width: 100%;
+        margin-top: 6px;
+    }
+    .sn-pretty-box {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 9px;
+        padding: 8px 10px;
+        font-size: 11px;
+        color: #334155;
+        box-sizing: border-box;
+        width: 100%;
+        transition: all 0.2s ease;
+    }
+    .sn-pretty-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 6px;
+        padding-bottom: 5px;
+        border-bottom: 1px dashed #cbd5e1;
+    }
+    .sn-type-tag {
+        font-size: 11px;
+        font-weight: 700;
+        color: #0f172a;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .sn-btn-copy {
+        background: white;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        padding: 2px 7px;
+        font-size: 10.5px;
+        font-weight: 600;
+        color: #475569;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        transition: all 0.15s ease;
+    }
+    .sn-btn-copy:hover {
+        background: #f1f5f9;
+        color: #0f172a;
+        border-color: #94a3b8;
+    }
+    .sn-btn-copy:active {
+        transform: scale(0.96);
+    }
+
+    /* PLN Token Styling */
+    .sn-pln-box {
+        background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+        border: 1.5px solid #fde68a;
+    }
+    .sn-pln-box .sn-pretty-header {
+        border-bottom-color: #fcd34d;
+    }
+    .sn-pln-box .sn-type-tag {
+        color: #92400e;
+    }
+    .sn-token-display {
+        background: white;
+        border: 1.5px dashed #f59e0b;
+        border-radius: 8px;
+        padding: 8px 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    .sn-token-display:hover {
+        background: #fffbeb;
+        border-style: solid;
+    }
+    .sn-token-number {
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 14px;
+        font-weight: 800;
+        color: #b45309;
+        letter-spacing: 0.5px;
+    }
+    .sn-token-icon {
+        color: #d97706;
+        font-size: 13px;
+        flex-shrink: 0;
+    }
+    .sn-pln-meta-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-top: 6px;
+    }
+    .sn-pln-meta-chip {
+        background: rgba(255, 255, 255, 0.85);
+        border: 1px solid #fde68a;
+        border-radius: 5px;
+        padding: 2px 6px;
+        font-size: 10.5px;
+        color: #78350f;
+        font-weight: 600;
+    }
+
+    /* Quota / Multi-Package Styling */
+    .sn-quota-box {
+        background: #f8fafc;
+        border: 1px solid #cbd5e1;
+    }
+    .sn-sim-badge {
+        background: #e2e8f0;
+        color: #334155;
+        font-weight: 700;
+        font-size: 11px;
+        padding: 4px 8px;
+        border-radius: 6px;
+        margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .sn-pkg-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+    .sn-pkg-card {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 6px 8px;
+    }
+    .sn-pkg-title {
+        font-weight: 700;
+        color: #1e293b;
+        font-size: 11px;
+        display: flex;
+        align-items: baseline;
+        gap: 5px;
+        line-height: 1.35;
+        overflow-wrap: break-word;
+        word-break: break-word;
+    }
+    .sn-pkg-items {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        margin-top: 5px;
+        padding-left: 6px;
+        border-left: 2px solid #e2e8f0;
+    }
+    .sn-pkg-subitem {
+        font-size: 10.5px;
+        color: #475569;
+        display: flex;
+        align-items: flex-start;
+        gap: 5px;
+        line-height: 1.35;
+        overflow-wrap: break-word;
+        word-break: break-word;
+    }
+    .sn-pkg-subitem i {
+        font-size: 10px;
+        margin-top: 2px;
+        flex-shrink: 0;
+    }
+    .sn-pulsa-chip {
+        background: #fef3c7;
+        color: #92400e;
+        border: 1px solid #fde68a;
+        border-radius: 6px;
+        padding: 4px 8px;
+        font-size: 11px;
+        margin-top: 6px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    /* Simple Monospace SN */
+    .sn-simple-box {
+        background: #eff6ff;
+        border: 1px dashed #bfdbfe;
+    }
+    .sn-simple-box .sn-pretty-header {
+        border-bottom-color: #bfdbfe;
+    }
+    .sn-simple-val {
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 11.5px;
+        font-weight: 700;
+        color: #1d4ed8;
+        line-height: 1.4;
+        overflow-wrap: break-word;
+        word-break: break-word;
+    }
+
+    /* Failed Message Box */
+    .sn-failed-box {
+        background: #fff7ed;
+        border: 1px solid #fed7aa;
+    }
+    .sn-failed-box .sn-pretty-header {
+        border-bottom-color: #fed7aa;
+    }
+    .sn-failed-box .sn-type-tag {
+        color: #c2410c;
+    }
+    .sn-failed-msg {
+        font-size: 11px;
+        color: #9a3412;
+        line-height: 1.4;
+        font-weight: 600;
+        overflow-wrap: break-word;
+        word-break: break-word;
     }
 
     .trx-bottom-row {
@@ -416,9 +639,11 @@
                     {% set is_failed = (s in ['FAILED', 'GAGAL', 'CANCELLED']) %}
                     {% set is_bal_err = ('saldo' in (t.sn|lower) or 'balance' in (t.sn|lower)) %}
                     {% set display_sn = "Jalur operator sedang gangguan sementara. Saldo aman & telah direfund." if (is_failed and is_bal_err) else t.sn %}
-                    <div class="sn-box {% if is_failed %}sn-failed{% endif %}" onclick="copyText('{{ display_sn }}')" title="Klik untuk salin {% if is_failed %}keterangan{% else %}SN{% endif %}">
-                        <span>{% if is_failed %}Keterangan: {% else %}SN: {% endif %}{{ display_sn }}</span>
-                        <i class="far fa-copy"></i>
+                    <div class="sn-wrapper" data-sn="{{ display_sn|escape }}" data-failed="{{ 'true' if is_failed else 'false' }}">
+                        <div class="sn-box {% if is_failed %}sn-failed{% endif %}" onclick="copyText('{{ display_sn|replace("'", "\\'")|escape }}')" title="Klik untuk salin {% if is_failed %}keterangan{% else %}SN{% endif %}">
+                            <span>{% if is_failed %}Keterangan: {% else %}SN: {% endif %}{{ display_sn }}</span>
+                            <i class="far fa-copy"></i>
+                        </div>
                     </div>
                     {% endif %}
                 </div>
@@ -544,10 +769,221 @@
         }, 2000);
     }
 
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function escapeForAttr(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/\\/g, '\\\\')
+            .replace(/'/g, "\\'")
+            .replace(/"/g, '&quot;')
+            .replace(/\n/g, '\\n')
+            .replace(/\r/g, '');
+    }
+
+    function renderSnHtml(rawSn, isFailed = false) {
+        if (!rawSn) return '';
+        const cleanSn = rawSn.trim();
+        const safeText = cleanSn.replace(/^SN\s*:\s*/i, '').replace(/^(Keterangan|KET)\s*:\s*/i, '').trim();
+
+        // 1. Pesan Transaksi Gagal / Refund
+        if (isFailed) {
+            return `
+                <div class="sn-pretty-box sn-failed-box">
+                    <div class="sn-pretty-header">
+                        <div class="sn-type-tag"><i class="fas fa-exclamation-circle" style="color: #ea580c;"></i> Keterangan Kendala</div>
+                        <button type="button" class="sn-btn-copy" onclick="event.stopPropagation(); copyText('${escapeForAttr(safeText)}')">
+                            <i class="far fa-copy"></i> Salin
+                        </button>
+                    </div>
+                    <div class="sn-failed-msg">${escapeHtml(safeText)}</div>
+                </div>
+            `;
+        }
+
+        // 2. Token Listrik PLN (20 Digit)
+        const plnMatch = safeText.match(/(?:^|\D)(\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4})(?:\D|$)/);
+        if (plnMatch && (safeText.toLowerCase().includes('kwh') || safeText.toLowerCase().includes('pln') || safeText.split('/').length >= 3 || plnMatch[1].replace(/[-\s]/g, '').length === 20)) {
+            const rawToken = plnMatch[1].replace(/[-\s]/g, '');
+            const formattedToken = rawToken.match(/.{1,4}/g).join(' - ');
+            const parts = safeText.split('/').map(p => p.trim()).filter(p => !p.replace(/[-\s]/g, '').includes(rawToken));
+            
+            let subDetailsHtml = '';
+            if (parts.length > 0) {
+                subDetailsHtml = `
+                    <div class="sn-pln-meta-grid">
+                        ${parts.map(p => `<span class="sn-pln-meta-chip">${escapeHtml(p)}</span>`).join('')}
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="sn-pretty-box sn-pln-box">
+                    <div class="sn-pretty-header">
+                        <div class="sn-type-tag"><i class="fas fa-bolt" style="color: #d97706;"></i> Token Listrik PLN</div>
+                        <button type="button" class="sn-btn-copy" onclick="event.stopPropagation(); copyText('${rawToken}')" title="Salin 20 Digit Token Saja">
+                            <i class="far fa-copy"></i> Salin Token
+                        </button>
+                    </div>
+                    <div class="sn-token-display" onclick="event.stopPropagation(); copyText('${rawToken}')" title="Klik untuk salin token">
+                        <span class="sn-token-number">${formattedToken}</span>
+                        <i class="far fa-copy sn-token-icon"></i>
+                    </div>
+                    ${subDetailsHtml}
+                </div>
+            `;
+        }
+
+        // 3. Multi-Package / Cek Sisa Kuota (berisi '*' atau kata 'Sisa Kuota')
+        if (safeText.includes('*') || safeText.toLowerCase().includes('sisa kuota')) {
+            const segments = safeText.split('*').map(s => s.trim()).filter(Boolean);
+            let cardInfo = '';
+            let pulsaInfo = '';
+            const packages = [];
+
+            segments.forEach(seg => {
+                if (seg.toLowerCase().startsWith('sisa pulsa')) {
+                    pulsaInfo = seg;
+                } else if (!seg.includes('/') && (seg.toLowerCase().includes('kartu') || seg.toLowerCase().includes('perdana') || seg.toLowerCase().includes('nomor') || seg.toLowerCase().includes('aktif'))) {
+                    cardInfo = seg;
+                } else if (seg.match(/\/\s*(Sisa Kuota|Kuota)/i)) {
+                    const m = seg.match(/^(.*?)\s*\/\s*(Sisa Kuota.*)$/i);
+                    if (m) {
+                        const title = m[1].trim();
+                        const detailsRaw = m[2].trim();
+                        const items = detailsRaw.split(/,\s*(?=\d+|Nelp|Sisa|Kuota|Bonus)/i).map(s => s.trim()).filter(Boolean);
+                        packages.push({ title, items });
+                    } else {
+                        packages.push({ title: seg, items: [] });
+                    }
+                } else {
+                    packages.push({ title: seg, items: [] });
+                }
+            });
+
+            let packagesHtml = packages.map(pkg => {
+                let itemsHtml = '';
+                if (pkg.items && pkg.items.length > 0) {
+                    itemsHtml = `
+                        <div class="sn-pkg-items">
+                            ${pkg.items.map(it => {
+                                let icon = '<i class="fas fa-check-circle" style="color: #10b981;"></i>';
+                                if (it.toLowerCase().includes('nelp') || it.toLowerCase().includes('menit')) {
+                                    icon = '<i class="fas fa-phone-alt" style="color: #3b82f6;"></i>';
+                                } else if (it.toLowerCase().includes('kuota')) {
+                                    icon = '<i class="fas fa-database" style="color: #0d9488;"></i>';
+                                }
+                                return `<div class="sn-pkg-subitem">${icon} <span>${escapeHtml(it)}</span></div>`;
+                            }).join('')}
+                        </div>
+                    `;
+                }
+                return `
+                    <div class="sn-pkg-card">
+                        <div class="sn-pkg-title"><i class="fas fa-box-open" style="color: #2563eb;"></i> ${escapeHtml(pkg.title)}</div>
+                        ${itemsHtml}
+                    </div>
+                `;
+            }).join('');
+
+            return `
+                <div class="sn-pretty-box sn-quota-box">
+                    <div class="sn-pretty-header">
+                        <div class="sn-type-tag"><i class="fas fa-chart-pie" style="color: #2563eb;"></i> Rincian Paket & Kuota</div>
+                        <button type="button" class="sn-btn-copy" onclick="event.stopPropagation(); copyText('${escapeForAttr(safeText)}')">
+                            <i class="far fa-copy"></i> Salin Semua
+                        </button>
+                    </div>
+                    ${cardInfo ? `<div class="sn-sim-badge"><i class="fas fa-sim-card"></i> ${escapeHtml(cardInfo)}</div>` : ''}
+                    <div class="sn-pkg-list">
+                        ${packagesHtml}
+                    </div>
+                    ${pulsaInfo ? `<div class="sn-pulsa-chip"><i class="fas fa-coins" style="color: #d97706;"></i> <b>${escapeHtml(pulsaInfo)}</b></div>` : ''}
+                </div>
+            `;
+        }
+
+        // 4. Regular Single SN
+        return `
+            <div class="sn-pretty-box sn-simple-box">
+                <div class="sn-pretty-header">
+                    <div class="sn-type-tag"><i class="fas fa-key" style="color: #2563eb;"></i> Serial Number (SN)</div>
+                    <button type="button" class="sn-btn-copy" onclick="event.stopPropagation(); copyText('${escapeForAttr(safeText)}')">
+                        <i class="far fa-copy"></i> Salin
+                    </button>
+                </div>
+                <div class="sn-simple-val">${escapeHtml(safeText)}</div>
+            </div>
+        `;
+    }
+
+    function formatSnForWhatsApp(rawSn) {
+        if (!rawSn) return '-';
+        let clean = rawSn.trim().replace(/^SN\s*:\s*/i, '').replace(/^(Keterangan|KET)\s*:\s*/i, '').trim();
+
+        // 1. PLN Token
+        const plnMatch = clean.match(/(?:^|\D)(\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4})(?:\D|$)/);
+        if (plnMatch && (clean.toLowerCase().includes('kwh') || clean.toLowerCase().includes('pln') || clean.split('/').length >= 3 || plnMatch[1].replace(/[-\s]/g, '').length === 20)) {
+            const rawToken = plnMatch[1].replace(/[-\s]/g, '');
+            const formattedToken = rawToken.match(/.{1,4}/g).join(' - ');
+            const parts = clean.split('/').map(p => p.trim()).filter(p => !p.replace(/[-\s]/g, '').includes(rawToken));
+            let out = `\n  ⚡ *TOKEN: ${formattedToken}*`;
+            if (parts.length > 0) {
+                out += `\n  Info: ${parts.join(' / ')}`;
+            }
+            return out;
+        }
+
+        // 2. Multi-Package / Cek Kuota
+        if (clean.includes('*') || clean.toLowerCase().includes('sisa kuota')) {
+            const parts = clean.split('*').map(p => p.trim()).filter(Boolean);
+            let out = '\n';
+            parts.forEach(p => {
+                const m = p.match(/^(.*?)\s*\/\s*(Sisa Kuota.*)$/i);
+                if (m) {
+                    const title = m[1].trim();
+                    const details = m[2].trim();
+                    out += `  • *${title}*\n`;
+                    const subItems = details.split(/,\s*(?=\d+|Nelp|Sisa|Kuota|Bonus)/i).map(s => s.trim()).filter(Boolean);
+                    subItems.forEach(it => {
+                        out += `    - ${it}\n`;
+                    });
+                } else {
+                    out += `  • ${p}\n`;
+                }
+            });
+            return out.trimEnd();
+        }
+
+        return clean;
+    }
+
+    function initSnFormatting() {
+        document.querySelectorAll('.sn-wrapper[data-sn]').forEach(el => {
+            const rawSn = el.getAttribute('data-sn');
+            const isFailed = el.getAttribute('data-failed') === 'true';
+            if (rawSn) {
+                const prettyHtml = renderSnHtml(rawSn, isFailed);
+                if (prettyHtml) {
+                    el.innerHTML = prettyHtml;
+                }
+            }
+        });
+    }
+
     function bagikanStruk(refId, produk, tujuan, harga, sn, waktu, status) {
         const storeName = {{ store.name|tojson }};
         const footer = {{ store.receipt_footer|tojson }};
         const waGroup = {{ (store.whatsapp_group or '')|tojson }};
+        const formattedSn = formatSnForWhatsApp(sn);
         
         let text = 
             `*STRUK TRANSAKSI ${storeName.toUpperCase()}*\n` +
@@ -557,7 +993,7 @@
             `Produk   : ${produk}\n` +
             `Tujuan   : ${tujuan}\n` +
             `Harga    : Rp ${harga}\n` +
-            `SN / Ket : ${sn}\n` +
+            `SN / Ket : ${formattedSn}\n` +
             `Waktu    : ${waktu}\n` +
             `--------------------------------\n` +
             `${footer}\n`;
@@ -602,18 +1038,20 @@
                             // Update or add SN box if sn exists
                             if (data.sn && data.sn !== 'Sedang diproses server...') {
                                 card.setAttribute('data-sn', data.sn.toUpperCase());
-                                let snBox = card.querySelector('.sn-box');
-                                if (snBox) {
-                                    snBox.innerHTML = `<span>SN: ${data.sn}</span> <i class="far fa-copy"></i>`;
+                                let snWrapper = card.querySelector('.sn-wrapper');
+                                if (snWrapper) {
+                                    snWrapper.setAttribute('data-sn', data.sn);
+                                    snWrapper.setAttribute('data-failed', 'false');
+                                    snWrapper.innerHTML = renderSnHtml(data.sn, false);
                                 } else {
                                     const metaRow = card.querySelector('.trx-meta-row');
                                     if (metaRow) {
-                                        const newSn = document.createElement('div');
-                                        newSn.className = 'sn-box';
-                                        newSn.setAttribute('onclick', `copyText('${data.sn}')`);
-                                        newSn.setAttribute('title', 'Klik untuk salin SN');
-                                        newSn.innerHTML = `<span>SN: ${data.sn}</span> <i class="far fa-copy"></i>`;
-                                        metaRow.appendChild(newSn);
+                                        const newWrapper = document.createElement('div');
+                                        newWrapper.className = 'sn-wrapper';
+                                        newWrapper.setAttribute('data-sn', data.sn);
+                                        newWrapper.setAttribute('data-failed', 'false');
+                                        newWrapper.innerHTML = renderSnHtml(data.sn, false);
+                                        metaRow.appendChild(newWrapper);
                                     }
                                 }
                             }
@@ -640,6 +1078,14 @@
                                 badge.className = 'badge-status gagal';
                                 badge.innerText = 'Gagal';
                             }
+                            if (data.sn) {
+                                let snWrapper = card.querySelector('.sn-wrapper');
+                                if (snWrapper) {
+                                    snWrapper.setAttribute('data-sn', data.sn);
+                                    snWrapper.setAttribute('data-failed', 'true');
+                                    snWrapper.innerHTML = renderSnHtml(data.sn, true);
+                                }
+                            }
                             if (btn) btn.remove();
                         }
                     } else {
@@ -658,8 +1104,10 @@
             });
     }
 
-    // Auto-polling untuk transaksi yang berstatus PROSES / PROCESSING saat halaman terbuka
+    // Auto-formatting saat DOM siap
+    initSnFormatting();
     document.addEventListener('DOMContentLoaded', () => {
+        initSnFormatting();
         const processingCards = document.querySelectorAll('.trx-card[data-status="PROCESSING"], .trx-card[data-status="PROSES"]');
         if (processingCards.length > 0) {
             let pollCount = 0;

@@ -452,13 +452,14 @@
             background: #eff6ff;
             border: 1px dashed #bfdbfe;
             border-radius: 8px;
-            padding: 4px 8px;
-            font-size: 0.68rem;
+            padding: 5px 8px;
+            font-size: 0.7rem;
             font-family: monospace;
             color: #1d4ed8;
             font-weight: 700;
             margin-top: 4px;
-            word-break: break-all;
+            overflow-wrap: break-word;
+            word-break: break-word;
             cursor: pointer;
             display: flex;
             justify-content: space-between;
@@ -1306,6 +1307,9 @@ function showReceipt(trx) {
     const snElem = document.getElementById('rcptSn');
     if (snElem) {
         snElem.innerText = trx.sn || '-';
+        snElem.setAttribute('data-raw-sn', trx.sn || '-');
+        snElem.style.wordBreak = 'break-word';
+        snElem.style.overflowWrap = 'break-word';
     }
 
     const statusElem = document.getElementById('rcptStatus');
@@ -1324,12 +1328,54 @@ function closeReceipt() {
     document.getElementById('receiptModal').style.display = 'none';
 }
 
+function formatSnForWhatsApp(rawSn) {
+    if (!rawSn) return '-';
+    let clean = rawSn.trim().replace(/^SN\s*:\s*/i, '').replace(/^(Keterangan|KET)\s*:\s*/i, '').trim();
+
+    // 1. PLN Token
+    const plnMatch = clean.match(/(?:^|\D)(\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4})(?:\D|$)/);
+    if (plnMatch && (clean.toLowerCase().includes('kwh') || clean.toLowerCase().includes('pln') || clean.split('/').length >= 3 || plnMatch[1].replace(/[-\s]/g, '').length === 20)) {
+        const rawToken = plnMatch[1].replace(/[-\s]/g, '');
+        const formattedToken = rawToken.match(/.{1,4}/g).join(' - ');
+        const parts = clean.split('/').map(p => p.trim()).filter(p => !p.replace(/[-\s]/g, '').includes(rawToken));
+        let out = `\n  ⚡ *TOKEN: ${formattedToken}*`;
+        if (parts.length > 0) {
+            out += `\n  Info: ${parts.join(' / ')}`;
+        }
+        return out;
+    }
+
+    // 2. Multi-Package / Cek Kuota
+    if (clean.includes('*') || clean.toLowerCase().includes('sisa kuota')) {
+        const parts = clean.split('*').map(p => p.trim()).filter(Boolean);
+        let out = '\n';
+        parts.forEach(p => {
+            const m = p.match(/^(.*?)\s*\/\s*(Sisa Kuota.*)$/i);
+            if (m) {
+                const title = m[1].trim();
+                const details = m[2].trim();
+                out += `  • *${title}*\n`;
+                const subItems = details.split(/,\s*(?=\d+|Nelp|Sisa|Kuota|Bonus)/i).map(s => s.trim()).filter(Boolean);
+                subItems.forEach(it => {
+                    out += `    - ${it}\n`;
+                });
+            } else {
+                out += `  • ${p}\n`;
+            }
+        });
+        return out.trimEnd();
+    }
+
+    return clean;
+}
+
 function shareCurrentReceiptModalWa() {
     const refId = document.getElementById('rcptRef').innerText.trim();
     const target = document.getElementById('rcptTarget').innerText.trim();
     const product = document.getElementById('rcptProduct').innerText.trim();
     const total = document.getElementById('rcptTotal').innerText.replace('Rp ', '').trim();
-    const sn = document.getElementById('rcptSn').innerText.trim();
+    const snElem = document.getElementById('rcptSn');
+    const sn = (snElem ? snElem.getAttribute('data-raw-sn') : '') || (snElem ? snElem.innerText.trim() : '-');
     const time = document.getElementById('rcptTime').innerText.trim();
     const status = document.getElementById('rcptStatus').innerText.trim();
     shareCashierReceiptWa(refId, product, target, total, sn, time, status);
@@ -1337,6 +1383,7 @@ function shareCurrentReceiptModalWa() {
 
 function shareCashierReceiptWa(refId, produk, tujuan, harga, sn, waktu, status) {
     const storeName = {{ store_name|tojson }};
+    const formattedSn = formatSnForWhatsApp(sn);
     let text = 
         `*STRUK TRANSAKSI ${storeName.toUpperCase()}*\n` +
         `--------------------------------\n` +
@@ -1345,7 +1392,7 @@ function shareCashierReceiptWa(refId, produk, tujuan, harga, sn, waktu, status) 
         `Produk   : ${produk}\n` +
         `Tujuan   : ${tujuan}\n` +
         `Total    : Rp ${harga}\n` +
-        `SN / Ket : ${sn}\n` +
+        `SN / Ket : ${formattedSn}\n` +
         `Waktu    : ${waktu}\n` +
         `--------------------------------\n` +
         `Terima kasih atas kunjungan Anda.\n` +
