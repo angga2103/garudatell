@@ -29,7 +29,8 @@ def run_tests():
         user = User.query.first()
         if not user:
             print(" [INFO] Membuat user dummy untuk test.")
-            user = User(name="Test POS Cashier", phone="081299990001", role="user", balance=250000.0)
+            from werkzeug.security import generate_password_hash
+            user = User(name="Test POS Cashier", phone="081299990001", role="user", balance=250000.0, password_hash=generate_password_hash("test12345"))
             db.session.add(user)
             db.session.commit()
 

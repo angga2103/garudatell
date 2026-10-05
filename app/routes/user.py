@@ -3045,4 +3045,56 @@ def pwa_offline():
     return render_template('offline.html')
 
 
+# ==============================================================================
+# INTEGRASI KASIR WEB POS (SSO AUTO-PROVISIONING)
+# ==============================================================================
+@user_bp.route('/pos')
+@user_bp.route('/pos/launch')
+@login_required
+def launch_web_pos():
+    """
+    Mengarahkan pengguna GarudaTel langsung ke aplikasi Kasir Web POS (Ipay-POS)
+    dengan Single Sign-On (SSO) dan auto-provisioning kredensial Merchant API.
+    """
+    import time
+    import hashlib
+    import urllib.parse
+    from app.models.merchant import MerchantApiKey
+    from app.services.merchant_service import generate_merchant_credentials
+
+    # 1. Pastikan pengguna memiliki Merchant API Key aktif
+    mch = MerchantApiKey.query.filter_by(user_id=current_user.id, is_active=True).first()
+    if not mch:
+        store_default_name = f"Kasir {current_user.name or current_user.phone}"
+        mch, err = generate_merchant_credentials(current_user.id, name=store_default_name)
+        if err:
+            flash(f"Gagal menyiapkan kredensial kasir: {err}", "danger")
+            return redirect(url_for('user.dashboard'))
+
+    # 2. Ambil target URL Web POS dari environment atau fallback
+    pos_base_url = os.getenv('POS_WEB_URL', '').strip()
+    if not pos_base_url:
+        pos_base_url = "http://localhost:3000"
+
+    # 3. Hitung timestamp & MD5 signature anti-tamper
+    ts = int(time.time())
+    sig = hashlib.md5(f"{mch.merchant_id}{mch.secret_key}{ts}".encode('utf-8')).hexdigest()
+
+    # 4. Susun query parameter SSO
+    params = {
+        'sso_merchant': mch.merchant_id,
+        'sso_api_key': mch.api_key,
+        'sso_secret': mch.secret_key,
+        'sso_name': current_user.name or current_user.phone or 'Mitra iPay',
+        'sso_phone': current_user.phone or '',
+        'sso_ts': str(ts),
+        'sso_sign': sig,
+        'sso_base_url': request.host_url.rstrip('/')
+    }
+
+    redirect_url = f"{pos_base_url.rstrip('/')}/?{urllib.parse.urlencode(params)}"
+    return redirect(redirect_url)
+
+
+
 
