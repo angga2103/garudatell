@@ -3046,8 +3046,24 @@ def pwa_offline():
 
 
 # ==============================================================================
-# INTEGRASI KASIR WEB POS (SSO AUTO-PROVISIONING)
+# INTEGRASI KASIR WEB POS (SSO AUTO-PROVISIONING & ANNOUNCEMENT)
 # ==============================================================================
+@user_bp.route('/pos-info')
+@user_bp.route('/pos/info')
+def pos_announcement():
+    """
+    Menampilkan halaman pengumuman dan showcase elegan fitur Kasir Web POS
+    ketika fitur dalam tahap pengembangan atau sebagai pratinjau edukasi.
+    """
+    from app.services.setting_service import get_pos_settings
+    pos_settings = get_pos_settings()
+    return render_template(
+        'user/pos_announcement.html',
+        pos_settings=pos_settings,
+        page_title=pos_settings.get('announcement_title', 'Aplikasi Kasir Web POS')
+    )
+
+
 @user_bp.route('/pos')
 @user_bp.route('/pos/launch')
 @login_required
@@ -3055,14 +3071,33 @@ def launch_web_pos():
     """
     Mengarahkan pengguna GarudaTel langsung ke aplikasi Kasir Web POS (Ipay-POS)
     dengan Single Sign-On (SSO) dan auto-provisioning kredensial Merchant API.
+    Jika fitur berstatus nonaktif (0), dialihkan ke halaman pengumuman (/pos/info).
     """
     import time
     import hashlib
     import urllib.parse
     from app.models.merchant import MerchantApiKey
     from app.services.merchant_service import generate_merchant_credentials
+    from app.services.setting_service import get_pos_settings
 
-    # 1. Pastikan pengguna memiliki Merchant API Key aktif
+    # 1. Periksa status Master Toggle Web POS
+    pos_settings = get_pos_settings()
+    if pos_settings.get('enabled') != '1':
+        return redirect(url_for('user.pos_announcement'))
+
+    # 2. Ambil target URL Web POS produksi dari setting database atau env
+    pos_base_url = (pos_settings.get('web_url') or '').strip()
+    if not pos_base_url:
+        pos_base_url = os.getenv('POS_WEB_URL', '').strip() or 'http://localhost:3000'
+
+    # Proteksi: Jika diakses dari domain produksi (misal ipay.my.id) tetapi URL masih localhost,
+    # arahkan ke pengumuman agar tidak terjadi ERR_CONNECTION_REFUSED di perangkat user.
+    is_prod_host = 'localhost' not in request.host and '127.0.0.1' not in request.host
+    if is_prod_host and ('localhost' in pos_base_url or '127.0.0.1' in pos_base_url):
+        flash("Domain server Web POS sedang dikonfigurasi oleh tim teknis. Pratinjau fitur tersedia di bawah.", "info")
+        return redirect(url_for('user.pos_announcement'))
+
+    # 3. Pastikan pengguna memiliki Merchant API Key aktif
     mch = MerchantApiKey.query.filter_by(user_id=current_user.id, is_active=True).first()
     if not mch:
         store_default_name = f"Kasir {current_user.name or current_user.phone}"
@@ -3071,16 +3106,11 @@ def launch_web_pos():
             flash(f"Gagal menyiapkan kredensial kasir: {err}", "danger")
             return redirect(url_for('user.dashboard'))
 
-    # 2. Ambil target URL Web POS dari environment atau fallback
-    pos_base_url = os.getenv('POS_WEB_URL', '').strip()
-    if not pos_base_url:
-        pos_base_url = "http://localhost:3000"
-
-    # 3. Hitung timestamp & MD5 signature anti-tamper
+    # 4. Hitung timestamp & MD5 signature anti-tamper
     ts = int(time.time())
     sig = hashlib.md5(f"{mch.merchant_id}{mch.secret_key}{ts}".encode('utf-8')).hexdigest()
 
-    # 4. Susun query parameter SSO
+    # 5. Susun query parameter SSO
     params = {
         'sso_merchant': mch.merchant_id,
         'sso_api_key': mch.api_key,
@@ -3094,6 +3124,7 @@ def launch_web_pos():
 
     redirect_url = f"{pos_base_url.rstrip('/')}/?{urllib.parse.urlencode(params)}"
     return redirect(redirect_url)
+
 
 
 

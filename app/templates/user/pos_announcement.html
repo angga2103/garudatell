@@ -1,0 +1,433 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ pos_settings.announcement_title or 'Aplikasi Kasir Web POS' }} - {{ store.name }}{% endblock %}
+
+{% block head %}
+<style>
+    :root {
+        --pos-teal: #008779;
+        --pos-teal-dark: #005f55;
+        --pos-teal-light: #e6f6f4;
+        --pos-accent: #0284c7;
+        --pos-gold: #f59e0b;
+    }
+
+    .pos-info-page {
+        padding-bottom: 90px;
+    }
+
+    /* TOP HEADER */
+    .pos-hero-header {
+        background: linear-gradient(135deg, #008779 0%, #004d44 100%);
+        padding: 24px 20px 48px 20px;
+        color: white;
+        border-bottom-left-radius: 32px;
+        border-bottom-right-radius: 32px;
+        position: relative;
+        box-shadow: 0 10px 30px rgba(0, 95, 85, 0.25);
+        overflow: hidden;
+    }
+
+    .pos-hero-header::before {
+        content: "";
+        position: absolute;
+        top: -60px; right: -60px;
+        width: 180px; height: 180px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.08);
+        pointer-events: none;
+    }
+
+    .pos-top-nav {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 22px;
+        position: relative;
+        z-index: 2;
+    }
+
+    .pos-back-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: white;
+        text-decoration: none;
+        font-weight: 700;
+        font-size: 14px;
+        background: rgba(255, 255, 255, 0.18);
+        padding: 6px 14px;
+        border-radius: 20px;
+        backdrop-filter: blur(8px);
+        transition: all 0.2s ease;
+    }
+    .pos-back-btn:hover {
+        background: rgba(255, 255, 255, 0.3);
+        color: white;
+    }
+
+    .pos-badge-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(254, 240, 138, 0.22);
+        border: 1px solid rgba(254, 240, 138, 0.45);
+        color: #fef08a;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.3px;
+        text-transform: uppercase;
+    }
+
+    .pos-hero-title {
+        font-size: 22px;
+        font-weight: 800;
+        line-height: 1.3;
+        margin: 0 0 10px 0;
+        color: #ffffff;
+    }
+
+    .pos-hero-desc {
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.9);
+        line-height: 1.55;
+        margin: 0;
+    }
+
+    /* PREVIEW CARD GLOW */
+    .pos-main-card {
+        background: white;
+        border-radius: 24px;
+        margin: -24px 16px 20px 16px;
+        padding: 20px;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+        position: relative;
+        z-index: 3;
+        border: 1px solid #f1f5f9;
+    }
+
+    .pos-preview-banner {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        border-radius: 18px;
+        padding: 20px 16px;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 20px;
+        border: 1px solid #334155;
+    }
+
+    .pos-preview-pill {
+        display: inline-block;
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        padding: 3px 10px;
+        border-radius: 12px;
+        font-size: 10px;
+        font-weight: 800;
+        margin-bottom: 6px;
+    }
+
+    /* GRID FITUR UNGGULAN */
+    .features-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 14px;
+        margin-bottom: 24px;
+    }
+
+    @media (min-width: 600px) {
+        .features-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    .feature-card {
+        background: #ffffff;
+        border: 1.5px solid #edf2f7;
+        border-radius: 18px;
+        padding: 16px;
+        transition: all 0.25s ease;
+        display: flex;
+        gap: 14px;
+        align-items: flex-start;
+    }
+
+    .feature-card:hover {
+        border-color: #99f6e4;
+        box-shadow: 0 8px 20px rgba(0, 135, 121, 0.08);
+        transform: translateY(-2px);
+    }
+
+    .feature-icon-box {
+        width: 44px;
+        height: 44px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 19px;
+        flex-shrink: 0;
+    }
+
+    .feature-title {
+        font-size: 14px;
+        font-weight: 800;
+        color: #0f172a;
+        margin-bottom: 4px;
+    }
+
+    .feature-desc {
+        font-size: 12px;
+        color: #64748b;
+        line-height: 1.45;
+        margin: 0;
+    }
+
+    /* STEP WORKFLOW */
+    .workflow-box {
+        background: #f8fafc;
+        border: 1.5px dashed #cbd5e1;
+        border-radius: 20px;
+        padding: 20px 18px;
+        margin-bottom: 24px;
+    }
+
+    .workflow-header {
+        font-size: 14px;
+        font-weight: 800;
+        color: #1e293b;
+        margin-bottom: 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .workflow-steps {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .step-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .step-num {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: #008779;
+        color: white;
+        font-size: 12px;
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .step-text {
+        font-size: 12.5px;
+        color: #334155;
+        font-weight: 600;
+    }
+
+    /* CTA BUTTONS */
+    .cta-container {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .btn-main-pos {
+        background: linear-gradient(135deg, #008779 0%, #005f55 100%);
+        color: white;
+        padding: 14px 20px;
+        border-radius: 16px;
+        font-size: 14px;
+        font-weight: 800;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        text-decoration: none;
+        box-shadow: 0 6px 18px rgba(0, 135, 121, 0.3);
+        transition: all 0.2s ease;
+    }
+    .btn-main-pos:hover {
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0, 135, 121, 0.4);
+    }
+
+    .btn-secondary-pos {
+        background: #f1f5f9;
+        color: #334155;
+        padding: 12px 20px;
+        border-radius: 16px;
+        font-size: 13px;
+        font-weight: 700;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        text-decoration: none;
+        transition: all 0.2s ease;
+    }
+    .btn-secondary-pos:hover {
+        background: #e2e8f0;
+        color: #0f172a;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pos-info-page">
+    <!-- TOP APP BAR / HERO -->
+    <div class="pos-hero-header">
+        <div class="pos-top-nav">
+            <a href="/dashboard" class="pos-back-btn">
+                <i class="fas fa-arrow-left"></i> Dashboard
+            </a>
+            <div class="pos-badge-status">
+                <i class="fas fa-rocket"></i> Coming Soon
+            </div>
+        </div>
+
+        <h1 class="pos-hero-title">{{ pos_settings.announcement_title }}</h1>
+        <p class="pos-hero-desc">{{ pos_settings.announcement_message }}</p>
+    </div>
+
+    <!-- MAIN CARD -->
+    <div class="pos-main-card">
+        <!-- PREVIEW HIGHLIGHT BANNER -->
+        <div class="pos-preview-banner">
+            <div>
+                <span class="pos-preview-pill"><i class="fas fa-sparkles"></i> All-In-One POS Cloud</span>
+                <div style="font-size: 15px; font-weight: 800; margin-top: 2px;">
+                    1 Aplikasi untuk Kasir Ritel, Konter HP & PPOB
+                </div>
+                <div style="font-size: 11.5px; color: #94a3b8; margin-top: 4px;">
+                    Terintegrasi penuh dengan Saldo Akun GarudaTel Anda. 100% Gratis bagi seluruh Agen & Reseller.
+                </div>
+            </div>
+            <div style="font-size: 38px; color: #34d399; opacity: 0.9; flex-shrink: 0;">
+                <i class="fas fa-cash-register"></i>
+            </div>
+        </div>
+
+        <!-- 6 FITUR UNGGULAN -->
+        <div style="font-size: 15px; font-weight: 800; color: #0f172a; margin-bottom: 14px; display: flex; align-items: center; gap: 8px;">
+            <i class="fas fa-star" style="color: #f59e0b;"></i> Fitur Unggulan yang Sedang Dipersiapkan:
+        </div>
+
+        <div class="features-grid">
+            <!-- 1. Kasir & Barcode -->
+            <div class="feature-card">
+                <div class="feature-icon-box" style="background: #e0f2fe; color: #0284c7;">
+                    <i class="fas fa-barcode"></i>
+                </div>
+                <div>
+                    <div class="feature-title">Kasir Ritel & Barcode Scanner</div>
+                    <p class="feature-desc">Input barang kilat dengan kamera HP / scanner USB, cetak nota struk kasir 58mm & 80mm Bluetooth Thermal.</p>
+                </div>
+            </div>
+
+            <!-- 2. Konter HP & IMEI -->
+            <div class="feature-card">
+                <div class="feature-icon-box" style="background: #fef3c7; color: #d97706;">
+                    <i class="fas fa-mobile-alt"></i>
+                </div>
+                <div>
+                    <div class="feature-title">Spesial Konter HP & Servis</div>
+                    <p class="feature-desc">Pelacakan IMEI smartphone baru/bekas, tanda terima nota servis HP dengan status pengerjaan & garansi.</p>
+                </div>
+            </div>
+
+            <!-- 3. Integrasi Saldo GarudaTel -->
+            <div class="feature-card">
+                <div class="feature-icon-box" style="background: #dcfce7; color: #16a34a;">
+                    <i class="fas fa-bolt"></i>
+                </div>
+                <div>
+                    <div class="feature-title">Auto-Potong Saldo GarudaTel</div>
+                    <p class="feature-desc">Transaksi pulsa, kuota, token PLN & tagihan kasir langsung memotong saldo iPay tanpa perlu modal terpisah.</p>
+                </div>
+            </div>
+
+            <!-- 4. Manajemen Stok -->
+            <div class="feature-card">
+                <div class="feature-icon-box" style="background: #ede9fe; color: #7c3aed;">
+                    <i class="fas fa-boxes"></i>
+                </div>
+                <div>
+                    <div class="feature-title">Stok & Inventaris Otomatis</div>
+                    <p class="feature-desc">Pengingat stok habis/menipis, riwayat mutasi masuk/keluar barang dagangan, dan kalkulasi HPP otomatis.</p>
+                </div>
+            </div>
+
+            <!-- 5. Kasbon & Piutang -->
+            <div class="feature-card">
+                <div class="feature-icon-box" style="background: #fee2e2; color: #dc2626;">
+                    <i class="fas fa-book-open"></i>
+                </div>
+                <div>
+                    <div class="feature-title">Buku Kasbon & Piutang</div>
+                    <p class="feature-desc">Catat hutang belanja pelanggan, setting limit kredit, dan kirim rincian tagihan via WhatsApp dalam 1 klik.</p>
+                </div>
+            </div>
+
+            <!-- 6. Multi Device & Gratis -->
+            <div class="feature-card">
+                <div class="feature-icon-box" style="background: #ccfbf1; color: #0d9488;">
+                    <i class="fas fa-laptop-house"></i>
+                </div>
+                <div>
+                    <div class="feature-title">Cloud & Multi-Device Bebas Biaya</div>
+                    <p class="feature-desc">Bisa dibuka dari HP, tablet, laptop, atau PC kasir Anda secara bersamaan. Tanpa biaya langganan bulanan!</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- CARA KERJA (WORKFLOW) -->
+        <div class="workflow-box">
+            <div class="workflow-header">
+                <i class="fas fa-magic" style="color: #008779;"></i> Bagaimana Cara Menggunakannya Nanti?
+            </div>
+            <div class="workflow-steps">
+                <div class="step-item">
+                    <div class="step-num">1</div>
+                    <div class="step-text">Klik tombol <b>"Buka Kasir Web POS"</b> di Dashboard akun GarudaTel Anda.</div>
+                </div>
+                <div class="step-item">
+                    <div class="step-num">2</div>
+                    <div class="step-text">Sistem SSO kami langsung menghubungkan toko & saldo deposit Anda otomatis tanpa login ulang.</div>
+                </div>
+                <div class="step-item">
+                    <div class="step-num">3</div>
+                    <div class="step-text">Aplikasi kasir terbuka seketika dan langsung siap digunakan melayani pembeli!</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ACTION BUTTONS -->
+        <div class="cta-container">
+            <a href="https://wa.me/{{ store.wa_cs or '6281775700114' }}?text=Halo%20Admin%20GarudaTel,%20saya%20tertarik%20dengan%20fitur%20Aplikasi%20Kasir%20Web%20POS%20dan%20ingin%20bergabung%20uji%20coba%20Early%20Access." target="_blank" class="btn-main-pos">
+                <i class="fab fa-whatsapp" style="font-size: 18px;"></i> Hubungi CS / Daftar Early Access
+            </a>
+            <a href="/dashboard" class="btn-secondary-pos">
+                <i class="fas fa-home"></i> Kembali ke Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

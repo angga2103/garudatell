@@ -2845,16 +2845,31 @@ def merchant_api_index():
 
     from app.models.merchant import MerchantApiKey
     from app.models.user import User
+    from app.services.setting_service import get_pos_settings
 
     merchants = MerchantApiKey.query.order_by(MerchantApiKey.id.desc()).all()
     users = User.query.filter_by(is_active=True).order_by(User.name.asc()).all()
+    pos_settings = get_pos_settings()
 
     return render_template(
         'admin/merchant_api.html',
         merchants=merchants,
         users=users,
-        page_title='API Merchant (POS)'
+        pos_settings=pos_settings,
+        page_title='API Merchant & POS'
     )
+
+
+@admin_bp.route('/merchant_api/settings', methods=['POST'])
+@admin_bp.route('/merchant-api/settings', methods=['POST'])
+def merchant_api_save_settings():
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin.login'))
+
+    from app.services.setting_service import save_pos_settings
+    save_pos_settings(request.form)
+    flash('Pengaturan & status Fitur Kasir Web POS berhasil diperbarui!', 'success')
+    return redirect(url_for('admin.merchant_api_index'))
 
 
 @admin_bp.route('/merchant_api/create', methods=['POST'])

@@ -62,6 +62,49 @@
         cursor: pointer;
         transition: 0.2s;
     }
+    .switch-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+    .pos-toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 54px;
+        height: 28px;
+        flex-shrink: 0;
+    }
+    .pos-toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    .pos-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-color: #cbd5e1;
+        transition: .3s;
+        border-radius: 34px;
+    }
+    .pos-slider:before {
+        position: absolute;
+        content: "";
+        height: 20px;
+        width: 20px;
+        left: 4px;
+        bottom: 4px;
+        background-color: white;
+        transition: .3s;
+        border-radius: 50%;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    .pos-toggle-switch input:checked + .pos-slider {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+    .pos-toggle-switch input:checked + .pos-slider:before {
+        transform: translateX(26px);
+    }
 </style>
 {% endblock %}
 
@@ -93,6 +136,93 @@
         <div class="stat-value">v1 (REST)</div>
         <div class="stat-label">PROTOKOL GATEWAY</div>
     </div>
+</div>
+
+<!-- KONTROL MASTER ON / OFF FITUR WEB POS -->
+<div class="api-card" style="border: 1.5px solid {% if pos_settings.enabled == '1' %}#86efac{% else %}#fde047{% endif %}; background: {% if pos_settings.enabled == '1' %}linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%){% else %}linear-gradient(180deg, #fefce8 0%, #ffffff 100%){% endif %}; position: relative; overflow: hidden;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 44px; height: 44px; border-radius: 12px; background: {% if pos_settings.enabled == '1' %}#dcfce7; color: #15803d;{% else %}#fef3c7; color: #b45309;{% endif %} display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                <i class="fas {% if pos_settings.enabled == '1' %}fa-store-alt{% else %}fa-tools{% endif %}"></i>
+            </div>
+            <div>
+                <div style="font-size: 16px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+                    Kontrol Master Status Fitur Kasir Web POS
+                    {% if pos_settings.enabled == '1' %}
+                    <span class="api-badge badge-active"><i class="fas fa-check-circle"></i> AKTIF UNTUK MEMBER</span>
+                    {% else %}
+                    <span class="api-badge" style="background: #fef3c7; color: #b45309;"><i class="fas fa-clock"></i> MODE PENGEMBANGAN (PREVIEW)</span>
+                    {% endif %}
+                </div>
+                <div style="font-size: 12px; color: #64748b; margin-top: 2px;">
+                    Kelola status on/off akses aplikasi kasir ritel untuk seluruh member dan arahkan domain server produksi.
+                </div>
+            </div>
+        </div>
+        <a href="{{ url_for('user.pos_announcement') }}" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: #0284c7; background: #e0f2fe; padding: 6px 14px; border-radius: 8px; text-decoration: none; transition: 0.2s;">
+            <i class="fas fa-external-link-alt"></i> Pratinjau Halaman Pengumuman Member
+        </a>
+    </div>
+
+    <form method="POST" action="{{ url_for('admin.merchant_api_save_settings') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin-bottom: 16px;">
+            <div class="switch-wrapper" style="margin-bottom: 16px;">
+                <label class="pos-toggle-switch">
+                    <input type="checkbox" name="pos_feature_enabled" value="1" id="togglePosFeature" {% if pos_settings.enabled == '1' %}checked{% endif %}>
+                    <span class="pos-slider"></span>
+                </label>
+                <div>
+                    <label for="togglePosFeature" style="font-size: 14px; font-weight: 800; color: #1e293b; cursor: pointer; display: block;">
+                        Status Fitur Web POS di Aplikasi Member
+                    </label>
+                    <span style="font-size: 12px; color: #64748b;">
+                        {% if pos_settings.enabled == '1' %}
+                        <b style="color: #16a34a;">AKTIF:</b> Member yang klik tombol "Buka Kasir Web POS" akan langsung dialihkan via SSO ke URL Produksi di bawah.
+                        {% else %}
+                        <b style="color: #d97706;">NONAKTIF / TAHAP PENGEMBANGAN:</b> Member yang klik "Buka Kasir Web POS" dialihkan ke <b>Halaman Pengumuman Elegan</b> yang menjelaskan fitur-fitur kasir tanpa memunculkan error koneksi.
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px;">
+                <div>
+                    <label style="font-size: 12px; font-weight: 700; color: #334155; display: block; margin-bottom: 6px;">
+                        <i class="fas fa-globe" style="color: #0284c7;"></i> Domain / URL Web POS Produksi:
+                    </label>
+                    <input type="text" name="pos_web_url" value="{{ pos_settings.web_url }}" placeholder="https://pos.garudatel.com" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1.5px solid #cbd5e1; font-size: 13px; font-family: monospace; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#cbd5e1'">
+                    <div style="font-size: 11px; color: #64748b; margin-top: 4px;">
+                        Gunakan domain VPS Web POS Anda (contoh: <code>https://pos.garudatel.com</code>).
+                    </div>
+                </div>
+
+                <div>
+                    <label style="font-size: 12px; font-weight: 700; color: #334155; display: block; margin-bottom: 6px;">
+                        <i class="fas fa-bullhorn" style="color: #f59e0b;"></i> Judul Pengumuman Preview:
+                    </label>
+                    <input type="text" name="pos_announcement_title" value="{{ pos_settings.announcement_title }}" placeholder="Aplikasi Kasir Web POS Modern..." style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1.5px solid #cbd5e1; font-size: 13px; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#cbd5e1'">
+                    <div style="font-size: 11px; color: #64748b; margin-top: 4px;">
+                        Judul utama yang muncul di halaman info member ketika fitur sedang dinonaktifkan.
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top: 14px;">
+                <label style="font-size: 12px; font-weight: 700; color: #334155; display: block; margin-bottom: 6px;">
+                    <i class="fas fa-comment-alt" style="color: #64748b;"></i> Ringkasan Pesan Pengumuman:
+                </label>
+                <input type="text" name="pos_announcement_message" value="{{ pos_settings.announcement_message }}" placeholder="Deskripsi status..." style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1.5px solid #cbd5e1; font-size: 13px; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#cbd5e1'">
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+            <button type="submit" style="background: linear-gradient(135deg, #0f766e 0%, #115e59 100%); color: white; border: none; padding: 10px 20px; border-radius: 10px; font-weight: 800; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(15, 118, 110, 0.25);">
+                <i class="fas fa-save"></i> Simpan Konfigurasi Web POS
+            </button>
+        </div>
+    </form>
 </div>
 
 <!-- PANDUAN PENGATURAN POS IPAY -->

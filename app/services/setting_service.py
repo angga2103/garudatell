@@ -297,3 +297,51 @@ def save_manual_deposit_settings(form_data):
     invalidate_setting_cache()
     return True
 
+
+def get_pos_settings():
+    """
+    Mengambil konfigurasi Web POS & Merchant API:
+    - enabled: '1' jika aktif/publik, '0' jika dalam tahap pengembangan/preview
+    - web_url: URL domain Web POS produksi (e.g. https://pos.garudatel.com)
+    - announcement_title: Judul pengumuman preview
+    - announcement_message: Deskripsi fitur
+    """
+    return {
+        'enabled': get_setting_value('pos_feature_enabled', '0'),
+        'web_url': get_setting_value('pos_web_url', os.getenv('POS_WEB_URL', 'http://localhost:3000')),
+        'announcement_title': get_setting_value('pos_announcement_title', 'Aplikasi Kasir Web POS Konter HP & Minimarket Modern'),
+        'announcement_message': get_setting_value('pos_announcement_message', 'Fitur kasir digital terintegrasi saldo GarudaTel sedang dalam tahap penyempurnaan akhir sebelum rilis publik.')
+    }
+
+
+def save_pos_settings(form_data):
+    """
+    Menyimpan konfigurasi status on/off dan URL Web POS ke database.
+    """
+    enabled_val = '1' if form_data.get('pos_feature_enabled') in ['1', 'true', 'on', True] else '0'
+    web_url_val = form_data.get('pos_web_url', '').strip() or 'http://localhost:3000'
+    title_val = form_data.get('pos_announcement_title', '').strip() or 'Aplikasi Kasir Web POS Konter HP & Minimarket Modern'
+    msg_val = form_data.get('pos_announcement_message', '').strip() or 'Fitur kasir digital terintegrasi saldo GarudaTel sedang dalam tahap penyempurnaan akhir sebelum rilis publik.'
+
+    mapping = {
+        'pos_feature_enabled': (enabled_val, 'Status Fitur Kasir Web POS (1=Aktif, 0=Dalam Pengembangan)'),
+        'pos_web_url': (web_url_val, 'URL Domain Web POS Produksi'),
+        'pos_announcement_title': (title_val, 'Judul Halaman Pengumuman Web POS'),
+        'pos_announcement_message': (msg_val, 'Pesan Ringkasan Pengumuman Web POS')
+    }
+
+    for k, (val, desc) in mapping.items():
+        s = Setting.query.filter_by(key=k).first()
+        if not s:
+            s = Setting(key=k, value=val, description=desc)
+            db.session.add(s)
+        else:
+            s.value = val
+            if desc:
+                s.description = desc
+
+    db.session.commit()
+    invalidate_setting_cache()
+    return True
+
+
