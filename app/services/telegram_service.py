@@ -942,8 +942,12 @@ def get_admin_inline_keyboard():
                 {"text": "📊 Omset Hari Ini", "callback_data": "cmd_stats"}
             ],
             [
-                {"text": "💰 Saldo Digiflazz", "callback_data": "cmd_saldo"},
+                {"text": "🏆 Top User Hari Ini", "callback_data": "cmd_top_users"},
                 {"text": "⏳ Trx Pending", "callback_data": "cmd_pending"}
+            ],
+            [
+                {"text": "💰 Saldo Digiflazz", "callback_data": "cmd_saldo"},
+                {"text": "📥 Tarik Deposit", "callback_data": "cmd_tarik_deposit"}
             ],
             [
                 {"text": "⚠️ Cek Saldo Minim", "callback_data": "cmd_scan_low_bal"},
@@ -1021,6 +1025,423 @@ def get_back_button():
             [{"text": "« Kembali ke Menu Utama", "callback_data": "cmd_menu"}]
         ]
     }
+
+
+def format_rupiah(val):
+    """Format angka ke format Rupiah standar Indonesia dengan pemisah titik (cth: Rp 250.000)."""
+    try:
+        return f"Rp {float(val or 0):,.0f}".replace(',', '.')
+    except Exception:
+        return f"Rp {val}"
+
+
+def render_top_users_report(limit=8):
+    """
+    Menghasilkan teks laporan dan keyboard inline untuk Top Transaksi User Hari Ini.
+    Menampilkan rincian:
+    - Jumlah transaksi berhasil & gagal
+    - Jumlah nominal transaksi (sukses, gagal, dan total volume)
+    - Peringkat user/toko paling aktif hari ini.
+    """
+    from app.extensions import db
+    from app.models.transaction import Transaction
+    from app.models.user import User
+    from sqlalchemy import case
+
+    wib_now = get_wib_now()
+    today_start_wib = wib_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = today_start_wib.astimezone(timezone.utc).replace(tzinfo=None)
+
+    # 1. Ringkasan Keseluruhan Hari Ini
+    total_trx = Transaction.query.filter(Transaction.created_at >= today_start).count()
+    success_count = Transaction.query.filter(
+        Transaction.created_at >= today_start,
+        Transaction.status == 'SUCCESS'
+    ).count()
+    failed_count = Transaction.query.filter(
+        Transaction.created_at >= today_start,
+        Transaction.status.in_(['FAILED', 'GAGAL', 'CANCELLED', 'BATAL'])
+    ).count()
+    pending_count = Transaction.query.filter(
+        Transaction.created_at >= today_start,
+        Transaction.status == 'PENDING'
+    ).count()
+
+    success_amt = db.session.query(db.func.sum(Transaction.amount)).filter(
+        Transaction.created_at >= today_start,
+        Transaction.status == 'SUCCESS',
+        ~Transaction.sku_code.in_(['DEPOSIT_SALDO', 'DEPOSIT_MANUAL', 'COMMISSION_PAYOUT'])
+    ).scalar() or 0.0
+
+    failed_amt = db.session.query(db.func.sum(Transaction.amount)).filter(
+        Transaction.created_at >= today_start,
+        Transaction.status.in_(['FAILED', 'GAGAL', 'CANCELLED', 'BATAL'])
+    ).scalar() or 0.0
+
+    total_volume = float(success_amt) + float(failed_amt)
+    global_rate = round((success_count / total_trx * 100), 1) if total_trx > 0 else 0
+
+    # 2. Agregasi Transaksi Per User / Toko Hari Ini
+    user_stats = db.session.query(
+        Transaction.user_id,
+        db.func.count(Transaction.id).label('total_u_count'),
+        db.func.sum(case((Transaction.status == 'SUCCESS', 1), else_=0)).label('u_success_count'),
+        db.func.sum(case((Transaction.status.in_(['FAILED', 'GAGAL', 'CANCELLED', 'BATAL']), 1), else_=0)).label('u_failed_count'),
+        db.func.sum(case(((Transaction.status == 'SUCCESS') & (~Transaction.sku_code.in_(['DEPOSIT_SALDO', 'DEPOSIT_MANUAL', 'COMMISSION_PAYOUT'])), Transaction.amount), else_=0)).label('u_success_amt'),
+        db.func.sum(case((Transaction.status.in_(['FAILED', 'GAGAL', 'CANCELLED', 'BATAL']), Transaction.amount), else_=0)).label('u_failed_amt')
+    ).filter(
+        Transaction.created_at >= today_start,
+        Transaction.user_id.isnot(None)
+    ).group_by(
+        Transaction.user_id
+    ).order_by(
+        db.desc('u_success_amt'),
+        db.desc('total_u_count')
+    ).limit(limit).all()
+
+    lines = [
+        "🏆 <b>TOP TRANSAKSI USER / TOKO HARI INI</b>",
+        "━━━━━━━━━━━━━━━━━━━━━━",
+        f"📅 <b>Periode:</b> {format_wib(fmt='%A, %d %B %Y')}",
+        f"⏰ <b>Update:</b> {format_wib(fmt='%H:%M:%S WIB')}",
+        "",
+        "📊 <b>RINGKASAN SISTEM HARI INI:</b>",
+        f"• <b>Total Transaksi:</b> {total_trx:,} trx",
+        f"• <b>Sukses:</b> ✅ {success_count:,} trx (<code>{format_rupiah(success_amt)}</code>)",
+        f"• <b>Gagal:</b> ❌ {failed_count:,} trx (<code>{format_rupiah(failed_amt)}</code>)",
+        f"• <b>Pending:</b> ⏳ {pending_count:,} trx",
+        f"• <b>Total Perputaran:</b> <code>{format_rupiah(total_volume)}</code>",
+        f"• <b>Success Rate:</b> {global_rate}%",
+        "━━━━━━━━━━━━━━━━━━━━━━"
+    ]
+
+    inline_kb = []
+    medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"]
+
+    if not user_stats:
+        lines.append("ℹ️ <i>Belum ada aktivitas transaksi dari pengguna hari ini.</i>")
+    else:
+        lines.append("🏅 <b>PERINGKAT PENGGUNA TERAKTIF:</b>\n")
+        curr_row = []
+        for idx, row in enumerate(user_stats):
+            u = User.query.get(row.user_id)
+            u_name = u.name if u and u.name else f"User #{row.user_id}"
+            u_phone = f" (<code>{u.phone}</code>)" if u and u.phone else ""
+            u_succ_cnt = int(row.u_success_count or 0)
+            u_fail_cnt = int(row.u_failed_count or 0)
+            u_succ_amt = float(row.u_success_amt or 0.0)
+            u_fail_amt = float(row.u_failed_amt or 0.0)
+            u_total_vol = u_succ_amt + u_fail_amt
+            u_tot_cnt = int(row.total_u_count or 0)
+            u_rate = round((u_succ_cnt / u_tot_cnt * 100), 1) if u_tot_cnt > 0 else 0
+            badge = medals[idx] if idx < len(medals) else f"#{idx+1}"
+
+            lines.append(
+                f"{badge} <b>{u_name}</b> (<code>#{row.user_id}</code>){u_phone}\n"
+                f"   • ✅ Sukses: <b>{u_succ_cnt}</b> trx | <code>{format_rupiah(u_succ_amt)}</code>\n"
+                f"   • ❌ Gagal: <b>{u_fail_cnt}</b> trx | <code>{format_rupiah(u_fail_amt)}</code>\n"
+                f"   • 🔄 Total: <b>{u_tot_cnt}</b> trx | Vol: <code>{format_rupiah(u_total_vol)}</code> (SR: {u_rate}%)\n"
+            )
+
+            # Tombol intip toko (2 toko per baris)
+            short_label = (u_name[:14] + "..") if len(u_name) > 16 else u_name
+            curr_row.append({"text": f"🏢 {short_label}", "callback_data": f"store_view_{row.user_id}"})
+            if len(curr_row) == 2:
+                inline_kb.append(curr_row)
+                curr_row = []
+
+        if curr_row:
+            inline_kb.append(curr_row)
+
+    lines.append("━━━━━━━━━━━━━━━━━━━━━━")
+    lines.append("💡 <i>Klik tombol toko di bawah untuk melihat rincian toko atau atur saldo.</i>")
+
+    inline_kb.append([
+        {"text": "🔄 Refresh Data", "callback_data": "cmd_top_users"},
+        {"text": "📊 Omset Hari Ini", "callback_data": "cmd_stats"}
+    ])
+    inline_kb.append([
+        {"text": "« Kembali ke Menu Utama", "callback_data": "cmd_menu"}
+    ])
+
+    return "\n".join(lines), {"inline_keyboard": inline_kb}
+
+
+def render_tarik_deposit_menu():
+    """
+    Menghasilkan tampilan menu awal Tarik Deposit:
+    Memeriksa tiket pending aktif terlebih dahulu. Jika ada, tampilkan rincian tiket & opsi batalkan.
+    Jika tidak ada tiket pending, tampilkan pilihan metode pembayaran.
+    """
+    from app.models.deposit_ticket import DigiDepositTicket
+
+    # Cek apakah ada tiket deposit yang masih PENDING
+    active_ticket = DigiDepositTicket.query.filter_by(status='PENDING').order_by(DigiDepositTicket.id.desc()).first()
+    if active_ticket:
+        created_wib = active_ticket.created_at_wib
+        text = (
+            "⚠️ <b>TIKET DEPOSIT AKTIF TERDETEKSI</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "Anda masih memiliki tiket deposit yang berstatus <b>PENDING</b>:\n\n"
+            f"🎟️ <b>ID Tiket:</b> <code>#{active_ticket.id}</code>\n"
+            f"💳 <b>Metode / Bank:</b> <code>{active_ticket.bank}</code>\n"
+            f"💵 <b>Nominal Diminta:</b> {format_rupiah(active_ticket.amount_requested)}\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "🔢 <b>JUMLAH HARUS DITRANSFER:</b>\n"
+            f"👉 <code>{format_rupiah(active_ticket.amount_transfer)}</code>\n"
+            "⚠️ <i>(Wajib transfer tepat termasuk 3 digit kode unik!)</i>\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"🏦 <b>Rekening Tujuan:</b> <code>{active_ticket.account_number or '-'}</code>\n"
+            f"🏢 <b>Atas Nama:</b> {active_ticket.account_name or 'Digiflazz'}\n"
+            f"👤 <b>Pengirim:</b> {active_ticket.owner_name}\n"
+            f"📝 <b>Catatan:</b> {active_ticket.notes or '-'}\n"
+            f"⏰ <b>Dibuat:</b> {created_wib}\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "Silakan selesaikan transfer atau batalkan tiket di bawah ini sebelum membuat tiket baru:"
+        )
+        markup = {
+            "inline_keyboard": [
+                [{"text": f"❌ Batalkan Tiket #{active_ticket.id}", "callback_data": f"depo_cancel_{active_ticket.id}"}],
+                [{"text": "➕ Tetap Buat Tiket Baru", "callback_data": "depo_new_menu"}],
+                [{"text": "« Kembali ke Menu Utama", "callback_data": "cmd_menu"}]
+            ]
+        }
+        return text, markup
+
+    return render_tarik_deposit_methods_menu()
+
+
+def render_tarik_deposit_methods_menu():
+    """Tampilan pilihan metode tarik deposit (GoPay, ShopeePay, Bank)."""
+    text = (
+        "📥 <b>TARIK TIKET DEPOSIT DIGIFLAZZ</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "Pilih metode pembayaran deposit:\n"
+        "• <i>Minimal deposit: <b>Rp 200.000 (200K)</b></i>\n"
+        "• <i>Saldo otomatis masuk setelah transfer diverifikasi.</i>\n\n"
+        "Silakan pilih metode pembayaran di bawah:"
+    )
+    markup = {
+        "inline_keyboard": [
+            [
+                {"text": "🟢 GoPay", "callback_data": "depo_method_GoPay"},
+                {"text": "🟠 ShopeePay", "callback_data": "depo_method_ShopeePay"}
+            ],
+            [
+                {"text": "🏦 BCA", "callback_data": "depo_method_BCA"},
+                {"text": "🏦 Bank Mandiri", "callback_data": "depo_method_MANDIRI"}
+            ],
+            [
+                {"text": "🏦 BRI", "callback_data": "depo_method_BRI"},
+                {"text": "🏦 BNI", "callback_data": "depo_method_BNI"}
+            ],
+            [
+                {"text": "« Kembali ke Menu Utama", "callback_data": "cmd_menu"}
+            ]
+        ]
+    }
+    return text, markup
+
+
+def render_tarik_deposit_amounts(method):
+    """
+    Tampilan pemilihan nominal cepat minimal 200K untuk metode tertentu.
+    """
+    m_lower = str(method).lower()
+    if m_lower in ['shopeepay', 'shoopepay']:
+        method_title = 'ShopeePay'
+    elif m_lower in ['gopay', 'go-pay']:
+        method_title = 'GoPay'
+    else:
+        method_title = str(method).upper()
+
+    text = (
+        f"📥 <b>TARIK DEPOSIT - METODE {method_title}</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "Pilih nominal cepat di bawah (Min. Rp 200.000):\n\n"
+        "Atau ketik langsung di chat:\n"
+        f"👉 <code>/tarikdeposit {method} &lt;nominal&gt; [nama_pengirim]</code>\n"
+        f"Contoh: <code>/tarikdeposit {method} 250000 ANGGA DIAN</code>"
+    )
+    markup = {
+        "inline_keyboard": [
+            [
+                {"text": "Rp 200.000", "callback_data": f"depo_exec_{method}_200000"},
+                {"text": "Rp 300.000", "callback_data": f"depo_exec_{method}_300000"}
+            ],
+            [
+                {"text": "Rp 500.000", "callback_data": f"depo_exec_{method}_500000"},
+                {"text": "Rp 1.000.000", "callback_data": f"depo_exec_{method}_1000000"}
+            ],
+            [
+                {"text": "Rp 2.000.000", "callback_data": f"depo_exec_{method}_2000000"},
+                {"text": "Rp 5.000.000", "callback_data": f"depo_exec_{method}_5000000"}
+            ],
+            [
+                {"text": "« Ganti Metode", "callback_data": "depo_new_menu"},
+                {"text": "🏠 Menu Utama", "callback_data": "cmd_menu"}
+            ]
+        ]
+    }
+    return text, markup
+
+
+def execute_tarik_deposit(token, chat_id, message_id, method, amount, owner_name=None, is_edit=True):
+    """
+    Mengeksekusi penarikan tiket deposit ke Digiflazz dan menyimpan riwayat ke DigiDepositTicket.
+    Memvalidasi batas minimal Rp 200.000 (200K).
+    """
+    from app.extensions import db
+    from app.models.deposit_ticket import DigiDepositTicket
+    from app.services.digiflazz import request_deposit
+
+    try:
+        amount_int = int(float(amount))
+    except (ValueError, TypeError):
+        err_text = "⚠️ <b>Nominal Tidak Valid!</b>\nMasukkan nominal berupa angka bulat tanpa titik/koma."
+        if is_edit and message_id:
+            _edit_message(token, chat_id, message_id, err_text, get_back_button())
+        else:
+            _send_message(token, chat_id, err_text, reply_markup=get_back_button())
+        return
+
+    # Validasi minimal 200K sesuai permintaan
+    if amount_int < 200000:
+        err_text = (
+            "⚠️ <b>NOMINAL DI BAWAH BATAS MINIMAL!</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "Minimal penarikan tiket deposit adalah <b>Rp 200.000 (200K)</b>.\n"
+            f"Nominal yang diminta: <code>Rp {amount_int:,.0f}</code>\n\n"
+            "Silakan pilih atau masukkan nominal minimal 200K ke atas."
+        )
+        markup = {
+            "inline_keyboard": [
+                [{"text": "📥 Pilih Nominal Minimal 200K", "callback_data": f"depo_method_{method}"}],
+                [{"text": "« Kembali ke Menu Utama", "callback_data": "cmd_menu"}]
+            ]
+        }
+        if is_edit and message_id:
+            _edit_message(token, chat_id, message_id, err_text, markup)
+        else:
+            _send_message(token, chat_id, err_text, reply_markup=markup)
+        return
+
+    # Jika nama pengirim tidak ditentukan, gunakan riwayat tiket terakhir atau .env
+    if not owner_name:
+        last_ticket = DigiDepositTicket.query.order_by(DigiDepositTicket.id.desc()).first()
+        if last_ticket and last_ticket.owner_name:
+            owner_name = last_ticket.owner_name
+        else:
+            owner_name = os.getenv('DIGI_OWNER_NAME', 'ANGGA DIAN')
+
+    if is_edit and message_id:
+        _edit_message(token, chat_id, message_id, f"⏳ <i>Sedang meminta tiket deposit Rp {amount_int:,.0f} via {method} ke Digiflazz...</i>", None)
+
+    success, data, message = request_deposit(amount_int, method, owner_name)
+
+    if success:
+        amount_transfer = float(data.get('amount', amount_int))
+        acc_no = data.get('account_no', '') or data.get('account_number', '') or data.get('notes', '')
+        acc_name = data.get('account_name', 'PT DIGIFLAZZ INTERKONEKSI INDONESIA')
+        notes = data.get('notes', '')
+        bank_res = data.get('bank', method)
+
+        ticket = DigiDepositTicket(
+            amount_requested=float(amount_int),
+            amount_transfer=amount_transfer,
+            bank=bank_res,
+            owner_name=owner_name,
+            account_number=acc_no,
+            account_name=acc_name,
+            notes=notes,
+            rc=data.get('rc', '00'),
+            status='PENDING'
+        )
+        db.session.add(ticket)
+        db.session.commit()
+
+        text_reply = (
+            "✅ <b>TIKET DEPOSIT BERHASIL DIBUAT!</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"🎟️ <b>ID Tiket:</b> <code>#{ticket.id}</code>\n"
+            f"💳 <b>Metode / Bank:</b> <code>{bank_res}</code>\n"
+            f"💵 <b>Nominal Diminta:</b> {format_rupiah(amount_int)}\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "🔢 <b>JUMLAH HARUS DITRANSFER:</b>\n"
+            f"👉 <code>{format_rupiah(amount_transfer)}</code>\n"
+            "⚠️ <i>(WAJIB TEPAT! Termasuk 3 digit kode unik agar saldo otomatis masuk)</i>\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"🏦 <b>Rekening / Tujuan:</b> <code>{acc_no}</code>\n"
+            f"🏢 <b>Atas Nama Tujuan:</b> {acc_name}\n"
+            f"👤 <b>Nama Pengirim:</b> {owner_name}\n"
+            f"📝 <b>Catatan:</b> {notes or '-'}\n"
+            f"⏰ <b>Waktu:</b> {ticket.created_at_wib}\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "💡 <i>Saldo akan otomatis bertambah ke akun Digiflazz setelah transfer berhasil diverifikasi.</i>"
+        )
+        markup = {
+            "inline_keyboard": [
+                [{"text": f"❌ Batalkan Tiket #{ticket.id}", "callback_data": f"depo_cancel_{ticket.id}"}],
+                [{"text": "💰 Cek Saldo Sekarang", "callback_data": "cmd_saldo"}],
+                [{"text": "« Kembali ke Menu Utama", "callback_data": "cmd_menu"}]
+            ]
+        }
+    else:
+        text_reply = (
+            "🚨 <b>GAGAL MEMBUAT TIKET DEPOSIT!</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"• <b>Metode:</b> {method}\n"
+            f"• <b>Nominal:</b> {format_rupiah(amount_int)}\n"
+            f"• <b>Alasan / Respon:</b> <i>{message}</i>\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "Silakan periksa kredensial atau coba metode deposit lainnya."
+        )
+        markup = {
+            "inline_keyboard": [
+                [{"text": "🔄 Coba Lagi", "callback_data": f"depo_method_{method}"}],
+                [{"text": "📥 Pilih Metode Lain", "callback_data": "depo_new_menu"}],
+                [{"text": "« Kembali ke Menu Utama", "callback_data": "cmd_menu"}]
+            ]
+        }
+
+    if is_edit and message_id:
+        _edit_message(token, chat_id, message_id, text_reply, markup)
+    else:
+        _send_message(token, chat_id, text_reply, reply_markup=markup)
+
+
+def cancel_tarik_deposit(token, chat_id, message_id, ticket_id, is_edit=True):
+    """Membatalkan tiket deposit aktif."""
+    from app.extensions import db
+    from app.models.deposit_ticket import DigiDepositTicket
+
+    ticket = DigiDepositTicket.query.get(ticket_id)
+    if not ticket:
+        text = f"❌ Tiket deposit #{ticket_id} tidak ditemukan!"
+        markup = get_back_button()
+    else:
+        ticket.status = 'CANCELLED'
+        db.session.commit()
+        text = (
+            f"✅ <b>TIKET DEPOSIT #{ticket.id} TELAH DIBATALKAN!</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"• <b>Bank / Metode:</b> {ticket.bank}\n"
+            f"• <b>Nominal Transfer:</b> {format_rupiah(ticket.amount_transfer)}\n"
+            f"• <b>Status Sekarang:</b> ❌ DIBATALKAN (CANCELLED)\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "Anda sekarang dapat membuat tiket deposit baru dengan aman."
+        )
+        markup = {
+            "inline_keyboard": [
+                [{"text": "📥 Tarik Tiket Baru", "callback_data": "cmd_tarik_deposit"}],
+                [{"text": "« Kembali ke Menu Utama", "callback_data": "cmd_menu"}]
+            ]
+        }
+
+    if is_edit and message_id:
+        _edit_message(token, chat_id, message_id, text, markup)
+    else:
+        _send_message(token, chat_id, text, reply_markup=markup)
 
 
 def perform_database_backup():
@@ -1476,6 +1897,41 @@ def handle_admin_callback(app, callback_query):
             else:
                 text = f"🚨 <b>GAGAL CEK SALDO:</b>\n{msg}"
             _edit_message(token, chat_id, message_id, text, get_back_button())
+
+        elif data == 'cmd_top_users':
+            rep_text, rep_kb = render_top_users_report()
+            _edit_message(token, chat_id, message_id, rep_text, rep_kb)
+
+        elif data == 'cmd_tarik_deposit':
+            dep_text, dep_kb = render_tarik_deposit_menu()
+            _edit_message(token, chat_id, message_id, dep_text, dep_kb)
+
+        elif data == 'depo_new_menu':
+            dep_text, dep_kb = render_tarik_deposit_methods_menu()
+            _edit_message(token, chat_id, message_id, dep_text, dep_kb)
+
+        elif data.startswith('depo_method_'):
+            method = data.replace('depo_method_', '')
+            amt_text, amt_kb = render_tarik_deposit_amounts(method)
+            _edit_message(token, chat_id, message_id, amt_text, amt_kb)
+
+        elif data.startswith('depo_exec_'):
+            parts = data.split('_')
+            try:
+                method = parts[2]
+                amt = float(parts[3])
+            except Exception:
+                _edit_message(token, chat_id, message_id, "❌ Parameter tiket deposit tidak valid!", get_back_button())
+                return
+            execute_tarik_deposit(token, chat_id, message_id, method, amt, is_edit=True)
+
+        elif data.startswith('depo_cancel_'):
+            try:
+                ticket_id = int(data.replace('depo_cancel_', ''))
+            except Exception:
+                _edit_message(token, chat_id, message_id, "❌ ID Tiket tidak valid!", get_back_button())
+                return
+            cancel_tarik_deposit(token, chat_id, message_id, ticket_id, is_edit=True)
 
         elif data == 'cmd_stats':
             wib_now = get_wib_now()
@@ -1955,6 +2411,60 @@ def handle_admin_message(app, message):
                 ]
             }
             _send_message(token, chat_id, text_msg, reply_markup=store_keyboard)
+        return
+
+    # Perintah /topuser, /topusers, /toptrx, /toptransaksi
+    if any(text.lower().startswith(cmd) for cmd in ['/topuser', '/topusers', '/toptrx', '/toptransaksi']):
+        with app.app_context():
+            rep_text, rep_kb = render_top_users_report()
+            _send_message(token, chat_id, rep_text, reply_markup=rep_kb)
+        return
+
+    # Perintah /deposit, /tarikdeposit, /tarik_deposit
+    if any(text.lower().startswith(cmd) for cmd in ['/tarikdeposit', '/tarik_deposit', '/deposit']):
+        parts = text.split()
+        with app.app_context():
+            if len(parts) == 1:
+                dep_text, dep_kb = render_tarik_deposit_menu()
+                _send_message(token, chat_id, dep_text, reply_markup=dep_kb)
+                return
+
+            if len(parts) < 3:
+                _send_message(token, chat_id, (
+                    "⚠️ <b>Format Tarik Deposit Salah!</b>\n"
+                    "Gunakan: <code>/tarikdeposit &lt;metode&gt; &lt;nominal&gt; [nama_pengirim]</code>\n\n"
+                    "Metode yang didukung: <code>gopay</code>, <code>shopeepay</code>, <code>bca</code>, <code>mandiri</code>, <code>bri</code>, <code>bni</code>\n"
+                    "Contoh:\n"
+                    "👉 <code>/tarikdeposit gopay 250000</code>\n"
+                    "👉 <code>/tarikdeposit shopeepay 500000 ANGGA DIAN</code>\n\n"
+                    "<i>*Catatan: Minimal nominal deposit adalah Rp 200.000 (200K).</i>"
+                ), reply_markup=get_back_button())
+                return
+
+            method_input = parts[1]
+            try:
+                amt_input = float(parts[2])
+            except ValueError:
+                _send_message(token, chat_id, "⚠️ Nominal deposit harus berupa angka (min 200K)!", reply_markup=get_back_button())
+                return
+
+            owner_input = " ".join(parts[3:]).strip() if len(parts) >= 4 else None
+            execute_tarik_deposit(token, chat_id, None, method_input, amt_input, owner_name=owner_input, is_edit=False)
+        return
+
+    # Perintah /bataldeposit <id>
+    if text.lower().startswith('/bataldeposit') or text.lower().startswith('/batal_deposit'):
+        parts = text.split()
+        if len(parts) < 2:
+            _send_message(token, chat_id, "⚠️ Gunakan format: <code>/bataldeposit &lt;id_tiket&gt;</code>\nContoh: <code>/bataldeposit 12</code>")
+            return
+        try:
+            t_id = int(parts[1])
+        except ValueError:
+            _send_message(token, chat_id, "⚠️ ID Tiket deposit harus berupa angka!")
+            return
+        with app.app_context():
+            cancel_tarik_deposit(token, chat_id, None, t_id, is_edit=False)
         return
 
     # Perintah /saldo atau /saldodigi

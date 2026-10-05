@@ -484,10 +484,12 @@ def check_balance():
         return False, 0.0, f"Gagal menghubungi server Digiflazz: {str(e)}"
 
 def format_bank_name(bank):
-    """Format nama bank sesuai dokumentasi resmi Digiflazz (Flip/ShopeePay untuk Perorangan, BCA/MANDIRI/BRI/BNI untuk Perusahaan)."""
+    """Format nama bank sesuai dokumentasi resmi Digiflazz (Flip/ShopeePay/GOPAY untuk Perorangan, BCA/MANDIRI/BRI/BNI untuk Perusahaan)."""
     b = str(bank).strip()
-    if b.lower() == 'shopeepay':
+    if b.lower() in ['shopeepay', 'shoopepay']:
         return 'ShopeePay'
+    elif b.lower() in ['gopay', 'go-pay']:
+        return 'GOPAY'
     elif b.lower() == 'flip':
         return 'Flip'
     else:
