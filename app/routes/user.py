@@ -3106,19 +3106,19 @@ def launch_web_pos():
             flash(f"Gagal menyiapkan kredensial kasir: {err}", "danger")
             return redirect(url_for('user.dashboard'))
 
-    # 4. Hitung timestamp & MD5 signature anti-tamper
-    ts = int(time.time())
-    sig = hashlib.md5(f"{mch.merchant_id}{mch.secret_key}{ts}".encode('utf-8')).hexdigest()
+    # 4. Buat One-Time SSO Ticket (berlaku 60 detik) untuk pertukaran kredensial aman
+    #    Secret key TIDAK PERNAH terpapar di URL query string browser!
+    from app.services.merchant_service import create_sso_ticket
+    sso_code = create_sso_ticket(
+        mch,
+        name=current_user.name or current_user.phone or 'Mitra iPay',
+        phone=current_user.phone or ''
+    )
 
-    # 5. Susun query parameter SSO
+    # 5. Susun query parameter SSO yang bersih dan aman
     params = {
+        'sso_code': sso_code,
         'sso_merchant': mch.merchant_id,
-        'sso_api_key': mch.api_key,
-        'sso_secret': mch.secret_key,
-        'sso_name': current_user.name or current_user.phone or 'Mitra iPay',
-        'sso_phone': current_user.phone or '',
-        'sso_ts': str(ts),
-        'sso_sign': sig,
         'sso_base_url': request.host_url.rstrip('/')
     }
 

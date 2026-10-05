@@ -120,3 +120,45 @@ def dispatch_merchant_webhook(merchant, payload):
     }
 
     Thread(target=_send_webhook_worker, args=(merchant.webhook_url, webhook_body), daemon=True).start()
+
+
+# =====================================================================
+# ONE-TIME SSO TICKET STORE & EXCHANGE (ANTI-EXPOSURE SECRET KEY)
+# =====================================================================
+import time
+
+_SSO_TICKETS = {}
+
+def create_sso_ticket(merchant, name=None, phone=None, ttl_seconds=60):
+    """
+    Membuat One-Time SSO Ticket berdurasi 60 detik untuk pertukaran kredensial aman
+    tanpa mengekspos secret key di parameter query URL browser.
+    """
+    now = time.time()
+    # Bersihkan tiket yang sudah kedaluwarsa
+    for k in list(_SSO_TICKETS.keys()):
+        if _SSO_TICKETS[k].get('exp', 0) < now:
+            _SSO_TICKETS.pop(k, None)
+
+    code = secrets.token_urlsafe(32)
+    _SSO_TICKETS[code] = {
+        'merchant_id': merchant.merchant_id,
+        'api_key': merchant.api_key,
+        'secret_key': merchant.secret_key,
+        'name': name or merchant.name or 'Mitra iPay',
+        'phone': phone or getattr(merchant.user, 'phone', '') or '',
+        'exp': now + ttl_seconds
+    }
+    return code
+
+def exchange_sso_ticket(code):
+    """
+    Menukar One-Time SSO Ticket dengan kredensial API merchant.
+    Tiket langsung hangus (sekali pakai).
+    """
+    if not code or code not in _SSO_TICKETS:
+        return None
+    data = _SSO_TICKETS.pop(code)
+    if data.get('exp', 0) < time.time():
+        return None
+    return data

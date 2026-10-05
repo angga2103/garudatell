@@ -10,7 +10,8 @@ from app.models.user import User
 from app.services.merchant_service import (
     authenticate_merchant,
     verify_signature,
-    dispatch_merchant_webhook
+    dispatch_merchant_webhook,
+    exchange_sso_ticket
 )
 from app.services.tier_service import get_user_product_price
 from app.services.commission_service import award_downline_commission
@@ -61,6 +62,31 @@ if not submit_transaction:
     except Exception:
         raise ImportError("Fungsi submit_transaction tidak ditemukan di digiflazz maupun app.services.digiflazz")
 
+
+
+# =====================================================================
+# 0. TUKAR TIKET SSO SATU KALI PAKAI (POST /api/v1/auth/sso/exchange)
+# =====================================================================
+@merchant_api_bp.route("/auth/sso/exchange", methods=["POST"])
+def exchange_sso_code():
+    """
+    Menukarkan One-Time SSO Ticket yang dibuat saat merchant klik 'Buka Web POS'
+    menjadi kredensial merchant secara aman (server-to-server).
+    """
+    data = request.get_json(silent=True) or request.form.to_dict() or {}
+    sso_code = str(data.get("sso_code") or "").strip()
+    if not sso_code:
+        return jsonify({"status": "failed", "message": "Parameter sso_code wajib diisi"}), 400
+
+    res = exchange_sso_ticket(sso_code)
+    if not res:
+        return jsonify({"status": "failed", "message": "Tiket SSO tidak valid atau telah kedaluwarsa"}), 401
+
+    return jsonify({
+        "status": "success",
+        "data": res,
+        "message": "Autentikasi SSO berhasil"
+    }), 200
 
 
 # =====================================================================
