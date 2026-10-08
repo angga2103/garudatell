@@ -268,9 +268,14 @@
                     {% endif %}
                 </div>
                 <div style="font-size: 12px; color: #64748b; margin-top: 4px;">
-                    Pemilik Akun: <b>{{ m.user.name or 'User #' ~ m.user_id }}</b> ({{ m.user.phone }}) &bull; 
-                    Role: <span style="text-transform: uppercase; font-weight: 800; color: #0284c7;">{{ m.user.get_effective_role() }}</span> &bull; 
+                    Pemilik Akun: <b>{{ (m.user.name or 'User #' ~ m.user_id) if m.user else 'User #' ~ m.user_id }}</b> 
+                    {% if m.user %}
+                    ({{ m.user.phone }}) &bull; 
+                    Role: <span style="text-transform: uppercase; font-weight: 800; color: #0284c7;">{{ m.user.get_effective_role() if m.user.get_effective_role is defined else (m.user.role or 'user') }}</span> &bull; 
                     Saldo Deposit: <b style="color: #15803d;">Rp {{ "{:,.0f}".format(m.user.balance or 0).replace(',', '.') }}</b>
+                    {% else %}
+                    &bull; <span style="color: #ef4444; font-weight: bold;">(Akun User Terhapus/Tidak Ditemukan)</span>
+                    {% endif %}
                 </div>
             </div>
             <div style="display: flex; gap: 6px; align-items: center;">
@@ -332,7 +337,7 @@
                 <i class="fas fa-globe"></i> Webhook: <code>{{ m.webhook_url or 'Tidak dikonfigurasi (Polling)' }}</code>
             </div>
             <div>
-                <i class="fas fa-clock"></i> Terakhir Digunakan: <b>{{ m.last_used_at.strftime('%d/%m/%Y %H:%M WIB') if m.last_used_at else 'Belum pernah digunakan' }}</b>
+                <i class="fas fa-clock"></i> Terakhir Digunakan: <b>{{ m.formatted_last_used_at if m.formatted_last_used_at is defined else (m.last_used_at if m.last_used_at else 'Belum pernah digunakan') }}</b>
             </div>
         </div>
 
@@ -408,7 +413,7 @@
                                 {% if dep.status == 'PENDING' %}
                                 <div style="display: flex; gap: 6px; justify-content: center; align-items: center;">
                                     <!-- Form Setujui -->
-                                    <form method="POST" action="{{ url_for('admin.merchant_api_approve_deposit', trx_id=dep.id) }}" style="display: inline;" onsubmit="return confirm('Setujui tiket deposit {{ dep.ref_id }}?\n\nNominal: Rp {{ \"{:,.0f}\".format(dep.amount).replace(\",\", \".\") }}\nSaldo akun {{ m.user.name }} akan otomatis bertambah.');">
+                                    <form method="POST" action="{{ url_for('admin.merchant_api_approve_deposit', trx_id=dep.id) }}" style="display: inline;" onsubmit="return confirm('Setujui tiket deposit {{ dep.ref_id }}? Saldo akun kasir akan otomatis bertambah.');">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" style="background: #10b981; color: white; border: none; padding: 5px 12px; border-radius: 6px; font-weight: 800; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);">
                                             <i class="fas fa-check"></i> Setujui
@@ -470,7 +475,7 @@
                     <option value="">-- Pilih Akun User / Agen --</option>
                     {% for u in users %}
                     <option value="{{ u.id }}">
-                        {{ u.name or u.phone }} ({{ u.phone }}) &bull; Saldo: Rp {{ "{:,.0f}".format(u.balance or 0).replace(',', '.') }} &bull; [{{ u.get_effective_role()|upper }}]
+                        {{ u.name or u.phone }} ({{ u.phone }}) &bull; Saldo: Rp {{ "{:,.0f}".format(u.balance or 0).replace(',', '.') }} &bull; [{{ (u.get_effective_role() if u.get_effective_role is defined else (u.role or 'user'))|upper }}]
                     </option>
                     {% endfor %}
                 </select>

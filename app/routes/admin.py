@@ -2843,27 +2843,67 @@ def merchant_api_index():
     if not session.get('admin_logged_in'):
         return redirect(url_for('admin.login'))
 
+    from flask import current_app
     from app.models.merchant import MerchantApiKey
     from app.models.user import User
     from app.models.transaction import Transaction
     from app.services.setting_service import get_pos_settings
 
-    merchants = MerchantApiKey.query.order_by(MerchantApiKey.id.desc()).all()
-    users = User.query.filter_by(is_active=True).order_by(User.name.asc()).all()
-    pos_settings = get_pos_settings()
+    # Self-healing: Pastikan tabel merchant_api_keys selalu terbuat di database
+    try:
+        from app.extensions import db
+        MerchantApiKey.__table__.create(db.engine, checkfirst=True)
+    except Exception as e_create:
+        current_app.logger.warning(f"[MERCHANT_API] Check/create table warning: {e_create}")
 
-    # Query tiket deposit per merchant
-    for m in merchants:
-        m.deposit_requests = Transaction.query.filter(
-            (Transaction.provider_ref == m.merchant_id) | 
-            ((Transaction.user_id == m.user_id) & (Transaction.sku_code == 'DEPOSIT_SALDO'))
-        ).order_by(Transaction.id.desc()).limit(20).all()
+    try:
+        merchants = MerchantApiKey.query.order_by(MerchantApiKey.id.desc()).all()
+    except Exception as e_mch:
+        current_app.logger.error(f"[MERCHANT_API] Error querying MerchantApiKey: {e_mch}")
+        try:
+            from app.extensions import db
+            db.session.rollback()
+            MerchantApiKey.__table__.create(db.engine, checkfirst=True)
+            merchants = MerchantApiKey.query.order_by(MerchantApiKey.id.desc()).all()
+        except Exception as e_retry:
+            current_app.logger.error(f"[MERCHANT_API] Retry query failed: {e_retry}")
+            merchants = []
 
-    # Hitung total deposit yang berstatus PENDING untuk alert badge
-    pending_deposits_count = Transaction.query.filter(
-        Transaction.sku_code == 'DEPOSIT_SALDO',
-        Transaction.status == 'PENDING'
-    ).count()
+    try:
+        users = User.query.filter_by(is_active=True).order_by(User.name.asc()).all()
+    except Exception as e_usr:
+        current_app.logger.error(f"[MERCHANT_API] Error querying users: {e_usr}")
+        users = []
+
+    try:
+        pos_settings = get_pos_settings()
+    except Exception as e_pos:
+        current_app.logger.error(f"[MERCHANT_API] Error getting POS settings: {e_pos}")
+        pos_settings = {
+            'enabled': '0',
+            'web_url': 'http://localhost:3000',
+            'announcement_title': 'Aplikasi Kasir Web POS Konter HP & Minimarket Modern',
+            'announcement_message': 'Fitur kasir digital terintegrasi saldo GarudaTel sedang dalam tahap penyempurnaan akhir sebelum rilis publik.'
+        }
+
+    # Query tiket deposit per merchant (Defensive)
+    try:
+        for m in merchants:
+            m.deposit_requests = Transaction.query.filter(
+                (Transaction.provider_ref == m.merchant_id) | 
+                ((Transaction.user_id == m.user_id) & (Transaction.sku_code == 'DEPOSIT_SALDO'))
+            ).order_by(Transaction.id.desc()).limit(20).all()
+
+        pending_deposits_count = Transaction.query.filter(
+            Transaction.sku_code == 'DEPOSIT_SALDO',
+            Transaction.status == 'PENDING'
+        ).count()
+    except Exception as e_dep:
+        current_app.logger.warning(f"[MERCHANT_API] Gagal query deposit requests: {e_dep}")
+        for m in merchants:
+            if not hasattr(m, 'deposit_requests'):
+                m.deposit_requests = []
+        pending_deposits_count = 0
 
     return render_template(
         'admin/merchant_api.html',
@@ -2985,7 +3025,6 @@ def merchant_api_reject_deposit(trx_id):
 
     flash(f"Tiket deposit {trx.ref_id} sebesar Rp {trx.amount:,.0f} DITOLAK. Alasan: {reason}", "warning")
     return redirect(url_for('admin.merchant_api_index'))
-
 
 @admin_bp.route('/merchant_api/settings', methods=['POST'])
 @admin_bp.route('/merchant-api/settings', methods=['POST'])

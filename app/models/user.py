@@ -48,8 +48,10 @@ class User(db.Model, UserMixin):
     @property
     def last_active_at_wib(self):
         if self.last_active_at:
-            wib = self.last_active_at + timedelta(hours=7)
-            return wib.strftime('%d-%m-%Y %H:%M WIB')
+            if hasattr(self.last_active_at, 'strftime'):
+                wib = self.last_active_at + timedelta(hours=7)
+                return wib.strftime('%d-%m-%Y %H:%M WIB')
+            return str(self.last_active_at)
         return '-'
 
     def set_password(self, password):
@@ -75,39 +77,79 @@ class User(db.Model, UserMixin):
             return False
         return check_password_hash(self.pin_hash, str(pin).strip())
 
+    def _parse_role_expires_at(self):
+        """Helper aman untuk mengonversi role_expires_at baik berupa datetime maupun string SQLite."""
+        if not self.role_expires_at:
+            return None
+        if isinstance(self.role_expires_at, datetime):
+            return self.role_expires_at
+        if isinstance(self.role_expires_at, str):
+            val = self.role_expires_at.strip()
+            for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%d %H:%M', '%Y-%m-%d'):
+                try:
+                    return datetime.strptime(val[:19], fmt)
+                except Exception:
+                    pass
+            try:
+                return datetime.fromisoformat(val.replace('Z', ''))
+            except Exception:
+                pass
+        return None
+
     def is_vip_active(self):
         """Memeriksa apakah akun berstatus VIP dan masa aktif masih berlaku."""
-        if self.role != 'vip':
+        if getattr(self, 'role', '') != 'vip':
             return False
-        if not self.role_expires_at:
+        if not getattr(self, 'role_expires_at', None):
             return True # VIP manual oleh admin tanpa batas waktu
-        wib_now = datetime.now(timezone(timedelta(hours=7))).replace(tzinfo=None)
-        return self.role_expires_at > wib_now
+        try:
+            exp = self._parse_role_expires_at()
+            if not exp:
+                return True
+            wib_now = datetime.now(timezone(timedelta(hours=7))).replace(tzinfo=None)
+            return exp > wib_now
+        except Exception:
+            return True
 
     def is_reseller_active(self):
         """Memeriksa apakah akun berstatus Reseller dan masa aktif masih berlaku."""
-        if self.role != 'reseller':
+        if getattr(self, 'role', '') != 'reseller':
             return False
-        if not self.role_expires_at:
+        if not getattr(self, 'role_expires_at', None):
             return True # Reseller manual oleh admin tanpa batas waktu
-        wib_now = datetime.now(timezone(timedelta(hours=7))).replace(tzinfo=None)
-        return self.role_expires_at > wib_now
+        try:
+            exp = self._parse_role_expires_at()
+            if not exp:
+                return True
+            wib_now = datetime.now(timezone(timedelta(hours=7))).replace(tzinfo=None)
+            return exp > wib_now
+        except Exception:
+            return True
 
     def get_effective_role(self):
         """Mengembalikan role aktif saat ini (memperhitungkan masa kedaluwarsa)."""
-        if self.is_vip_active():
-            return 'vip'
-        elif self.is_reseller_active():
-            return 'reseller'
-        return 'user'
+        try:
+            if self.is_vip_active():
+                return 'vip'
+            elif self.is_reseller_active():
+                return 'reseller'
+        except Exception:
+            pass
+        return getattr(self, 'role', 'user') or 'user'
 
     def get_remaining_days(self):
         """Menghitung sisa hari masa aktif langganan."""
-        if not self.role_expires_at or self.role not in ['reseller', 'vip']:
+        if not getattr(self, 'role_expires_at', None) or getattr(self, 'role', '') not in ['reseller', 'vip']:
             return 0
-        wib_now = datetime.now(timezone(timedelta(hours=7))).replace(tzinfo=None)
-        diff = self.role_expires_at - wib_now
-        return max(0, diff.days)
+        try:
+            exp = self._parse_role_expires_at()
+            if not exp:
+                return 0
+            wib_now = datetime.now(timezone(timedelta(hours=7))).replace(tzinfo=None)
+            diff = exp - wib_now
+            return max(0, diff.days)
+        except Exception:
+            return 0
 
     @property
     def total_branch_balance(self):

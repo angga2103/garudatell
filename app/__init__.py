@@ -249,6 +249,15 @@ def create_app(test_config=None):
                 except Exception as ex_tbl:
                     app.logger.warning(f"Gagal buat tabel branch_mutation: {ex_tbl}")
 
+            # Pastikan tabel merchant_api_keys terbuat jika belum ada (Self-Healing)
+            if 'merchant_api_keys' not in inspector.get_table_names():
+                try:
+                    from app.models.merchant import MerchantApiKey
+                    MerchantApiKey.__table__.create(db.engine, checkfirst=True)
+                    app.logger.info("[AUTO-MIGRATE] Tabel merchant_api_keys berhasil dibuat.")
+                except Exception as ex_tbl:
+                    app.logger.warning(f"Gagal buat tabel merchant_api_keys: {ex_tbl}")
+
             # Auto-migrate kolom baru tabel product jika belum ada (description & is_manual_desc)
             if 'product' in inspector.get_table_names():
                 prod_cols = [c['name'] for c in inspector.get_columns('product')]

@@ -22,5 +22,28 @@ class MerchantApiKey(db.Model):
     # Relasi ke User
     user = db.relationship('User', backref=db.backref('merchant_api_keys', lazy=True, cascade='all, delete-orphan'))
 
+    @property
+    def formatted_last_used_at(self):
+        if not self.last_used_at:
+            return "Belum pernah digunakan"
+        if hasattr(self.last_used_at, 'strftime'):
+            try:
+                return self.last_used_at.strftime('%d/%m/%Y %H:%M WIB')
+            except Exception:
+                pass
+        return str(self.last_used_at)
+
+    @property
+    def formatted_created_at(self):
+        if not self.created_at:
+            return "-"
+        if hasattr(self.created_at, 'strftime'):
+            try:
+                return self.created_at.strftime('%d/%m/%Y %H:%M WIB')
+            except Exception:
+                pass
+        return str(self.created_at)
+
     def __repr__(self):
         return f"<MerchantApiKey {self.merchant_id} user_id={self.user_id} active={self.is_active}>"
+
