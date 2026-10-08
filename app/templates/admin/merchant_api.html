@@ -131,8 +131,15 @@
         <div class="stat-value">{{ merchants|selectattr('is_active')|list|length }}</div>
         <div class="stat-label">KASIR / MERCHANT AKTIF</div>
     </div>
+    <div class="stat-card" style="{% if pending_deposits_count > 0 %}border: 1.5px solid #f59e0b; background: #fffbeb;{% endif %}">
+        <i class="fas fa-money-bill-wave stat-icon" style="color: {% if pending_deposits_count > 0 %}#d97706{% else %}#10b981{% endif %};"></i>
+        <div class="stat-value" style="color: {% if pending_deposits_count > 0 %}#b45309{% else %}#0f172a{% endif %};">
+            {{ pending_deposits_count or 0 }}
+        </div>
+        <div class="stat-label">DEPOSIT PENDING (PERLU CEK)</div>
+    </div>
     <div class="stat-card">
-        <i class="fas fa-shield-alt stat-icon" style="color: #f59e0b;"></i>
+        <i class="fas fa-shield-alt stat-icon" style="color: #8b5cf6;"></i>
         <div class="stat-value">v1 (REST)</div>
         <div class="stat-label">PROTOKOL GATEWAY</div>
     </div>
@@ -327,6 +334,110 @@
             <div>
                 <i class="fas fa-clock"></i> Terakhir Digunakan: <b>{{ m.last_used_at.strftime('%d/%m/%Y %H:%M WIB') if m.last_used_at else 'Belum pernah digunakan' }}</b>
             </div>
+        </div>
+
+        <!-- SECTION: PERMINTAAN DEPOSIT SALDO DARI KASIR -->
+        <div style="margin-top: 18px; border-top: 1px dashed #cbd5e1; padding-top: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                <div style="font-size: 13px; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 6px;">
+                    <i class="fas fa-hand-holding-usd" style="color: #0284c7;"></i>
+                    Permintaan Saldo Deposit Kasir ({{ m.merchant_id }})
+                    {% set m_pending = m.deposit_requests|selectattr('status', 'equalto', 'PENDING')|list %}
+                    {% if m_pending|length > 0 %}
+                    <span class="api-badge" style="background: #fef3c7; color: #b45309;">
+                        <i class="fas fa-exclamation-circle"></i> {{ m_pending|length }} Menunggu Verifikasi
+                    </span>
+                    {% endif %}
+                </div>
+                <div style="font-size: 11px; color: #64748b;">
+                    Total Riwayat: <b>{{ m.deposit_requests|length }} Tiket</b>
+                </div>
+            </div>
+
+            {% if m.deposit_requests %}
+            <div style="border: 1px solid #e2e8f0; border-radius: 10px; overflow-x: auto; background: white;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+                    <thead>
+                        <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.5px;">
+                            <th style="padding: 10px 12px;">Waktu (WIB)</th>
+                            <th style="padding: 10px 12px;">No. Ref Tiket</th>
+                            <th style="padding: 10px 12px;">Metode Transfer</th>
+                            <th style="padding: 10px 12px;">Rincian Transfer (Kode Unik)</th>
+                            <th style="padding: 10px 12px; text-align: center;">Status</th>
+                            <th style="padding: 10px 12px; text-align: center;">Aksi Admin</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for dep in m.deposit_requests %}
+                        <tr style="border-bottom: 1px solid #f1f5f9;">
+                            <td style="padding: 10px 12px; font-family: monospace; font-size: 11px; color: #64748b; white-space: nowrap;">
+                                {{ dep.created_at_wib }}
+                            </td>
+                            <td style="padding: 10px 12px; font-family: monospace; font-weight: 700; color: #0369a1; white-space: nowrap;">
+                                {{ dep.ref_id }}
+                            </td>
+                            <td style="padding: 10px 12px; font-weight: 700; color: #334155;">
+                                <span style="background: #f1f5f9; padding: 3px 8px; border-radius: 6px; font-size: 11px;">
+                                    {{ dep.payment_method }}
+                                </span>
+                            </td>
+                            <td style="padding: 10px 12px;">
+                                <div style="font-weight: 900; font-family: monospace; font-size: 13px; color: #0f172a;">
+                                    Rp {{ "{:,.0f}".format(dep.amount or 0).replace(',', '.') }}
+                                </div>
+                                {% if dep.sn and 'KODE_UNIK:' in dep.sn %}
+                                <div style="font-size: 10.5px; color: #0284c7; margin-top: 2px;">
+                                    <i class="fas fa-tag"></i> 
+                                    Kode Unik: <b style="color: #b45309;">+{{ dep.sn.split('KODE_UNIK:')[1].split('|')[0] }}</b>
+                                    {% if 'POKOK:' in dep.sn %}
+                                    &bull; Pokok: Rp {{ "{:,.0f}".format(dep.sn.split('POKOK:')[1].split('|')[0]|float).replace(',', '.') }}
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 10px 12px; text-align: center; white-space: nowrap;">
+                                {% if dep.status == 'SUCCESS' %}
+                                <span class="api-badge badge-active"><i class="fas fa-check-circle"></i> Disetujui</span>
+                                {% elif dep.status == 'PENDING' %}
+                                <span class="api-badge" style="background: #fef3c7; color: #b45309;"><i class="fas fa-clock"></i> Menunggu Verifikasi</span>
+                                {% else %}
+                                <span class="api-badge badge-inactive"><i class="fas fa-times-circle"></i> {{ dep.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 10px 12px; text-align: center; white-space: nowrap;">
+                                {% if dep.status == 'PENDING' %}
+                                <div style="display: flex; gap: 6px; justify-content: center; align-items: center;">
+                                    <!-- Form Setujui -->
+                                    <form method="POST" action="{{ url_for('admin.merchant_api_approve_deposit', trx_id=dep.id) }}" style="display: inline;" onsubmit="return confirm('Setujui tiket deposit {{ dep.ref_id }}?\n\nNominal: Rp {{ \"{:,.0f}\".format(dep.amount).replace(\",\", \".\") }}\nSaldo akun {{ m.user.name }} akan otomatis bertambah.');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" style="background: #10b981; color: white; border: none; padding: 5px 12px; border-radius: 6px; font-weight: 800; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);">
+                                            <i class="fas fa-check"></i> Setujui
+                                        </button>
+                                    </form>
+
+                                    <!-- Form Tolak -->
+                                    <form method="POST" action="{{ url_for('admin.merchant_api_reject_deposit', trx_id=dep.id) }}" style="display: inline;" onsubmit="var r = prompt('Masukkan alasan penolakan tiket {{ dep.ref_id }}:', 'Mutasi transfer belum masuk'); if(!r) return false; this.reason.value = r; return true;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="reason" value="">
+                                        <button type="submit" style="background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; padding: 5px 10px; border-radius: 6px; font-weight: 700; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+                                            <i class="fas fa-times"></i> Tolak
+                                        </button>
+                                    </form>
+                                </div>
+                                {% else %}
+                                <span style="font-size: 11px; color: #94a3b8;">Selesai</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div style="background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 10px; padding: 16px; text-align: center; color: #94a3b8; font-size: 12px;">
+                <i class="fas fa-inbox" style="margin-right: 4px;"></i> Belum ada permintaan deposit saldo dari kasir ini.
+            </div>
+            {% endif %}
         </div>
     </div>
     {% endfor %}

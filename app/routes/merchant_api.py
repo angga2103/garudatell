@@ -191,6 +191,7 @@ def get_deposit_info():
 def create_deposit_request():
     """
     Membuat tiket permintaan top-up deposit dari Web POS IPAY.
+    Mendukung kode unik 3 digit angka pada nominal transfer.
     Mencatat pesanan deposit ke database GarudaTel dan mengirim notifikasi Telegram ke Admin.
     """
     merchant, err = authenticate_merchant(request)
@@ -199,35 +200,60 @@ def create_deposit_request():
 
     data = request.get_json(silent=True) or request.form.to_dict() or {}
     try:
-        amount = float(data.get("amount") or 0)
+        raw_amount = float(data.get("amount") or 0)
     except (ValueError, TypeError):
-        amount = 0.0
+        raw_amount = 0.0
 
-    if amount < 10000:
+    try:
+        base_amount = float(data.get("base_amount") or raw_amount)
+    except (ValueError, TypeError):
+        base_amount = raw_amount
+
+    try:
+        unique_code = int(data.get("unique_code") or 0)
+    except (ValueError, TypeError):
+        unique_code = 0
+
+    if base_amount < 10000:
         return jsonify({
             "status": "failed",
             "message": "Minimal deposit adalah Rp 10.000"
         }), 400
 
+    import time
+    import random
+
+    # Jika kode unik belum di-generate oleh POS (misal 0), buat 3 digit angka acak (100 - 999)
+    if unique_code <= 0 or unique_code > 999:
+        unique_code = random.randint(100, 999)
+        total_amount = base_amount + unique_code
+    else:
+        # Jika POS sudah mengirim amount yang menyertakan unique_code
+        if raw_amount > base_amount:
+            total_amount = raw_amount
+        else:
+            total_amount = base_amount + unique_code
+
     channel_code = str(data.get("channel") or data.get("payment_method") or "MANUAL").upper()
     notes = str(data.get("notes") or f"Deposit via Web POS IPAY ({merchant.merchant_id})").strip()
 
-    import time
-    import random
     ref_id = f"DEP-POS-{int(time.time())}-{random.randint(100, 999)}"
 
     user = merchant.user
+    sn_info = f"KODE_UNIK:{unique_code}|POKOK:{base_amount:.0f}|{notes}"
+
     trx = Transaction(
         ref_id=ref_id,
         user_id=user.id,
         sku_code='DEPOSIT_SALDO',
         product_name=f"Deposit Saldo POS ({merchant.merchant_id})",
         target_number=user.phone or getattr(merchant, 'name', 'POS Merchant'),
-        amount=amount,
+        amount=total_amount,
         payment_method=channel_code,
         payment_status='UNPAID',
         status='PENDING',
-        notes=notes,
+        provider_ref=merchant.merchant_id,
+        sn=sn_info,
         is_prepaid=True
     )
     db.session.add(trx)
@@ -247,7 +273,17 @@ def create_deposit_request():
     if clean_wa.startswith('0'):
         clean_wa = '62' + clean_wa[1:]
 
-    wa_text = f"Halo Admin iPay, saya telah mengajukan deposit saldo POS via {channel_code} sebesar Rp {amount:,.0f} dengan No Ref: {ref_id} (Merchant: {merchant.merchant_id}). Mohon segera dikonfirmasi. Terima kasih."
+    wa_text = (
+        f"Halo Admin iPay, saya telah mengajukan deposit saldo POS via {channel_code}:\n\n"
+        f"• *Merchant ID:* {merchant.merchant_id}\n"
+        f"• *Ref ID:* {ref_id}\n"
+        f"• *Nominal Pokok:* Rp {base_amount:,.0f}\n"
+        f"• *Kode Unik (3 Angka):* {unique_code}\n"
+        f"• *TOTAL TRANSFER:* Rp {total_amount:,.0f} (Wajib Tepat)\n"
+        f"• *Channel:* {channel_code}\n"
+        f"• *Catatan:* {notes}\n\n"
+        f"Mohon verifikasi transfer dan setujui penambahan saldo akun iPay saya di panel admin. Terima kasih."
+    )
     import urllib.parse
     wa_url = f"https://wa.me/{clean_wa}?text={urllib.parse.quote(wa_text)}"
 
@@ -255,12 +291,51 @@ def create_deposit_request():
         "status": "success",
         "data": {
             "ref_id": ref_id,
-            "amount": amount,
+            "amount": total_amount,
+            "base_amount": base_amount,
+            "unique_code": unique_code,
             "channel": channel_code,
             "status": "pending",
             "wa_confirm_url": wa_url,
             "instructions": manual_depo.get('instructions', ''),
-            "message": f"Tiket deposit {ref_id} berhasil dibuat. Silakan selesaikan pembayaran dan konfirmasi ke admin."
+            "message": f"Tiket deposit {ref_id} berhasil dibuat. Silakan transfer tepat Rp {total_amount:,.0f} dan konfirmasi ke admin."
+        }
+    }), 200
+
+
+@merchant_api_bp.route("/profile/deposit/status/<ref_id>", methods=["GET"])
+def check_deposit_status(ref_id):
+    """
+    Cek status tiket deposit oleh POS secara real-time.
+    """
+    merchant, err = authenticate_merchant(request)
+    if err:
+        return jsonify({"status": "failed", "message": err[0]}), err[1]
+
+    trx = Transaction.query.filter_by(ref_id=ref_id, sku_code='DEPOSIT_SALDO').first()
+    if not trx:
+        return jsonify({"status": "failed", "message": "Tiket deposit tidak ditemukan"}), 404
+
+    # Pastikan transaksi milik user merchant ini
+    if trx.user_id != merchant.user_id and trx.provider_ref != merchant.merchant_id:
+        return jsonify({"status": "failed", "message": "Akses ditolak"}), 403
+
+    raw_status = (trx.status or 'PENDING').upper()
+    is_success = raw_status == 'SUCCESS' or trx.payment_status == 'PAID'
+    is_failed = raw_status in ['FAILED', 'EXPIRED', 'GAGAL']
+
+    return jsonify({
+        "status": "success",
+        "data": {
+            "ref_id": trx.ref_id,
+            "merchant_id": merchant.merchant_id,
+            "amount": trx.amount,
+            "status": 'SUCCESS' if is_success else ('FAILED' if is_failed else 'PENDING'),
+            "payment_status": trx.payment_status,
+            "sn": trx.sn,
+            "channel": trx.payment_method,
+            "created_at": trx.created_at.strftime('%Y-%m-%d %H:%M:%S') if trx.created_at else None,
+            "updated_at": trx.updated_at.strftime('%Y-%m-%d %H:%M:%S') if trx.updated_at else None
         }
     }), 200
 

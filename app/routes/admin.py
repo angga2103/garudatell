@@ -2845,19 +2845,146 @@ def merchant_api_index():
 
     from app.models.merchant import MerchantApiKey
     from app.models.user import User
+    from app.models.transaction import Transaction
     from app.services.setting_service import get_pos_settings
 
     merchants = MerchantApiKey.query.order_by(MerchantApiKey.id.desc()).all()
     users = User.query.filter_by(is_active=True).order_by(User.name.asc()).all()
     pos_settings = get_pos_settings()
 
+    # Query tiket deposit per merchant
+    for m in merchants:
+        m.deposit_requests = Transaction.query.filter(
+            (Transaction.provider_ref == m.merchant_id) | 
+            ((Transaction.user_id == m.user_id) & (Transaction.sku_code == 'DEPOSIT_SALDO'))
+        ).order_by(Transaction.id.desc()).limit(20).all()
+
+    # Hitung total deposit yang berstatus PENDING untuk alert badge
+    pending_deposits_count = Transaction.query.filter(
+        Transaction.sku_code == 'DEPOSIT_SALDO',
+        Transaction.status == 'PENDING'
+    ).count()
+
     return render_template(
         'admin/merchant_api.html',
         merchants=merchants,
         users=users,
         pos_settings=pos_settings,
+        pending_deposits_count=pending_deposits_count,
         page_title='API Merchant & POS'
     )
+
+
+@admin_bp.route('/merchant-api/deposit/approve/<int:trx_id>', methods=['POST'])
+def merchant_api_approve_deposit(trx_id):
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin.login'))
+
+    from app.models.transaction import Transaction
+    from app.models.user import User
+    from app.models.merchant import MerchantApiKey
+    from datetime import datetime
+
+    trx = Transaction.query.get_or_404(trx_id)
+    if trx.status == 'SUCCESS':
+        flash(f"Tiket deposit {trx.ref_id} sudah disetujui sebelumnya.", "info")
+        return redirect(url_for('admin.merchant_api_index'))
+
+    user = User.query.filter_by(id=trx.user_id).with_for_update().first()
+    if not user:
+        flash("User pemilik akun deposit tidak ditemukan.", "danger")
+        return redirect(url_for('admin.merchant_api_index'))
+
+    # Tambah saldo akun
+    old_bal = float(user.balance or 0.0)
+    add_amount = float(trx.amount or 0.0)
+    user.balance = old_bal + add_amount
+
+    trx.status = 'SUCCESS'
+    trx.payment_status = 'PAID'
+    approve_note = f"Disetujui Admin pada {datetime.now().strftime('%d/%m/%Y %H:%M WIB')}"
+    if trx.sn:
+        trx.sn = f"{trx.sn} | {approve_note}"
+    else:
+        trx.sn = approve_note
+
+    db.session.commit()
+
+    # Coba kirim webhook callback ke merchant POS jika URL terdaftar
+    try:
+        from app.services.merchant_service import dispatch_merchant_webhook
+        mch = MerchantApiKey.query.filter_by(user_id=user.id).first()
+        if mch and mch.webhook_url:
+            dispatch_merchant_webhook(mch, {
+                'event': 'deposit.approved',
+                'ref_id': trx.ref_id,
+                'amount': trx.amount,
+                'status': 'success',
+                'balance': user.balance,
+                'timestamp': datetime.now().isoformat()
+            })
+    except Exception as e:
+        print(f"[Webhook Deposit Dispatch Warning]: {e}")
+
+    # Notifikasi saldo rendah / update saldo jika ada
+    try:
+        from app.services.balance_notification_service import check_and_notify_low_balance
+        check_and_notify_low_balance(user.id, old_bal, user.balance)
+    except Exception:
+        pass
+
+    flash(
+        f"✓ Tiket deposit {trx.ref_id} sebesar Rp {add_amount:,.0f} BERHASIL DISETUJUI! "
+        f"Saldo akun {user.name} ({user.phone}) kini menjadi Rp {user.balance:,.0f}.",
+        "success"
+    )
+    return redirect(url_for('admin.merchant_api_index'))
+
+
+@admin_bp.route('/merchant-api/deposit/reject/<int:trx_id>', methods=['POST'])
+def merchant_api_reject_deposit(trx_id):
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin.login'))
+
+    from app.models.transaction import Transaction
+    from app.models.merchant import MerchantApiKey
+    from datetime import datetime
+
+    trx = Transaction.query.get_or_404(trx_id)
+    if trx.status == 'SUCCESS':
+        flash(f"Tiket deposit {trx.ref_id} yang sudah disetujui tidak dapat ditolak.", "warning")
+        return redirect(url_for('admin.merchant_api_index'))
+
+    reason = request.form.get('reason', '').strip() or 'Mutasi transfer dana tidak ditemukan / bukti tidak valid'
+
+    trx.status = 'FAILED'
+    trx.payment_status = 'UNPAID'
+    reject_note = f"Ditolak Admin: {reason} ({datetime.now().strftime('%d/%m/%Y %H:%M WIB')})"
+    if trx.sn:
+        trx.sn = f"{trx.sn} | {reject_note}"
+    else:
+        trx.sn = reject_note
+
+    db.session.commit()
+
+    # Coba kirim webhook callback ke merchant POS jika URL terdaftar
+    try:
+        from app.services.merchant_service import dispatch_merchant_webhook
+        mch = MerchantApiKey.query.filter_by(user_id=trx.user_id).first()
+        if mch and mch.webhook_url:
+            dispatch_merchant_webhook(mch, {
+                'event': 'deposit.rejected',
+                'ref_id': trx.ref_id,
+                'amount': trx.amount,
+                'status': 'failed',
+                'reason': reason,
+                'timestamp': datetime.now().isoformat()
+            })
+    except Exception as e:
+        print(f"[Webhook Deposit Dispatch Warning]: {e}")
+
+    flash(f"Tiket deposit {trx.ref_id} sebesar Rp {trx.amount:,.0f} DITOLAK. Alasan: {reason}", "warning")
+    return redirect(url_for('admin.merchant_api_index'))
 
 
 @admin_bp.route('/merchant_api/settings', methods=['POST'])
