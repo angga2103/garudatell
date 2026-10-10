@@ -45,8 +45,11 @@
         font-size: 16px; position: relative; cursor: pointer;
     }
     .bell-dot {
-        position: absolute; top: 10px; right: 10px; width: 6px; height: 6px;
-        background: #ff4757; border-radius: 50%;
+        position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px;
+        padding: 0 4px; background: #ef4444; color: #ffffff; border-radius: 10px;
+        font-size: 10px; font-weight: 800; display: flex; align-items: center; justify-content: center;
+        border: 2px solid var(--teal-main); box-shadow: 0 2px 6px rgba(239,68,68,0.4);
+        line-height: 1; box-sizing: border-box;
     }
 
     /* 2. Kartu Utama (Melayang) */
@@ -340,9 +343,9 @@
         <div class="date-pill" id="teks-tanggal">Hari Ini</div>
         <div class="bell-btn" onclick="bukaModalNotifikasi()" title="Pusat Notifikasi">
             <i class="fas fa-bell"></i>
-            {% if unread_notif_count and unread_notif_count > 0 %}
-            <div class="bell-dot" id="header-bell-dot"></div>
-            {% endif %}
+            <div class="bell-dot" id="header-bell-dot" style="{% if not unread_notif_count or unread_notif_count <= 0 %}display: none;{% endif %}">
+                {{ unread_notif_count if unread_notif_count and unread_notif_count <= 99 else ('99+' if unread_notif_count else '') }}
+            </div>
         </div>
     </div>
 </div>
@@ -761,6 +764,7 @@
     function bukaModalNotifikasi() {
         document.getElementById('modalNotifOverlay').classList.add('show');
         document.getElementById('modalNotifSheet').classList.add('show');
+        if (window.requestNotifPermissionOnce) window.requestNotifPermissionOnce();
     }
     function tutupModalNotifikasi() {
         document.getElementById('modalNotifOverlay').classList.remove('show');
@@ -772,6 +776,7 @@
             const resp = await fetch('/api/notifikasi/read-all', { method: 'POST' });
             const data = await resp.json();
             if (data.success) {
+                if (window.updateAppBadge) window.updateAppBadge(0);
                 const dot = document.getElementById('header-bell-dot');
                 if (dot) dot.style.display = 'none';
                 const btn = document.getElementById('btn-tandai-dibaca-dash');

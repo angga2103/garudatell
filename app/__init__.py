@@ -402,6 +402,18 @@ def create_app(test_config=None):
                 'logo_url': ''
             })
 
+    # Global Context Processor: Hitung Notifikasi Belum Dibaca untuk App Badging PWA
+    @app.context_processor
+    def inject_notifications():
+        try:
+            from flask_login import current_user
+            from app.routes.user import get_user_notifications
+            user_id = current_user.id if (current_user and current_user.is_authenticated) else None
+            _, unread_count, _ = get_user_notifications(user_id)
+            return dict(global_unread_notif_count=unread_count)
+        except Exception:
+            return dict(global_unread_notif_count=0)
+
     # Template Filter: Format SN / Keterangan Bersih untuk Pengguna
     @app.template_filter('format_sn')
     def format_sn(sn_val, status=None):

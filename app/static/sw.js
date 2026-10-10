@@ -8,7 +8,7 @@
  * 3. Transaksi Finansial, Saldo, Callback, dan Admin -> NETWORK-ONLY (Keamanan 100% Bebas Stale Data)
  */
 
-const CACHE_NAME = 'ipay-pwa-v1.0.0';
+const CACHE_NAME = 'ipay-pwa-v1.1.0';
 
 // Aset Inti yang di-precache saat instalasi
 const PRECACHE_ASSETS = [
@@ -168,3 +168,120 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
+// ==========================================
+// 4. APP BADGING & PUSH NOTIFICATION HANDLER
+// ==========================================
+
+async function setWorkerBadge(count) {
+  try {
+    if ('setAppBadge' in navigator) {
+      if (count && count > 0) {
+        await navigator.setAppBadge(count);
+      } else {
+        await navigator.clearAppBadge();
+      }
+    }
+  } catch (err) {
+    console.warn('[SW Badging] Gagal update badge:', err);
+  }
+}
+
+async function clearWorkerBadge() {
+  try {
+    if ('clearAppBadge' in navigator) {
+      await navigator.clearAppBadge();
+    }
+    const notifs = await self.registration.getNotifications();
+    notifs.forEach((n) => n.close());
+  } catch (err) {
+    console.warn('[SW Badging] Gagal bersihkan badge & notifikasi:', err);
+  }
+}
+
+// Listener Push Notification dari Server
+self.addEventListener('push', (event) => {
+  let payload = {};
+  if (event.data) {
+    try {
+      payload = event.data.json();
+    } catch (e) {
+      payload = { title: 'iPay GarudaTel', message: event.data.text() };
+    }
+  }
+
+  const title = payload.title || 'iPay GarudaTel';
+  const options = {
+    body: payload.message || payload.body || 'Ada notifikasi terbaru untuk Anda.',
+    icon: '/static/img/icons/icon-192x192.png',
+    badge: '/static/img/icons/icon-maskable-192x192.png',
+    vibrate: [120, 80, 120],
+    data: {
+      url: payload.link || payload.url || '/notifikasi',
+      id: payload.id || null
+    },
+    tag: payload.tag || ('ipay-notif-' + (payload.id || Date.now())),
+    renotify: true
+  };
+
+  const count = typeof payload.unread_count === 'number' ? payload.unread_count : 1;
+
+  event.waitUntil(
+    Promise.all([
+      self.registration.showNotification(title, options),
+      setWorkerBadge(count)
+    ])
+  );
+});
+
+// Listener Klik pada Notifikasi Sistem Android/Desktop
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = (event.notification.data && event.notification.data.url) || '/notifikasi';
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          client.navigate(targetUrl);
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
+    })
+  );
+});
+
+// Listener Pesan Sinkronisasi dari Halaman Client (base.html / dashboard / notifikasi)
+self.addEventListener('message', (event) => {
+  if (!event.data) return;
+
+  if (event.data.action === 'SYNC_BADGE') {
+    const count = parseInt(event.data.count, 10) || 0;
+    event.waitUntil(setWorkerBadge(count));
+  } else if (event.data.action === 'CLEAR_BADGE') {
+    event.waitUntil(clearWorkerBadge());
+  } else if (event.data.action === 'SHOW_LOCAL_NOTIF') {
+    const item = event.data.item;
+    if (item) {
+      const title = item.title || 'Info iPay';
+      const options = {
+        body: item.message || 'Pemberitahuan baru',
+        icon: '/static/img/icons/icon-192x192.png',
+        badge: '/static/img/icons/icon-maskable-192x192.png',
+        vibrate: [100, 50, 100],
+        tag: 'ipay-notif-' + item.id,
+        data: { url: item.link || '/notifikasi', id: item.id }
+      };
+      event.waitUntil(
+        Promise.all([
+          self.registration.showNotification(title, options),
+          setWorkerBadge(event.data.count || 1)
+        ])
+      );
+    }
+  }
+});
+

@@ -56,7 +56,10 @@ def get_user_notifications(user_id=None):
         notifs = Notification.query.filter(
             Notification.target_user_id == None
         ).order_by(Notification.created_at.desc()).limit(25).all()
-        return notifs, len(notifs), set()
+        guest_read_list = session.get('guest_read_notif_ids', [])
+        read_ids = set(guest_read_list) if isinstance(guest_read_list, list) else set()
+        unread_count = sum(1 for n in notifs if n.id not in read_ids)
+        return notifs, unread_count, read_ids
 
 @user_bp.route('/')
 @user_bp.route('/dashboard')
@@ -2228,14 +2231,40 @@ def notifikasi():
                            read_ids=read_ids)
 
 
+@user_bp.route('/api/notifikasi/unread-count', methods=['GET'])
+def notifikasi_unread_count():
+    """Mengambil jumlah notifikasi belum dibaca & daftar item terbaru untuk sinkronisasi badge PWA."""
+    user_id = current_user.id if current_user.is_authenticated else None
+    notifs, unread_count, read_ids = get_user_notifications(user_id)
+    unread_items = [
+        {
+            'id': n.id,
+            'title': n.title,
+            'message': n.message,
+            'type': n.type,
+            'link': n.link or '/notifikasi',
+            'created_at': n.created_at.strftime('%Y-%m-%d %H:%M:%S') if n.created_at else ''
+        }
+        for n in notifs if n.id not in read_ids
+    ][:10]
+    return jsonify({
+        'success': True,
+        'unread_count': unread_count,
+        'unread_items': unread_items
+    })
+
+
 @user_bp.route('/api/notifikasi/read-all', methods=['POST'])
 @csrf.exempt
 def notifikasi_read_all():
-    """Menandai semua notifikasi telah dibaca untuk menghilangkan titik merah."""
+    """Menandai semua notifikasi telah dibaca untuk menghilangkan titik/angka badge."""
+    from app.models.notification import Notification, NotificationRead
     if not current_user.is_authenticated:
+        broadcast_notifs = Notification.query.filter_by(target_user_id=None).all()
+        session['guest_read_notif_ids'] = [n.id for n in broadcast_notifs]
+        session.modified = True
         return jsonify({'success': True, 'unread_count': 0})
 
-    from app.models.notification import Notification, NotificationRead
     notifs = Notification.query.filter(
         or_(Notification.target_user_id == None, Notification.target_user_id == current_user.id)
     ).all()
@@ -2255,7 +2284,15 @@ def notifikasi_read_all():
 def notifikasi_read_single(id):
     """Menandai satu notifikasi spesifik telah dibaca."""
     if not current_user.is_authenticated:
-        return jsonify({'success': True})
+        guest_list = session.get('guest_read_notif_ids', [])
+        if not isinstance(guest_list, list):
+            guest_list = []
+        if id not in guest_list:
+            guest_list.append(id)
+            session['guest_read_notif_ids'] = guest_list
+            session.modified = True
+        _, unread_count, _ = get_user_notifications(None)
+        return jsonify({'success': True, 'unread_count': unread_count})
 
     from app.models.notification import NotificationRead
     exists = NotificationRead.query.filter_by(user_id=current_user.id, notification_id=id).first()

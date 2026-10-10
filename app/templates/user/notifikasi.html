@@ -191,6 +191,7 @@
             const resp = await fetch('/api/notifikasi/read-all', { method: 'POST' });
             const data = await resp.json();
             if (data.success) {
+                if (window.updateAppBadge) window.updateAppBadge(0);
                 document.querySelectorAll('.notif-card.unread').forEach(el => el.classList.remove('unread'));
                 const btn = document.getElementById('btn-read-all');
                 if (btn) btn.style.display = 'none';

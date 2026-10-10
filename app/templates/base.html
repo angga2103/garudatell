@@ -488,6 +488,132 @@
             localStorage.setItem('pwa_installed', 'true');
         });
     })();
+
+    // ====================================================
+    // 3. APP BADGING API & NOTIFIKASI HOMESCREEN (PWA)
+    // ====================================================
+    (function() {
+        window.updateAppBadge = function(count) {
+            var unread = parseInt(count, 10);
+            if (isNaN(unread) || unread < 0) unread = 0;
+
+            // A. W3C App Badging API (Navigator Standard)
+            if ('setAppBadge' in navigator) {
+                if (unread > 0) {
+                    navigator.setAppBadge(unread).catch(function(e) {
+                        console.debug('[AppBadge] setAppBadge:', e);
+                    });
+                } else {
+                    navigator.clearAppBadge().catch(function(e) {
+                        console.debug('[AppBadge] clearAppBadge:', e);
+                    });
+                }
+            }
+
+            // B. Sinkronisasi ke Service Worker (untuk Android Launcher & Status Bar)
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.ready.then(function(reg) {
+                    if (reg && reg.active) {
+                        if (unread > 0) {
+                            reg.active.postMessage({ action: 'SYNC_BADGE', count: unread });
+                        } else {
+                            reg.active.postMessage({ action: 'CLEAR_BADGE' });
+                        }
+                    }
+                }).catch(function() {});
+            }
+
+            // C. Update Lencana Angka Visual di Ikon Lonceng Dashboard jika ada
+            var bellDot = document.getElementById('header-bell-dot');
+            if (bellDot) {
+                if (unread > 0) {
+                    bellDot.innerText = unread > 99 ? '99+' : unread;
+                    bellDot.style.display = 'flex';
+                } else {
+                    bellDot.style.display = 'none';
+                }
+            }
+        };
+
+        window.syncNotifBadge = async function(triggerLocalNotif) {
+            try {
+                var resp = await fetch('/api/notifikasi/unread-count', { cache: 'no-store' });
+                if (!resp.ok) return;
+                var data = await resp.json();
+                if (data && data.success) {
+                    var unread = typeof data.unread_count === 'number' ? data.unread_count : 0;
+                    window.updateAppBadge(unread);
+
+                    // Tampilkan notifikasi sistem untuk notifikasi baru jika izin diberikan
+                    if (triggerLocalNotif && unread > 0 && Array.isArray(data.unread_items) && data.unread_items.length > 0) {
+                        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+                            var lastNotifiedId = parseInt(localStorage.getItem('ipay_last_notified_id') || '0', 10);
+                            var newItems = data.unread_items.filter(function(item) {
+                                return item.id > lastNotifiedId;
+                            });
+                            if (newItems.length > 0 && 'serviceWorker' in navigator) {
+                                navigator.serviceWorker.ready.then(function(reg) {
+                                    if (reg && reg.active) {
+                                        newItems.forEach(function(item) {
+                                            reg.active.postMessage({
+                                                action: 'SHOW_LOCAL_NOTIF',
+                                                item: item,
+                                                count: unread
+                                            });
+                                        });
+                                    }
+                                }).catch(function() {});
+                                var maxId = Math.max.apply(Math, newItems.map(function(it) { return it.id; }));
+                                localStorage.setItem('ipay_last_notified_id', maxId.toString());
+                            }
+                        }
+                    }
+                }
+            } catch (err) {
+                console.debug('[AppBadge] Sync error:', err);
+            }
+        };
+
+        window.requestNotifPermissionOnce = function() {
+            if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+                Notification.requestPermission().then(function(perm) {
+                    if (perm === 'granted') {
+                        window.syncNotifBadge(true);
+                    }
+                }).catch(function() {});
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', function() {
+            var initialCount = {{ global_unread_notif_count|default(0) }};
+            window.updateAppBadge(initialCount);
+
+            // Jika ada unread saat pertama kali buka dan izin notifikasi sudah granted, sinkronkan
+            if (initialCount > 0) {
+                setTimeout(function() {
+                    window.syncNotifBadge(true);
+                }, 1500);
+            }
+
+            // Minta izin notifikasi saat interaksi pertama di aplikasi
+            document.addEventListener('click', function onFirstClick() {
+                window.requestNotifPermissionOnce();
+                document.removeEventListener('click', onFirstClick);
+            }, { once: true });
+
+            // Polling ringan setiap 45 detik untuk cek notifikasi baru dari Admin
+            setInterval(function() {
+                window.syncNotifBadge(true);
+            }, 45000);
+
+            // Sinkronisasi instan saat pengguna kembali membuka aplikasi dari background
+            document.addEventListener('visibilitychange', function() {
+                if (document.visibilityState === 'visible') {
+                    window.syncNotifBadge(true);
+                }
+            });
+        });
+    })();
     </script>
 </body>
 </html>
