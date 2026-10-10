@@ -155,6 +155,34 @@
         }
         </script>
 
+        <!-- STATUS APLIKASI PWA & TES NOTIFIKASI -->
+        <div style="background: #f0fdfa; border: 1.5px solid #99f6e4; border-radius: 14px; padding: 14px 15px; margin-bottom: 16px; text-align: left;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-mobile-screen-button" style="color: #008779; font-size: 16px;"></i>
+                    <span style="font-weight: 800; color: #134e4a; font-size: 0.88rem;">Status Aplikasi & Notifikasi HP</span>
+                </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; font-size: 0.78rem; color: #334155;">
+                <div style="display: flex; justify-content: space-between; align-items: center; background: white; padding: 7px 10px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <span style="font-weight: 700;">1. Aplikasi Layar Utama (PWA)</span>
+                    <span id="profil-status-pwa"><span style="color:#64748b; font-size:11px; font-weight:700;">Mengecek...</span></span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; background: white; padding: 7px 10px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <span style="font-weight: 700;">2. Izin Notifikasi & Angka Badge</span>
+                    <span id="profil-status-notif"><span style="color:#64748b; font-size:11px; font-weight:700;">Mengecek...</span></span>
+                </div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button type="button" onclick="window.bukaPanduanAplikasiPWA()" style="flex: 1; padding: 9px 10px; border: 1.5px solid #008779; background: white; color: #008779; border-radius: 10px; font-weight: 800; font-size: 0.78rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px;">
+                    <i class="fas fa-sliders"></i> Panduan Pasang
+                </button>
+                <button type="button" onclick="window.tesNotifikasiAplikasi(false)" style="flex: 1; padding: 9px 10px; border: none; background: #008779; color: white; border-radius: 10px; font-weight: 800; font-size: 0.78rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; box-shadow: 0 3px 8px rgba(0,135,121,0.25);">
+                    <i class="fas fa-bell"></i> Tes Notifikasi
+                </button>
+            </div>
+        </div>
+
         <!-- PUSAT REGULASI, DOKUMEN & BANTUAN -->
         <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;">
             <a href="/syarat-ketentuan" style="text-decoration: none; background: #f8fafc; border: 1.5px solid #e2e8f0; padding: 12px 16px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; transition: 0.2s;">
@@ -365,8 +393,34 @@
                     </a>
                 </div>
             </div>
+        <!-- STATUS APLIKASI PWA & TES NOTIFIKASI (GUEST) -->
+        <div style="background: #f0fdfa; border: 1.5px solid #99f6e4; border-radius: 14px; padding: 14px 15px; margin-top: 22px; text-align: left;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                <i class="fas fa-mobile-screen-button" style="color: #008779; font-size: 16px;"></i>
+                <span style="font-weight: 800; color: #134e4a; font-size: 0.85rem;">Status Aplikasi & Notifikasi HP</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; font-size: 0.76rem; color: #334155;">
+                <div style="display: flex; justify-content: space-between; align-items: center; background: white; padding: 6px 10px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <span style="font-weight: 700;">1. Aplikasi Layar Utama (PWA)</span>
+                    <span id="profil-status-pwa"><span style="color:#64748b; font-size:11px; font-weight:700;">Mengecek...</span></span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; background: white; padding: 6px 10px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <span style="font-weight: 700;">2. Izin Notifikasi & Angka Badge</span>
+                    <span id="profil-status-notif"><span style="color:#64748b; font-size:11px; font-weight:700;">Mengecek...</span></span>
+                </div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button type="button" onclick="window.bukaPanduanAplikasiPWA()" style="flex: 1; padding: 8px 10px; border: 1.5px solid #008779; background: white; color: #008779; border-radius: 10px; font-weight: 800; font-size: 0.76rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px;">
+                    <i class="fas fa-sliders"></i> Panduan Pasang
+                </button>
+                <button type="button" onclick="window.tesNotifikasiAplikasi(false)" style="flex: 1; padding: 8px 10px; border: none; background: #008779; color: white; border-radius: 10px; font-weight: 800; font-size: 0.76rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px;">
+                    <i class="fas fa-bell"></i> Tes Notifikasi
+                </button>
+            </div>
+        </div>
+
         <!-- Ketentuan Hukum Guest -->
-        <div style="text-align: center; margin-top: 24px; padding-top: 16px; border-top: 1px dashed #E5E7EB; font-size: 0.76rem; color: #64748B; line-height: 1.5;">
+        <div style="text-align: center; margin-top: 18px; padding-top: 14px; border-top: 1px dashed #E5E7EB; font-size: 0.76rem; color: #64748B; line-height: 1.5;">
             Dengan masuk atau mendaftar, Anda menyetujui <br>
             <a href="/syarat-ketentuan" target="_blank" style="color: #0284c7; font-weight: 700; text-decoration: underline;">Syarat & Ketentuan Layanan</a> serta pelepasan tanggung jawab hukum.
         </div>

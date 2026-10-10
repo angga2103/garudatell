@@ -235,43 +235,102 @@
             font-weight: 700;
             margin-top: 4px;
         }
-        .pwa-action-row {
-            margin-top: 10px;
+        .pwa-checklist-box {
+            margin-top: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
         }
-        .pwa-btn-install {
-            width: 100%;
-            background: linear-gradient(135deg, #008779 0%, #005f56 100%);
-            color: white;
-            border: none;
-            padding: 9px 16px;
-            border-radius: 12px;
-            font-size: 12.5px;
-            font-weight: 800;
-            cursor: pointer;
+        .pwa-step-item {
+            background: #f8fafc;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 10px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            transition: all 0.2s ease;
+        }
+        .pwa-step-item.done {
+            background: #f0fdf4;
+            border-color: #bbf7d0;
+        }
+        .pwa-step-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+            flex: 1;
+        }
+        .pwa-step-icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 6px;
-            box-shadow: 0 4px 12px rgba(0, 135, 121, 0.3);
-            transition: all 0.2s ease;
+            font-size: 15px;
+            flex-shrink: 0;
+            background: #e6f7f5;
+            color: #008779;
         }
-        .pwa-btn-install:active { transform: scale(0.98); }
-        .pwa-ios-guide {
-            margin-top: 8px;
-            background: #f8fafc;
-            border: 1px dashed #99f6e4;
+        .pwa-step-item.done .pwa-step-icon {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+        .pwa-step-title {
+            font-size: 12px;
+            font-weight: 800;
+            color: #1e293b;
+            line-height: 1.25;
+        }
+        .pwa-step-sub {
+            font-size: 10.5px;
+            color: #64748b;
+            margin-top: 2px;
+            line-height: 1.25;
+        }
+        .pwa-step-btn {
+            background: linear-gradient(135deg, #008779 0%, #005f56 100%);
+            color: white;
+            border: none;
+            padding: 7px 12px;
             border-radius: 10px;
-            padding: 8px 10px;
             font-size: 11px;
-            color: #334155;
-            text-align: center;
-            line-height: 1.4;
+            font-weight: 800;
+            cursor: pointer;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            box-shadow: 0 3px 8px rgba(0, 135, 121, 0.25);
         }
-        .pwa-ios-icon {
-            color: #0284c7;
-            font-size: 13px;
-            margin: 0 2px;
+        .pwa-step-btn:active { transform: scale(0.97); }
+        .pwa-step-badge-done {
+            background: #dcfce7;
+            color: #15803d;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 10.5px;
+            font-weight: 800;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
         }
+        .pwa-guide-box {
+            margin-top: 6px;
+            background: #fffbeb;
+            border: 1.5px dashed #fcd34d;
+            border-radius: 12px;
+            padding: 9px 11px;
+            font-size: 11px;
+            color: #78350f;
+            line-height: 1.45;
+            display: none;
+        }
+        .pwa-guide-box b { color: #92400e; }
     </style>
     {% block head %}{% endblock %}
 </head>
@@ -280,10 +339,10 @@
         {% block content %}{% endblock %}
     </div>
 
-    <!-- PWA Smart Install Banner / Drawer -->
+    <!-- PWA Smart Checklist 2-in-1 (Install Aplikasi + Aktifkan Notifikasi) -->
     <div id="pwa-install-banner" class="pwa-install-banner" style="display: none;">
         <div class="pwa-banner-card">
-            <button type="button" class="pwa-btn-close" id="pwa-btn-dismiss" title="Tutup">
+            <button type="button" class="pwa-btn-close" id="pwa-btn-dismiss" title="Nanti Saja">
                 <i class="fas fa-times"></i>
             </button>
             <div class="pwa-banner-content">
@@ -293,30 +352,72 @@
                 </div>
                 <div class="pwa-text-wrapper">
                     <div class="pwa-app-title">
-                        <span>Aplikasi iPay</span>
-                        <span class="pwa-tag-pill">PWA Resmi</span>
+                        <span>Pengaturan Aplikasi iPay</span>
+                        <span class="pwa-tag-pill">Penting</span>
                     </div>
                     <div class="pwa-app-desc">
-                        Akses sat-set, hemat kuota & pasang langsung di layar HP.
-                    </div>
-                    <div class="pwa-feature-tags">
-                        <span><i class="fas fa-bolt text-amber-500"></i> ~300 KB</span>
-                        <span><i class="fas fa-star text-amber-400"></i> 4.9</span>
-                        <span><i class="fas fa-shield-alt text-teal-600"></i> Aman</span>
+                        Aktifkan 2 fitur di bawah agar akses sat-set & notifikasi info transaksi selalu muncul di HP Anda:
                     </div>
                 </div>
             </div>
-            
-            <div class="pwa-action-row" id="pwa-action-android">
-                <button type="button" class="pwa-btn-install" id="pwa-btn-install">
-                    <i class="fas fa-download mr-1"></i> Pasang Aplikasi iPay
-                </button>
-            </div>
 
-            <!-- Khusus Petunjuk iPhone/iPad (iOS Safari) -->
-            <div class="pwa-ios-guide" id="pwa-action-ios" style="display: none;">
-                <div class="pwa-ios-text">
-                    Khusus iPhone/iPad: Tekan <i class="fas fa-arrow-up-from-bracket pwa-ios-icon"></i> di menu Safari, lalu pilih <b>"Tambah ke Layar Utama"</b> ⊞
+            <div class="pwa-checklist-box">
+                <!-- LANGKAH 1: PASANG APLIKASI PWA -->
+                <div class="pwa-step-item" id="pwa-step-1-item">
+                    <div class="pwa-step-left">
+                        <div class="pwa-step-icon" id="pwa-step-1-icon">
+                            <i class="fas fa-mobile-screen-button"></i>
+                        </div>
+                        <div>
+                            <div class="pwa-step-title">1. Pasang Aplikasi di Layar HP</div>
+                            <div class="pwa-step-sub" id="pwa-step-1-sub">Buka lebih cepat tanpa ketik alamat web</div>
+                        </div>
+                    </div>
+                    <div id="pwa-step-1-action">
+                        <button type="button" class="pwa-step-btn" id="pwa-btn-install">
+                            <i class="fas fa-download"></i> Pasang
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Panduan Manual Pasang Aplikasi (Muncul jika browser menahan prompt otomatis / iOS) -->
+                <div class="pwa-guide-box" id="pwa-manual-guide">
+                    <div id="pwa-manual-guide-android">
+                        📌 <b>Cara Pasang Mudah (3 Detik):</b><br>
+                        1. Ketuk ikon <b>Titik Tiga (⋮)</b> di pojok kanan atas browser ini.<br>
+                        2. Pilih menu <b>"Instal aplikasi"</b> atau <b>"Tambahkan ke Layar Utama"</b>.<br>
+                        3. Ketuk <b>Instal / Tambah</b> — Ikon iPay langsung tampil di layar HP Anda!
+                    </div>
+                    <div id="pwa-manual-guide-ios" style="display: none;">
+                        📌 <b>Cara Pasang di iPhone / iPad:</b><br>
+                        1. Ketuk ikon <b>Bagikan / Share (<i class="fas fa-arrow-up-from-bracket"></i>)</b> di menu bawah Safari.<br>
+                        2. Geser ke bawah lalu pilih <b>"Tambah ke Layar Utama" ⊞</b>.
+                    </div>
+                </div>
+
+                <!-- LANGKAH 2: AKTIFKAN NOTIFIKASI & BADGE ANGKA -->
+                <div class="pwa-step-item" id="pwa-step-2-item">
+                    <div class="pwa-step-left">
+                        <div class="pwa-step-icon" id="pwa-step-2-icon">
+                            <i class="fas fa-bell"></i>
+                        </div>
+                        <div>
+                            <div class="pwa-step-title">2. Aktifkan Notifikasi & Angka</div>
+                            <div class="pwa-step-sub" id="pwa-step-2-sub">Terima bunyi & angka info saldo/promo</div>
+                        </div>
+                    </div>
+                    <div id="pwa-step-2-action">
+                        <button type="button" class="pwa-step-btn" id="pwa-btn-notif">
+                            <i class="fas fa-bell"></i> Aktifkan
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Panduan Buka Blokir Notifikasi (Jika sebelumnya tidak sengaja klik Blokir/Tolak) -->
+                <div class="pwa-guide-box" id="pwa-notif-denied-guide">
+                    🔒 <b>Izin Notifikasi Terkunci di Browser:</b><br>
+                    1. Ketuk ikon <b>Pengaturan / Gembok</b> di sebelah kiri alamat <b>ipay.my.id</b> di bagian paling atas layar.<br>
+                    2. Pilih <b>Izin / Permissions</b> lalu ubah <b>Notifikasi</b> menjadi <b>Izinkan (Allow)</b>.
                 </div>
             </div>
         </div>
@@ -412,80 +513,256 @@
             });
         }
 
-        // 2. Deteksi Apakah Sudah Berjalan dalam Mode Standalone PWA
-        var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-        if (isStandalone) {
-            console.log('[PWA] Berjalan dalam mode aplikasi standalone.');
-            return;
-        }
-
-        // Cek riwayat dismiss (jangan tampilkan jika ditutup dalam 3 hari terakhir)
-        var dismissedTime = localStorage.getItem('pwa_prompt_dismissed');
-        if (dismissedTime && (Date.now() - parseInt(dismissedTime, 10) < 3 * 24 * 60 * 60 * 1000)) {
-            return;
-        }
-
-        // Cek jika sudah pernah install
-        if (localStorage.getItem('pwa_installed') === 'true') {
-            return;
-        }
+        // Bersihkan kunci localStorage lama yang membuat popup tidak muncul di lapangan
+        try {
+            localStorage.removeItem('pwa_prompt_dismissed');
+            localStorage.removeItem('pwa_installed');
+        } catch (e) {}
 
         var deferredPrompt = null;
         var banner = document.getElementById('pwa-install-banner');
-        var btnInstall = document.getElementById('pwa-btn-install');
         var btnDismiss = document.getElementById('pwa-btn-dismiss');
-        var actionAndroid = document.getElementById('pwa-action-android');
-        var actionIos = document.getElementById('pwa-action-ios');
+        var manualGuide = document.getElementById('pwa-manual-guide');
+        var guideAndroid = document.getElementById('pwa-manual-guide-android');
+        var guideIos = document.getElementById('pwa-manual-guide-ios');
+        var deniedGuide = document.getElementById('pwa-notif-denied-guide');
 
-        // Deteksi iOS Safari
         var isIos = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
-        var isSafari = /safari/i.test(window.navigator.userAgent) && !/crios|fxios|chrome/i.test(window.navigator.userAgent);
 
-        if (isIos && isSafari && banner) {
-            if (actionAndroid) actionAndroid.style.display = 'none';
-            if (actionIos) actionIos.style.display = 'block';
-            setTimeout(function() {
-                banner.style.display = 'block';
-            }, 2500);
+        function checkIsStandalone() {
+            return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
         }
 
-        // Listener Event beforeinstallprompt (Android Chrome, Edge, Samsung Internet)
+        function checkNotifPermission() {
+            if (typeof Notification === 'undefined') return 'unsupported';
+            return Notification.permission; // 'granted', 'default', 'denied'
+        }
+
+        // Fungsi Update Tampilan Checklist Popup & Kartu Profil
+        window.refreshPwaChecklistUI = function() {
+            var isStandalone = checkIsStandalone();
+            var notifPerm = checkNotifPermission();
+
+            // Update Langkah 1 (PWA)
+            var step1Item = document.getElementById('pwa-step-1-item');
+            var step1Sub = document.getElementById('pwa-step-1-sub');
+            var step1Action = document.getElementById('pwa-step-1-action');
+
+            if (step1Item && step1Sub && step1Action) {
+                if (isStandalone) {
+                    step1Item.classList.add('done');
+                    step1Sub.innerText = 'Aplikasi sudah terpasang di layar HP';
+                    step1Action.innerHTML = '<span class="pwa-step-badge-done"><i class="fas fa-check-circle"></i> Terpasang</span>';
+                    if (manualGuide) manualGuide.style.display = 'none';
+                } else {
+                    step1Item.classList.remove('done');
+                    step1Sub.innerText = 'Buka lebih cepat tanpa ketik alamat web';
+                    step1Action.innerHTML = '<button type="button" class="pwa-step-btn" onclick="window.aksiPasangPWA()"><i class="fas fa-download"></i> Pasang</button>';
+                }
+            }
+
+            // Update Langkah 2 (Notifikasi)
+            var step2Item = document.getElementById('pwa-step-2-item');
+            var step2Sub = document.getElementById('pwa-step-2-sub');
+            var step2Action = document.getElementById('pwa-step-2-action');
+
+            if (step2Item && step2Sub && step2Action) {
+                if (notifPerm === 'granted') {
+                    step2Item.classList.add('done');
+                    step2Sub.innerText = 'Notifikasi & angka badge sudah aktif';
+                    step2Action.innerHTML = '<span class="pwa-step-badge-done"><i class="fas fa-check-circle"></i> Aktif</span>';
+                    if (deniedGuide) deniedGuide.style.display = 'none';
+                } else if (notifPerm === 'denied') {
+                    step2Item.classList.remove('done');
+                    step2Sub.innerText = 'Izin terkunci di pengaturan browser';
+                    step2Action.innerHTML = '<button type="button" class="pwa-step-btn" style="background: #f59e0b;" onclick="window.aksiAktifkanNotif()"><i class="fas fa-unlock"></i> Buka Kunci</button>';
+                    if (deniedGuide) deniedGuide.style.display = 'block';
+                } else {
+                    step2Item.classList.remove('done');
+                    step2Sub.innerText = 'Terima bunyi & angka info saldo/promo';
+                    step2Action.innerHTML = '<button type="button" class="pwa-step-btn" onclick="window.aksiAktifkanNotif()"><i class="fas fa-bell"></i> Aktifkan</button>';
+                    if (deniedGuide) deniedGuide.style.display = 'none';
+                }
+            }
+
+            // Update Indikator di Halaman Profil (jika pengguna sedang di halaman /profil)
+            var profPwaBadge = document.getElementById('profil-status-pwa');
+            if (profPwaBadge) {
+                if (isStandalone) {
+                    profPwaBadge.innerHTML = '<span style="color:#15803d; background:#dcfce7; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:800;">✅ Terpasang</span>';
+                } else {
+                    profPwaBadge.innerHTML = '<span style="color:#b45309; background:#fef3c7; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:800;">⚠️ Belum Dipasang</span>';
+                }
+            }
+            var profNotifBadge = document.getElementById('profil-status-notif');
+            if (profNotifBadge) {
+                if (notifPerm === 'granted') {
+                    profNotifBadge.innerHTML = '<span style="color:#15803d; background:#dcfce7; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:800;">✅ Aktif</span>';
+                } else if (notifPerm === 'denied') {
+                    profNotifBadge.innerHTML = '<span style="color:#dc2626; background:#fee2e2; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:800;">🔒 Terkunci</span>';
+                } else {
+                    profNotifBadge.innerHTML = '<span style="color:#b45309; background:#fef3c7; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:800;">⚠️ Belum Aktif</span>';
+                }
+            }
+
+            // Jika kedua syarat sudah terpenuhi, sembunyikan popup otomatis
+            if (isStandalone && notifPerm === 'granted' && banner && !window._manualOpenPwaModal) {
+                setTimeout(function() {
+                    banner.style.display = 'none';
+                }, 900);
+            }
+        };
+
+        // Aksi Tombol 1: Pasang Aplikasi PWA
+        window.aksiPasangPWA = async function() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                var choice = await deferredPrompt.userChoice;
+                deferredPrompt = null;
+                if (choice.outcome === 'accepted') {
+                    window.refreshPwaChecklistUI();
+                }
+            } else {
+                // Tampilkan panduan manual bergambar/teks jika prompt otomatis ditahan browser
+                if (manualGuide) {
+                    if (isIos) {
+                        if (guideAndroid) guideAndroid.style.display = 'none';
+                        if (guideIos) guideIos.style.display = 'block';
+                    } else {
+                        if (guideAndroid) guideAndroid.style.display = 'block';
+                        if (guideIos) guideIos.style.display = 'none';
+                    }
+                    manualGuide.style.display = (manualGuide.style.display === 'block') ? 'none' : 'block';
+                }
+            }
+        };
+
+        // Aksi Tombol 2: Aktifkan Notifikasi
+        window.aksiAktifkanNotif = function() {
+            if (typeof Notification === 'undefined') {
+                alert('Browser di perangkat ini belum mendukung fitur notifikasi web.');
+                return;
+            }
+            if (Notification.permission === 'denied') {
+                if (deniedGuide) deniedGuide.style.display = 'block';
+                return;
+            }
+            Notification.requestPermission().then(function(perm) {
+                window.refreshPwaChecklistUI();
+                if (perm === 'granted') {
+                    // Kirim notifikasi tes selamat datang & aktifkan badge
+                    window.tesNotifikasiAplikasi(true);
+                }
+            }).catch(function() {});
+        };
+
+        // Fungsi Buka Popup Panduan Secara Manual (misal dari Halaman Profil)
+        window.bukaPanduanAplikasiPWA = function() {
+            window._manualOpenPwaModal = true;
+            window.refreshPwaChecklistUI();
+            if (banner) banner.style.display = 'block';
+        };
+
+        // Fungsi Tes Kirim Notifikasi & Badge ke HP Pengguna
+        window.tesNotifikasiAplikasi = function(silentAlert) {
+            if (typeof Notification === 'undefined') {
+                alert('Browser Anda belum mendukung fitur notifikasi.');
+                return;
+            }
+            if (Notification.permission === 'default') {
+                Notification.requestPermission().then(function(perm) {
+                    window.refreshPwaChecklistUI();
+                    if (perm === 'granted') {
+                        window.tesNotifikasiAplikasi(silentAlert);
+                    }
+                });
+                return;
+            }
+            if (Notification.permission === 'denied') {
+                window.bukaPanduanAplikasiPWA();
+                if (deniedGuide) deniedGuide.style.display = 'block';
+                return;
+            }
+
+            var testBadgeNum = {{ global_unread_notif_count|default(0) }} || 1;
+            if (window.updateAppBadge) window.updateAppBadge(testBadgeNum);
+
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.ready.then(function(reg) {
+                    if (reg && reg.active) {
+                        reg.active.postMessage({
+                            action: 'TEST_NOTIF',
+                            count: testBadgeNum
+                        });
+                    } else if (reg && reg.showNotification) {
+                        reg.showNotification('✅ Tes Notifikasi iPay Berhasil!', {
+                            body: 'Mantap! Notifikasi & angka badge di HP Anda sudah aktif.',
+                            icon: '/static/img/icons/icon-192x192.png',
+                            badge: '/static/img/icons/icon-maskable-192x192.png'
+                        });
+                    }
+                }).catch(function() {});
+            }
+
+            if (!silentAlert) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Sinyal Tes Terkirim!',
+                        text: 'Cek bar notifikasi di bagian atas layar HP Anda & lencana angka pada ikon aplikasi iPay.',
+                        confirmButtonColor: '#008779',
+                        timer: 4000
+                    });
+                } else {
+                    alert('✅ Tes Notifikasi berhasil dikirim! Silakan cek bar notifikasi di atas layar HP Anda.');
+                }
+            }
+        };
+
+        // Tangkap event beforeinstallprompt dari Chrome/Edge/Samsung Internet
         window.addEventListener('beforeinstallprompt', function(e) {
             e.preventDefault();
             deferredPrompt = e;
-            if (banner) {
-                setTimeout(function() {
-                    banner.style.display = 'block';
-                }, 2000);
-            }
+            window.refreshPwaChecklistUI();
         });
 
-        if (btnInstall) {
-            btnInstall.addEventListener('click', async function() {
-                if (deferredPrompt) {
-                    deferredPrompt.prompt();
-                    var choice = await deferredPrompt.userChoice;
-                    if (choice.outcome === 'accepted') {
-                        console.log('[PWA] Pengguna memasang aplikasi iPay!');
-                        localStorage.setItem('pwa_installed', 'true');
-                    }
-                    deferredPrompt = null;
-                    if (banner) banner.style.display = 'none';
-                }
-            });
-        }
+        window.addEventListener('appinstalled', function() {
+            deferredPrompt = null;
+            window.refreshPwaChecklistUI();
+        });
 
         if (btnDismiss) {
             btnDismiss.addEventListener('click', function() {
+                window._manualOpenPwaModal = false;
                 if (banner) banner.style.display = 'none';
-                localStorage.setItem('pwa_prompt_dismissed', Date.now().toString());
+                // Hanya simpan di sessionStorage agar saat pengguna buka web iPay lagi nanti, popup tetap mengingatkan jika belum lengkap
+                try {
+                    sessionStorage.setItem('pwa_checklist_closed_session', 'true');
+                } catch (e) {}
             });
         }
 
-        window.addEventListener('appinstalled', function() {
-            console.log('[PWA] iPay berhasil dipasang di layar utama!');
-            if (banner) banner.style.display = 'none';
-            localStorage.setItem('pwa_installed', 'true');
+        // Cek otomatis setiap kali halaman dibuka
+        document.addEventListener('DOMContentLoaded', function() {
+            window.refreshPwaChecklistUI();
+
+            // Jangan tampilkan popup otomatis di halaman admin
+            if (window.location.pathname.startsWith('/admin')) return;
+
+            var isStandalone = checkIsStandalone();
+            var notifPerm = checkNotifPermission();
+            var closedThisSession = false;
+            try {
+                closedThisSession = sessionStorage.getItem('pwa_checklist_closed_session') === 'true';
+            } catch (e) {}
+
+            // Jika belum pasang PWA ATAU belum aktifkan notifikasi, munculkan popup
+            if ((!isStandalone || notifPerm !== 'granted') && !closedThisSession) {
+                setTimeout(function() {
+                    window.refreshPwaChecklistUI();
+                    if (banner) banner.style.display = 'block';
+                }, 1200);
+            }
         });
     })();
 

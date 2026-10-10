@@ -8,7 +8,7 @@
  * 3. Transaksi Finansial, Saldo, Callback, dan Admin -> NETWORK-ONLY (Keamanan 100% Bebas Stale Data)
  */
 
-const CACHE_NAME = 'ipay-pwa-v1.1.0';
+const CACHE_NAME = 'ipay-pwa-v1.2.0';
 
 // Aset Inti yang di-precache saat instalasi
 const PRECACHE_ASSETS = [
@@ -282,6 +282,24 @@ self.addEventListener('message', (event) => {
         ])
       );
     }
+  } else if (event.data.action === 'TEST_NOTIF') {
+    const title = '✅ Tes Notifikasi iPay Berhasil!';
+    const options = {
+      body: 'Mantap! Notifikasi & lencana angka (badge) di HP Anda sudah aktif dan siap menerima info transaksi.',
+      icon: '/static/img/icons/icon-192x192.png',
+      badge: '/static/img/icons/icon-maskable-192x192.png',
+      vibrate: [150, 80, 150, 80, 200],
+      tag: 'ipay-test-notif-' + Date.now(),
+      renotify: true,
+      data: { url: '/notifikasi' }
+    };
+    const badgeCount = parseInt(event.data.count, 10) || 1;
+    event.waitUntil(
+      Promise.all([
+        self.registration.showNotification(title, options),
+        setWorkerBadge(badgeCount)
+      ])
+    );
   }
 });
 
