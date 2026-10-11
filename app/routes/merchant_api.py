@@ -829,3 +829,153 @@ def list_products():
         "total": len(product_list),
         "data": product_list
     }), 200
+
+
+# =====================================================================
+# 6. 1-CLICK TELEGRAM AUTO-PROVISIONING API (POS -> IPAY -> TELEGRAM)
+# =====================================================================
+@merchant_api_bp.route("/merchant/provision/request", methods=["POST"])
+@merchant_api_bp.route("/provision/request", methods=["POST"])
+def create_provision_request():
+    """
+    Menerima permohonan 1-Click Aktivasi Akun PPOB dari Web POS (ipaypos.my.id)
+    dan meneruskannya ke Bot Telegram Admin dengan tombol inline [✅ TERIMA] / [❌ TOLAK].
+    """
+    import secrets
+    from app.models.merchant import MerchantProvisionRequest, ensure_merchant_provision_table, get_wib_datetime
+    from app.services.merchant_service import send_provision_telegram_alert, normalize_phone_08
+
+    ensure_merchant_provision_table()
+
+    data = request.get_json(silent=True) or request.form.to_dict() or {}
+    store_name = str(data.get("store_name") or data.get("nama_toko") or "").strip()
+    owner_name = str(data.get("owner_name") or data.get("nama_pemilik") or data.get("owner") or "").strip()
+    phone = str(data.get("phone") or data.get("whatsapp") or data.get("no_wa") or "").strip()
+    tenant_id = str(data.get("tenant_id") or "").strip()
+    webhook_url = str(data.get("webhook_url") or "").strip() or None
+    callback_url = str(data.get("callback_url") or "").strip() or None
+
+    if not store_name or not phone:
+        return jsonify({
+            "status": "failed",
+            "message": "Nama Toko (store_name) dan Nomor WhatsApp (phone) wajib diisi."
+        }), 400
+
+    norm_phone = normalize_phone_08(phone)
+
+    # Cek anti-spam: apakah masih ada request PENDING dari tenant_id atau nomor WA ini
+    existing_pending = None
+    if tenant_id:
+        existing_pending = MerchantProvisionRequest.query.filter_by(
+            tenant_id=tenant_id, status='PENDING'
+        ).order_by(MerchantProvisionRequest.id.desc()).first()
+    if not existing_pending:
+        existing_pending = MerchantProvisionRequest.query.filter_by(
+            phone=norm_phone, status='PENDING'
+        ).order_by(MerchantProvisionRequest.id.desc()).first()
+
+    if existing_pending:
+        return jsonify({
+            "status": "success",
+            "request_id": existing_pending.request_id,
+            "provision_status": "PENDING",
+            "message": "Permohonan aktivasi sedang menunggu persetujuan Admin iPay."
+        }), 200
+
+    req_id = f"PROV_{get_wib_datetime().strftime('%Y%m%d')}_{secrets.token_hex(3).upper()}"
+    prov = MerchantProvisionRequest(
+        request_id=req_id,
+        store_name=store_name[:120],
+        owner_name=(owner_name or store_name)[:120],
+        phone=norm_phone[:30],
+        tenant_id=tenant_id[:100] if tenant_id else None,
+        webhook_url=webhook_url,
+        callback_url=callback_url,
+        status='PENDING',
+        created_at=get_wib_datetime(),
+        updated_at=get_wib_datetime()
+    )
+    db.session.add(prov)
+    db.session.commit()
+
+    send_provision_telegram_alert(prov)
+
+    return jsonify({
+        "status": "success",
+        "request_id": prov.request_id,
+        "provision_status": "PENDING",
+        "message": "Permohonan aktivasi berhasil dikirim ke Telegram Admin iPay."
+    }), 200
+
+
+@merchant_api_bp.route("/merchant/provision/status/<request_id>", methods=["GET"])
+@merchant_api_bp.route("/merchant/provision/status", methods=["GET"])
+@merchant_api_bp.route("/provision/status/<request_id>", methods=["GET"])
+@merchant_api_bp.route("/provision/status", methods=["GET"])
+def check_provision_status(request_id=None):
+    """
+    Mengecek status persetujuan 1-Click Auto-Provisioning secara real-time oleh Web POS.
+    Jika sudah APPROVED, mengembalikan kredensial lengkap (merchant_id, api_key, secret_key).
+    """
+    from app.models.merchant import MerchantProvisionRequest, ensure_merchant_provision_table
+    from app.services.merchant_service import normalize_phone_08
+
+    ensure_merchant_provision_table()
+
+    req_id = request_id or request.args.get("request_id")
+    tenant_id = request.args.get("tenant_id")
+    phone = request.args.get("phone")
+
+    prov = None
+    if req_id:
+        prov = MerchantProvisionRequest.query.filter_by(request_id=req_id).first()
+    elif tenant_id:
+        prov = MerchantProvisionRequest.query.filter_by(tenant_id=tenant_id).order_by(MerchantProvisionRequest.id.desc()).first()
+    elif phone:
+        norm_p = normalize_phone_08(phone)
+        prov = MerchantProvisionRequest.query.filter_by(phone=norm_p).order_by(MerchantProvisionRequest.id.desc()).first()
+
+    if not prov:
+        return jsonify({
+            "status": "failed",
+            "provision_status": "NOT_FOUND",
+            "message": "Data permohonan aktivasi tidak ditemukan."
+        }), 404
+
+    if prov.status == 'APPROVED':
+        user = User.query.get(prov.user_id) if prov.user_id else None
+        balance_val = float(user.balance or 0.0) if user else 0.0
+        return jsonify({
+            "status": "success",
+            "request_id": prov.request_id,
+            "provision_status": "APPROVED",
+            "data": {
+                "merchant_id": prov.merchant_id,
+                "api_key": prov.api_key,
+                "secret_key": prov.secret_key,
+                "store_name": prov.store_name,
+                "owner_name": prov.owner_name,
+                "phone": prov.phone,
+                "tenant_id": prov.tenant_id,
+                "balance": balance_val,
+                "mode": "LIVE"
+            },
+            "message": "Akun PPOB ipay.my.id telah disetujui dan aktif!"
+        }), 200
+
+    if prov.status == 'REJECTED':
+        return jsonify({
+            "status": "success",
+            "request_id": prov.request_id,
+            "provision_status": "REJECTED",
+            "reason": prov.rejection_reason or "Permohonan ditolak oleh Admin iPay.",
+            "message": "Permohonan aktivasi ditolak."
+        }), 200
+
+    return jsonify({
+        "status": "success",
+        "request_id": prov.request_id,
+        "provision_status": "PENDING",
+        "message": "Menunggu persetujuan Admin iPay di Telegram..."
+    }), 200
+

@@ -162,3 +162,170 @@ def exchange_sso_ticket(code):
     if data.get('exp', 0) < time.time():
         return None
     return data
+
+
+# =====================================================================
+# 1-CLICK TELEGRAM AUTO-PROVISIONING ENGINE (POS -> IPAY -> TELEGRAM)
+# =====================================================================
+
+def normalize_phone_08(phone_raw):
+    digits = ''.join(filter(str.isdigit, str(phone_raw or '')))
+    if digits.startswith('62'):
+        digits = '0' + digits[2:]
+    elif digits.startswith('8'):
+        digits = '0' + digits
+    return digits
+
+
+def send_provision_telegram_alert(prov_req):
+    """
+    Mengirimkan notifikasi permohonan aktivasi mitra PPOB baru dari Web POS
+    ke Bot Telegram Admin lengkap dengan tombol [✅ TERIMA] dan [❌ TOLAK].
+    """
+    from app.services.telegram_service import (
+        get_bot_admin_credentials,
+        get_bot_notif_credentials,
+        format_wib
+    )
+    token, chat_id = get_bot_admin_credentials()
+    if not token or not chat_id:
+        token, chat_id = get_bot_notif_credentials()
+    if not token or not chat_id:
+        return False, "Token/Chat ID Bot Admin belum dikonfigurasi"
+
+    wib_str = format_wib(prov_req.created_at, fmt='%d %b %Y, %H:%M WIB')
+    text = (
+        "🔔 <b>PENDAFTARAN MITRA PPOB BARU (DARI WEB POS)</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"🏪 <b>Nama Toko   :</b> {prov_req.store_name}\n"
+        f"👤 <b>Pemilik     :</b> {prov_req.owner_name}\n"
+        f"📱 <b>No. WA      :</b> <code>{prov_req.phone}</code>\n"
+        f"🆔 <b>ID Tenant   :</b> <code>{prov_req.tenant_id or '-'}</code>\n"
+        f"🔑 <b>ID Request  :</b> <code>{prov_req.request_id}</code>\n"
+        "🌐 <b>Sumber      :</b> ipaypos.my.id\n"
+        f"⏰ <b>Waktu       :</b> {wib_str}\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "Klik <b>Terima</b> untuk otomatis membuatkan akun di ipay.my.id,\n"
+        "men-generate API Key, dan menyambungkannya langsung ke POS user:"
+    )
+
+    reply_markup = {
+        "inline_keyboard": [
+            [
+                {"text": "✅ TERIMA & SAMBUNGKAN OTOMATIS", "callback_data": f"prov_acc_{prov_req.id}"},
+                {"text": "❌ TOLAK", "callback_data": f"prov_rej_{prov_req.id}"}
+            ]
+        ]
+    }
+
+    try:
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
+        resp = requests.post(url, json={
+            "chat_id": chat_id,
+            "text": text,
+            "parse_mode": "HTML",
+            "reply_markup": reply_markup
+        }, timeout=10)
+        return resp.ok, "Terkirim"
+    except Exception as e:
+        logger.warning(f"[PROVISION_TG] Gagal kirim alert Telegram: {e}")
+        return False, str(e)
+
+
+def approve_provision_request(prov_id):
+    """
+    Menyetujui permohonan 1-Click Auto-Provisioning:
+    1. Cari atau buat User di ipay.my.id berdasarkan nomor WA
+    2. Buat atau ambil kredensial MerchantApiKey (Merchant ID, API Key, Secret Key)
+    3. Update status request menjadi APPROVED
+    4. Kirim callback otomatis ke server POS (jika callback_url tersedia)
+    """
+    from app.models.merchant import MerchantProvisionRequest, ensure_merchant_provision_table
+    ensure_merchant_provision_table()
+
+    prov = MerchantProvisionRequest.query.get(prov_id)
+    if not prov:
+        return None, "Data permohonan tidak ditemukan"
+
+    if prov.status == 'APPROVED' and prov.merchant_id and prov.api_key:
+        return prov, None
+
+    norm_phone = normalize_phone_08(prov.phone)
+    user = User.query.filter(
+        (User.phone == norm_phone) | (User.phone == prov.phone)
+    ).first()
+
+    if not user:
+        display_name = f"{prov.store_name} ({prov.owner_name})" if prov.owner_name else prov.store_name
+        user = User(
+            name=display_name[:100],
+            phone=norm_phone,
+            balance=0.0,
+            role='reseller',
+            is_active=True
+        )
+        user.set_password(secrets.token_hex(8))
+        db.session.add(user)
+        db.session.commit()
+
+    # Buat kredensial baru atau gunakan yang sudah aktif
+    mch_name = f"POS - {prov.store_name}"[:100]
+    mch, err = generate_merchant_credentials(
+        user_id=user.id,
+        name=mch_name,
+        webhook_url=prov.webhook_url
+    )
+    if err or not mch:
+        return None, err or "Gagal men-generate kredensial API"
+
+    prov.status = 'APPROVED'
+    prov.user_id = user.id
+    prov.merchant_id = mch.merchant_id
+    prov.api_key = mch.api_key
+    prov.secret_key = mch.secret_key
+    prov.updated_at = get_wib_datetime()
+    db.session.commit()
+
+    # Jika POS mengirimkan callback_url, tembak kredensial secara otomatis
+    if prov.callback_url:
+        cb_payload = {
+            "status": "APPROVED",
+            "request_id": prov.request_id,
+            "tenant_id": prov.tenant_id,
+            "store_name": prov.store_name,
+            "owner_name": prov.owner_name,
+            "phone": prov.phone,
+            "merchant_id": prov.merchant_id,
+            "api_key": prov.api_key,
+            "secret_key": prov.secret_key,
+            "mode": "LIVE"
+        }
+        Thread(target=_send_webhook_worker, args=(prov.callback_url, cb_payload), daemon=True).start()
+
+    return prov, None
+
+
+def reject_provision_request(prov_id, reason="Permohonan ditolak oleh Admin iPay."):
+    from app.models.merchant import MerchantProvisionRequest, ensure_merchant_provision_table
+    ensure_merchant_provision_table()
+
+    prov = MerchantProvisionRequest.query.get(prov_id)
+    if not prov:
+        return None, "Data permohonan tidak ditemukan"
+
+    prov.status = 'REJECTED'
+    prov.rejection_reason = reason
+    prov.updated_at = get_wib_datetime()
+    db.session.commit()
+
+    if prov.callback_url:
+        cb_payload = {
+            "status": "REJECTED",
+            "request_id": prov.request_id,
+            "tenant_id": prov.tenant_id,
+            "reason": reason
+        }
+        Thread(target=_send_webhook_worker, args=(prov.callback_url, cb_payload), daemon=True).start()
+
+    return prov, None
+

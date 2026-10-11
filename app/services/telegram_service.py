@@ -886,6 +886,8 @@ def handle_notif_callback(app, callback_query):
                 "Database aktif telah dipulihkan ke kondisi sebelum restore (Safety Rollback)."
             )
             _edit_message(token, chat_id, message_id, fail_text, None)
+    elif data.startswith('prov_acc_') or data.startswith('prov_rej_'):
+        return handle_admin_callback(app, callback_query)
 
 
 # ==============================================================================
@@ -1491,6 +1493,8 @@ def handle_admin_callback(app, callback_query):
     Memproses aksi saat tombol inline ditekan oleh Admin di Telegram Bot 3.
     """
     token, allowed_chat = get_bot_admin_credentials()
+    if not token:
+        token, allowed_chat = get_bot_notif_credentials()
     if not token:
         return
 
@@ -2178,6 +2182,57 @@ def handle_admin_callback(app, callback_query):
                 "Mesin Baileys akan menstabilkan socket dan memberikan 8 digit kode pairing."
             )
             _edit_message(token, chat_id, message_id, text, get_back_button())
+
+        # ==========================================================
+        # 1-CLICK AUTO-PROVISIONING MITRA WEB POS (TERIMA / TOLAK)
+        # ==========================================================
+        elif data.startswith('prov_acc_'):
+            try:
+                prov_id = int(data.replace('prov_acc_', ''))
+                from app.services.merchant_service import approve_provision_request
+                prov, err = approve_provision_request(prov_id)
+                if err or not prov:
+                    _edit_message(token, chat_id, message_id, f"❌ <b>Gagal menyetujui permohonan:</b> {err}", None)
+                else:
+                    text = (
+                        "✅ <b>MITRA PPOB DISETUJUI & TERHUBUNG OTOMATIS!</b>\n"
+                        "━━━━━━━━━━━━━━━━━━━━━━\n"
+                        f"🏪 <b>Nama Toko   :</b> {prov.store_name}\n"
+                        f"👤 <b>Pemilik     :</b> {prov.owner_name}\n"
+                        f"📱 <b>No. WA      :</b> <code>{prov.phone}</code>\n"
+                        f"🆔 <b>ID Tenant   :</b> <code>{prov.tenant_id or '-'}</code>\n"
+                        f"🔑 <b>Merchant ID :</b> <code>{prov.merchant_id}</code>\n"
+                        f"⏰ <b>Disetujui   :</b> {format_wib(fmt='%d %b %Y, %H:%M WIB')}\n"
+                        "━━━━━━━━━━━━━━━━━━━━━━\n"
+                        "🟢 <i>API Key & Secret Key telah di-inject otomatis ke Web POS user (Mode LIVE).</i>"
+                    )
+                    _edit_message(token, chat_id, message_id, text, None)
+            except Exception as e:
+                _edit_message(token, chat_id, message_id, f"❌ Error: {e}", None)
+
+        elif data.startswith('prov_rej_'):
+            try:
+                prov_id = int(data.replace('prov_rej_', ''))
+                from app.services.merchant_service import reject_provision_request
+                prov, err = reject_provision_request(prov_id)
+                if err or not prov:
+                    _edit_message(token, chat_id, message_id, f"❌ <b>Gagal menolak permohonan:</b> {err}", None)
+                else:
+                    text = (
+                        "❌ <b>PERMOHONAN MITRA PPOB DITOLAK</b>\n"
+                        "━━━━━━━━━━━━━━━━━━━━━━\n"
+                        f"🏪 <b>Nama Toko   :</b> {prov.store_name}\n"
+                        f"👤 <b>Pemilik     :</b> {prov.owner_name}\n"
+                        f"📱 <b>No. WA      :</b> <code>{prov.phone}</code>\n"
+                        f"🆔 <b>ID Tenant   :</b> <code>{prov.tenant_id or '-'}</code>\n"
+                        f"⏰ <b>Ditolak     :</b> {format_wib(fmt='%d %b %Y, %H:%M WIB')}\n"
+                        "━━━━━━━━━━━━━━━━━━━━━━\n"
+                        "🔴 <i>Status penolakan telah dikirimkan ke layar Web POS user.</i>"
+                    )
+                    _edit_message(token, chat_id, message_id, text, None)
+            except Exception as e:
+                _edit_message(token, chat_id, message_id, f"❌ Error: {e}", None)
+
 
 
 def handle_admin_message(app, message):

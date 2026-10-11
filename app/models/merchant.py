@@ -47,3 +47,35 @@ class MerchantApiKey(db.Model):
     def __repr__(self):
         return f"<MerchantApiKey {self.merchant_id} user_id={self.user_id} active={self.is_active}>"
 
+
+class MerchantProvisionRequest(db.Model):
+    __tablename__ = 'merchant_provision_requests'
+
+    id = db.Column(db.Integer, primary_key=True)
+    request_id = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    store_name = db.Column(db.String(120), nullable=False)
+    owner_name = db.Column(db.String(120), nullable=False)
+    phone = db.Column(db.String(30), nullable=False, index=True)
+    tenant_id = db.Column(db.String(100), nullable=True, index=True)
+    webhook_url = db.Column(db.String(255), nullable=True)
+    callback_url = db.Column(db.String(255), nullable=True)
+    status = db.Column(db.String(20), default='PENDING', nullable=False, index=True)  # PENDING, APPROVED, REJECTED
+    rejection_reason = db.Column(db.String(255), nullable=True)
+    user_id = db.Column(db.Integer, nullable=True)
+    merchant_id = db.Column(db.String(32), nullable=True)
+    api_key = db.Column(db.String(64), nullable=True)
+    secret_key = db.Column(db.String(64), nullable=True)
+    created_at = db.Column(db.DateTime, default=get_wib_datetime, index=True)
+    updated_at = db.Column(db.DateTime, default=get_wib_datetime, onupdate=get_wib_datetime)
+
+
+def ensure_merchant_provision_table():
+    try:
+        from sqlalchemy import inspect
+        inspector = inspect(db.engine)
+        if 'merchant_provision_requests' not in inspector.get_table_names():
+            MerchantProvisionRequest.__table__.create(db.engine)
+    except Exception:
+        pass
+
+
