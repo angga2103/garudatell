@@ -102,24 +102,70 @@ def _send_webhook_worker(webhook_url, payload):
     except Exception as e:
         logger.warning(f"[MERCHANT_WEBHOOK] Gagal mengirim webhook ke {webhook_url}: {e}")
 
-def dispatch_merchant_webhook(merchant, payload):
+def dispatch_merchant_webhook(merchant, payload, sync=False):
     """
-    Mengirimkan notifikasi callback asynchronous ke URL Webhook Merchant (POS IPAY).
+    Mengirimkan notifikasi callback ke URL Webhook Merchant (POS IPAY).
+    Jika sync=True, mengembalikan tuple (ok: bool, status_code: int, message: str).
     """
     if not merchant or not merchant.webhook_url:
-        return
+        return (False, 0, "URL Webhook belum dikonfigurasi pada merchant ini") if sync else None
 
-    sign = hashlib.md5(f"{merchant.merchant_id}{merchant.secret_key}{payload.get('ref_id', '')}".encode()).hexdigest()
+    ref_val = payload.get('ref_id', '')
+    sign = hashlib.md5(f"{merchant.merchant_id}{merchant.secret_key}{ref_val}".encode()).hexdigest()
     webhook_body = {
-        "ref_id": payload.get("ref_id"),
+        "event": payload.get("event", "transaction.updated"),
+        "merchant_id": merchant.merchant_id,
+        "ref_id": ref_val,
         "status": payload.get("status"), # 'success', 'failed', 'pending'
         "sn": payload.get("sn", ""),
         "buyer_sku_code": payload.get("sku_code", ""),
         "price": payload.get("price", 0),
+        "balance": payload.get("balance"),
+        "reason": payload.get("reason"),
         "sign": sign
     }
 
+    if sync:
+        try:
+            resp = requests.post(
+                merchant.webhook_url,
+                json=webhook_body,
+                headers={'Content-Type': 'application/json'},
+                timeout=8
+            )
+            return (200 <= resp.status_code < 300), resp.status_code, (resp.text or "")[:180]
+        except Exception as e:
+            return False, 0, str(e)
+
     Thread(target=_send_webhook_worker, args=(merchant.webhook_url, webhook_body), daemon=True).start()
+    return None
+
+
+def ping_merchant_webhook(merchant):
+    """
+    Mengecek kesehatan koneksi (Health Check) ke endpoint webhook POS kasir.
+    Mengembalikan tuple (ok: bool, latency_ms: int, message: str).
+    """
+    if not merchant or not merchant.webhook_url:
+        return False, 0, "URL Webhook belum diatur"
+    import time as _t
+    t0 = _t.time()
+    sign = hashlib.md5(f"{merchant.merchant_id}{merchant.secret_key}ping".encode()).hexdigest()
+    payload = {
+        "event": "ping",
+        "merchant_id": merchant.merchant_id,
+        "status": "ok",
+        "sign": sign
+    }
+    try:
+        resp = requests.post(merchant.webhook_url, json=payload, headers={'Content-Type': 'application/json'}, timeout=6)
+        latency = int((_t.time() - t0) * 1000)
+        if 200 <= resp.status_code < 400:
+            return True, latency, f"HTTP {resp.status_code} ({latency} ms)"
+        return False, latency, f"HTTP {resp.status_code}: {(resp.text or '')[:100]}"
+    except Exception as e:
+        latency = int((_t.time() - t0) * 1000)
+        return False, latency, f"Gagal terhubung: {str(e)[:120]}"
 
 
 # =====================================================================
@@ -320,6 +366,7 @@ def reject_provision_request(prov_id, reason="Permohonan ditolak oleh Admin iPay
 
     if prov.callback_url:
         cb_payload = {
+            "event": "provision.updated",
             "status": "REJECTED",
             "request_id": prov.request_id,
             "tenant_id": prov.tenant_id,
@@ -328,4 +375,110 @@ def reject_provision_request(prov_id, reason="Permohonan ditolak oleh Admin iPay
         Thread(target=_send_webhook_worker, args=(prov.callback_url, cb_payload), daemon=True).start()
 
     return prov, None
+
+
+def push_credentials_to_pos(merchant):
+    """
+    Menyinkronkan / meng-inject ulang kredensial Merchant (Merchant ID, API Key, Secret Key)
+    ke server POS (ipaypos.my.id) baik melalui tabel MerchantProvisionRequest maupun push webhook/callback.
+    Mengembalikan tuple (ok: bool, message: str).
+    """
+    if not merchant:
+        return False, "Merchant tidak ditemukan"
+
+    from app.models.merchant import MerchantProvisionRequest, ensure_merchant_provision_table
+    ensure_merchant_provision_table()
+
+    user = merchant.user
+    norm_phone = normalize_phone_08(user.phone) if user and user.phone else ""
+
+    # Cari record provisioning terkait merchant_id atau user_id atau phone
+    prov = MerchantProvisionRequest.query.filter(
+        (MerchantProvisionRequest.merchant_id == merchant.merchant_id) |
+        (MerchantProvisionRequest.user_id == merchant.user_id) |
+        ((MerchantProvisionRequest.phone == norm_phone) if norm_phone else False)
+    ).order_by(MerchantProvisionRequest.id.desc()).first()
+
+    target_urls = []
+    if prov:
+        prov.status = 'APPROVED'
+        prov.merchant_id = merchant.merchant_id
+        prov.api_key = merchant.api_key
+        prov.secret_key = merchant.secret_key
+        if merchant.webhook_url:
+            prov.webhook_url = merchant.webhook_url
+        prov.updated_at = get_wib_datetime()
+        db.session.commit()
+        if prov.callback_url:
+            target_urls.append(prov.callback_url)
+
+    if merchant.webhook_url and merchant.webhook_url not in target_urls:
+        target_urls.append(merchant.webhook_url)
+
+    payload = {
+        "event": "credentials.synced",
+        "status": "APPROVED",
+        "request_id": prov.request_id if prov else f"SYNC_{merchant.merchant_id}",
+        "tenant_id": prov.tenant_id if prov else None,
+        "store_name": merchant.name,
+        "owner_name": user.name if user else merchant.name,
+        "phone": norm_phone,
+        "merchant_id": merchant.merchant_id,
+        "api_key": merchant.api_key,
+        "secret_key": merchant.secret_key,
+        "mode": "LIVE",
+        "credentials": {
+            "merchant_id": merchant.merchant_id,
+            "api_key": merchant.api_key,
+            "secret_key": merchant.secret_key,
+            "mode": "LIVE"
+        }
+    }
+
+    pushed_ok = False
+    last_detail = "Tersimpan di antrean Auto-Provisioning (Siap ditarik POS)"
+    for url in target_urls:
+        try:
+            resp = requests.post(url, json=payload, headers={'Content-Type': 'application/json'}, timeout=6)
+            if 200 <= resp.status_code < 400:
+                pushed_ok = True
+                last_detail = f"Push sukses ke {url} (HTTP {resp.status_code})"
+            else:
+                last_detail = f"Respon {url}: HTTP {resp.status_code}"
+        except Exception as e:
+            last_detail = f"Gagal push langsung ke {url}: {str(e)[:80]}"
+
+    return True, last_detail
+
+
+def dispatch_pos_broadcast(broadcast_obj):
+    """
+    Mengirimkan push pengumuman / broadcast ke seluruh (atau satu) webhook kasir POS aktif.
+    """
+    if not broadcast_obj or not broadcast_obj.is_active:
+        return
+
+    query = MerchantApiKey.query.filter_by(is_active=True)
+    if broadcast_obj.target_merchant_id and broadcast_obj.target_merchant_id != 'ALL':
+        query = query.filter_by(merchant_id=broadcast_obj.target_merchant_id)
+
+    merchants = query.all()
+    for m in merchants:
+        if not m.webhook_url:
+            continue
+        sign = hashlib.md5(f"{m.merchant_id}{m.secret_key}{broadcast_obj.id}".encode()).hexdigest()
+        payload = {
+            "event": "pos.broadcast",
+            "merchant_id": m.merchant_id,
+            "broadcast": {
+                "id": broadcast_obj.id,
+                "title": broadcast_obj.title,
+                "message": broadcast_obj.message,
+                "level": broadcast_obj.level,
+                "target_merchant_id": broadcast_obj.target_merchant_id or "ALL",
+                "created_at": broadcast_obj.formatted_created_at
+            },
+            "sign": sign
+        }
+        Thread(target=_send_webhook_worker, args=(m.webhook_url, payload), daemon=True).start()
 

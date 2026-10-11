@@ -968,6 +968,9 @@ def get_admin_inline_keyboard():
                 {"text": "🩺 Status Sistem VPS", "callback_data": "cmd_system"}
             ],
             [
+                {"text": "🖥️ Panel Mitra POS (ipaypos)", "callback_data": "cmd_pos_panel"}
+            ],
+            [
                 {"text": "🔄 Refresh Menu", "callback_data": "cmd_menu"}
             ]
         ]
@@ -2233,13 +2236,171 @@ def handle_admin_callback(app, callback_query):
             except Exception as e:
                 _edit_message(token, chat_id, message_id, f"❌ Error: {e}", None)
 
+        elif data == 'cmd_pos_panel':
+            try:
+                from app.models.merchant import MerchantApiKey, MerchantProvisionRequest, ensure_merchant_provision_table
+                from app.extensions import db
+                ensure_merchant_provision_table()
+
+                merchants = MerchantApiKey.query.order_by(MerchantApiKey.id.desc()).all()
+                active_mch = [m for m in merchants if m.is_active]
+                pending_prov = MerchantProvisionRequest.query.filter_by(status='PENDING').count()
+                low_bal_mch = [m for m in active_mch if m.user and float(m.user.balance or 0) < 50000]
+
+                wib_now = get_wib_now()
+                today_start_wib = wib_now.replace(hour=0, minute=0, second=0, microsecond=0)
+                today_start = today_start_wib.astimezone(timezone.utc).replace(tzinfo=None)
+
+                pos_today_cnt = Transaction.query.filter(
+                    Transaction.payment_method == 'API_GATEWAY',
+                    Transaction.created_at >= today_start,
+                    Transaction.status == 'SUCCESS'
+                ).count()
+                pos_today_rev = db.session.query(db.func.sum(Transaction.amount)).filter(
+                    Transaction.payment_method == 'API_GATEWAY',
+                    Transaction.created_at >= today_start,
+                    Transaction.status == 'SUCCESS'
+                ).scalar() or 0.0
+
+                store_lines = []
+                for m in active_mch[:8]:
+                    bal = float(m.user.balance or 0) if m.user else 0
+                    warn = " ⚠️" if bal < 50000 else ""
+                    store_lines.append(f"• <b>{m.name}</b> (<code>{m.merchant_id}</code>): Rp {bal:,.0f}{warn}")
+                stores_summary = "\n".join(store_lines) if store_lines else "<i>Belum ada kasir POS aktif.</i>"
+
+                text = (
+                    "🖥️ <b>POS COMMAND CENTER (ipaypos.my.id)</b>\n"
+                    "━━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"🏪 <b>Kasir POS Aktif :</b> {len(active_mch)} / {len(merchants)} Toko\n"
+                    f"🔔 <b>Pengajuan Baru  :</b> {pending_prov} Menunggu Persetujuan\n"
+                    f"⚠️ <b>Saldo &lt; Rp 50rb :</b> {len(low_bal_mch)} Toko\n"
+                    f"📊 <b>Trx POS Hari Ini:</b> {pos_today_cnt} Sukses (Rp {pos_today_rev:,.0f})\n"
+                    "━━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"<b>Daftar Kasir POS Aktif:</b>\n{stores_summary}\n"
+                    "━━━━━━━━━━━━━━━━━━━━━━\n"
+                    "💡 <b>Broadcast ke Layar Kasir via Telegram:</b>\n"
+                    "Ketik: <code>/bcpos Judul | Isi Pesan</code>"
+                )
+                pos_kb = {
+                    "inline_keyboard": [
+                        [
+                            {"text": f"🔔 Antrean Aktivasi ({pending_prov})", "callback_data": "pos_prov_pending"},
+                            {"text": "🔄 Trx POS & Push SN", "callback_data": "pos_trx_list"}
+                        ],
+                        [
+                            {"text": "« Kembali ke Menu Utama", "callback_data": "cmd_menu"}
+                        ]
+                    ]
+                }
+                _edit_message(token, chat_id, message_id, text, pos_kb)
+            except Exception as e:
+                _edit_message(token, chat_id, message_id, f"❌ Error memuat Panel POS: {e}", get_back_button())
+
+        elif data == 'pos_prov_pending':
+            try:
+                from app.models.merchant import MerchantProvisionRequest, ensure_merchant_provision_table
+                ensure_merchant_provision_table()
+                pendings = MerchantProvisionRequest.query.filter_by(status='PENDING').order_by(MerchantProvisionRequest.id.desc()).limit(5).all()
+                if not pendings:
+                    text = "✅ <b>Tidak ada antrean pengajuan aktivasi POS yang menunggu persetujuan.</b>"
+                    kb = {"inline_keyboard": [[{"text": "« Kembali ke Panel POS", "callback_data": "cmd_pos_panel"}]]}
+                    _edit_message(token, chat_id, message_id, text, kb)
+                else:
+                    lines = ["🔔 <b>ANTREAN PENGAJUAN AKTIVASI POS BARU</b>\n━━━━━━━━━━━━━━━━━━━━━━"]
+                    kb_rows = []
+                    for p in pendings:
+                        lines.append(
+                            f"🏪 <b>{p.store_name}</b> ({p.owner_name})\n"
+                            f"📱 WA: <code>{p.phone}</code> | Tenant: <code>{p.tenant_id or '-'}</code>"
+                        )
+                        kb_rows.append([
+                            {"text": f"✅ Terima {p.store_name[:14]}", "callback_data": f"prov_acc_{p.id}"},
+                            {"text": f"❌ Tolak", "callback_data": f"prov_rej_{p.id}"}
+                        ])
+                    kb_rows.append([{"text": "« Kembali ke Panel POS", "callback_data": "cmd_pos_panel"}])
+                    _edit_message(token, chat_id, message_id, "\n\n".join(lines), {"inline_keyboard": kb_rows})
+            except Exception as e:
+                _edit_message(token, chat_id, message_id, f"❌ Error: {e}", get_back_button())
+
+        elif data == 'pos_trx_list':
+            try:
+                trxs = Transaction.query.filter(
+                    Transaction.payment_method == 'API_GATEWAY',
+                    ~Transaction.sku_code.in_(['DEPOSIT_SALDO', 'DEPOSIT_MANUAL'])
+                ).order_by(Transaction.id.desc()).limit(6).all()
+                if not trxs:
+                    text = "📭 <b>Belum ada transaksi dari jalur Kasir POS.</b>"
+                    kb = {"inline_keyboard": [[{"text": "« Kembali ke Panel POS", "callback_data": "cmd_pos_panel"}]]}
+                    _edit_message(token, chat_id, message_id, text, kb)
+                else:
+                    lines = ["🔄 <b>6 TRANSAKSI POS TERAKHIR (KLIK UNTUK PUSH ULANG SN)</b>\n━━━━━━━━━━━━━━━━━━━━━━"]
+                    kb_rows = []
+                    for t in trxs:
+                        lines.append(
+                            f"• <code>{t.ref_id}</code> [{t.status}]\n"
+                            f"  {t.product_name} ➜ <code>{t.target_number}</code>\n"
+                            f"  SN: <code>{(t.sn or '-')[:40]}</code>"
+                        )
+                        kb_rows.append([
+                            {"text": f"🔄 Push SN {t.ref_id[-10:]} ({t.status})", "callback_data": f"pos_push_wh_{t.id}"}
+                        ])
+                    kb_rows.append([{"text": "« Kembali ke Panel POS", "callback_data": "cmd_pos_panel"}])
+                    _edit_message(token, chat_id, message_id, "\n\n".join(lines), {"inline_keyboard": kb_rows})
+            except Exception as e:
+                _edit_message(token, chat_id, message_id, f"❌ Error: {e}", get_back_button())
+
+        elif data.startswith('pos_push_wh_'):
+            try:
+                trx_id = int(data.replace('pos_push_wh_', ''))
+                from app.models.merchant import MerchantApiKey
+                from app.services.merchant_service import dispatch_merchant_webhook
+                from app.routes.transaction import sync_single_transaction
+
+                trx = Transaction.query.get(trx_id)
+                if not trx:
+                    _edit_message(token, chat_id, message_id, "❌ Transaksi tidak ditemukan.", get_back_button())
+                    return
+                if trx.status in ['PENDING', 'PROCESSING', 'PROSES']:
+                    try:
+                        sync_single_transaction(trx)
+                    except Exception:
+                        pass
+
+                mch = None
+                if trx.provider_ref:
+                    mch = MerchantApiKey.query.filter_by(merchant_id=trx.provider_ref).first()
+                if not mch and trx.user_id:
+                    mch = MerchantApiKey.query.filter_by(user_id=trx.user_id).first()
+
+                if not mch or not mch.webhook_url:
+                    msg_res = f"⚠️ Transaksi <code>{trx.ref_id}</code> berstatus <b>{trx.status}</b>, namun toko belum mengatur URL Webhook."
+                else:
+                    ok, code, resp_txt = dispatch_merchant_webhook(mch, {
+                        "ref_id": trx.ref_id,
+                        "status": (trx.status or 'PENDING').lower(),
+                        "sn": trx.sn or "",
+                        "sku_code": trx.sku_code or "",
+                        "price": float(trx.amount or 0.0)
+                    }, sync=True)
+                    if ok:
+                        msg_res = f"✅ <b>Push Ulang Webhook Berhasil!</b>\nRef: <code>{trx.ref_id}</code>\nStatus: <b>{trx.status}</b>\nSN: <code>{trx.sn or '-'}</code>\nRespon POS: HTTP {code}"
+                    else:
+                        msg_res = f"❌ <b>Gagal Push Webhook ke POS:</b>\n{resp_txt or f'HTTP {code}'}"
+
+                kb = {"inline_keyboard": [[{"text": "« Kembali ke Trx POS", "callback_data": "pos_trx_list"}]]}
+                _edit_message(token, chat_id, message_id, msg_res, kb)
+            except Exception as e:
+                _edit_message(token, chat_id, message_id, f"❌ Error: {e}", get_back_button())
 
 
 def handle_admin_message(app, message):
     """
-    Memproses perintah teks dari Admin di Bot 3 (seperti /start, /menu, /otp <nomor>, nomor WA pairing).
+    Memproses perintah teks dari Admin di Bot 3 (seperti /start, /menu, /otp <nomor>, /bcpos, nomor WA pairing).
     """
     token, allowed_chat = get_bot_admin_credentials()
+    if not token:
+        token, allowed_chat = get_bot_notif_credentials()
     if not token:
         return
 
@@ -2249,6 +2410,46 @@ def handle_admin_message(app, message):
     # Validasi otorisasi chat_id admin
     if allowed_chat and chat_id != str(allowed_chat):
         _send_message(token, chat_id, "⛔ <b>Akses Ditolak!</b>\nAkun Telegram Anda tidak terdaftar sebagai Admin GarudaTel.")
+        return
+
+    if text.startswith('/bcpos'):
+        raw_body = text[len('/bcpos'):].strip()
+        if '|' not in raw_body:
+            _send_message(
+                token,
+                chat_id,
+                "⚠️ <b>Format Broadcast Kasir POS:</b>\n"
+                "<code>/bcpos Judul Pengumuman | Isi Pesan Lengkap</code>\n\n"
+                "Contoh:\n"
+                "<code>/bcpos Info PLN | Cut-off PLN pukul 23:30 - 00:30 WIB</code>"
+            )
+            return
+        title_part, msg_part = [p.strip() for p in raw_body.split('|', 1)]
+        with app.app_context():
+            from app.models.merchant import PosBroadcast, ensure_merchant_provision_table, get_wib_datetime
+            from app.services.merchant_service import dispatch_pos_broadcast
+            from app.extensions import db
+            ensure_merchant_provision_table()
+            b = PosBroadcast(
+                title=title_part[:150],
+                message=msg_part,
+                level='info',
+                target_merchant_id='ALL',
+                is_active=True,
+                created_at=get_wib_datetime()
+            )
+            db.session.add(b)
+            db.session.commit()
+            dispatch_pos_broadcast(b)
+            _send_message(
+                token,
+                chat_id,
+                f"📢 <b>Broadcast Kasir POS Dipublikasikan!</b>\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"📌 <b>Judul:</b> {b.title}\n"
+                f"💬 <b>Pesan:</b> {b.message}\n"
+                f"🎯 <b>Target:</b> Seluruh Kasir POS Aktif"
+            )
         return
 
     # Tangkap balasan nomor telepon untuk pairing WhatsApp (awalan 62 dan panjang 10-16 digit)

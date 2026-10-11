@@ -883,7 +883,7 @@ def sync_single_transaction(trx):
                     changed = True
                 elif v_status in ['error', 'failed', 'gagal']:
                     from app.services.provider_helper import sanitize_public_sn_message, is_provider_balance_error
-                    if old_status != 'FAILED' and trx.payment_status == 'PAID' and trx.payment_method == 'SALDO':
+                    if old_status != 'FAILED' and trx.payment_status == 'PAID' and trx.payment_method in ['SALDO', 'API_GATEWAY']:
                         if trx.device_id:
                             from app.models.trusted_device import TrustedDevice
                             from app.models.branch_mutation import BranchMutation
@@ -938,7 +938,7 @@ def sync_single_transaction(trx):
                     changed = True
                 elif 'gagal' in d_status or 'failed' in d_status or rc in ['01', '41', '42', '50', '52']:
                     from app.services.provider_helper import sanitize_public_sn_message
-                    if old_status != 'FAILED' and trx.payment_status == 'PAID' and trx.payment_method == 'SALDO':
+                    if old_status != 'FAILED' and trx.payment_status == 'PAID' and trx.payment_method in ['SALDO', 'API_GATEWAY']:
                         if trx.device_id:
                             from app.models.trusted_device import TrustedDevice
                             from app.models.branch_mutation import BranchMutation
@@ -986,6 +986,27 @@ def sync_single_transaction(trx):
                     raw_d_check = sn or d_data.get('message', msg)
                     title_sync_digi = "TRANSAKSI GAGAL (DIGIFLAZZ - SALDO PROVIDER HABIS)" if is_provider_balance_error(raw_d_check, rc=rc) else f"TRANSAKSI {trx.status} (DIGIFLAZZ SYNC)"
                     async_send_trx_notification(trx, title=title_sync_digi)
+
+        # Jika transaksi dari jalur POS (API_GATEWAY) berubah status, otomatis tembak webhook ke POS
+        if changed and trx.payment_method == 'API_GATEWAY':
+            try:
+                from app.models.merchant import MerchantApiKey
+                from app.services.merchant_service import dispatch_merchant_webhook
+                mch = None
+                if trx.provider_ref:
+                    mch = MerchantApiKey.query.filter_by(merchant_id=trx.provider_ref).first()
+                if not mch and trx.user_id:
+                    mch = MerchantApiKey.query.filter_by(user_id=trx.user_id, is_active=True).first()
+                if mch and mch.webhook_url:
+                    dispatch_merchant_webhook(mch, {
+                        "ref_id": trx.ref_id,
+                        "status": (trx.status or 'PENDING').lower(),
+                        "sn": trx.sn or "",
+                        "sku_code": trx.sku_code or "",
+                        "price": float(trx.amount or 0.0)
+                    })
+            except Exception as e_wh:
+                print(f"[POS WEBHOOK SYNC ERROR] {e_wh}")
     except Exception as e:
         print(f"[SYNC ERROR] {trx.ref_id}: {e}")
         db.session.rollback()
@@ -1214,7 +1235,7 @@ def callback_digiflazz():
             award_transaction_points(trx.user_id, ref_id)
         elif 'gagal' in status or 'failed' in status or 'error' in status or rc in ['01', '41', '42', '50', '52', '55', '62']:
             # AUTO-REFUND hanya jika status sebelumnya belum FAILED (mencegah double refund)
-            if old_status != 'FAILED' and trx.payment_status == 'PAID' and trx.payment_method == 'SALDO':
+            if old_status != 'FAILED' and trx.payment_status == 'PAID' and trx.payment_method in ['SALDO', 'API_GATEWAY']:
                 if trx.device_id:
                     from app.models.trusted_device import TrustedDevice
                     from app.models.branch_mutation import BranchMutation
@@ -1261,6 +1282,27 @@ def callback_digiflazz():
 
         trx.updated_at = db.func.now()
         db.session.commit()
+
+        # Jika transaksi dari jalur POS (API_GATEWAY), teruskan webhook ke POS IPAY secara otomatis
+        if trx.payment_method == 'API_GATEWAY' and trx.status in ['SUCCESS', 'FAILED']:
+            try:
+                from app.models.merchant import MerchantApiKey
+                from app.services.merchant_service import dispatch_merchant_webhook
+                mch = None
+                if trx.provider_ref:
+                    mch = MerchantApiKey.query.filter_by(merchant_id=trx.provider_ref).first()
+                if not mch and trx.user_id:
+                    mch = MerchantApiKey.query.filter_by(user_id=trx.user_id, is_active=True).first()
+                if mch and mch.webhook_url:
+                    dispatch_merchant_webhook(mch, {
+                        "ref_id": trx.ref_id,
+                        "status": (trx.status or 'PENDING').lower(),
+                        "sn": trx.sn or "",
+                        "sku_code": trx.sku_code or "",
+                        "price": float(trx.amount or 0.0)
+                    })
+            except Exception as e_pos_wh:
+                print(f"[POS WEBHOOK FORWARD ERROR] {e_pos_wh}")
 
         # Pencatatan hasil akhir ke log
         try:

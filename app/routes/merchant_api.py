@@ -115,6 +115,27 @@ def check_balance():
     user = merchant.user
     balance_val = float(user.balance or 0.0) if user else 0.0
 
+    broadcasts_data = []
+    try:
+        from app.models.merchant import PosBroadcast, ensure_merchant_provision_table
+        ensure_merchant_provision_table()
+        b_list = PosBroadcast.query.filter(
+            PosBroadcast.is_active == True,
+            (PosBroadcast.target_merchant_id == None) |
+            (PosBroadcast.target_merchant_id == 'ALL') |
+            (PosBroadcast.target_merchant_id == '') |
+            (PosBroadcast.target_merchant_id == merchant.merchant_id)
+        ).order_by(PosBroadcast.id.desc()).limit(5).all()
+        broadcasts_data = [{
+            "id": b.id,
+            "title": b.title,
+            "message": b.message,
+            "level": b.level,
+            "created_at": b.formatted_created_at
+        } for b in b_list]
+    except Exception:
+        pass
+
     return jsonify({
         "status": "success",
         "merchant_id": merchant.merchant_id,
@@ -122,6 +143,7 @@ def check_balance():
         "name": user.name if user else "",
         "role": user.get_effective_role() if hasattr(user, 'get_effective_role') else getattr(user, 'role', 'user'),
         "balance": balance_val,
+        "broadcasts": broadcasts_data,
         "message": "Saldo berhasil diambil"
     }), 200
 
@@ -541,6 +563,7 @@ def create_transaction():
         payment_method='API_GATEWAY',
         payment_status='PAID',
         status='PENDING',
+        provider_ref=merchant.merchant_id,
         is_prepaid=is_prepaid
     )
     db.session.add(trx)
@@ -977,5 +1000,58 @@ def check_provision_status(request_id=None):
         "request_id": prov.request_id,
         "provision_status": "PENDING",
         "message": "Menunggu persetujuan Admin iPay di Telegram..."
+    }), 200
+
+
+# =====================================================================
+# 7. BROADCAST LAYAR KASIR POS (GET /api/v1/pos/broadcasts)
+# =====================================================================
+@merchant_api_bp.route("/pos/broadcasts", methods=["GET"])
+@merchant_api_bp.route("/broadcasts", methods=["GET"])
+def get_pos_broadcasts():
+    """
+    Mengambil daftar pesan broadcast / pengumuman aktif dari Admin iPay
+    untuk ditampilkan di layar kasir Web POS (ipaypos.my.id).
+    Mendukung filter khusus merchant_id (via Header X-API-KEY atau query ?merchant_id=).
+    """
+    from app.models.merchant import PosBroadcast, ensure_merchant_provision_table
+    ensure_merchant_provision_table()
+
+    mch_id = (request.args.get("merchant_id") or request.headers.get("X-MERCHANT-ID") or "").strip()
+    api_key = (request.headers.get("X-API-KEY") or request.headers.get("x-api-key") or "").strip()
+    if api_key and not mch_id:
+        mch_obj = MerchantApiKey.query.filter_by(api_key=api_key).first()
+        if mch_obj:
+            mch_id = mch_obj.merchant_id
+
+    if mch_id:
+        b_list = PosBroadcast.query.filter(
+            PosBroadcast.is_active == True,
+            (PosBroadcast.target_merchant_id == None) |
+            (PosBroadcast.target_merchant_id == 'ALL') |
+            (PosBroadcast.target_merchant_id == '') |
+            (PosBroadcast.target_merchant_id == mch_id)
+        ).order_by(PosBroadcast.id.desc()).limit(10).all()
+    else:
+        b_list = PosBroadcast.query.filter(
+            PosBroadcast.is_active == True,
+            (PosBroadcast.target_merchant_id == None) |
+            (PosBroadcast.target_merchant_id == 'ALL') |
+            (PosBroadcast.target_merchant_id == '')
+        ).order_by(PosBroadcast.id.desc()).limit(10).all()
+
+    data = [{
+        "id": b.id,
+        "title": b.title,
+        "message": b.message,
+        "level": b.level,
+        "target_merchant_id": b.target_merchant_id or "ALL",
+        "created_at": b.formatted_created_at
+    } for b in b_list]
+
+    return jsonify({
+        "status": "success",
+        "total": len(data),
+        "data": data
     }), 200
 

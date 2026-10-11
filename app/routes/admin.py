@@ -2844,15 +2844,21 @@ def merchant_api_index():
         return redirect(url_for('admin.login'))
 
     from flask import current_app
-    from app.models.merchant import MerchantApiKey
+    from app.models.merchant import (
+        MerchantApiKey,
+        MerchantProvisionRequest,
+        PosBroadcast,
+        ensure_merchant_provision_table
+    )
     from app.models.user import User
     from app.models.transaction import Transaction
     from app.services.setting_service import get_pos_settings
 
-    # Self-healing: Pastikan tabel merchant_api_keys selalu terbuat di database
+    # Self-healing: Pastikan semua tabel terkait Merchant & POS terbuat di database
     try:
         from app.extensions import db
         MerchantApiKey.__table__.create(db.engine, checkfirst=True)
+        ensure_merchant_provision_table()
     except Exception as e_create:
         current_app.logger.warning(f"[MERCHANT_API] Check/create table warning: {e_create}")
 
@@ -2890,9 +2896,9 @@ def merchant_api_index():
     try:
         for m in merchants:
             m.deposit_requests = Transaction.query.filter(
-                (Transaction.provider_ref == m.merchant_id) | 
+                (Transaction.provider_ref == m.merchant_id) & (Transaction.sku_code == 'DEPOSIT_SALDO') |
                 ((Transaction.user_id == m.user_id) & (Transaction.sku_code == 'DEPOSIT_SALDO'))
-            ).order_by(Transaction.id.desc()).limit(20).all()
+            ).order_by(Transaction.id.desc()).limit(15).all()
 
         pending_deposits_count = Transaction.query.filter(
             Transaction.sku_code == 'DEPOSIT_SALDO',
@@ -2905,14 +2911,92 @@ def merchant_api_index():
                 m.deposit_requests = []
         pending_deposits_count = 0
 
+    # Query Antrean Pengajuan Aktivasi 1-Klik POS
+    try:
+        provision_requests = MerchantProvisionRequest.query.order_by(MerchantProvisionRequest.id.desc()).limit(25).all()
+        pending_provisions_count = MerchantProvisionRequest.query.filter_by(status='PENDING').count()
+    except Exception as e_prov:
+        current_app.logger.warning(f"[MERCHANT_API] Gagal query provision requests: {e_prov}")
+        provision_requests = []
+        pending_provisions_count = 0
+
+    # Query Broadcast Layar Kasir POS
+    try:
+        pos_broadcasts = PosBroadcast.query.order_by(PosBroadcast.id.desc()).limit(15).all()
+    except Exception as e_bc:
+        current_app.logger.warning(f"[MERCHANT_API] Gagal query pos broadcasts: {e_bc}")
+        pos_broadcasts = []
+
+    # Query Monitor Transaksi Jalur POS (API_GATEWAY)
+    try:
+        pos_transactions = Transaction.query.filter(
+            Transaction.payment_method == 'API_GATEWAY',
+            ~Transaction.sku_code.in_(['DEPOSIT_SALDO', 'DEPOSIT_MANUAL'])
+        ).order_by(Transaction.id.desc()).limit(30).all()
+
+        mch_map_by_id = {m.merchant_id: m for m in merchants}
+        mch_map_by_user = {m.user_id: m for m in merchants}
+        for t in pos_transactions:
+            m_obj = mch_map_by_id.get(t.provider_ref) or mch_map_by_user.get(t.user_id)
+            t.merchant_name = m_obj.name if m_obj else (t.user.name if t.user else f"User #{t.user_id}")
+            t.merchant_code = m_obj.merchant_id if m_obj else (t.provider_ref or "-")
+            t.has_webhook = bool(m_obj and m_obj.webhook_url)
+    except Exception as e_trx:
+        current_app.logger.warning(f"[MERCHANT_API] Gagal query pos transactions: {e_trx}")
+        pos_transactions = []
+
+    # Hitung toko POS dengan saldo kritis (< Rp 50.000)
+    low_balance_merchants_count = 0
+    for m in merchants:
+        if m.is_active and m.user and float(m.user.balance or 0) < 50000:
+            low_balance_merchants_count += 1
+
     return render_template(
         'admin/merchant_api.html',
         merchants=merchants,
         users=users,
         pos_settings=pos_settings,
         pending_deposits_count=pending_deposits_count,
+        provision_requests=provision_requests,
+        pending_provisions_count=pending_provisions_count,
+        pos_broadcasts=pos_broadcasts,
+        pos_transactions=pos_transactions,
+        low_balance_merchants_count=low_balance_merchants_count,
         page_title='API Merchant & POS'
     )
+
+
+@admin_bp.route('/merchant-api/provision/approve/<int:prov_id>', methods=['POST'])
+def merchant_api_approve_provision(prov_id):
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin.login'))
+
+    from app.services.merchant_service import approve_provision_request
+    prov, err = approve_provision_request(prov_id)
+    if err or not prov:
+        flash(f"Gagal menyetujui permohonan aktivasi POS: {err}", "danger")
+    else:
+        flash(
+            f"✓ Permohonan toko '{prov.store_name}' ({prov.phone}) DISETUJUI! "
+            f"Merchant ID {prov.merchant_id} & API Key telah dibuat dan dikirim otomatis ke POS.",
+            "success"
+        )
+    return redirect(url_for('admin.merchant_api_index'))
+
+
+@admin_bp.route('/merchant-api/provision/reject/<int:prov_id>', methods=['POST'])
+def merchant_api_reject_provision(prov_id):
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin.login'))
+
+    from app.services.merchant_service import reject_provision_request
+    reason = request.form.get('reason', '').strip() or "Permohonan ditolak oleh Admin iPay."
+    prov, err = reject_provision_request(prov_id, reason=reason)
+    if err or not prov:
+        flash(f"Gagal menolak permohonan: {err}", "danger")
+    else:
+        flash(f"Permohonan toko '{prov.store_name}' ditolak. Alasan: {reason}", "warning")
+    return redirect(url_for('admin.merchant_api_index'))
 
 
 @admin_bp.route('/merchant-api/deposit/approve/<int:trx_id>', methods=['POST'])
@@ -3026,6 +3110,7 @@ def merchant_api_reject_deposit(trx_id):
     flash(f"Tiket deposit {trx.ref_id} sebesar Rp {trx.amount:,.0f} DITOLAK. Alasan: {reason}", "warning")
     return redirect(url_for('admin.merchant_api_index'))
 
+
 @admin_bp.route('/merchant_api/settings', methods=['POST'])
 @admin_bp.route('/merchant-api/settings', methods=['POST'])
 def merchant_api_save_settings():
@@ -3090,12 +3175,17 @@ def merchant_api_regenerate(key_id):
 
     import secrets
     from app.models.merchant import MerchantApiKey
+    from app.services.merchant_service import push_credentials_to_pos
 
     mch = MerchantApiKey.query.get_or_404(key_id)
     mch.secret_key = f"SEC_{secrets.token_hex(16)}"
     db.session.commit()
 
-    flash(f"Secret Key untuk {mch.merchant_id} berhasil di-reset dengan nilai baru.", 'warning')
+    _, sync_msg = push_credentials_to_pos(mch)
+    flash(
+        f"Secret Key untuk {mch.merchant_id} berhasil di-reset & disinkronkan ke POS ({sync_msg}).",
+        'warning'
+    )
     return redirect(url_for('admin.merchant_api_index'))
 
 
@@ -3105,13 +3195,253 @@ def merchant_api_update(key_id):
         return redirect(url_for('admin.login'))
 
     from app.models.merchant import MerchantApiKey
+    from app.services.merchant_service import push_credentials_to_pos
+
     mch = MerchantApiKey.query.get_or_404(key_id)
-    mch.name = request.form.get('name', mch.name).strip()
+    mch.name = request.form.get('name', mch.name).strip() or mch.name
     mch.webhook_url = request.form.get('webhook_url', '').strip() or None
     mch.ip_whitelist = request.form.get('ip_whitelist', '').strip() or None
+
+    new_role = request.form.get('user_role', '').strip().lower()
+    if new_role in ['user', 'reseller', 'vip'] and mch.user:
+        mch.user.role = new_role
+
+    db.session.commit()
+    push_credentials_to_pos(mch)
+
+    flash(
+        f"✓ Konfigurasi '{mch.name}' ({mch.merchant_id}) & Level Harga ({new_role.upper() if new_role else 'Tetap'}) berhasil diperbarui!",
+        'success'
+    )
+    return redirect(url_for('admin.merchant_api_index'))
+
+
+@admin_bp.route('/merchant-api/push-credentials/<int:key_id>', methods=['POST'])
+def merchant_api_push_credentials(key_id):
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin.login'))
+
+    from app.models.merchant import MerchantApiKey
+    from app.services.merchant_service import push_credentials_to_pos
+
+    mch = MerchantApiKey.query.get_or_404(key_id)
+    ok, msg = push_credentials_to_pos(mch)
+    flash(
+        f"⚡ Sinkronisasi Kredensial {mch.merchant_id} ({mch.name}): {msg}",
+        'success' if ok else 'warning'
+    )
+    return redirect(url_for('admin.merchant_api_index'))
+
+
+@admin_bp.route('/merchant-api/ping-webhook/<int:key_id>', methods=['POST'])
+def merchant_api_ping_webhook(key_id):
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin.login'))
+
+    from app.models.merchant import MerchantApiKey
+    from app.services.merchant_service import ping_merchant_webhook
+
+    mch = MerchantApiKey.query.get_or_404(key_id)
+    ok, latency, msg = ping_merchant_webhook(mch)
+    if ok:
+        flash(f"🩺 Ping Webhook '{mch.name}' ({mch.webhook_url}) BERHASIL! Respon: {msg}", "success")
+    else:
+        flash(f"⚠️ Ping Webhook '{mch.name}' GAGAL: {msg}", "danger")
+    return redirect(url_for('admin.merchant_api_index'))
+
+
+@admin_bp.route('/merchant-api/adjust-balance/<int:key_id>', methods=['POST'])
+def merchant_api_adjust_balance(key_id):
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin.login'))
+
+    import time
+    import random
+    from datetime import datetime
+    from app.models.merchant import MerchantApiKey
+    from app.models.user import User
+    from app.models.transaction import Transaction
+    from app.services.merchant_service import dispatch_merchant_webhook
+
+    mch = MerchantApiKey.query.get_or_404(key_id)
+    user = User.query.filter_by(id=mch.user_id).with_for_update().first()
+    if not user:
+        flash("Akun pemilik toko POS tidak ditemukan.", "danger")
+        return redirect(url_for('admin.merchant_api_index'))
+
+    action = request.form.get('action_type', 'add').strip().lower()
+    raw_amount = request.form.get('amount', '0').replace('.', '').replace(',', '').strip()
+    notes = request.form.get('notes', '').strip() or 'Penyesuaian Saldo Kasir POS oleh Admin'
+
+    try:
+        amount = float(raw_amount)
+    except ValueError:
+        amount = 0.0
+
+    if amount <= 0:
+        db.session.rollback()
+        flash("Nominal saldo harus lebih besar dari Rp 0.", "danger")
+        return redirect(url_for('admin.merchant_api_index'))
+
+    old_bal = float(user.balance or 0.0)
+    if action == 'sub':
+        user.balance = max(0.0, old_bal - amount)
+        label_act = "DIPOTONG"
+    else:
+        user.balance = old_bal + amount
+        label_act = "DITAMBAH"
+
+    ref_id = f"POS-BAL-{int(time.time())}-{random.randint(10, 99)}"
+    trx = Transaction(
+        ref_id=ref_id,
+        user_id=user.id,
+        sku_code='DEPOSIT_MANUAL',
+        product_name=f"{'Top-Up' if action == 'add' else 'Koreksi'} Saldo Kasir POS ({mch.name})",
+        target_number=user.phone or mch.merchant_id,
+        amount=amount if action == 'add' else -amount,
+        payment_method='ADMIN_POS',
+        payment_status='PAID',
+        status='SUCCESS',
+        provider_ref=mch.merchant_id,
+        sn=f"{notes} | Saldo: Rp {old_bal:,.0f} -> Rp {user.balance:,.0f}",
+        is_prepaid=True
+    )
+    db.session.add(trx)
     db.session.commit()
 
-    flash(f"Konfigurasi {mch.merchant_id} berhasil diperbarui.", 'success')
+    if mch.webhook_url:
+        dispatch_merchant_webhook(mch, {
+            'event': 'balance.updated',
+            'ref_id': ref_id,
+            'status': 'success',
+            'price': amount,
+            'balance': user.balance,
+            'sn': notes
+        })
+
+    flash(
+        f"💰 Saldo toko '{mch.name}' ({user.phone}) berhasil {label_act} Rp {amount:,.0f}. "
+        f"Saldo sekarang: Rp {user.balance:,.0f}.",
+        "success"
+    )
+    return redirect(url_for('admin.merchant_api_index'))
+
+
+@admin_bp.route('/merchant-api/trx/resend-webhook/<int:trx_id>', methods=['POST'])
+def merchant_api_resend_trx_webhook(trx_id):
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin.login'))
+
+    from app.models.transaction import Transaction
+    from app.models.merchant import MerchantApiKey
+    from app.services.merchant_service import dispatch_merchant_webhook
+    from app.routes.transaction import sync_single_transaction
+
+    trx = Transaction.query.get_or_404(trx_id)
+
+    # Jika masih PENDING/PROCESSING, cek status terbaru ke Digiflazz/VIP dulu
+    if trx.status in ['PENDING', 'PROCESSING', 'PROSES']:
+        try:
+            sync_single_transaction(trx)
+        except Exception:
+            pass
+
+    mch = None
+    if trx.provider_ref:
+        mch = MerchantApiKey.query.filter_by(merchant_id=trx.provider_ref).first()
+    if not mch and trx.user_id:
+        mch = MerchantApiKey.query.filter_by(user_id=trx.user_id).order_by(MerchantApiKey.is_active.desc()).first()
+
+    if not mch or not mch.webhook_url:
+        flash(
+            f"Transaksi {trx.ref_id} saat ini berstatus {trx.status} (SN: {trx.sn or '-'}), namun toko belum mengatur URL Webhook.",
+            "warning"
+        )
+        return redirect(url_for('admin.merchant_api_index'))
+
+    ok, code, resp_txt = dispatch_merchant_webhook(mch, {
+        "ref_id": trx.ref_id,
+        "status": (trx.status or 'PENDING').lower(),
+        "sn": trx.sn or "",
+        "sku_code": trx.sku_code or "",
+        "price": float(trx.amount or 0.0)
+    }, sync=True)
+
+    if ok:
+        flash(
+            f"✓ Webhook & SN Transaksi {trx.ref_id} ({trx.status}) BERHASIL dikirim ulang ke '{mch.name}' (HTTP {code}).",
+            "success"
+        )
+    else:
+        flash(
+            f"⚠️ Gagal push ulang webhook {trx.ref_id} ke {mch.webhook_url}: {resp_txt or f'HTTP {code}'}",
+            "danger"
+        )
+    return redirect(url_for('admin.merchant_api_index'))
+
+
+@admin_bp.route('/merchant-api/broadcast/create', methods=['POST'])
+def merchant_api_broadcast_create():
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin.login'))
+
+    from app.models.merchant import PosBroadcast, ensure_merchant_provision_table, get_wib_datetime
+    from app.services.merchant_service import dispatch_pos_broadcast
+
+    ensure_merchant_provision_table()
+
+    title = request.form.get('title', '').strip()
+    message = request.form.get('message', '').strip()
+    level = request.form.get('level', 'info').strip().lower()
+    target_merchant_id = request.form.get('target_merchant_id', 'ALL').strip() or 'ALL'
+
+    if not title or not message:
+        flash("Judul dan isi pesan Broadcast Kasir POS wajib diisi.", "danger")
+        return redirect(url_for('admin.merchant_api_index'))
+
+    b = PosBroadcast(
+        title=title[:150],
+        message=message,
+        level=level if level in ['info', 'warning', 'promo', 'urgent'] else 'info',
+        target_merchant_id=target_merchant_id,
+        is_active=True,
+        created_at=get_wib_datetime()
+    )
+    db.session.add(b)
+    db.session.commit()
+
+    dispatch_pos_broadcast(b)
+
+    target_label = "Seluruh Kasir POS" if target_merchant_id == 'ALL' else f"Kasir {target_merchant_id}"
+    flash(f"📢 Pesan Broadcast '{b.title}' berhasil dipublikasikan ke {target_label}!", "success")
+    return redirect(url_for('admin.merchant_api_index'))
+
+
+@admin_bp.route('/merchant-api/broadcast/toggle/<int:b_id>', methods=['POST'])
+def merchant_api_broadcast_toggle(b_id):
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin.login'))
+
+    from app.models.merchant import PosBroadcast
+    b = PosBroadcast.query.get_or_404(b_id)
+    b.is_active = not b.is_active
+    db.session.commit()
+
+    flash(f"Status broadcast '{b.title}' diubah menjadi {'AKTIF' if b.is_active else 'NONAKTIF'}.", "info")
+    return redirect(url_for('admin.merchant_api_index'))
+
+
+@admin_bp.route('/merchant-api/broadcast/delete/<int:b_id>', methods=['POST'])
+def merchant_api_broadcast_delete(b_id):
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin.login'))
+
+    from app.models.merchant import PosBroadcast
+    b = PosBroadcast.query.get_or_404(b_id)
+    db.session.delete(b)
+    db.session.commit()
+
+    flash("Pesan broadcast kasir berhasil dihapus.", "info")
     return redirect(url_for('admin.merchant_api_index'))
 
 

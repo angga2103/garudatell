@@ -69,12 +69,50 @@ class MerchantProvisionRequest(db.Model):
     updated_at = db.Column(db.DateTime, default=get_wib_datetime, onupdate=get_wib_datetime)
 
 
+    @property
+    def formatted_created_at(self):
+        if not self.created_at:
+            return "-"
+        if hasattr(self.created_at, 'strftime'):
+            try:
+                return self.created_at.strftime('%d/%m/%Y %H:%M WIB')
+            except Exception:
+                pass
+        return str(self.created_at)
+
+
+class PosBroadcast(db.Model):
+    __tablename__ = 'pos_broadcasts'
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(150), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    level = db.Column(db.String(30), default='info', nullable=False)  # info, warning, promo, urgent
+    target_merchant_id = db.Column(db.String(32), nullable=True, index=True)  # None / 'ALL' = semua kasir POS
+    is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=get_wib_datetime, index=True)
+
+    @property
+    def formatted_created_at(self):
+        if not self.created_at:
+            return "-"
+        if hasattr(self.created_at, 'strftime'):
+            try:
+                return self.created_at.strftime('%d/%m/%Y %H:%M WIB')
+            except Exception:
+                pass
+        return str(self.created_at)
+
+
 def ensure_merchant_provision_table():
     try:
         from sqlalchemy import inspect
         inspector = inspect(db.engine)
-        if 'merchant_provision_requests' not in inspector.get_table_names():
+        tables = inspector.get_table_names()
+        if 'merchant_provision_requests' not in tables:
             MerchantProvisionRequest.__table__.create(db.engine)
+        if 'pos_broadcasts' not in tables:
+            PosBroadcast.__table__.create(db.engine)
     except Exception:
         pass
 
