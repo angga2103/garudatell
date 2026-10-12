@@ -275,9 +275,11 @@ def sync_products(force=False, notify_admin_bot=True, include_pasca=False):
             price = item.get('price', item.get('admin', 0))
             sell_price_calc = calculate_sell_price(price, tiers)
 
-            # Ekstrak deskripsi produk dari Digiflazz jika tersedia
+            # Ekstrak deskripsi produk & nama seller dari Digiflazz jika tersedia
             raw_desc = clean_str(item.get('desc'))
             desc_val = raw_desc if raw_desc and raw_desc.strip() != '-' else None
+            raw_seller = clean_str(item.get('seller_name'))
+            seller_val = raw_seller if raw_seller and raw_seller.strip() != '-' else None
 
             product = Product.query.filter_by(sku_code=sku).first()
 
@@ -287,6 +289,7 @@ def sync_products(force=False, notify_admin_bot=True, include_pasca=False):
                     name=item.get('product_name', sku),
                     category=item.get('category', 'Umum'),
                     brand=item.get('brand', 'Umum'),
+                    seller_name=seller_val,
                     base_price=price,
                     sell_price=sell_price_calc,
                     is_active=product_active,
@@ -306,6 +309,11 @@ def sync_products(force=False, notify_admin_bot=True, include_pasca=False):
                 # Sinkronkan status aktif / gangguan secara real-time
                 if product.is_active != product_active:
                     product.is_active = product_active
+                    update_count += 1
+
+                # Sinkronkan nama seller Digiflazz secara otomatis
+                if seller_val and getattr(product, 'seller_name', None) != seller_val:
+                    product.seller_name = seller_val
                     update_count += 1
 
                 # Sinkronkan deskripsi jika tidak dikunci manual oleh admin
@@ -756,4 +764,131 @@ def verify_webhook_signature(raw_body_bytes, signature_header, secret=None):
         return hmac.compare_digest(sig.lower(), computed.lower())
     except Exception:
         return False
+
+
+# =====================================================================
+# 12. HELPER METADATA SELLER & FORMAT KOMPLAIN STANDAR DIGIFLAZZ
+# =====================================================================
+def normalize_seller_wa(wa_raw):
+    """Normalisasi nomor WA Seller dari Digiflazz menjadi format internasional 628xxx (hanya digit)."""
+    if not wa_raw:
+        return ""
+    import re
+    # Ambil nomor pertama jika ada beberapa nomor dipisah garis miring / koma
+    first_part = re.split(r'[/,;|\s]+', str(wa_raw).strip())[0]
+    digits = re.sub(r'[^0-9]', '', first_part)
+    if not digits:
+        return ""
+    if digits.startswith('08'):
+        digits = '62' + digits[1:]
+    elif digits.startswith('8'):
+        digits = '62' + digits
+    return digits
+
+
+def normalize_seller_tele_username(tele_raw):
+    """Normalisasi username Telegram Seller dari Digiflazz (misal '@cs_seller' -> 'cs_seller')."""
+    if not tele_raw:
+        return ""
+    import re
+    raw = str(tele_raw).strip()
+    # Ambil token pertama jika ada pemisah
+    raw = re.split(r'[,;|\s]+', raw)[0].strip()
+    raw = re.sub(r'^https?://(t\.me|telegram\.me)/', '', raw, flags=re.IGNORECASE)
+    raw = raw.lstrip('@').strip('/')
+    # Validasi karakter username telegram
+    if re.match(r'^[A-Za-z0-9_]{3,64}$', raw):
+        return raw
+    return ""
+
+
+def apply_digiflazz_seller_metadata(trx, digi_data=None, product=None):
+    """
+    Menyalin & memperbarui metadata Seller Digiflazz pada objek Transaction:
+    - seller_name (dari digi_data atau katalog Product)
+    - seller_tele (username Telegram CS Seller dari respon/webhook Digiflazz)
+    - seller_wa (nomor WhatsApp CS Seller dari respon/webhook Digiflazz)
+    - base_price (harga modal asli dari respon/webhook Digiflazz atau Product)
+    """
+    if not trx:
+        return trx
+
+    try:
+        if product is None and getattr(trx, 'sku_code', None):
+            with db.session.no_autoflush:
+                product = Product.query.filter_by(sku_code=trx.sku_code).first()
+
+        if isinstance(digi_data, dict):
+            s_name = clean_str(digi_data.get('seller_name'))
+            if s_name and s_name != '-':
+                trx.seller_name = s_name
+
+            s_tele = clean_str(digi_data.get('tele'))
+            if s_tele and s_tele != '-':
+                trx.seller_tele = s_tele
+
+            s_wa = clean_str(digi_data.get('wa'))
+            if s_wa and s_wa != '-':
+                trx.seller_wa = s_wa
+
+            raw_price = digi_data.get('price')
+            if raw_price is not None:
+                try:
+                    p_val = float(raw_price)
+                    if p_val > 0:
+                        trx.base_price = p_val
+                except (ValueError, TypeError):
+                    pass
+
+        if product:
+            if not getattr(trx, 'seller_name', None) and getattr(product, 'seller_name', None):
+                trx.seller_name = product.seller_name
+            if (not getattr(trx, 'base_price', None) or trx.base_price <= 0) and getattr(product, 'base_price', None):
+                trx.base_price = float(product.base_price)
+    except Exception as e:
+        print(f"[SELLER METADATA WARNING] {e}")
+
+    return trx
+
+
+def build_seller_complaint_info(trx, mode=None):
+    """
+    Membangun paket lengkap informasi Seller & teks komplain standar Digiflazz beserta
+    URL Deep-Link Telegram & WhatsApp untuk 1-Click Auto-Complaint.
+    """
+    from urllib.parse import quote
+    if not trx:
+        return {}
+
+    seller_name = getattr(trx, 'resolved_seller_name', None) or getattr(trx, 'seller_name', None) or 'Seller Digiflazz'
+    seller_tele_raw = getattr(trx, 'seller_tele', None) or ''
+    seller_wa_raw = getattr(trx, 'seller_wa', None) or ''
+
+    tele_username = normalize_seller_tele_username(seller_tele_raw)
+    wa_clean = normalize_seller_wa(seller_wa_raw)
+
+    complaint_text = trx.format_digiflazz_complaint(mode=mode)
+    complaint_pending = trx.format_digiflazz_complaint(mode='pending')
+    complaint_sukses_belum_masuk = trx.format_digiflazz_complaint(mode='sukses_belum_masuk')
+    complaint_gagal = trx.format_digiflazz_complaint(mode='gagal')
+
+    encoded_text = quote(complaint_text)
+    tele_url = f"https://t.me/{tele_username}?text={encoded_text}" if tele_username else ""
+    wa_url = f"https://wa.me/{wa_clean}?text={encoded_text}" if wa_clean else ""
+
+    return {
+        "seller_name": seller_name,
+        "seller_tele": f"@{tele_username}" if tele_username else seller_tele_raw,
+        "seller_tele_username": tele_username,
+        "seller_wa": seller_wa_raw,
+        "seller_wa_clean": wa_clean,
+        "complaint_text": complaint_text,
+        "complaint_pending": complaint_pending,
+        "complaint_sukses_belum_masuk": complaint_sukses_belum_masuk,
+        "complaint_gagal": complaint_gagal,
+        "tele_url": tele_url,
+        "wa_url": wa_url,
+        "has_contact": bool(tele_username or wa_clean),
+    }
+
 

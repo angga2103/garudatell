@@ -477,11 +477,12 @@ def execute_cashier_provider_order(trx_id, device_id, owner_id, amount, sku_code
             return
 
         if is_pasca_bill:
-            from app.services.digiflazz import pay_pasca
+            from app.services.digiflazz import pay_pasca, apply_digiflazz_seller_metadata
             from app.services.provider_helper import sanitize_public_sn_message
             try:
                 ok_pay, res_pay, msg_pay = pay_pasca(sku_code, target_number, ref_id)
                 digi_data = res_pay if isinstance(res_pay, dict) else {}
+                apply_digiflazz_seller_metadata(trx, digi_data)
                 digi_status = str(digi_data.get('status', '')).lower()
                 rc = str(digi_data.get('rc', '')).strip()
                 raw_msg = digi_data.get('message') or msg_pay or 'Respon biller tidak diketahui'
@@ -548,11 +549,12 @@ def execute_cashier_provider_order(trx_id, device_id, owner_id, amount, sku_code
                 trx.sn = sanitize_public_sn_message(raw_msg)
                 db.session.commit()
         else:
-            from app.services.digiflazz import create_transaction
+            from app.services.digiflazz import create_transaction, apply_digiflazz_seller_metadata
             from app.services.provider_helper import sanitize_public_sn_message
             try:
                 digi_res = create_transaction(sku_code, target_number, ref_id)
                 digi_data = digi_res.get('data', {}) if isinstance(digi_res, dict) else {}
+                apply_digiflazz_seller_metadata(trx, digi_data)
                 digi_status = str(digi_data.get('status', '')).lower()
                 rc = str(digi_data.get('rc', '')).strip()
                 raw_msg = digi_data.get('message') or 'Respon operator tidak diketahui'
@@ -818,7 +820,9 @@ def checkout():
         status='PROCESSING',
         is_prepaid=not is_pasca_bill,
         device_id=locked_device.id,
-        device_name=locked_device.device_name
+        device_name=locked_device.device_name,
+        seller_name=getattr(product, 'seller_name', None),
+        base_price=float(getattr(product, 'base_price', 0.0) or 0.0)
     )
     db.session.add(new_trx)
 

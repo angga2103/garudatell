@@ -401,6 +401,7 @@ def produk():
     page = request.args.get('page', 1, type=int)
     search_q = request.args.get('q', '').strip()
     category_filter = request.args.get('category', '').strip()
+    seller_filter = request.args.get('seller', '').strip()
 
     query = Product.query
     if search_q:
@@ -409,11 +410,14 @@ def produk():
             db.or_(
                 Product.name.ilike(search_pattern),
                 Product.sku_code.ilike(search_pattern),
-                Product.brand.ilike(search_pattern)
+                Product.brand.ilike(search_pattern),
+                Product.seller_name.ilike(search_pattern)
             )
         )
     if category_filter:
         query = query.filter(Product.category == category_filter)
+    if seller_filter:
+        query = query.filter(Product.seller_name == seller_filter)
 
     total_products_count = Product.query.count()
     filtered_count = query.count()
@@ -425,12 +429,21 @@ def produk():
     raw_cats = db.session.query(Product.category).distinct().order_by(Product.category).all()
     categories = [c[0] for c in raw_cats if c[0]]
 
+    # Dapatkan semua seller unik untuk filter dropdown
+    raw_sellers = db.session.query(Product.seller_name).filter(
+        Product.seller_name != None,
+        Product.seller_name != ''
+    ).distinct().order_by(Product.seller_name).all()
+    sellers = [s[0] for s in raw_sellers if s[0]]
+
     return render_template('admin/produk.html',
                            products=products,
                            pagination=pagination,
                            search_q=search_q,
                            category_filter=category_filter,
+                           seller_filter=seller_filter,
                            categories=categories,
+                           sellers=sellers,
                            total_products_count=total_products_count,
                            filtered_count=filtered_count)
 
@@ -445,6 +458,7 @@ def transactions():
     payment_filter = request.args.get('payment_status', '').strip()
     source_filter = request.args.get('source', '').strip().lower()
     store_id_raw = request.args.get('store_id', '').strip()
+    seller_filter = request.args.get('seller', '').strip()
 
     query = Transaction.query.outerjoin(User, Transaction.user_id == User.id)
 
@@ -457,6 +471,7 @@ def transactions():
                 Transaction.product_name.ilike(search_pattern),
                 Transaction.sku_code.ilike(search_pattern),
                 Transaction.device_name.ilike(search_pattern),
+                Transaction.seller_name.ilike(search_pattern),
                 User.name.ilike(search_pattern),
                 User.phone.ilike(search_pattern)
             )
@@ -499,6 +514,21 @@ def transactions():
     elif source_filter == 'web':
         query = query.filter(Transaction.device_id == None)
 
+    if seller_filter:
+        seller_skus = [
+            r[0] for r in db.session.query(Product.sku_code).filter(Product.seller_name == seller_filter).all()
+            if r[0]
+        ]
+        if seller_skus:
+            query = query.filter(
+                db.or_(
+                    Transaction.seller_name == seller_filter,
+                    Transaction.sku_code.in_(seller_skus)
+                )
+            )
+        else:
+            query = query.filter(Transaction.seller_name == seller_filter)
+
     # Auto-sync pasif: cek hingga 5 transaksi PROCESSING terbaru ke provider secara otomatis
     try:
         from app.routes.transaction import sync_single_transaction
@@ -520,6 +550,17 @@ def transactions():
 
     all_stores = User.query.order_by(User.name.asc()).all()
 
+    # Dapatkan daftar Seller unik dari Product & Transaction
+    prod_sellers = [
+        r[0] for r in db.session.query(Product.seller_name).filter(Product.seller_name != None, Product.seller_name != '').distinct().all()
+        if r[0]
+    ]
+    trx_sellers = [
+        r[0] for r in db.session.query(Transaction.seller_name).filter(Transaction.seller_name != None, Transaction.seller_name != '').distinct().all()
+        if r[0]
+    ]
+    all_sellers = sorted(set(prod_sellers + trx_sellers))
+
     pagination = query.order_by(Transaction.id.desc()).paginate(page=page, per_page=25, error_out=False)
     trxs = pagination.items
 
@@ -530,6 +571,8 @@ def transactions():
                            status_filter=status_filter,
                            payment_filter=payment_filter,
                            source_filter=source_filter,
+                           seller_filter=seller_filter,
+                           all_sellers=all_sellers,
                            store_id=store_id_raw,
                            selected_store=selected_store,
                            store_total=store_total,
@@ -703,8 +746,10 @@ def sync_transaction_admin(id):
 
     trx = Transaction.query.get_or_404(id)
     from app.routes.transaction import sync_single_transaction
+    from app.services.digiflazz import build_seller_complaint_info
     old_status = trx.status
     changed = sync_single_transaction(trx)
+    comp_info = build_seller_complaint_info(trx)
 
     return jsonify({
         'status': 'success',
@@ -714,7 +759,79 @@ def sync_transaction_admin(id):
         'old_status': old_status,
         'new_status': trx.status,
         'sn': trx.sn or '-',
-        'message': f"Transaksi {trx.ref_id}: Status {trx.status} (SN: {trx.sn or '-'})"
+        'seller_name': comp_info.get('seller_name') or '-',
+        'seller_tele': comp_info.get('seller_tele') or '',
+        'seller_wa': comp_info.get('seller_wa') or '',
+        'complaint_info': comp_info,
+        'message': f"Transaksi {trx.ref_id}: Status {trx.status} (SN: {trx.sn or '-'}) | Seller: {comp_info.get('seller_name') or '-'}"
+    })
+
+
+@admin_bp.route('/transactions/complain_seller/<int:id>', methods=['POST'])
+@csrf.exempt
+def complain_seller_admin(id):
+    """
+    Endpoint Smart Auto-Complaint ke Seller Digiflazz dari Panel Admin:
+    - action='sync_info': Menarik data terbaru dari Digiflazz (kontak Tele & WA seller + SN) lalu mengembalikan info format komplain.
+    - action='send_wa': Mengirim otomatis pesan komplain berformat standar Digiflazz ke WhatsApp Seller via Bot Baileys.
+    """
+    if not session.get('admin_logged_in'):
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+
+    trx = Transaction.query.get_or_404(id)
+    payload = request.get_json(silent=True) or request.form.to_dict() or {}
+    action = str(payload.get('action', 'sync_info')).strip().lower()
+    mode = payload.get('mode')
+
+    from app.routes.transaction import sync_single_transaction
+    from app.services.digiflazz import build_seller_complaint_info
+
+    # Jika diminta sync_info atau kontak seller belum lengkap, tarik dari Digiflazz
+    if action == 'sync_info' or not (trx.seller_tele or trx.seller_wa):
+        try:
+            sync_single_transaction(trx)
+        except Exception as e_sync:
+            print(f"[COMPLAIN SELLER SYNC ERR] {e_sync}")
+
+    comp_info = build_seller_complaint_info(trx, mode=mode)
+
+    if action == 'send_wa':
+        seller_wa = comp_info.get('seller_wa_clean') or comp_info.get('seller_wa') or ''
+        complaint_text = (payload.get('complaint_text') or comp_info.get('complaint_text') or '').strip()
+
+        if not seller_wa:
+            return jsonify({
+                'status': 'error',
+                'message': f"Seller ({comp_info.get('seller_name')}) tidak mencantumkan nomor WhatsApp CS di response API Digiflazz. Gunakan tombol Telegram Seller atau Copy format komplain manual.",
+                'complaint_info': comp_info
+            }), 400
+
+        try:
+            from app.wa_helper import kirim_wa
+            ok = kirim_wa(seller_wa, complaint_text)
+            if ok:
+                return jsonify({
+                    'status': 'success',
+                    'message': f"✅ Komplain standar Digiflazz berhasil dikirim otomatis via WA Baileys ke CS Seller ({comp_info.get('seller_name')} - {seller_wa})!",
+                    'complaint_info': comp_info
+                })
+            else:
+                return jsonify({
+                    'status': 'error',
+                    'message': "Gagal kirim via WA Baileys: Pastikan Bot WA Baileys di port 3000 aktif & terhubung.",
+                    'complaint_info': comp_info
+                }), 500
+        except Exception as e_wa:
+            return jsonify({
+                'status': 'error',
+                'message': f"Error WA Baileys: {e_wa}",
+                'complaint_info': comp_info
+            }), 500
+
+    return jsonify({
+        'status': 'success',
+        'message': f"Data kontak Seller ({comp_info.get('seller_name')}) & format komplain berhasil disinkronkan.",
+        'complaint_info': comp_info
     })
 
 

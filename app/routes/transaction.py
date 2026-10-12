@@ -381,7 +381,9 @@ def checkout():
                 payment_method='QRIS',
                 payment_status='UNPAID',
                 status='UNPAID',
-                is_prepaid=is_prepaid_flow
+                is_prepaid=is_prepaid_flow,
+                seller_name=getattr(target_prod, 'seller_name', None) if target_prod else None,
+                base_price=float(getattr(target_prod, 'base_price', 0.0) or 0.0) if target_prod else 0.0
             )
             db.session.add(new_trx)
             db.session.commit()
@@ -443,7 +445,9 @@ def checkout():
                 status='PROCESSING',
                 is_prepaid=is_prepaid_flow,
                 device_id=dev_obj.id if dev_obj else None,
-                device_name=dev_obj.device_name if dev_obj else None
+                device_name=dev_obj.device_name if dev_obj else None,
+                seller_name=getattr(target_prod, 'seller_name', None) if target_prod else None,
+                base_price=float(getattr(target_prod, 'base_price', 0.0) or 0.0) if target_prod else 0.0
             )
             db.session.add(new_trx)
             db.session.commit()
@@ -494,7 +498,7 @@ def checkout():
 
             # B. BEBAS NOMINAL DIGIFLAZZ (INQUIRY + PAYMENT)
             elif is_bebas_nominal:
-                from app.services.digiflazz import inquiry_pasca, pay_pasca
+                from app.services.digiflazz import inquiry_pasca, pay_pasca, apply_digiflazz_seller_metadata
                 from app.services.provider_helper import (
                     sanitize_public_sn_message,
                     sanitize_public_popup_message,
@@ -503,6 +507,7 @@ def checkout():
                 ok_inq, res_inq_data, msg_inq = inquiry_pasca(sku_code, target_number, ref_id, amount=nominal)
                 if ok_inq:
                     ok_pay, res_pay_data, msg_pay = pay_pasca(sku_code, target_number, ref_id)
+                    apply_digiflazz_seller_metadata(new_trx, res_pay_data, target_prod)
                     if ok_pay:
                         new_trx.status = 'SUCCESS'
                         new_trx.sn = res_pay_data.get('sn', '')
@@ -526,6 +531,7 @@ def checkout():
                         async_send_trx_notification(new_trx, title=title_pasca)
                         return jsonify({'status': 'error', 'error': True, 'success': False, 'message': sanitize_public_popup_message(msg_pay)}), 200
                 else:
+                    apply_digiflazz_seller_metadata(new_trx, res_inq_data, target_prod)
                     user_locked.balance += amount
                     new_trx.status = 'FAILED'
                     new_trx.sn = sanitize_public_sn_message(msg_inq)
@@ -537,13 +543,14 @@ def checkout():
 
             # C. TAGIHAN PASCABAYAR DIGIFLAZZ (PLN, DLL) DENGAN REF_ID INQUIRY
             elif is_pasca_bill:
-                from app.services.digiflazz import pay_pasca
+                from app.services.digiflazz import pay_pasca, apply_digiflazz_seller_metadata
                 from app.services.provider_helper import (
                     sanitize_public_sn_message,
                     sanitize_public_popup_message,
                     is_provider_balance_error
                 )
                 ok_pay, res_pay_data, msg_pay = pay_pasca(sku_code, target_number, ref_id)
+                apply_digiflazz_seller_metadata(new_trx, res_pay_data, target_prod)
                 if ok_pay:
                     rc_pay = str(res_pay_data.get('rc', '')).strip()
                     if rc_pay == '00':
@@ -590,7 +597,7 @@ def checkout():
 
             # D. REGULER DIGIFLAZZ (PREPAID TOPUP)
             else:
-                from app.services.digiflazz import create_transaction
+                from app.services.digiflazz import create_transaction, apply_digiflazz_seller_metadata
                 from app.services.provider_helper import (
                     sanitize_public_sn_message,
                     is_provider_balance_error
@@ -599,6 +606,7 @@ def checkout():
                     digi_response = create_transaction(sku_code, target_number, ref_id)
                     if digi_response and 'data' in digi_response:
                         digi_data = digi_response['data']
+                        apply_digiflazz_seller_metadata(new_trx, digi_data, target_prod)
                         digi_status = str(digi_data.get('status', '')).lower()
                         rc = str(digi_data.get('rc', '')).strip()
                         if 'sukses' in digi_status or 'success' in digi_status or rc == '00':
@@ -923,9 +931,10 @@ def sync_single_transaction(trx):
             bebas_sku_list = ['post685480', 'post685481', 'post685482', 'post685483', 'post685485', 'post706873']
             is_pasca_flow = not trx.is_prepaid or trx.sku_code in bebas_sku_list
 
-            from app.services.digiflazz import check_transaction_status
+            from app.services.digiflazz import check_transaction_status, apply_digiflazz_seller_metadata
             ok, d_data, msg = check_transaction_status(trx.sku_code, trx.target_number, trx.ref_id, is_pasca=is_pasca_flow)
             if ok and d_data:
+                apply_digiflazz_seller_metadata(trx, d_data)
                 d_status = str(d_data.get('status', '')).lower()
                 rc = str(d_data.get('rc', '')).strip()
                 sn = d_data.get('sn', '')
@@ -1119,7 +1128,7 @@ def callback_digiflazz():
     now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
     try:
-        from app.services.digiflazz import verify_webhook_signature, get_rc_message
+        from app.services.digiflazz import verify_webhook_signature, get_rc_message, apply_digiflazz_seller_metadata
 
         raw_bytes = request.get_data() or b''
         raw_text = raw_bytes.decode('utf-8', errors='ignore')
@@ -1219,8 +1228,12 @@ def callback_digiflazz():
                 pass
             return jsonify({'status': 'error', 'message': 'Invalid signature or unverified callback'}), 403
 
+        # Selalu simpan metadata seller (tele, wa, price, seller_name) dari payload callback Digiflazz
+        apply_digiflazz_seller_metadata(trx, data)
+
         # Idempotency check: jika status transaksi sudah SUCCESS, abaikan callback berulang
         if trx.status == 'SUCCESS':
+            db.session.commit()
             return jsonify({'status': 'success', 'message': 'Transaction already completed'}), 200
 
         old_status = trx.status
@@ -1403,8 +1416,9 @@ def process_paid_order(trx):
             is_pasca_flow = (trx.is_prepaid is False) or (trx.sku_code in bebas_sku_list)
 
             if is_pasca_flow:
-                from app.services.digiflazz import pay_pasca
+                from app.services.digiflazz import pay_pasca, apply_digiflazz_seller_metadata
                 ok_pay, res_pay, msg_pay = pay_pasca(trx.sku_code, trx.target_number, trx.ref_id)
+                apply_digiflazz_seller_metadata(trx, res_pay)
                 if ok_pay:
                     rc_pay = str(res_pay.get('rc', '')).strip()
                     if rc_pay == '00':
@@ -1418,12 +1432,13 @@ def process_paid_order(trx):
                     from app.services.provider_helper import sanitize_public_sn_message
                     trx.sn = sanitize_public_sn_message(msg_pay)
             else:
-                from app.services.digiflazz import create_transaction
+                from app.services.digiflazz import create_transaction, apply_digiflazz_seller_metadata
                 from app.services.provider_helper import sanitize_public_sn_message
                 product = Product.query.filter_by(sku_code=trx.sku_code).first()
                 sku_to_order = product.sku_code if product else trx.sku_code
                 digi_res = create_transaction(sku_to_order, trx.target_number, trx.ref_id)
                 d_data = digi_res.get('data') if isinstance(digi_res, dict) and isinstance(digi_res.get('data'), dict) else {}
+                apply_digiflazz_seller_metadata(trx, d_data, product)
                 digi_status = str(d_data.get('status', '')).lower()
                 rc = str(d_data.get('rc', '')).strip()
                 

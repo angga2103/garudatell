@@ -60,20 +60,27 @@
 
         <div class="filter-card" style="background: white; padding: 15px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid #E2E8F0;">
             <form method="GET" action="{{ url_for('admin.produk') }}" style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <input type="text" name="q" value="{{ search_q }}" placeholder="Cari nama produk, kode SKU, atau brand..." style="flex: 2; min-width: 200px; padding: 10px 15px; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 12px; font-family: inherit; outline: none;">
-                <select name="category" style="flex: 1; min-width: 150px; padding: 10px; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 12px; font-weight: bold; background: white; outline: none;">
+                <input type="text" name="q" value="{{ search_q }}" placeholder="Cari nama produk, kode SKU, brand, atau nama seller..." style="flex: 2; min-width: 200px; padding: 10px 15px; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 12px; font-family: inherit; outline: none;">
+                <select name="category" style="flex: 1; min-width: 140px; padding: 10px; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 12px; font-weight: bold; background: white; outline: none;">
                     <option value="">-- Semua Kategori --</option>
                     {% for c in categories %}
                     <option value="{{ c }}" {% if category_filter == c %}selected{% endif %}>{{ c }}</option>
                     {% endfor %}
                 </select>
+                <select name="seller" style="flex: 1; min-width: 150px; padding: 10px; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 12px; font-weight: bold; background: white; outline: none;">
+                    <option value="">-- Semua Seller --</option>
+                    {% for s in sellers or [] %}
+                    <option value="{{ s }}" {% if seller_filter == s %}selected{% endif %}>🏪 {{ s }}</option>
+                    {% endfor %}
+                </select>
                 <button type="submit" style="background: #3A827F; color: white; border: none; padding: 10px 18px; border-radius: 8px; font-weight: bold; cursor: pointer;"><i class="fas fa-search"></i> Filter</button>
-                {% if search_q or category_filter %}
+                {% if search_q or category_filter or seller_filter %}
                 <a href="{{ url_for('admin.produk') }}" style="background: #E2E8F0; color: #475569; padding: 10px 14px; border-radius: 8px; font-weight: bold; text-decoration: none;"><i class="fas fa-times"></i> Reset</a>
                 {% endif %}
             </form>
             <div style="font-size: 11px; color: #64748B; margin-top: 10px; font-weight: 700;">
                 Menampilkan <b>{{ pagination.total }}</b> produk (dari total <b>{{ total_products_count }}</b> produk di database)
+                {% if seller_filter %} | Filter Seller: <span style="background: #ede9fe; color: #5b21b6; padding: 2px 8px; border-radius: 99px; font-weight: 800;">🏪 {{ seller_filter }}</span>{% endif %}
             </div>
         </div>
 
@@ -82,7 +89,7 @@
                 <thead>
                     <tr>
                         <th>Kode</th>
-                        <th>Produk</th>
+                        <th>Produk & Seller</th>
                         <th>Hrg Modal</th>
                         <th>Hrg Jual (Edit)</th>
                         <th>Status</th>
@@ -94,7 +101,14 @@
                         <td><strong>{{ p.sku_code }}</strong></td>
                         <td>
                             <div style="font-weight: 700; color: #1e293b;">{{ p.name }}</div>
-                            <div style="font-size: 10px; color: #64748B; margin-top: 2px;">{{ p.category }} | {{ p.brand }}</div>
+                            <div style="font-size: 10px; color: #64748B; margin-top: 2px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px;">
+                                <span>{{ p.category }} | {{ p.brand }}</span>
+                                {% if p.seller_name %}
+                                <a href="{{ url_for('admin.produk', seller=p.seller_name) }}" title="Filter produk dari Seller {{ p.seller_name }}" style="background: #ede9fe; color: #5b21b6; padding: 1px 7px; border-radius: 99px; font-size: 9.5px; font-weight: 800; text-decoration: none; border: 1px solid #ddd6fe; display: inline-flex; align-items: center; gap: 3px;">
+                                    <i class="fas fa-store"></i> {{ p.seller_name }}
+                                </a>
+                                {% endif %}
+                            </div>
                             {% if p.description %}
                             <div style="font-size: 11px; color: #0284c7; margin-top: 5px; line-height: 1.35; background: #f0f9ff; padding: 4px 8px; border-radius: 6px; border: 1px solid #bae6fd; max-width: 320px;" title="{{ p.description }}">
                                 <i class="fas fa-file-alt"></i> {{ p.description }}
@@ -152,11 +166,11 @@
                     Halaman <b>{{ pagination.page }}</b> dari <b>{{ pagination.pages or 1 }}</b> (50 produk per halaman)
                 </div>
                 <div style="display: flex; gap: 8px;">
-                    <a href="{{ url_for('admin.produk', page=pagination.prev_num, q=search_q, category=category_filter) }}" 
+                    <a href="{{ url_for('admin.produk', page=pagination.prev_num, q=search_q, category=category_filter, seller=seller_filter) }}" 
                        style="background: #F1F5F9; color: #334155; border: 1px solid #CBD5E1; padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 800; text-decoration: none; {% if not pagination.has_prev %}opacity: 0.5; pointer-events: none;{% endif %}">
                        <i class="fas fa-chevron-left"></i> Sebelumnya
                     </a>
-                    <a href="{{ url_for('admin.produk', page=pagination.next_num, q=search_q, category=category_filter) }}" 
+                    <a href="{{ url_for('admin.produk', page=pagination.next_num, q=search_q, category=category_filter, seller=seller_filter) }}" 
                        style="background: #F1F5F9; color: #334155; border: 1px solid #CBD5E1; padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 800; text-decoration: none; {% if not pagination.has_next %}opacity: 0.5; pointer-events: none;{% endif %}">
                        Berikutnya <i class="fas fa-chevron-right"></i>
                     </a>

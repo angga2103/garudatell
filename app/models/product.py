@@ -17,8 +17,12 @@ class Product(db.Model):
     description = db.Column(db.Text, nullable=True)
     is_manual_desc = db.Column(db.Boolean, default=False)
 
+    # Nama Seller Digiflazz (dari endpoint /v1/price-list)
+    seller_name = db.Column(db.String(100), nullable=True, index=True)
+
     __table_args__ = (
         db.Index('idx_product_category_active', 'category', 'is_active'),
         db.Index('idx_product_brand_active', 'brand', 'is_active'),
         db.Index('idx_product_cat_brand_active', 'category', 'brand', 'is_active'),
     )
+

@@ -77,25 +77,70 @@ def send_cs_ticket(ticket, transaction=None):
         ""
     ]
 
+    kb_rows = [
+        [
+            {"text": "✍️ Balas Manual", "callback_data": f"reply_prompt:{ticket.ticket_number}"},
+            {"text": "⏳ Sedang Dicek", "callback_data": f"reply_tpl:{ticket.ticket_number}:process"}
+        ],
+        [
+            {"text": "✅ Selesaikan Tiket", "callback_data": f"reply_tpl:{ticket.ticket_number}:resolved"}
+        ]
+    ]
+
     if transaction:
         prod_cat = "-"
         prod_brand = "-"
+        prod_obj = None
         try:
             if hasattr(transaction, 'product') and transaction.product:
+                prod_obj = transaction.product
                 prod_cat = transaction.product.category or "-"
                 prod_brand = transaction.product.brand or "-"
             else:
                 from app.models.product import Product
                 p = Product.query.filter_by(sku_code=transaction.sku_code).first()
                 if p:
+                    prod_obj = p
                     prod_cat = p.category or "-"
                     prod_brand = p.brand or "-"
         except Exception:
             pass
 
+        # Pastikan metadata seller terisi dari Product jika belum ada di Transaction
+        try:
+            from app.services.digiflazz import apply_digiflazz_seller_metadata, build_seller_complaint_info
+            apply_digiflazz_seller_metadata(transaction, product=prod_obj)
+        except Exception:
+            pass
+
         st = (transaction.status or "UNKNOWN").upper()
-        st_icon = "⏳" if st == "PENDING" else ("✅" if st == "SUCCESS" else "🚨")
+        st_icon = "⏳" if st in ["PENDING", "PROCESSING"] else ("✅" if st == "SUCCESS" else "🚨")
         trx_time = format_wib(transaction.created_at, "%d/%m/%Y %H:%M:%S WIB") if transaction.created_at else "-"
+
+        # Deteksi mode komplain otomatis dari isi keluhan member atau status transaksi
+        msg_low = (ticket.message or "").lower()
+        cat_low = (ticket.category or "").lower()
+        if st == "SUCCESS" or "belum masuk" in msg_low or "blm masuk" in msg_low or "tidak masuk" in msg_low or "belum masuk" in cat_low:
+            complaint_mode = "sukses_belum_masuk"
+        elif st in ["FAILED", "GAGAL", "ERROR"]:
+            complaint_mode = "gagal"
+        else:
+            complaint_mode = "pending"
+
+        seller_info = {}
+        try:
+            from app.services.digiflazz import build_seller_complaint_info
+            seller_info = build_seller_complaint_info(transaction, mode=complaint_mode)
+        except Exception:
+            seller_info = {}
+
+        seller_display = seller_info.get("seller_name") or getattr(transaction, "resolved_seller_name", None) or "-"
+        seller_tele_disp = seller_info.get("seller_tele") or "-"
+        seller_wa_disp = seller_info.get("seller_wa") or "-"
+        complaint_fmt = seller_info.get("complaint_text") or (
+            transaction.format_digiflazz_complaint(mode=complaint_mode)
+            if hasattr(transaction, "format_digiflazz_complaint") else ""
+        )
 
         lines.append("📦 <b>DETAIL PRODUK & TRANSAKSI KOMPLAIN:</b>")
         lines.append(f"• <b>Ref ID:</b> <code>{transaction.ref_id}</code>")
@@ -104,15 +149,47 @@ def send_cs_ticket(ticket, transaction=None):
             lines.append(f"• <b>SKU / Kode:</b> <code>{transaction.sku_code}</code>")
         if prod_cat != "-":
             lines.append(f"• <b>Kategori/Brand:</b> {prod_cat} {f'({prod_brand})' if prod_brand != '-' else ''}")
+        lines.append(f"• <b>Seller Digiflazz:</b> 🏪 <b>{seller_display}</b>")
+        if seller_tele_disp != "-" or seller_wa_disp != "-":
+            lines.append(f"• <b>Kontak Seller:</b> ✈️ <code>{seller_tele_disp}</code> | 📱 <code>{seller_wa_disp}</code>")
         lines.append(f"• <b>Tujuan / No. Meter:</b> <code>{transaction.target_number or '-'}</code>")
         lines.append(f"• <b>Status Trx:</b> {st_icon} <b>{st}</b>")
         lines.append(f"• <b>Nominal / Harga:</b> Rp {float(transaction.amount or 0.0):,.0f}")
+        if getattr(transaction, 'base_price', 0) and float(transaction.base_price or 0) > 0:
+            lines.append(f"• <b>Harga Modal Seller:</b> Rp {float(transaction.base_price):,.0f}")
         if transaction.sn:
             lines.append(f"• <b>SN / Ket. Biller:</b> <code>{transaction.sn}</code>")
         else:
             lines.append("• <b>SN / Ket. Biller:</b> <i>(Belum ada SN dari provider)</i>")
         lines.append(f"• <b>Waktu Transaksi:</b> {trx_time}")
         lines.append("")
+
+        if complaint_fmt and (transaction.sku_code or "") not in ["DEPOSIT_SALDO", "DEPOSIT_MANUAL"]:
+            lines.append("📣 <b>FORMAT KOMPLAIN STANDAR DIGIFLAZZ KE SELLER (KLIK UNTUK COPY):</b>")
+            lines.append(f"<code>{complaint_fmt}</code>")
+            lines.append("")
+
+            # Susun tombol 1-Klik Teruskan Komplain ke Seller
+            seller_direct_row = []
+            if seller_info.get("tele_url"):
+                seller_direct_row.append({
+                    "text": f"✈️ Tele Seller ({seller_info.get('seller_tele')})",
+                    "url": seller_info["tele_url"]
+                })
+            if seller_info.get("wa_url"):
+                seller_direct_row.append({
+                    "text": "💬 WA Seller Manual",
+                    "url": seller_info["wa_url"]
+                })
+            if seller_direct_row:
+                kb_rows.append(seller_direct_row)
+
+            kb_rows.append([
+                {"text": "📲 Auto-Kirim WA ke Seller (Baileys)", "callback_data": f"fwd_seller_wa:{ticket.ticket_number}"}
+            ])
+            kb_rows.append([
+                {"text": "🔄 Tarik Kontak Seller & Komplain", "callback_data": f"fwd_seller_sync:{ticket.ticket_number}"}
+            ])
     else:
         lines.append("ℹ️ <i>Tiket Pertanyaan Umum (Tidak Terikat Transaksi Tertentu)</i>")
         lines.append("")
@@ -122,23 +199,13 @@ def send_cs_ticket(ticket, transaction=None):
     lines.append("")
     lines.append("━━━━━━━━━━━━━━━━━━━━━━")
 
-    lines.append("💡 <b>CARA BALAS KE WEB PELAPOR:</b>")
-    lines.append("1. Cukup <b>Reply (Balas) pesan ini</b> di Telegram dengan teks balasan Anda.")
-    lines.append(f"2. Atau ketik perintah: <code>/balas {ticket.ticket_number} [pesan]</code>")
-    lines.append("3. Atau klik tombol cepat di bawah ini:")
-    lines.append("")
-    lines.append("📌 <i>Balasan Anda langsung muncul secara real-time di halaman Pusat Bantuan web pengguna!</i>")
+    lines.append("💡 <b>CARA BALAS KE WEB PELAPOR / KOMPLAIN SELLER:</b>")
+    lines.append("1. Klik <b>[📲 Auto-Kirim WA ke Seller]</b> atau <b>[✈️ Tele Seller]</b> untuk meneruskan komplain ke Seller Digiflazz.")
+    lines.append("2. Cukup <b>Reply (Balas) pesan ini</b> di Telegram untuk membalas ke halaman web member.")
+    lines.append(f"3. Atau ketik perintah: <code>/balas {ticket.ticket_number} [pesan]</code>")
 
     reply_markup = {
-        "inline_keyboard": [
-            [
-                {"text": "✍️ Balas Manual", "callback_data": f"reply_prompt:{ticket.ticket_number}"},
-                {"text": "⏳ Sedang Dicek", "callback_data": f"reply_tpl:{ticket.ticket_number}:process"}
-            ],
-            [
-                {"text": "✅ Selesaikan Tiket", "callback_data": f"reply_tpl:{ticket.ticket_number}:resolved"}
-            ]
-        ]
+        "inline_keyboard": kb_rows
     }
 
     full_text = "\n".join(lines)
@@ -179,7 +246,7 @@ def handle_cs_bot_update(app, update, bot_token=None):
     """
     Menangani pesan dan callback query yang masuk ke Bot 1 : CS & Balas Inbox di Telegram.
     Meneruskan balasan manual Admin langsung ke database tiket keluhan pengguna
-    agar tampil di halaman web Pusat Bantuan & Tiket CS.
+    agar tampil di halaman web Pusat Bantuan & Tiket CS, serta fitur Smart Auto-Complaint ke Seller Digiflazz.
     """
     import re
     if not bot_token:
@@ -191,6 +258,7 @@ def handle_cs_bot_update(app, update, bot_token=None):
         from app.extensions import db
         from app.models.support_ticket import SupportTicket
         from app.models.notification import Notification
+        from app.models.transaction import Transaction
 
         # 1. TANGANI CALLBACK QUERY (KLIK TOMBOL INLINE TELEGRAM)
         if 'callback_query' in update:
@@ -223,7 +291,8 @@ def handle_cs_bot_update(app, update, bot_token=None):
                 payload = {
                     "chat_id": chat_id,
                     "text": text,
-                    "parse_mode": "HTML"
+                    "parse_mode": "HTML",
+                    "disable_web_page_preview": True
                 }
                 if reply_to:
                     payload["reply_to_message_id"] = reply_to
@@ -257,6 +326,210 @@ def handle_cs_bot_update(app, update, bot_token=None):
                     reply_to=orig_msg_id,
                     reply_markup=force_reply
                 )
+                return
+
+            # A2. Smart Auto-Complaint: Tarik Kontak Seller dari Digiflazz & Tampilkan Opsi Komplain Lengkap
+            elif cb_data.startswith('fwd_seller_sync:'):
+                ticket_num = cb_data.split(':', 1)[1].replace('#', '').strip()
+                ticket = SupportTicket.query.filter_by(ticket_number=ticket_num).first()
+                if not ticket:
+                    answer_cb("Tiket tidak ditemukan!", show_alert=True)
+                    return
+
+                trx = getattr(ticket, 'transaction', None)
+                if not trx and getattr(ticket, 'transaction_id', None):
+                    trx = Transaction.query.get(ticket.transaction_id)
+                if not trx and getattr(ticket, 'trx_ref_id', None):
+                    trx = Transaction.query.filter_by(ref_id=ticket.trx_ref_id).first()
+                if not trx:
+                    answer_cb("Data transaksi terkait tiket ini tidak ditemukan!", show_alert=True)
+                    return
+
+                answer_cb("Menarik kontak Seller & status terbaru dari Digiflazz...")
+                from app.services.digiflazz import check_transaction_status, apply_digiflazz_seller_metadata, build_seller_complaint_info
+                bebas_sku_list = ['post685480', 'post685481', 'post685482', 'post685483', 'post685485', 'post706873']
+                is_pasca_flow = (not trx.is_prepaid) or (trx.sku_code in bebas_sku_list)
+                ok_chk, d_data, msg_chk = check_transaction_status(trx.sku_code, trx.target_number, trx.ref_id, is_pasca=is_pasca_flow)
+                if ok_chk and isinstance(d_data, dict):
+                    apply_digiflazz_seller_metadata(trx, d_data)
+                    if d_data.get('sn'):
+                        trx.sn = d_data.get('sn')
+                    db.session.commit()
+                else:
+                    apply_digiflazz_seller_metadata(trx)
+                    db.session.commit()
+
+                msg_low = (ticket.message or "").lower()
+                st_up = (trx.status or "").upper()
+                if st_up == "SUCCESS" or "belum masuk" in msg_low or "blm masuk" in msg_low or "tidak masuk" in msg_low:
+                    c_mode = "sukses_belum_masuk"
+                elif st_up in ["FAILED", "GAGAL"]:
+                    c_mode = "gagal"
+                else:
+                    c_mode = "pending"
+
+                info = build_seller_complaint_info(trx, mode=c_mode)
+                kb_sync = []
+                row_links = []
+                if info.get("tele_url"):
+                    row_links.append({"text": f"✈️ Chat Tele Seller ({info['seller_tele']})", "url": info["tele_url"]})
+                if info.get("wa_url"):
+                    row_links.append({"text": "💬 Chat WA Seller Manual", "url": info["wa_url"]})
+                if row_links:
+                    kb_sync.append(row_links)
+                if info.get("seller_wa_clean"):
+                    kb_sync.append([{"text": "📲 Auto-Kirim WA ke Seller (Baileys)", "callback_data": f"fwd_seller_wa:{ticket.ticket_number}"}])
+
+                sync_text = (
+                    f"🏪 <b>DATA SELLER & FORMAT KOMPLAIN DIGIFLAZZ</b>\n"
+                    f"━━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"🎫 <b>Tiket:</b> <code>#{ticket.ticket_number}</code>\n"
+                    f"📋 <b>Ref ID:</b> <code>{trx.ref_id}</code>\n"
+                    f"📦 <b>Produk:</b> {trx.product_name} (<code>{trx.sku_code}</code>)\n"
+                    f"🏪 <b>Nama Seller:</b> <b>{info.get('seller_name') or '-'}</b>\n"
+                    f"✈️ <b>Telegram Seller:</b> <code>{info.get('seller_tele') or 'Tidak dicantumkan seller'}</code>\n"
+                    f"📱 <b>WhatsApp Seller:</b> <code>{info.get('seller_wa') or 'Tidak dicantumkan seller'}</code>\n"
+                    f"📊 <b>Status Trx:</b> <b>{trx.status}</b> | SN: <code>{trx.sn or '-'}</code>\n"
+                    f"━━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"📋 <b>1. Format Komplain (Sesuai Status Saat Ini):</b>\n"
+                    f"<code>{info.get('complaint_text')}</code>\n\n"
+                    f"⏳ <b>2. Format Komplain Pending:</b>\n"
+                    f"<code>{info.get('complaint_pending')}</code>\n\n"
+                    f"⚠️ <b>3. Format Sukses Tapi Belum Masuk:</b>\n"
+                    f"<code>{info.get('complaint_sukses_belum_masuk')}</code>\n\n"
+                    f"❌ <b>4. Format Komplain Gagal:</b>\n"
+                    f"<code>{info.get('complaint_gagal')}</code>"
+                )
+                send_tg_msg(
+                    sync_text,
+                    reply_to=orig_msg_id,
+                    reply_markup={"inline_keyboard": kb_sync} if kb_sync else None
+                )
+                return
+
+            # A3. Smart Auto-Complaint: Auto-Kirim Pesan Komplain ke WA Seller via Baileys
+            elif cb_data.startswith('fwd_seller_wa:'):
+                ticket_num = cb_data.split(':', 1)[1].replace('#', '').strip()
+                ticket = SupportTicket.query.filter_by(ticket_number=ticket_num).first()
+                if not ticket:
+                    answer_cb("Tiket tidak ditemukan!", show_alert=True)
+                    return
+
+                trx = getattr(ticket, 'transaction', None)
+                if not trx and getattr(ticket, 'transaction_id', None):
+                    trx = Transaction.query.get(ticket.transaction_id)
+                if not trx and getattr(ticket, 'trx_ref_id', None):
+                    trx = Transaction.query.filter_by(ref_id=ticket.trx_ref_id).first()
+                if not trx:
+                    answer_cb("Data transaksi terkait tiket ini tidak ditemukan!", show_alert=True)
+                    return
+
+                from app.services.digiflazz import check_transaction_status, apply_digiflazz_seller_metadata, build_seller_complaint_info
+                # Jika nomor WA seller belum tersimpan di DB, tarik otomatis dari API Digiflazz terlebih dahulu
+                if not getattr(trx, 'seller_wa', None):
+                    bebas_sku_list = ['post685480', 'post685481', 'post685482', 'post685483', 'post685485', 'post706873']
+                    is_pasca_flow = (not trx.is_prepaid) or (trx.sku_code in bebas_sku_list)
+                    ok_chk, d_data, _ = check_transaction_status(trx.sku_code, trx.target_number, trx.ref_id, is_pasca=is_pasca_flow)
+                    if ok_chk and isinstance(d_data, dict):
+                        apply_digiflazz_seller_metadata(trx, d_data)
+                        db.session.commit()
+                    else:
+                        apply_digiflazz_seller_metadata(trx)
+                        db.session.commit()
+
+                msg_low = (ticket.message or "").lower()
+                st_up = (trx.status or "").upper()
+                if st_up == "SUCCESS" or "belum masuk" in msg_low or "blm masuk" in msg_low or "tidak masuk" in msg_low:
+                    c_mode = "sukses_belum_masuk"
+                elif st_up in ["FAILED", "GAGAL"]:
+                    c_mode = "gagal"
+                else:
+                    c_mode = "pending"
+
+                info = build_seller_complaint_info(trx, mode=c_mode)
+                wa_clean = info.get("seller_wa_clean")
+                complaint_text = info.get("complaint_text")
+                seller_name = info.get("seller_name") or "Seller Digiflazz"
+
+                if not wa_clean:
+                    answer_cb("Seller ini tidak mencantumkan nomor WA di Digiflazz. Gunakan tombol Telegram Seller!", show_alert=True)
+                    kb_fallback = []
+                    if info.get("tele_url"):
+                        kb_fallback.append([{"text": f"✈️ Chat Tele Seller ({info['seller_tele']})", "url": info["tele_url"]}])
+                    send_tg_msg(
+                        f"ℹ️ <b>Nomor WA Seller Tidak Tersedia di Digiflazz</b>\n"
+                        f"━━━━━━━━━━━━━━━━━━━━━━\n"
+                        f"🏪 <b>Seller:</b> <b>{seller_name}</b>\n"
+                        f"✈️ <b>Telegram Seller:</b> <code>{info.get('seller_tele') or '-'}</code>\n\n"
+                        f"📋 <b>Format Komplain Siap Kirim:</b>\n"
+                        f"<code>{complaint_text}</code>\n\n"
+                        f"💡 <i>Silakan klik tombol Telegram Seller di bawah untuk langsung membuka chat dengan teks komplain terisi otomatis.</i>",
+                        reply_to=orig_msg_id,
+                        reply_markup={"inline_keyboard": kb_fallback} if kb_fallback else None
+                    )
+                    return
+
+                from app.wa_helper import kirim_wa
+                wa_sent = kirim_wa(wa_clean, complaint_text)
+
+                if wa_sent:
+                    # Otomatis update status tiket menjadi PROCESS & beri tahu member bahwa komplain sudah diteruskan ke Biller/Seller
+                    if ticket.status == 'OPEN':
+                        ticket.status = 'PROCESS'
+                    auto_member_note = (
+                        f"Halo kak, laporan komplain untuk transaksi {trx.ref_id} telah kami teruskan langsung ke pihak "
+                        f"Biller/Seller ({seller_name}). Mohon ditunggu update selanjutnya ya kak 🙏"
+                    )
+                    if not ticket.admin_reply:
+                        ticket.admin_reply = auto_member_note
+                        ticket.admin_replied_at = datetime.utcnow()
+                        ticket.admin_name = admin_name
+                        if ticket.user_id:
+                            try:
+                                notif = Notification(
+                                    title=f"Update Tiket #{ticket.ticket_number}",
+                                    message=auto_member_note,
+                                    type='info',
+                                    link='/bantuan',
+                                    target_user_id=ticket.user_id,
+                                    is_broadcast=False
+                                )
+                                db.session.add(notif)
+                            except Exception:
+                                pass
+                    db.session.commit()
+
+                    answer_cb(f"Komplain berhasil dikirim ke WA Seller {seller_name}!")
+                    send_tg_msg(
+                        f"✅ <b>KOMPLAIN OTOMATIS TERKIRIM KE WA SELLER (BAILEYS)!</b>\n"
+                        f"━━━━━━━━━━━━━━━━━━━━━━\n"
+                        f"🏪 <b>Seller Tujuan:</b> <b>{seller_name}</b>\n"
+                        f"📱 <b>No. WA Seller:</b> <code>{wa_clean}</code>\n"
+                        f"🎫 <b>Tiket Member:</b> <code>#{ticket.ticket_number}</code> (Status: <b>DIPROSES</b>)\n\n"
+                        f"📨 <b>Pesan Standar Digiflazz yang Dikirim:</b>\n"
+                        f"<code>{complaint_text}</code>\n\n"
+                        f"📌 <i>Member juga telah mendapat pemberitahuan otomatis di web bahwa komplain sedang ditangani bersama pihak Seller.</i>",
+                        reply_to=orig_msg_id
+                    )
+                else:
+                    answer_cb("Mesin WA Baileys belum terhubung. Gunakan tombol WA/Tele manual di bawah!", show_alert=True)
+                    kb_manual = []
+                    row_m = []
+                    if info.get("wa_url"):
+                        row_m.append({"text": "💬 Buka WA Seller Manual", "url": info["wa_url"]})
+                    if info.get("tele_url"):
+                        row_m.append({"text": f"✈️ Buka Tele Seller ({info['seller_tele']})", "url": info["tele_url"]})
+                    if row_m:
+                        kb_manual.append(row_m)
+                    send_tg_msg(
+                        f"⚠️ <b>Gagal Kirim Otomatis (WA Baileys Sedang Offline)</b>\n"
+                        f"━━━━━━━━━━━━━━━━━━━━━━\n"
+                        f"🏪 <b>Seller:</b> <b>{seller_name}</b> (WA: <code>{wa_clean}</code>)\n\n"
+                        f"📋 <b>Format Komplain:</b>\n<code>{complaint_text}</code>\n\n"
+                        f"👇 Klik tombol di bawah untuk mengirim langsung via aplikasi WhatsApp / Telegram:",
+                        reply_to=orig_msg_id,
+                        reply_markup={"inline_keyboard": kb_manual} if kb_manual else None
+                    )
                 return
 
             # B. Balas Template Cepat (Diproses / Selesai)
@@ -606,12 +879,35 @@ def send_trx_notification(trx, title="TRANSAKSI MASUK"):
 
     ref_id = getattr(trx, 'ref_id', '-')
     product_name = getattr(trx, 'product_name', '-') or '-'
+    sku_code = getattr(trx, 'sku_code', '') or ''
     target_number = getattr(trx, 'target_number', '-') or '-'
     amount = float(getattr(trx, 'amount', 0) or 0)
+    base_price = float(getattr(trx, 'base_price', 0) or 0)
     payment_method = getattr(trx, 'payment_method', '-') or '-'
     payment_status = getattr(trx, 'payment_status', 'UNPAID') or 'UNPAID'
     user_id = getattr(trx, 'user_id', '-')
     sn = getattr(trx, 'sn', None)
+    seller_name = getattr(trx, 'seller_name', None) or getattr(trx, 'resolved_seller_name', None)
+    seller_tele = getattr(trx, 'seller_tele', None)
+    seller_wa = getattr(trx, 'seller_wa', None)
+    complaint_fmt = getattr(trx, 'complaint_fmt', None)
+
+    if not seller_name and sku_code and sku_code not in ['DEPOSIT_SALDO', 'DEPOSIT_MANUAL', 'COMMISSION_PAYOUT']:
+        try:
+            from app.models.product import Product
+            p_db = Product.query.filter_by(sku_code=sku_code).first()
+            if p_db and getattr(p_db, 'seller_name', None):
+                seller_name = p_db.seller_name
+            if base_price <= 0 and p_db and getattr(p_db, 'base_price', None):
+                base_price = float(p_db.base_price or 0.0)
+        except Exception:
+            pass
+
+    if not complaint_fmt and hasattr(trx, 'format_digiflazz_complaint') and sku_code not in ['DEPOSIT_SALDO', 'DEPOSIT_MANUAL', 'COMMISSION_PAYOUT']:
+        try:
+            complaint_fmt = trx.format_digiflazz_complaint()
+        except Exception:
+            pass
 
     # Resolusi Nama Pengguna / Toko
     user_name = getattr(trx, 'user_name', None)
@@ -628,22 +924,33 @@ def send_trx_notification(trx, title="TRANSAKSI MASUK"):
     if user_name:
         user_info = f"#{user_id} ({user_name})"
 
+    sku_str = f" (<code>{sku_code}</code>)" if sku_code and sku_code not in ['DEPOSIT_SALDO', 'DEPOSIT_MANUAL'] else ""
     lines = [
         f"{icon} <b>{title.upper()}</b>",
         "━━━━━━━━━━━━━━━━━━━━━━",
         f"📋 <b>Ref ID:</b> <code>{ref_id}</code>",
-        f"📦 <b>Produk:</b> <code>{product_name}</code>",
+        f"📦 <b>Produk:</b> <code>{product_name}</code>{sku_str}",
+    ]
+    if seller_name:
+        lines.append(f"🏪 <b>Seller:</b> <b>{seller_name}</b>")
+    if seller_tele or seller_wa:
+        lines.append(f"☎️ <b>CS Seller:</b> ✈️ <code>{seller_tele or '-'}</code> | 📱 <code>{seller_wa or '-'}</code>")
+
+    lines.extend([
         f"📱 <b>Tujuan:</b> <code>{target_number}</code>",
-        f"💰 <b>Nominal:</b> Rp {amount:,.0f}",
+        f"💰 <b>Harga Jual:</b> Rp {amount:,.0f}" + (f" (Modal: Rp {base_price:,.0f})" if base_price > 0 else ""),
         f"💳 <b>Metode:</b> {payment_method} (<b>{payment_status}</b>)",
         f"📊 <b>Status:</b> <b>{status_upper}</b>",
         f"👤 <b>User ID:</b> {user_info}",
         f"⏰ <b>Waktu:</b> {wib_now}",
         "━━━━━━━━━━━━━━━━━━━━━━"
-    ]
+    ])
 
     if sn:
         lines.append(f"🔖 <b>SN/Keterangan:</b> <code>{sn}</code>")
+
+    if complaint_fmt and status_upper in ['PENDING', 'PROCESSING', 'FAILED', 'GAGAL'] and sku_code not in ['DEPOSIT_SALDO', 'DEPOSIT_MANUAL', 'COMMISSION_PAYOUT']:
+        lines.append(f"📣 <b>Format Komplain Seller:</b>\n<code>{complaint_fmt}</code>")
 
     if "SALDO PROVIDER HABIS" in title.upper():
         lines.append("")
@@ -691,17 +998,44 @@ def async_send_trx_notification(trx, title="TRANSAKSI MASUK"):
                 except Exception:
                     pass
 
+        sku_code = getattr(trx, 'sku_code', '') or ''
+        seller_name = getattr(trx, 'seller_name', None) or getattr(trx, 'resolved_seller_name', None)
+        base_price = float(getattr(trx, 'base_price', 0) or 0)
+        if not seller_name and sku_code and sku_code not in ['DEPOSIT_SALDO', 'DEPOSIT_MANUAL', 'COMMISSION_PAYOUT']:
+            try:
+                from app.models.product import Product
+                p_db = Product.query.filter_by(sku_code=sku_code).first()
+                if p_db and getattr(p_db, 'seller_name', None):
+                    seller_name = p_db.seller_name
+                if base_price <= 0 and p_db and getattr(p_db, 'base_price', None):
+                    base_price = float(p_db.base_price or 0.0)
+            except Exception:
+                pass
+
+        complaint_fmt = None
+        if hasattr(trx, 'format_digiflazz_complaint'):
+            try:
+                complaint_fmt = trx.format_digiflazz_complaint()
+            except Exception:
+                complaint_fmt = None
+
         trx_snapshot = {
             'ref_id': getattr(trx, 'ref_id', '-'),
             'product_name': getattr(trx, 'product_name', '-'),
+            'sku_code': sku_code,
             'target_number': getattr(trx, 'target_number', '-'),
             'amount': float(getattr(trx, 'amount', 0) or 0),
+            'base_price': base_price,
             'payment_method': getattr(trx, 'payment_method', '-'),
             'payment_status': getattr(trx, 'payment_status', 'UNPAID'),
             'status': getattr(trx, 'status', '-'),
             'user_id': getattr(trx, 'user_id', '-'),
             'user_name': user_name,
-            'sn': getattr(trx, 'sn', None)
+            'sn': getattr(trx, 'sn', None),
+            'seller_name': seller_name,
+            'seller_tele': getattr(trx, 'seller_tele', None),
+            'seller_wa': getattr(trx, 'seller_wa', None),
+            'complaint_fmt': complaint_fmt
         }
         
         class TrxProxy:
@@ -1647,11 +1981,16 @@ def handle_admin_callback(app, callback_query):
                 for idx, t in enumerate(failed_trxs, 1):
                     t_time = format_wib(t.created_at, '%d/%m %H:%M') if t.created_at else '-'
                     reason = t.sn or 'Ditolak provider / Saldo tidak cukup'
+                    t_seller = getattr(t, 'resolved_seller_name', None) or t.seller_name or '-'
+                    t_comp = t.format_digiflazz_complaint('gagal') if hasattr(t, 'format_digiflazz_complaint') else ''
+                    comp_row = f"• 📣 Komplain: <code>{t_comp}</code>\n" if t_comp and t.sku_code not in ['DEPOSIT_SALDO', 'DEPOSIT_MANUAL', 'MANUAL_DEDUCTION'] else ""
                     lines.append(
                         f"<b>{idx}. {t.product_name or 'Produk'}</b>\n"
                         f"• Ref: <code>{t.ref_id}</code> | Rp {t.amount:,.0f}\n"
                         f"• Tujuan: <code>{t.target_number or '-'}</code> | {t_time} WIB\n"
+                        f"• 🏪 Seller: <b>{t_seller}</b>\n"
                         f"• ⚠️ Alasan: <i>{reason}</i>\n"
+                        f"{comp_row}"
                     )
                 lines.append("━━━━━━━━━━━━━━━━━━━━━━")
                 text = "\n".join(lines)
@@ -1686,9 +2025,11 @@ def handle_admin_callback(app, callback_query):
                 for idx, r in enumerate(recents, 1):
                     icon = "✅" if r.status == 'SUCCESS' else ("❌" if r.status in ['FAILED', 'CANCELLED'] else "⏳")
                     r_time = format_wib(r.created_at, '%d/%m %H:%M') if r.created_at else '-'
+                    r_seller = getattr(r, 'resolved_seller_name', None) or r.seller_name or '-'
+                    seller_part = f" | 🏪 {r_seller}" if r_seller and r_seller != '-' else ""
                     lines.append(
                         f"{icon} <b>{r.product_name or 'Produk'}</b> ({r.status})\n"
-                        f"• Ref: <code>{r.ref_id}</code> | Rp {r.amount:,.0f}\n"
+                        f"• Ref: <code>{r.ref_id}</code> | Rp {r.amount:,.0f}{seller_part}\n"
                         f"• Tujuan: <code>{r.target_number or '-'}</code> | {r_time} WIB\n"
                     )
                 lines.append("━━━━━━━━━━━━━━━━━━━━━━")
@@ -1983,10 +2324,13 @@ def handle_admin_callback(app, callback_query):
                 lines = ["⏳ <b>DAFTAR TRANSAKSI PENDING TERKINI:</b>", "━━━━━━━━━━━━━━━━━━━━━━"]
                 for p in pendings:
                     t_time = format_wib(p.created_at, '%H:%M') if p.created_at else '-'
+                    p_seller = getattr(p, 'resolved_seller_name', None) or p.seller_name or '-'
+                    p_comp = p.format_digiflazz_complaint('pending') if hasattr(p, 'format_digiflazz_complaint') else ''
                     lines.append(
                         f"• <code>{p.ref_id}</code> | Rp {p.amount:,.0f}\n"
-                        f"  Produk: {p.product_name or '-'}\n"
-                        f"  Tujuan: <code>{p.target_number or '-'}</code> | {t_time} WIB"
+                        f"  Produk: {p.product_name or '-'} (🏪 <b>{p_seller}</b>)\n"
+                        f"  Tujuan: <code>{p.target_number or '-'}</code> | {t_time} WIB\n"
+                        f"  📣 Komplain: <code>{p_comp}</code>"
                     )
                 lines.append("━━━━━━━━━━━━━━━━━━━━━━")
                 lines.append("💡 <i>Kelola status lengkap di panel web /admin/transactions</i>")

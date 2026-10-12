@@ -564,7 +564,9 @@ def create_transaction():
         payment_status='PAID',
         status='PENDING',
         provider_ref=merchant.merchant_id,
-        is_prepaid=is_prepaid
+        is_prepaid=is_prepaid,
+        seller_name=getattr(product, 'seller_name', None),
+        base_price=float(getattr(product, 'base_price', 0.0) or 0.0)
     )
     db.session.add(trx)
     db.session.commit()
@@ -600,6 +602,7 @@ def create_transaction():
 
         elif not is_prepaid:
             # Pascabayar Digiflazz
+            from app.services.digiflazz import apply_digiflazz_seller_metadata
             p_func = pay_postpaid
             if not p_func:
                 from app.services.digiflazz import pay_pasca
@@ -621,6 +624,7 @@ def create_transaction():
                 p_data = {}
                 p_msg = ''
 
+            apply_digiflazz_seller_metadata(trx, p_data, product)
             res_msg = p_msg
             if ok:
                 res_status = 'success'
@@ -630,6 +634,7 @@ def create_transaction():
 
         else:
             # Prabayar Digiflazz
+            from app.services.digiflazz import apply_digiflazz_seller_metadata
             s_func = submit_transaction
             if not s_func:
                 from app.services.digiflazz import create_transaction
@@ -651,6 +656,7 @@ def create_transaction():
                 d_data = {}
                 d_msg = str(res_call)
 
+            apply_digiflazz_seller_metadata(trx, d_data, product)
             res_msg = d_msg
             rc = str(d_data.get('rc') or '').strip() if d_data else ''
             d_stat = str(d_data.get('status') or '').lower() if d_data else ''
@@ -798,6 +804,7 @@ def check_transaction_status(ref_id=None):
             "buyer_sku_code": trx.sku_code,
             "customer_no": trx.target_number,
             "price": float(trx.amount or 0.0),
+            "seller_name": trx.resolved_seller_name or "",
             "created_at": trx.created_at.strftime('%Y-%m-%d %H:%M:%S') if trx.created_at else ""
         }
     }), 200
@@ -841,6 +848,7 @@ def list_products():
             "name": p.name,
             "category": p.category,
             "brand": p.brand,
+            "seller_name": getattr(p, 'seller_name', None) or "",
             "type": prod_type,
             "base_price": float(p.base_price or 0.0),
             "price": dyn_price,

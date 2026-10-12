@@ -129,3 +129,5 @@ def kirim_wa(target_number, message):
     except Exception as e:
         logger.warning(f"[-] Gagal kirim WA ke {target_number}: {e}")
         return False
+
+kirim_pesan_wa = kirim_wa

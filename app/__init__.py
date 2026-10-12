@@ -197,12 +197,32 @@ def create_app(test_config=None):
                                 app.logger.warning(f"Gagal tambah kolom user.{c_name}: {ex_col}")
                     conn.commit()
 
+            # Auto-migrate kolom baru tabel product jika belum ada
+            if 'product' in inspector.get_table_names():
+                prod_cols = [c['name'] for c in inspector.get_columns('product')]
+                new_prod_cols = [
+                    ('seller_name', 'VARCHAR(100)')
+                ]
+                with db.engine.connect() as conn:
+                    for c_name, c_type in new_prod_cols:
+                        if c_name not in prod_cols:
+                            try:
+                                conn.execute(db.text(f'ALTER TABLE product ADD COLUMN {c_name} {c_type}'))
+                                app.logger.info(f"[AUTO-MIGRATE] Kolom product.{c_name} berhasil ditambahkan ke database.")
+                            except Exception as ex_col:
+                                app.logger.warning(f"Gagal tambah kolom product.{c_name}: {ex_col}")
+                    conn.commit()
+
             # Auto-migrate kolom baru tabel transaction jika belum ada
             if 'transaction' in inspector.get_table_names():
                 trx_cols = [c['name'] for c in inspector.get_columns('transaction')]
                 new_trx_cols = [
                     ('device_id', 'INTEGER REFERENCES trusted_device(id)'),
-                    ('device_name', 'VARCHAR(100)')
+                    ('device_name', 'VARCHAR(100)'),
+                    ('seller_name', 'VARCHAR(100)'),
+                    ('seller_tele', 'VARCHAR(100)'),
+                    ('seller_wa', 'VARCHAR(50)'),
+                    ('base_price', 'REAL DEFAULT 0.0')
                 ]
                 with db.engine.connect() as conn:
                     for c_name, c_type in new_trx_cols:
