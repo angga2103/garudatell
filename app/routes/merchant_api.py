@@ -1055,3 +1055,190 @@ def get_pos_broadcasts():
         "data": data
     }), 200
 
+
+# =====================================================================
+# 8. WHATSAPP BAILEYS & OTP BRIDGE UNTUK WEB POS (ipaypos.my.id)
+# =====================================================================
+@merchant_api_bp.route("/whatsapp/status", methods=["GET"])
+def pos_whatsapp_status():
+    """
+    Mengecek status koneksi Bot WhatsApp Baileys (port 3000) dari Web POS.
+    """
+    from app.wa_helper import is_wa_bot_connected
+    connected = is_wa_bot_connected()
+    return jsonify({
+        "status": "success",
+        "connected": connected,
+        "message": "Bot WhatsApp Baileys Terhubung" if connected else "Bot WhatsApp Baileys Sedang Terputus"
+    }), 200
+
+
+@merchant_api_bp.route("/whatsapp/send", methods=["POST"])
+@limiter.limit("30 per minute")
+def pos_whatsapp_send():
+    """
+    Endpoint pengiriman pesan WhatsApp via Bot Baileys ipay.my.id (port 3000).
+    Mendukung payload: {"phone": "0812...", "message": "..."} atau {"number": "62812...", "message": "..."}
+    """
+    from app.wa_helper import kirim_wa, is_wa_bot_connected
+
+    data = request.get_json(silent=True) or request.form.to_dict() or {}
+    phone = str(data.get("phone") or data.get("number") or data.get("target") or "").strip()
+    message = str(data.get("message") or data.get("text") or "").strip()
+
+    if not phone or not message:
+        return jsonify({
+            "status": "failed",
+            "sent": False,
+            "message": "Parameter 'phone' (atau 'number') dan 'message' wajib diisi."
+        }), 400
+
+    ok = kirim_wa(phone, message)
+    if ok:
+        return jsonify({
+            "status": "success",
+            "sent": True,
+            "phone": phone,
+            "message": "Pesan WhatsApp berhasil dikirim via Bot Baileys ipay.my.id"
+        }), 200
+
+    return jsonify({
+        "status": "failed",
+        "sent": False,
+        "connected": is_wa_bot_connected(),
+        "phone": phone,
+        "message": "Gagal mengirim pesan WhatsApp (Bot Baileys sedang offline / perlu re-pair)."
+    }), 503
+
+
+@merchant_api_bp.route("/otp/send", methods=["POST"])
+@limiter.limit("15 per minute")
+def pos_otp_send():
+    """
+    Generate & kirim 6-Digit Kode OTP ke WhatsApp pengguna untuk Web POS (ipaypos.my.id).
+    Mendukung:
+    - action: 'login' | 'register' | 'reset_password' | 'reset_pin'
+    - otp_code (opsional): jika POS ingin men-generate angka OTP sendiri, atau biarkan kosong agar di-generate ipay.my.id
+    - Fallback otomatis ke Telegram Admin jika Baileys sedang disconnect.
+    """
+    from app.wa_helper import kirim_wa, is_wa_bot_connected
+    from app.services.otp_service import create_otp
+
+    data = request.get_json(silent=True) or request.form.to_dict() or {}
+    phone = str(data.get("phone") or data.get("number") or "").strip()
+    action = str(data.get("action") or "login").strip().lower()
+    store_name = str(data.get("store_name") or "iPay POS Kasir").strip()
+    custom_otp = str(data.get("otp_code") or data.get("otp") or "").strip()
+
+    if not phone:
+        return jsonify({
+            "status": "failed",
+            "sent": False,
+            "message": "Nomor WhatsApp (phone) wajib diisi."
+        }), 400
+
+    # Generate dan simpan di tabel OtpCode ipay.my.id
+    otp_code = create_otp(phone, action=action, username=store_name, expiry_seconds=600)
+    if custom_otp and len(custom_otp) >= 4:
+        try:
+            from app.models.otp import OtpCode
+            latest = OtpCode.query.filter_by(otp_code=otp_code).order_by(OtpCode.id.desc()).first()
+            if latest:
+                latest.otp_code = custom_otp
+                db.session.commit()
+                otp_code = custom_otp
+        except Exception:
+            db.session.rollback()
+
+    if action in ['login', 'masuk']:
+        title_label = "KODE MASUK (LOGIN) KASIR POS"
+        desc_label = "masuk ke aplikasi kasir"
+    elif action in ['reset', 'reset_password', 'reset_pin', 'forgot']:
+        title_label = "PEMULIHAN PASSWORD / PIN KASIR POS"
+        desc_label = "mereset Password / PIN kasir"
+    else:
+        title_label = "VERIFIKASI PENDAFTARAN TOKO POS"
+        desc_label = "verifikasi pendaftaran toko baru"
+
+    wa_msg = (
+        f"*[{store_name.upper()} - {title_label}]*\n\n"
+        f"Kode OTP 6-Digit Anda adalah: *{otp_code}*\n\n"
+        f"Gunakan kode ini untuk {desc_label} di *ipaypos.my.id*.\n"
+        f"⚠️ Kode berlaku selama *10 menit*. Jangan berikan kode ini kepada siapa pun."
+    )
+
+    sent_ok = kirim_wa(phone, wa_msg)
+
+    # Jika Bot WA Baileys sedang disconnect, kirimkan info ke Telegram Admin agar Admin tahu / bisa bantu
+    if not sent_ok:
+        try:
+            from app.services.telegram_service import get_bot_admin_credentials, get_bot_notif_credentials, _send_message
+            token, chat_id = get_bot_admin_credentials()
+            if not token or not chat_id:
+                token, chat_id = get_bot_notif_credentials()
+            if token and chat_id:
+                tg_alert = (
+                    "⚠️ <b>OTP POS GAGAL TERKIRIM VIA WA (BAILEYS OFFLINE)</b>\n"
+                    "━━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"📱 <b>Nomor WA :</b> <code>{phone}</code>\n"
+                    f"🏪 <b>Toko/Aksi:</b> {store_name} ({action.upper()})\n"
+                    f"🔑 <b>Kode OTP :</b> <code>{otp_code}</code>\n"
+                    "━━━━━━━━━━━━━━━━━━━━━━\n"
+                    "<i>Bot WA Baileys di port 3000 sedang terputus. Anda dapat meneruskan kode OTP di atas ke user atau menautkan ulang WA di menu Status WA.</i>"
+                )
+                _send_message(token, chat_id, tg_alert)
+        except Exception:
+            pass
+
+    return jsonify({
+        "status": "success" if sent_ok else "fallback",
+        "sent": bool(sent_ok),
+        "wa_connected": is_wa_bot_connected(),
+        "phone": phone,
+        "action": action,
+        "otp_code": otp_code,
+        "expires_in": 600,
+        "message": (
+            "Kode OTP 6-digit berhasil dikirim ke WhatsApp Anda."
+            if sent_ok else
+            "Koneksi WhatsApp Bot sedang padat/gangguan, kode OTP darurat telah diteruskan ke Admin."
+        )
+    }), 200
+
+
+@merchant_api_bp.route("/otp/verify", methods=["POST"])
+def pos_otp_verify():
+    """
+    Verifikasi kode OTP 6-digit dari Web POS (mendukung OTP Baileys maupun OTP Darurat `/otp <nomor>` dari Telegram Admin).
+    """
+    from app.services.otp_service import verify_otp
+
+    data = request.get_json(silent=True) or request.form.to_dict() or {}
+    phone = str(data.get("phone") or data.get("number") or "").strip()
+    otp_input = str(data.get("otp_code") or data.get("otp") or "").strip()
+    action = data.get("action")
+
+    if not phone or not otp_input:
+        return jsonify({
+            "status": "failed",
+            "valid": False,
+            "message": "Nomor WhatsApp dan Kode OTP wajib diisi."
+        }), 400
+
+    is_valid, msg, user_data = verify_otp(phone, otp_input, action=action)
+    if is_valid:
+        return jsonify({
+            "status": "success",
+            "valid": True,
+            "phone": phone,
+            "data": user_data,
+            "message": msg
+        }), 200
+
+    return jsonify({
+        "status": "failed",
+        "valid": False,
+        "phone": phone,
+        "message": msg
+    }), 400
+
