@@ -38,9 +38,19 @@
     .btn-action-edit:hover { background: #2D6664; }
 
     .pagination-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; padding-top: 15px; border-top: 1px solid #E2E8F0; flex-wrap: wrap; gap: 10px; }
-    .page-btn { background: #F1F5F9; color: #334155; border: 1px solid #CBD5E1; padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 800; text-decoration: none; }
-    .page-btn:hover { background: #E2E8F0; }
-    .page-btn.disabled { opacity: 0.5; pointer-events: none; }
+    .page-btn { background: #F1F5F9; color: #334155; border: 1px solid #CBD5E1; padding: 7px 12px; border-radius: 8px; font-size: 12px; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s ease; }
+    .page-btn:hover { background: #E2E8F0; color: #0F172A; }
+    .page-btn.disabled { opacity: 0.4; pointer-events: none; }
+    .page-btn.active { background: #3A827F !important; color: white !important; border-color: #3A827F !important; font-weight: 900 !important; }
+
+    .filter-date-input { padding: 8px 10px; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 11px; font-family: inherit; font-weight: 700; color: #1E293B; background: white; outline: none; }
+    .filter-date-input:focus { border-color: #3A827F; }
+    .btn-preset-pill { background: white; color: #475569; border: 1px solid #CBD5E1; padding: 6px 11px; border-radius: 6px; font-size: 11px; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; transition: all 0.15s ease; }
+    .btn-preset-pill:hover, .btn-preset-pill.active { background: #3A827F !important; color: white !important; border-color: #3A827F !important; }
+
+    .active-filter-badge { background: #E0F2FE; color: #0369A1; border: 1px solid #BAE6FD; padding: 4px 10px; border-radius: 99px; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; }
+    .active-filter-badge a { color: #0284C7; font-weight: 900; text-decoration: none; font-size: 12px; line-height: 1; padding: 1px 4px; border-radius: 50%; }
+    .active-filter-badge a:hover { background: #0284C7; color: white; }
 
     /* Modal Styling */
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 99999; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
@@ -78,60 +88,146 @@
     </div>
 </div>
 
-<!-- FILTER & SEARCH BAR -->
+<!-- FILTER & SEARCH BAR MULTI-FILTER LENGKAP -->
 <div class="filter-card">
-    <form method="GET" action="{{ url_for('admin.transactions') }}" class="filter-form">
-        <input type="text" name="q" value="{{ search_q }}" placeholder="Cari Ref ID / Nama Toko / Produk / Seller / Tujuan..." class="filter-input">
-        
-        <select name="store_id" class="filter-select" style="min-width: 170px;">
-            <option value="">-- Pilih Toko (Semua) --</option>
-            {% for st in all_stores %}
-            <option value="{{ st.id }}" {% if store_id == (st.id|string) %}selected{% endif %}>
-                🏢 {{ st.name }} (User #{{ st.id }})
-            </option>
-            {% endfor %}
-        </select>
+    <form method="GET" action="{{ url_for('admin.transactions') }}" class="filter-form" id="adminFilterForm">
+        <!-- Baris 1: Search Keyword, Pilihan Toko, dan Seller Digiflazz -->
+        <div style="display: flex; gap: 10px; width: 100%; flex-wrap: wrap;">
+            <input type="text" name="q" value="{{ search_q }}" placeholder="🔍 Cari Ref ID / No Tujuan / SKU / Produk / Toko / Seller..." class="filter-input" style="flex: 2; min-width: 220px;">
+            
+            <select name="store_id" class="filter-select" style="flex: 1.5; min-width: 200px;">
+                <option value="">🏢 -- Semua Toko / Member --</option>
+                {% for st in all_stores %}
+                <option value="{{ st.id }}" {% if store_id == (st.id|string) %}selected{% endif %}>
+                    🏢 {{ st.name }} (User #{{ st.id }})
+                </option>
+                {% endfor %}
+            </select>
 
-        <select name="seller" class="filter-select" style="min-width: 155px;">
-            <option value="">-- Seller Digiflazz (Semua) --</option>
-            {% for sl in all_sellers or [] %}
-            <option value="{{ sl }}" {% if seller_filter == sl %}selected{% endif %}>
-                🏪 {{ sl }}
-            </option>
-            {% endfor %}
-        </select>
+            <select name="seller" class="filter-select" style="flex: 1.2; min-width: 170px;">
+                <option value="">🏪 -- Semua Seller Digiflazz --</option>
+                {% for sl in all_sellers or [] %}
+                <option value="{{ sl }}" {% if seller_filter|lower == sl|lower %}selected{% endif %}>
+                    🏪 {{ sl }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
 
-        <select name="status" class="filter-select">
-            <option value="">-- Status Trx (Semua) --</option>
-            <option value="SUCCESS" {% if status_filter == 'SUCCESS' %}selected{% endif %}>SUCCESS (Sukses)</option>
-            <option value="PENDING" {% if status_filter == 'PENDING' %}selected{% endif %}>PENDING (Proses)</option>
-            <option value="FAILED" {% if status_filter == 'FAILED' %}selected{% endif %}>FAILED (Gagal)</option>
-        </select>
+        <!-- Baris 2: Filter Rentang Tanggal WIB & Preset Cepat -->
+        <div style="display: flex; gap: 10px; width: 100%; flex-wrap: wrap; align-items: center; margin-top: 4px;">
+            <div style="display: flex; align-items: center; gap: 6px; background: #F8FAFC; border: 1px solid #CBD5E1; padding: 4px 10px; border-radius: 8px;">
+                <span style="font-size: 11px; font-weight: 800; color: #475569;"><i class="fas fa-calendar-alt" style="color: #3A827F;"></i> Tanggal:</span>
+                <input type="date" name="start_date" id="filter_start_date" value="{{ start_date }}" class="filter-date-input" title="Tanggal Mulai">
+                <span style="font-size: 11px; color: #94A3B8; font-weight: 800;">s/d</span>
+                <input type="date" name="end_date" id="filter_end_date" value="{{ end_date }}" class="filter-date-input" title="Tanggal Akhir">
+            </div>
 
-        <select name="payment_status" class="filter-select">
-            <option value="">-- Status Bayar (Semua) --</option>
-            <option value="PAID" {% if payment_filter == 'PAID' %}selected{% endif %}>PAID (Lunas)</option>
-            <option value="UNPAID" {% if payment_filter == 'UNPAID' %}selected{% endif %}>UNPAID (Belum)</option>
-        </select>
+            <!-- Tombol Preset Cepat Tanggal -->
+            <div class="date-preset-pills" style="display: flex; gap: 4px; flex-wrap: wrap; align-items: center;">
+                <a href="javascript:void(0)" onclick="setDatePreset('today')" class="btn-preset-pill {% if date_preset == 'today' %}active{% endif %}">Hari Ini</a>
+                <a href="javascript:void(0)" onclick="setDatePreset('yesterday')" class="btn-preset-pill {% if date_preset == 'yesterday' %}active{% endif %}">Kemarin</a>
+                <a href="javascript:void(0)" onclick="setDatePreset('7d')" class="btn-preset-pill {% if date_preset == '7d' %}active{% endif %}">7 Hari</a>
+                <a href="javascript:void(0)" onclick="setDatePreset('this_month')" class="btn-preset-pill {% if date_preset == 'this_month' %}active{% endif %}">Bulan Ini</a>
+            </div>
+            <input type="hidden" name="date_preset" id="date_preset_input" value="{{ date_preset }}">
+        </div>
 
-        <select name="source" class="filter-select">
-            <option value="">-- Sumber Transaksi (Semua) --</option>
-            <option value="cabang" {% if source_filter == 'cabang' %}selected{% endif %}>🏢 Kasir Cabang POS</option>
-            <option value="web" {% if source_filter == 'web' %}selected{% endif %}>🌐 Web Utama / Member</option>
-        </select>
+        <!-- Baris 3: Status Trx, Status Bayar, Sumber Transaksi, dan Tombol Filter/Reset/Sync -->
+        <div style="display: flex; gap: 10px; width: 100%; flex-wrap: wrap; align-items: center; margin-top: 4px;">
+            <select name="status" class="filter-select" style="min-width: 150px;">
+                <option value="">⚙️ -- Status Trx (Semua) --</option>
+                <option value="SUCCESS" {% if status_filter in ['SUCCESS', 'SUKSES'] %}selected{% endif %}>🟢 SUCCESS (Sukses)</option>
+                <option value="PENDING" {% if status_filter in ['PENDING', 'PROCESSING', 'PROSES'] %}selected{% endif %}>🟡 PENDING (Proses)</option>
+                <option value="FAILED" {% if status_filter in ['FAILED', 'GAGAL'] %}selected{% endif %}>🔴 FAILED (Gagal)</option>
+            </select>
 
-        <button type="submit" class="btn-filter"><i class="fas fa-search"></i> Filter</button>
-        {% if search_q or status_filter or payment_filter or source_filter or store_id or seller_filter %}
-        <a href="{{ url_for('admin.transactions') }}" class="btn-reset-filter"><i class="fas fa-times"></i> Reset</a>
-        {% endif %}
+            <select name="payment_status" class="filter-select" style="min-width: 145px;">
+                <option value="">💳 -- Status Bayar (Semua) --</option>
+                <option value="PAID" {% if payment_filter == 'PAID' %}selected{% endif %}>🔵 PAID (Lunas)</option>
+                <option value="UNPAID" {% if payment_filter == 'UNPAID' %}selected{% endif %}>⚪ UNPAID (Belum)</option>
+            </select>
 
-        <button type="button" onclick="syncAllPendingTrx(this)" 
-                title="Periksa dan perbarui otomatis seluruh transaksi yang berstatus PROCESSING/PENDING ke provider"
-                style="background: #0284c7; color: white; border: none; padding: 10px 16px; border-radius: 8px; font-size: 12px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; margin-left: auto;">
-            <i class="fas fa-sync-alt"></i> Sync Semua Processing
-        </button>
+            <select name="source" class="filter-select" style="min-width: 140px;">
+                <option value="">📱 -- Sumber (Semua) --</option>
+                <option value="cabang" {% if source_filter == 'cabang' %}selected{% endif %}>🏢 Kasir Cabang POS</option>
+                <option value="web" {% if source_filter == 'web' %}selected{% endif %}>🌐 Web Utama / Member</option>
+            </select>
+
+            <button type="submit" class="btn-filter"><i class="fas fa-search"></i> Terapkan Filter</button>
+            {% if search_q or status_filter or payment_filter or source_filter or store_id or seller_filter or start_date or end_date or date_preset %}
+            <a href="{{ url_for('admin.transactions') }}" class="btn-reset-filter"><i class="fas fa-times"></i> Reset</a>
+            {% endif %}
+
+            <button type="button" onclick="syncAllPendingTrx(this)" 
+                    title="Periksa dan perbarui otomatis seluruh transaksi yang berstatus PROCESSING/PENDING ke provider"
+                    style="background: #0284c7; color: white; border: none; padding: 10px 16px; border-radius: 8px; font-size: 12px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; margin-left: auto;">
+                <i class="fas fa-sync-alt"></i> Sync Semua Processing
+            </button>
+        </div>
     </form>
 </div>
+
+<!-- BAR INFORMASI BADGE MULTI-FILTER AKTIF -->
+{% set has_active_filters = search_q or status_filter or payment_filter or source_filter or store_id or seller_filter or start_date or end_date or date_preset %}
+{% if has_active_filters %}
+<div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 20px; background: white; padding: 10px 16px; border-radius: 12px; border: 1px solid #E2E8F0; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+    <span style="font-size: 11px; font-weight: 800; color: #475569;"><i class="fas fa-filter" style="color: #3A827F;"></i> Filter Aktif:</span>
+
+    {% if selected_store %}
+    <span class="active-filter-badge">
+        🏢 Toko: <b>{{ selected_store.name }}</b>
+        <a href="{{ url_for('admin.transactions', **dict(request.args, store_id='', page=1)) }}" title="Hapus filter toko">✕</a>
+    </span>
+    {% endif %}
+
+    {% if start_date or end_date %}
+    <span class="active-filter-badge">
+        📅 Tanggal: <b>{{ start_date }} {% if end_date and end_date != start_date %}s/d {{ end_date }}{% endif %}</b>
+        <a href="{{ url_for('admin.transactions', **dict(request.args, start_date='', end_date='', date='', date_preset='', page=1)) }}" title="Hapus filter tanggal">✕</a>
+    </span>
+    {% endif %}
+
+    {% if seller_filter %}
+    <span class="active-filter-badge">
+        🏪 Seller: <b>{{ seller_filter }}</b>
+        <a href="{{ url_for('admin.transactions', **dict(request.args, seller='', page=1)) }}" title="Hapus filter seller">✕</a>
+    </span>
+    {% endif %}
+
+    {% if status_filter %}
+    <span class="active-filter-badge">
+        ⚙️ Status: <b>{{ status_filter }}</b>
+        <a href="{{ url_for('admin.transactions', **dict(request.args, status='', page=1)) }}" title="Hapus filter status">✕</a>
+    </span>
+    {% endif %}
+
+    {% if payment_filter %}
+    <span class="active-filter-badge">
+        💳 Bayar: <b>{{ payment_filter }}</b>
+        <a href="{{ url_for('admin.transactions', **dict(request.args, payment_status='', page=1)) }}" title="Hapus filter bayar">✕</a>
+    </span>
+    {% endif %}
+
+    {% if source_filter %}
+    <span class="active-filter-badge">
+        📱 Sumber: <b>{{ 'Kasir Cabang POS' if source_filter == 'cabang' else 'Web Utama' }}</b>
+        <a href="{{ url_for('admin.transactions', **dict(request.args, source='', page=1)) }}" title="Hapus filter sumber">✕</a>
+    </span>
+    {% endif %}
+
+    {% if search_q %}
+    <span class="active-filter-badge">
+        🔍 Cari: <b>"{{ search_q }}"</b>
+        <a href="{{ url_for('admin.transactions', **dict(request.args, q='', page=1)) }}" title="Hapus pencarian">✕</a>
+    </span>
+    {% endif %}
+
+    <a href="{{ url_for('admin.transactions') }}" style="font-size: 11px; font-weight: 800; color: #DC2626; text-decoration: none; margin-left: auto; display: inline-flex; align-items: center; gap: 4px;">
+        <i class="fas fa-trash-alt"></i> Reset Semua Filter
+    </a>
+</div>
+{% endif %}
 
 {% if selected_store %}
 <!-- BANNER RINGKASAN KHUSUS TOKO TERPILIH -->
@@ -346,18 +442,37 @@
         </tbody>
     </table>
 
-    <!-- PAGINATION -->
+    <!-- PAGINATION (PRESERVASI 100% PARAMETER MULTI-FILTER) -->
     <div class="pagination-bar">
         <div style="font-size: 12px; color: #64748B; font-weight: 700;">
-            Menampilkan halaman <b>{{ pagination.page }}</b> dari <b>{{ pagination.pages or 1 }}</b> (Total: <b>{{ pagination.total }}</b> transaksi)
+            Menampilkan halaman <b>{{ pagination.page }}</b> dari <b>{{ pagination.pages or 1 }}</b> 
+            (Total: <b>{{ "{:,}".format(pagination.total) }}</b> transaksi)
         </div>
-        <div style="display: flex; gap: 8px;">
-            <a href="{{ url_for('admin.transactions', page=pagination.prev_num, q=search_q, status=status_filter, payment_status=payment_filter, source=source_filter, store_id=store_id, seller=seller_filter) }}" 
-               class="page-btn {% if not pagination.has_prev %}disabled{% endif %}">
+        <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+            <!-- Tombol Sebelumnya -->
+            <a href="{{ url_for('admin.transactions', **dict(request.args, page=pagination.prev_num)) }}" 
+               class="page-btn {% if not pagination.has_prev %}disabled{% endif %}"
+               title="Halaman Sebelumnya">
                <i class="fas fa-chevron-left"></i> Sebelumnya
             </a>
-            <a href="{{ url_for('admin.transactions', page=pagination.next_num, q=search_q, status=status_filter, payment_status=payment_filter, source=source_filter, store_id=store_id, seller=seller_filter) }}" 
-               class="page-btn {% if not pagination.has_next %}disabled{% endif %}">
+
+            <!-- Nomor Halaman Pintar -->
+            {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                {% if p %}
+                    <a href="{{ url_for('admin.transactions', **dict(request.args, page=p)) }}" 
+                       class="page-btn {% if p == pagination.page %}active{% endif %}"
+                       style="min-width: 34px; text-align: center;">
+                       {{ p }}
+                    </a>
+                {% else %}
+                    <span style="padding: 0 4px; color: #94A3B8; font-weight: 800;">...</span>
+                {% endif %}
+            {% endfor %}
+
+            <!-- Tombol Berikutnya -->
+            <a href="{{ url_for('admin.transactions', **dict(request.args, page=pagination.next_num)) }}" 
+               class="page-btn {% if not pagination.has_next %}disabled{% endif %}"
+               title="Halaman Berikutnya">
                Berikutnya <i class="fas fa-chevron-right"></i>
             </a>
         </div>
@@ -593,6 +708,47 @@
 
 <script>
     const CSRF_TOKEN = "{{ csrf_token() }}";
+
+    // ================= FUNGSI PRESET CEPAT TANGGAL =================
+    function setDatePreset(preset) {
+        const today = new Date();
+        const formatDate = (d) => {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        };
+
+        let start = '';
+        let end = formatDate(today);
+
+        if (preset === 'today') {
+            start = end;
+        } else if (preset === 'yesterday') {
+            const yest = new Date(today);
+            yest.setDate(yest.getDate() - 1);
+            start = formatDate(yest);
+            end = start;
+        } else if (preset === '7d') {
+            const d7 = new Date(today);
+            d7.setDate(d7.getDate() - 6);
+            start = formatDate(d7);
+        } else if (preset === 'this_month') {
+            const m1 = new Date(today.getFullYear(), today.getMonth(), 1);
+            start = formatDate(m1);
+        }
+
+        const startInput = document.getElementById('filter_start_date');
+        const endInput = document.getElementById('filter_end_date');
+        const presetInput = document.getElementById('date_preset_input');
+
+        if (startInput) startInput.value = start;
+        if (endInput) endInput.value = end;
+        if (presetInput) presetInput.value = preset;
+
+        const form = document.getElementById('adminFilterForm');
+        if (form) form.submit();
+    }
 
     // ================= STATE MODAL KOMPLAIN SELLER =================
     let currentComplainTrx = {

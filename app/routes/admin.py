@@ -470,6 +470,58 @@ def transactions():
     source_filter = request.args.get('source', '').strip().lower()
     store_id_raw = request.args.get('store_id', '').strip()
     seller_filter = request.args.get('seller', '').strip()
+    date_preset = request.args.get('date_preset', '').strip().lower()
+    start_date_raw = request.args.get('start_date', '').strip()
+    end_date_raw = request.args.get('end_date', '').strip()
+    date_raw = request.args.get('date', '').strip()
+
+    # Hitung batas tanggal UTC berdasarkan waktu lokal WIB (UTC+7)
+    from datetime import datetime, timedelta
+
+    now_utc = datetime.utcnow()
+    now_wib = now_utc + timedelta(hours=7)
+    today_wib = now_wib.date()
+
+    if date_preset == 'today':
+        start_date_raw = today_wib.strftime('%Y-%m-%d')
+        end_date_raw = today_wib.strftime('%Y-%m-%d')
+    elif date_preset == 'yesterday':
+        yest_wib = today_wib - timedelta(days=1)
+        start_date_raw = yest_wib.strftime('%Y-%m-%d')
+        end_date_raw = yest_wib.strftime('%Y-%m-%d')
+    elif date_preset == '7d':
+        start_date_raw = (today_wib - timedelta(days=6)).strftime('%Y-%m-%d')
+        end_date_raw = today_wib.strftime('%Y-%m-%d')
+    elif date_preset == '30d':
+        start_date_raw = (today_wib - timedelta(days=29)).strftime('%Y-%m-%d')
+        end_date_raw = today_wib.strftime('%Y-%m-%d')
+    elif date_preset == 'this_month':
+        start_date_raw = today_wib.replace(day=1).strftime('%Y-%m-%d')
+        end_date_raw = today_wib.strftime('%Y-%m-%d')
+    elif date_raw and not start_date_raw and not end_date_raw:
+        start_date_raw = date_raw
+        end_date_raw = date_raw
+
+    start_utc = None
+    end_utc = None
+
+    if start_date_raw:
+        try:
+            sd = datetime.strptime(start_date_raw, '%Y-%m-%d')
+            start_utc = sd - timedelta(hours=7)
+        except ValueError:
+            pass
+
+    if end_date_raw:
+        try:
+            ed = datetime.strptime(end_date_raw, '%Y-%m-%d')
+            end_utc = ed.replace(hour=23, minute=59, second=59, microsecond=999999) - timedelta(hours=7)
+        except ValueError:
+            pass
+
+    if start_utc and not end_utc:
+        end_utc = (start_utc + timedelta(days=1)) - timedelta(microseconds=1)
+        end_date_raw = start_date_raw
 
     query = Transaction.query.outerjoin(User, Transaction.user_id == User.id)
 
@@ -514,8 +566,23 @@ def transactions():
         except (ValueError, TypeError):
             pass
 
+    # Filter Tanggal (WIB dikonversi ke UTC)
+    if start_utc:
+        query = query.filter(Transaction.created_at >= start_utc)
+    if end_utc:
+        query = query.filter(Transaction.created_at <= end_utc)
+
+    # Filter Status Provider (Mendukung FAILED/GAGAL, PENDING/PROCESSING, SUCCESS/SUKSES)
     if status_filter:
-        query = query.filter(Transaction.status == status_filter.upper())
+        st_up = status_filter.upper()
+        if st_up in ['FAILED', 'GAGAL']:
+            query = query.filter(Transaction.status.in_(['FAILED', 'GAGAL', 'CANCELLED', 'BATAL']))
+        elif st_up in ['PENDING', 'PROCESSING', 'PROSES']:
+            query = query.filter(Transaction.status.in_(['PENDING', 'PROCESSING', 'PROSES']))
+        elif st_up in ['SUCCESS', 'SUKSES']:
+            query = query.filter(Transaction.status.in_(['SUCCESS', 'SUKSES']))
+        else:
+            query = query.filter(Transaction.status == st_up)
 
     if payment_filter:
         query = query.filter(Transaction.payment_status == payment_filter.upper())
@@ -525,20 +592,26 @@ def transactions():
     elif source_filter == 'web':
         query = query.filter(Transaction.device_id == None)
 
+    # Filter Seller Digiflazz (Case-insensitive & Partial Matching)
     if seller_filter:
+        s_clean = seller_filter.strip()
         seller_skus = [
-            r[0] for r in db.session.query(Product.sku_code).filter(Product.seller_name == seller_filter).all()
+            r[0] for r in db.session.query(Product.sku_code).filter(
+                db.func.upper(Product.seller_name).like(f"%{s_clean.upper()}%")
+            ).all()
             if r[0]
         ]
         if seller_skus:
             query = query.filter(
                 db.or_(
-                    Transaction.seller_name == seller_filter,
+                    db.func.upper(Transaction.seller_name).like(f"%{s_clean.upper()}%"),
                     Transaction.sku_code.in_(seller_skus)
                 )
             )
         else:
-            query = query.filter(Transaction.seller_name == seller_filter)
+            query = query.filter(
+                db.func.upper(Transaction.seller_name).like(f"%{s_clean.upper()}%")
+            )
 
     # Auto-sync pasif: cek hingga 5 transaksi PROCESSING terbaru ke provider secara otomatis
     try:
@@ -583,6 +656,9 @@ def transactions():
                            payment_filter=payment_filter,
                            source_filter=source_filter,
                            seller_filter=seller_filter,
+                           start_date=start_date_raw,
+                           end_date=end_date_raw,
+                           date_preset=date_preset,
                            all_sellers=all_sellers,
                            store_id=store_id_raw,
                            selected_store=selected_store,
