@@ -1683,10 +1683,14 @@ def get_failed_products_analytics(period='30d', filter_mode='all', auto_fallback
             b['pending_count'] += 1
 
     # Filter hanya produk yang memiliki minimal 1 kejadian gagal & hitung metrik kelayakan
-    failed_items = []
+    all_failed_buckets = []
     seller_agg = {}
     critical_count = 0
     warning_count = 0
+    active_failed_count = 0
+    disabled_failed_count = 0
+    deleted_failed_count = 0
+    critical_active_count = 0
 
     for sku, b in sku_buckets.items():
         if b['failed_count'] <= 0:
@@ -1726,6 +1730,8 @@ def get_failed_products_analytics(period='30d', filter_mode='all', auto_fallback
                 'DINONAKTIFKAN dari web, DIGANTI SELLER di portal Digiflazz, atau DIHAPUS dari katalog.'
             )
             critical_count += 1
+            if b['is_active']:
+                critical_active_count += 1
         elif (b['failed_count'] >= 2 and fail_rate >= 35.0) or (b['failed_count'] >= 3):
             b['severity'] = 'WARNING'
             b['severity_icon'] = '⚠️'
@@ -1743,6 +1749,14 @@ def get_failed_products_analytics(period='30d', filter_mode='all', auto_fallback
                 'Tingkat keberhasilan produk masih bagus atau kegagalan baru terjadi 1 kali '
                 '(bisa karena nomor tujuan salah/terblokir). Produk masih layak ditampilkan.'
             )
+
+        # Hitung status katalog produk
+        if not b['in_catalog']:
+            deleted_failed_count += 1
+        elif b['is_active']:
+            active_failed_count += 1
+        else:
+            disabled_failed_count += 1
 
         # Agregasi per Seller
         s_key = b['seller_name'].upper()
@@ -1768,10 +1782,20 @@ def get_failed_products_analytics(period='30d', filter_mode='all', auto_fallback
         if not sa['sample_trx_id'] and b['last_fail_trx']:
             sa['sample_trx_id'] = b['last_fail_trx'].id
 
-        if filter_mode == 'crit' and b['severity'] != 'CRITICAL':
-            continue
+        all_failed_buckets.append(b)
 
-        failed_items.append(b)
+    # Filter items sesuai filter_mode agar data yang sudah dinonaktifkan TIDAK MENUMPUK
+    # Mode 'active' (DEFAULT): Hanya produk yang MASIH AKTIF di Web yang perlu tindakan admin
+    # Mode 'crit': Hanya produk KRITIS yang masih aktif
+    # Mode 'all': Menampilkan semua produk termasuk yang sudah nonaktif / dihapus
+    norm_filter_mode = str(filter_mode or 'active').lower().strip()
+    if norm_filter_mode in ['active', 'act', 'active_only']:
+        failed_items = [x for x in all_failed_buckets if x['is_active'] is True]
+    elif norm_filter_mode in ['crit', 'critical']:
+        failed_items = [x for x in all_failed_buckets if x['is_active'] is True and x['severity'] == 'CRITICAL']
+    else:
+        failed_items = list(all_failed_buckets)
+        norm_filter_mode = 'all'
 
     # Urutkan produk dari gagal terbanyak -> rasio gagal tertinggi -> sukses paling sedikit
     failed_items.sort(
@@ -1788,17 +1812,22 @@ def get_failed_products_analytics(period='30d', filter_mode='all', auto_fallback
         seller_leaderboard.append(s_val)
 
     seller_leaderboard.sort(
-        key=lambda s: (s['failed_count'], s['fail_rate'], len(s['products'])),
+        key=lambda s: (s['active_sku_count'] > 0, s['failed_count'], s['fail_rate'], len(s['products'])),
         reverse=True
     )
 
     return {
         'period': norm_period,
         'period_label': period_label,
-        'filter_mode': filter_mode,
+        'filter_mode': norm_filter_mode,
         'items': failed_items,
-        'total_failed_products': len(failed_items),
+        'all_failed_count': len(all_failed_buckets),
+        'total_failed_products': len(all_failed_buckets),
+        'active_failed_count': active_failed_count,
+        'disabled_failed_count': disabled_failed_count,
+        'deleted_failed_count': deleted_failed_count,
         'critical_count': critical_count,
+        'critical_active_count': critical_active_count,
         'warning_count': warning_count,
         'global_failed_trx': global_failed_trx,
         'global_success_trx': global_success_trx,
@@ -1807,10 +1836,12 @@ def get_failed_products_analytics(period='30d', filter_mode='all', auto_fallback
     }
 
 
-def render_failed_products_report(period='30d', page=1, per_page=5, filter_mode='all', auto_fallback=False):
+def render_failed_products_report(period='30d', page=1, per_page=5, filter_mode='active', auto_fallback=False):
     """
     Menghasilkan tampilan pesan HTML Telegram dan Inline Keyboard interaktif
     untuk Laporan Analisa Produk & Seller yang Sering Gagal.
+    Secara default (filter_mode='active'), HANYA menampilkan produk yang MASIH AKTIF di Web,
+    sehingga produk yang sudah dinonaktifkan atau dihapus langsung lenyap dari daftar agar tidak menumpuk.
     """
     import math
     analytics = get_failed_products_analytics(
@@ -1821,6 +1852,7 @@ def render_failed_products_report(period='30d', page=1, per_page=5, filter_mode=
 
     norm_period = analytics['period']
     period_label = analytics['period_label']
+    norm_filter = analytics['filter_mode']
     items = analytics['items']
     total_items = len(items)
     total_pages = max(1, math.ceil(total_items / per_page))
@@ -1830,29 +1862,41 @@ def render_failed_products_report(period='30d', page=1, per_page=5, filter_mode=
     end_idx = start_idx + per_page
     page_items = items[start_idx:end_idx]
 
-    filter_title = "Hanya Produk Kritis 🚨" if filter_mode == 'crit' else "Semua Produk Gagal 📋"
+    if norm_filter == 'crit':
+        filter_title = "Hanya Produk Kritis Aktif 🚨"
+    elif norm_filter == 'all':
+        filter_title = "Semua Riwayat (Termasuk yg Sudah Nonaktif) 📂"
+    else:
+        filter_title = "Hanya yg Masih Aktif di Web 🟢 (Triage Cepat)"
+
+    resolved_count = analytics['disabled_failed_count'] + analytics['deleted_failed_count']
 
     lines = [
         "🚨 <b>LAPORAN ANALISA PRODUK & SELLER SERING GAGAL</b>",
         "━━━━━━━━━━━━━━━━━━━━━━",
         f"📅 <b>Periode:</b> {period_label} (Hal {page}/{total_pages})",
-        f"🔍 <b>Mode Filter:</b> {filter_title}",
+        f"🔍 <b>Mode Tampilan:</b> {filter_title}",
         "",
-        "📊 <b>RINGKASAN KESEHATAN KATALOG:</b>",
-        f"• 🚨 <b>Wajib Evaluasi / Kritis:</b> <b>{analytics['critical_count']}</b> produk",
-        f"• ⚠️ <b>Rawan Gangguan:</b> <b>{analytics['warning_count']}</b> produk",
-        f"• 📦 <b>Total Produk Pernah Gagal:</b> <b>{total_items}</b> SKU",
-        f"• 🔄 <b>Total Trx Periode Ini:</b> ❌ {analytics['global_failed_trx']} Gagal | ✅ {analytics['global_success_trx']} Sukses",
+        "📊 <b>STATUS KATALOG PERIODE INI:</b>",
+        f"• 🚨 <b>Perlu Ditangani (Masih Aktif di Web):</b> <b>{analytics['active_failed_count']}</b> produk",
+        f"• ✅ <b>Sudah Beres (Nonaktif / Dihapus):</b> <b>{resolved_count}</b> produk",
+        f"• 📦 <b>Total Riwayat Produk Pernah Gagal:</b> <b>{analytics['total_failed_products']}</b> SKU",
+        f"• 🔄 <b>Total Transaksi:</b> ❌ {analytics['global_failed_trx']} Gagal | ✅ {analytics['global_success_trx']} Sukses",
         "━━━━━━━━━━━━━━━━━━━━━━"
     ]
 
     inline_kb = []
 
     if not page_items:
-        lines.append("✅ <i>Tidak ditemukan produk yang mengalami kegagalan pada periode/filter ini.</i>")
-        lines.append("💡 <i>Gunakan tombol periode di bawah untuk mengecek rentang waktu 7 Hari / 30 Hari / Semua Waktu.</i>")
+        if norm_filter in ['active', 'crit'] and analytics['total_failed_products'] > 0:
+            lines.append("🎉 <b>Luar biasa! Seluruh produk sering gagal pada periode ini sudah berhasil DINONAKTIFKAN / DIHAPUS dari katalog web!</b>\n")
+            lines.append("✅ <i>Katalog Anda kini bersih dari produk bermasalah (data yang sudah Anda edit tidak menumpuk lagi).</i>")
+            lines.append("💡 <i>Untuk memeriksa arsip produk yang sudah dinonaktifkan, klik tombol '📂 Tampilkan Riwayat Nonaktif' di bawah.</i>")
+        else:
+            lines.append("✅ <i>Tidak ditemukan produk yang mengalami kegagalan pada periode/filter ini.</i>")
+            lines.append("💡 <i>Gunakan tombol periode di bawah untuk mengecek rentang waktu 7 Hari / 30 Hari / Semua Waktu.</i>")
     else:
-        lines.append("📋 <b>PERINGKAT PRODUK SERING GAGAL:</b>\n")
+        lines.append("📋 <b>DAFTAR PRODUK YANG PERLU DITANGANI:</b>\n")
         prod_btn_row = []
 
         for idx, item in enumerate(page_items, start=start_idx + 1):
@@ -1897,17 +1941,18 @@ def render_failed_products_report(period='30d', page=1, per_page=5, filter_mode=
             lines.append("━━━━━━━━━━━━━━━━━━━━━━")
             lines.append("🏪 <b>TOP SELLER PALING SERING GAGAL:</b>")
             for s_idx, s_row in enumerate(top_sellers, 1):
+                act_label = f"({s_row['active_sku_count']} SKU Aktif)" if s_row['active_sku_count'] > 0 else "(Semua Sudah Nonaktif ✅)"
                 lines.append(
                     f"{s_idx}. <b>{s_row['seller_name']}</b> (<code>{s_row['seller_tag']}</code>)\n"
                     f"   └ ❌ <b>{s_row['failed_count']}x Gagal</b> | ✅ <b>{s_row['success_count']}x Sukses</b> "
-                    f"(Gagal: {s_row['fail_rate']}% • {len(s_row['products'])} Produk)"
+                    f"(Gagal: {s_row['fail_rate']}% • {act_label})"
                 )
 
         lines.append("━━━━━━━━━━━━━━━━━━━━━━")
         lines.append("👇 <i>Klik tombol produk di bawah untuk Nonaktifkan, Hapus, Ganti/Sync Seller, atau Komplain:</i>")
 
     # Tombol Aksi Masal: Nonaktifkan Semua Produk Kritis yang masih Aktif
-    active_crit_count = sum(1 for x in analytics['items'] if x['severity'] == 'CRITICAL' and x['is_active'])
+    active_crit_count = analytics['critical_active_count']
     if active_crit_count > 0:
         inline_kb.append([
             {
@@ -1919,21 +1964,34 @@ def render_failed_products_report(period='30d', page=1, per_page=5, filter_mode=
     # Navigasi Halaman jika lebih dari 1 halaman
     nav_row = []
     if page > 1:
-        nav_row.append({"text": "« Hal Sebelumnya", "callback_data": f"fp_list:{norm_period}:{page - 1}:{filter_mode}"})
+        nav_row.append({"text": "« Hal Sebelumnya", "callback_data": f"fp_list:{norm_period}:{page - 1}:{norm_filter}"})
     if page < total_pages:
-        nav_row.append({"text": "Hal Berikutnya »", "callback_data": f"fp_list:{norm_period}:{page + 1}:{filter_mode}"})
+        nav_row.append({"text": "Hal Berikutnya »", "callback_data": f"fp_list:{norm_period}:{page + 1}:{norm_filter}"})
     if nav_row:
         inline_kb.append(nav_row)
 
     # Baris Filter Mode & Analisa Per Seller
-    toggle_filter_btn = (
-        {"text": "📋 Tampilkan Semua Produk Gagal", "callback_data": f"fp_list:{norm_period}:1:all"}
-        if filter_mode == 'crit' else
-        {"text": f"🚨 Filter Hanya Kritis ({analytics['critical_count']})", "callback_data": f"fp_list:{norm_period}:1:crit"}
-    )
+    # Jika mode 'active' (default): sediakan opsi tampilkan riwayat nonaktif (arsip)
+    # Jika mode 'all': sediakan opsi kembali saring hanya yang aktif (bersih)
+    if norm_filter == 'active':
+        filter_toggle_row = [
+            {"text": f"📂 Tampilkan Riwayat Nonaktif ({analytics['total_failed_products']})", "callback_data": f"fp_list:{norm_period}:1:all"}
+        ]
+        if analytics['critical_active_count'] > 0:
+            filter_toggle_row.append({"text": f"🚨 Hanya Kritis ({analytics['critical_active_count']})", "callback_data": f"fp_list:{norm_period}:1:crit"})
+        inline_kb.append(filter_toggle_row)
+    elif norm_filter == 'crit':
+        inline_kb.append([
+            {"text": f"🟢 Kembali ke Semua Produk Aktif ({analytics['active_failed_count']})", "callback_data": f"fp_list:{norm_period}:1:active"}
+        ])
+    else:  # mode 'all'
+        inline_kb.append([
+            {"text": f"🟢 Saring Hanya yg Masih Aktif ({analytics['active_failed_count']})", "callback_data": f"fp_list:{norm_period}:1:active"}
+        ])
+
+    # Tombol Analisa Per Seller (mengarah ke mode aktif)
     inline_kb.append([
-        toggle_filter_btn,
-        {"text": "🏪 Analisa Per Seller", "callback_data": f"fp_sellers:{norm_period}:1"}
+        {"text": "🏪 Analisa Per Seller (Top Gagal)", "callback_data": f"fp_sellers:{norm_period}:1:active"}
     ])
 
     # Baris Filter Periode Waktu
@@ -1948,13 +2006,13 @@ def render_failed_products_report(period='30d', page=1, per_page=5, filter_mode=
         prefix = "✅ " if norm_period == p_code else "📅 "
         period_row.append({
             "text": f"{prefix}{p_text}",
-            "callback_data": f"fp_list:{p_code}:1:{filter_mode}"
+            "callback_data": f"fp_list:{p_code}:1:{norm_filter}"
         })
     inline_kb.append(period_row)
 
     # Baris Refresh & Menu Utama
     inline_kb.append([
-        {"text": "🔄 Refresh Analisa", "callback_data": f"fp_list:{norm_period}:{page}:{filter_mode}"},
+        {"text": "🔄 Refresh Analisa (Bersih)", "callback_data": f"fp_list:{norm_period}:{page}:{norm_filter}"},
         {"text": "🏠 Menu Utama", "callback_data": "cmd_menu"}
     ])
 
@@ -2135,23 +2193,33 @@ def render_failed_product_detail(sku_code, period='30d'):
 
     # 5. Tombol Kembali ke Laporan Utama
     kb.append([
-        {"text": "« Kembali ke Laporan Produk Gagal", "callback_data": f"fp_list:{norm_period}:1:all"},
+        {"text": "« Kembali ke Laporan Produk Gagal", "callback_data": f"fp_list:{norm_period}:1:active"},
         {"text": "🏠 Menu Utama", "callback_data": "cmd_menu"}
     ])
 
     return "\n".join(lines), {"inline_keyboard": kb}
 
 
-def render_failed_sellers_report(period='30d', page=1, per_page=5):
+def render_failed_sellers_report(period='30d', page=1, per_page=5, filter_mode='active'):
     """
-    Menampilkan Laporan Rekapitulasi Per Seller Digiflazz yang paling sering gagal,
-    lengkap dengan rincian produk di bawah seller tersebut & tombol 1-klik nonaktifkan semua produk dari seller bermasalah.
+    Menampilkan Laporan Rekapitulasi Per Seller Digiflazz yang paling sering gagal.
+    Secara default (filter_mode='active'), HANYA menampilkan seller yang masih memiliki produk aktif bermasalah,
+    dan tombol matikan produk HANYA menonaktifkan produk gagal dari seller tersebut yang masih aktif (tidak mempengaruhi produk normal).
     """
     import math
     analytics = get_failed_products_analytics(period=period, filter_mode='all')
     norm_period = analytics['period']
     period_label = analytics['period_label']
-    sellers = analytics['seller_leaderboard']
+    norm_filter = str(filter_mode or 'active').lower().strip()
+    all_sellers = analytics['seller_leaderboard']
+
+    if norm_filter in ['active', 'act', 'active_only']:
+        sellers = [s for s in all_sellers if s['active_sku_count'] > 0]
+        filter_title = "Hanya Seller Belum Beres 🟢 (Ada Produk Aktif Gagal)"
+    else:
+        sellers = all_sellers
+        norm_filter = 'all'
+        filter_title = "Semua Riwayat Seller Bermasalah 📂"
 
     total_sellers = len(sellers)
     total_pages = max(1, math.ceil(total_sellers / per_page))
@@ -2161,24 +2229,38 @@ def render_failed_sellers_report(period='30d', page=1, per_page=5):
     end_idx = start_idx + per_page
     page_sellers = sellers[start_idx:end_idx]
 
+    active_sellers_count = sum(1 for s in all_sellers if s['active_sku_count'] > 0)
+    resolved_sellers_count = len(all_sellers) - active_sellers_count
+
     lines = [
         "🏪 <b>RAPOR ANALISA SELLER DIGIFLAZZ SERING GAGAL</b>",
         "━━━━━━━━━━━━━━━━━━━━━━",
         f"📅 <b>Periode:</b> {period_label} (Hal {page}/{total_pages})",
-        f"🏢 <b>Total Seller Bermasalah:</b> {total_sellers} Seller",
+        f"🔍 <b>Mode Tampilan:</b> {filter_title}",
+        f"🏢 <b>Status:</b> 🚨 {active_sellers_count} Belum Beres | ✅ {resolved_sellers_count} Sudah Selesai",
         "━━━━━━━━━━━━━━━━━━━━━━"
     ]
 
     kb = []
 
     if not page_sellers:
-        lines.append("✅ <i>Tidak ada seller dengan transaksi gagal pada periode ini.</i>")
+        if norm_filter == 'active' and len(all_sellers) > 0:
+            lines.append("🎉 <b>Luar biasa! Seluruh produk bermasalah dari semua Seller sudah berhasil DINONAKTIFKAN!</b>\n")
+            lines.append("✅ <i>Tidak ada lagi produk gagal dari seller manapun yang sedang tayang di web. Data tidak menumpuk.</i>")
+            lines.append("💡 <i>Untuk melihat semua riwayat seller terdahulu, klik tombol '📂 Tampilkan Semua Riwayat Seller' di bawah.</i>")
+        else:
+            lines.append("✅ <i>Tidak ada seller dengan transaksi gagal pada periode ini.</i>")
     else:
         for idx, s in enumerate(page_sellers, start=start_idx + 1):
+            if s['active_sku_count'] > 0:
+                act_badge = f"🚨 <b>{s['active_sku_count']} masih Aktif di Web</b>"
+            else:
+                act_badge = "✅ <b>Semua Produk Sudah Nonaktif</b>"
+
             lines.append(
                 f"<b>{idx}. 🏪 {s['seller_name']}</b> (<code>{s['seller_tag']}</code>)\n"
                 f"   • 📊 Total: <b>{s['failed_count']} kali gagal</b> | <b>{s['success_count']} kali sukses</b> (Gagal: <b>{s['fail_rate']}%</b>)\n"
-                f"   • 📦 Produk Terdampak: <b>{len(s['products'])} SKU</b> ({s['active_sku_count']} masih Aktif di Web)"
+                f"   • 📦 Produk Terdampak: <b>{len(s['products'])} SKU</b> ({act_badge})"
             )
             for p_item in s['products'][:3]:
                 st_dot = "🟢" if p_item['is_active'] else "🔴"
@@ -2190,29 +2272,42 @@ def render_failed_sellers_report(period='30d', page=1, per_page=5):
                 lines.append(f"     <i>...dan {len(s['products']) - 3} produk lainnya.</i>")
             lines.append("")
 
-            # Jika seller ini masih punya produk aktif dan rasio gagalnya tinggi, sediakan tombol matikan produk seller ini
+            # Tombol matikan produk: HANYA jika seller ini masih punya produk gagal yang AKTIF
             if s['active_sku_count'] > 0 and s['sample_trx_id']:
-                short_sname = (s['seller_name'][:16] + "..") if len(s['seller_name']) > 18 else s['seller_name']
+                short_sname = (s['seller_name'][:14] + "..") if len(s['seller_name']) > 16 else s['seller_name']
                 kb.append([
                     {
-                        "text": f"🛑 Nonaktifkan {s['active_sku_count']} Produk Seller #{idx} ({short_sname})",
+                        "text": f"🛑 Matikan {s['active_sku_count']} Produk Gagal Seller #{idx} ({short_sname})",
                         "callback_data": f"fp_slroff:{norm_period}:{s['sample_trx_id']}"
                     }
                 ])
 
         lines.append("━━━━━━━━━━━━━━━━━━━━━━")
-        lines.append("💡 <i>Jika 1 Seller gagal di banyak produk sekaligus, Anda dapat langsung menonaktifkan seluruh produk dari Seller tersebut dengan tombol di bawah.</i>")
+        lines.append("💡 <b>PENTING TENTANG TOMBOL DI ATAS:</b>")
+        lines.append("• Tombol <b>[🛑 Matikan X Produk Gagal]</b> di atas <b>HANYA</b> menonaktifkan X produk dari Seller tersebut yang tercatat sering gagal dan saat ini statusnya masih AKTIF di web.")
+        lines.append("• Produk lain milik Seller tersebut yang transaksinya normal/sukses <b>TIDAK AKAN</b> ikut dinonaktifkan.")
+        lines.append("• Begitu produk dimatikan, saat me-refresh data tersebut <b>langsung hilang dari antrean tugas</b> agar tidak menumpuk!")
 
     nav_row = []
     if page > 1:
-        nav_row.append({"text": "« Hal Sebelumnya", "callback_data": f"fp_sellers:{norm_period}:{page - 1}"})
+        nav_row.append({"text": "« Hal Sebelumnya", "callback_data": f"fp_sellers:{norm_period}:{page - 1}:{norm_filter}"})
     if page < total_pages:
-        nav_row.append({"text": "Hal Berikutnya »", "callback_data": f"fp_sellers:{norm_period}:{page + 1}"})
+        nav_row.append({"text": "Hal Berikutnya »", "callback_data": f"fp_sellers:{norm_period}:{page + 1}:{norm_filter}"})
     if nav_row:
         kb.append(nav_row)
 
+    # Baris Filter Toggle Seller
+    if norm_filter == 'active':
+        kb.append([
+            {"text": f"📂 Tampilkan Semua Riwayat Seller ({len(all_sellers)})", "callback_data": f"fp_sellers:{norm_period}:1:all"}
+        ])
+    else:
+        kb.append([
+            {"text": f"🟢 Saring Seller Belum Beres ({active_sellers_count})", "callback_data": f"fp_sellers:{norm_period}:1:active"}
+        ])
+
     kb.append([
-        {"text": "📦 Kembali ke Daftar Produk Gagal", "callback_data": f"fp_list:{norm_period}:1:all"},
+        {"text": "📦 Kembali ke Daftar Produk Gagal", "callback_data": f"fp_list:{norm_period}:1:active"},
         {"text": "🏠 Menu Utama", "callback_data": "cmd_menu"}
     ])
 
@@ -2973,7 +3068,7 @@ def handle_admin_callback(app, callback_query):
         # ==========================================================
         elif data == 'cmd_failed_products':
             rep_text, rep_kb = render_failed_products_report(
-                period='30d', page=1, per_page=5, filter_mode='all', auto_fallback=True
+                period='30d', page=1, per_page=5, filter_mode='active', auto_fallback=True
             )
             _edit_message(token, chat_id, message_id, rep_text, rep_kb)
 
@@ -2981,7 +3076,7 @@ def handle_admin_callback(app, callback_query):
             parts = data.split(':')
             period = parts[1] if len(parts) > 1 else '30d'
             page = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 1
-            filter_mode = parts[3] if len(parts) > 3 else 'all'
+            filter_mode = parts[3] if len(parts) > 3 else 'active'
             rep_text, rep_kb = render_failed_products_report(
                 period=period, page=page, per_page=5, filter_mode=filter_mode, auto_fallback=False
             )
@@ -3182,7 +3277,7 @@ def handle_admin_callback(app, callback_query):
             else:
                 banner = f"ℹ️ Produk <code>{sku_clean}</code> sudah dihapus sebelumnya.\n\n"
 
-            rep_text, rep_kb = render_failed_products_report(period=period, page=1, per_page=5, filter_mode='all')
+            rep_text, rep_kb = render_failed_products_report(period=period, page=1, per_page=5, filter_mode='active')
             _edit_message(token, chat_id, message_id, banner + rep_text, rep_kb)
 
         elif data.startswith('fp_offcrit:'):
@@ -3209,14 +3304,15 @@ def handle_admin_callback(app, callback_query):
             else:
                 banner = "ℹ️ <b>Seluruh produk berstatus Kritis sudah dalam keadaan Nonaktif.</b>\n\n"
 
-            rep_text, rep_kb = render_failed_products_report(period=period, page=1, per_page=5, filter_mode='all')
+            rep_text, rep_kb = render_failed_products_report(period=period, page=1, per_page=5, filter_mode='active')
             _edit_message(token, chat_id, message_id, banner + rep_text, rep_kb)
 
         elif data.startswith('fp_sellers:'):
             parts = data.split(':')
             period = parts[1] if len(parts) > 1 else '30d'
             page = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 1
-            s_text, s_kb = render_failed_sellers_report(period=period, page=page, per_page=5)
+            filter_mode = parts[3] if len(parts) > 3 else 'active'
+            s_text, s_kb = render_failed_sellers_report(period=period, page=page, per_page=5, filter_mode=filter_mode)
             _edit_message(token, chat_id, message_id, s_text, s_kb)
 
         elif data.startswith('fp_slroff:'):
@@ -3230,37 +3326,38 @@ def handle_admin_callback(app, callback_query):
                 target_seller = getattr(sample_trx, 'resolved_seller_name', None) or sample_trx.seller_name
 
             disabled_count = 0
+            disabled_names = []
             if target_seller:
-                # Nonaktifkan semua produk yang memiliki seller_name ini maupun produk yang gagal di bawah seller ini
+                # PENTING: Hanya menonaktifkan produk-produk dari seller ini yang TERCATAT GAGAL dan masih AKTIF!
+                # Produk normal seller lainnya TIDAK AKAN disentuh!
                 analytics = get_failed_products_analytics(period=period, filter_mode='all')
                 for item in analytics['items']:
                     if item['seller_name'].upper() == target_seller.strip().upper():
                         if item['product_obj'] and item['product_obj'].is_active:
                             item['product_obj'].is_active = False
                             disabled_count += 1
-                # Juga cek tabel Product langsung dengan seller_name yang sama
-                direct_prods = Product.query.filter(
-                    db.func.upper(Product.seller_name) == target_seller.strip().upper(),
-                    Product.is_active == True
-                ).all()
-                for dp in direct_prods:
-                    dp.is_active = False
-                    disabled_count += 1
+                            disabled_names.append(f"{item['product_name']} ({item['sku_code']})")
 
-                db.session.commit()
-                try:
-                    cache.clear()
-                except Exception:
-                    pass
-                banner = (
-                    f"🛑 <b>PRODUK DARI SELLER {target_seller.upper()} DINONAKTIFKAN!</b>\n"
-                    f"Berhasil menyembunyikan produk aktif dari seller <b>{target_seller}</b> agar tidak merugikan pelanggan.\n"
-                    "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-                )
+                if disabled_count > 0:
+                    db.session.commit()
+                    try:
+                        cache.clear()
+                    except Exception:
+                        pass
+                    banner = (
+                        f"🛑 <b>{disabled_count} PRODUK GAGAL SELLER {target_seller.upper()} DINONAKTIFKAN!</b>\n"
+                        f"• Produk bermasalah berhasil dinonaktifkan dari katalog web.\n"
+                        f"• <i>Produk normal milik seller ini tetap aman & aktif.</i>\n"
+                        + "\n".join(f"• 🔴 {n}" for n in disabled_names[:5])
+                        + "\n━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                    )
+                else:
+                    banner = f"ℹ️ <b>Semua produk gagal dari seller {target_seller.upper()} sudah dalam keadaan nonaktif.</b>\n\n"
             else:
                 banner = "⚠️ <b>Identitas Seller tidak ditemukan.</b>\n\n"
 
-            s_text, s_kb = render_failed_sellers_report(period=period, page=1, per_page=5)
+            # Render ulang seller report dengan filter_mode='active' sehingga seller yang sudah beres langsung hilang dari antrean (Clean View)!
+            s_text, s_kb = render_failed_sellers_report(period=period, page=1, per_page=5, filter_mode='active')
             _edit_message(token, chat_id, message_id, banner + s_text, s_kb)
 
         elif data == 'cmd_tarik_deposit':
@@ -4041,18 +4138,24 @@ def handle_admin_message(app, message):
         with app.app_context():
             if cmd_lower.startswith('/analisaseller'):
                 p_arg = arg if arg.lower() in ['1d', '7d', '30d', 'all', 'hariini', 'semua'] else '30d'
-                rep_text, rep_kb = render_failed_sellers_report(period=p_arg, page=1, per_page=5)
+                rep_text, rep_kb = render_failed_sellers_report(period=p_arg, page=1, per_page=5, filter_mode='active')
                 _send_message(token, chat_id, rep_text, reply_markup=rep_kb)
                 return
 
-            if arg and arg.lower() not in ['1d', '7d', '30d', 'all', 'hariini', 'semua', 'crit', 'kritis']:
+            if arg and arg.lower() not in ['1d', '7d', '30d', 'all', 'hariini', 'semua', 'crit', 'kritis', 'arsip', 'nonaktif']:
                 # Anggap argumen sebagai kode SKU spesifik yang ingin diinspeksi
                 det_text, det_kb = render_failed_product_detail(arg, period='30d')
                 _send_message(token, chat_id, det_text, reply_markup=det_kb)
                 return
 
             p_arg = arg.lower() if arg.lower() in ['1d', '7d', '30d', 'all', 'hariini', 'semua'] else '30d'
-            f_mode = 'crit' if arg.lower() in ['crit', 'kritis'] else 'all'
+            if arg.lower() in ['crit', 'kritis']:
+                f_mode = 'crit'
+            elif arg.lower() in ['all', 'semua', 'arsip', 'nonaktif']:
+                f_mode = 'all'
+            else:
+                f_mode = 'active'
+
             rep_text, rep_kb = render_failed_products_report(
                 period=p_arg, page=1, per_page=5, filter_mode=f_mode, auto_fallback=(not bool(arg))
             )

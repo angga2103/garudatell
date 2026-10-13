@@ -50,10 +50,11 @@ def run_all_tests():
         test_sku_1 = 'TEST_TSEL_UMKM_4GB_30H'
         test_sku_2 = 'TEST_ISAT_FREEDOM_10GB'
         test_sku_3 = 'TEST_XL_XTRA_COMBO_20GB'
+        test_sku_normal = 'TEST_PFAST_NORMAL_PULSA'
 
         # Bersihkan sisa data tes jika ada
-        Product.query.filter(Product.sku_code.in_([test_sku_1, test_sku_2, test_sku_3])).delete(synchronize_session=False)
-        Transaction.query.filter(Transaction.sku_code.in_([test_sku_1, test_sku_2, test_sku_3])).delete(synchronize_session=False)
+        Product.query.filter(Product.sku_code.in_([test_sku_1, test_sku_2, test_sku_3, test_sku_normal])).delete(synchronize_session=False)
+        Transaction.query.filter(Transaction.sku_code.in_([test_sku_1, test_sku_2, test_sku_3, test_sku_normal])).delete(synchronize_session=False)
         db.session.commit()
 
         p1 = Product(
@@ -86,8 +87,36 @@ def run_all_tests():
             seller_name='Payfast Official',
             is_active=True
         )
-        db.session.add_all([p1, p2, p3])
+        p_norm = Product(
+            sku_code=test_sku_normal,
+            name='Pulsa Telkomsel 50rb Normal',
+            category='Pulsa',
+            brand='TELKOMSEL',
+            base_price=49800,
+            sell_price=51000,
+            seller_name='Payfast Official',
+            is_active=True
+        )
+        db.session.add_all([p1, p2, p3, p_norm])
         db.session.commit()
+
+        # Transaksi Sukses Normal untuk p_norm (10x sukses, 0x gagal)
+        for i in range(10):
+            db.session.add(Transaction(
+                user_id=1,
+                ref_id=f'TEST-B3-SUCC-NORM-{i}',
+                sku_code=test_sku_normal,
+                product_name='Pulsa Telkomsel 50rb Normal',
+                target_number=f'08121111222{i}',
+                amount=51000,
+                base_price=49800,
+                status='SUCCESS',
+                payment_method='saldo',
+                payment_status='PAID',
+                sn=f'SN-NORM-{i}',
+                seller_name='Payfast Official',
+                seller_tele='@payfast_id'
+            ))
 
         # Skenario 1: Telkomsel Data UMKM 4GB 30 Hari -> 9 kali gagal, 1 kali sukses • seller@payfast_id (CRITICAL)
         for i in range(9):
@@ -325,8 +354,12 @@ def run_all_tests():
                 assert p1.is_active is False
                 assert 'PRODUK KRITIS BERHASIL DINONAKTIFKAN!' in edits[-1][0]
 
+                # UJI AMAN TOMBOL SELLER: Pastikan p_norm (produk sukses) tetap AKTIF saat seller dimatikan!
                 db.session.refresh(p3)
+                db.session.refresh(p_norm)
                 assert p3.is_active is True
+                assert p_norm.is_active is True
+
                 xl_fail_trx = Transaction.query.filter_by(sku_code=test_sku_3, status='FAILED').first()
                 handle_admin_callback(app, {
                     'id': 'cb_slroff',
@@ -334,9 +367,23 @@ def run_all_tests():
                     'data': f'fp_slroff:30d:{xl_fail_trx.id}'
                 })
                 db.session.refresh(p3)
+                db.session.refresh(p_norm)
+                # Produk yang sering gagal dinonaktifkan:
                 assert p3.is_active is False
+                # PRODUK NORMAL TETAP AKTIF (100% AMAN!):
+                assert p_norm.is_active is True, "Produk normal seller tidak boleh ikut dinonaktifkan!"
                 assert 'DINONAKTIFKAN!' in edits[-1][0]
-                print("[LULUS 8/10] Tombol Matikan Semua Produk Kritis (fp_offcrit) & Matikan Per Seller (fp_slroff) berfungsi 100%.")
+
+                # UJI CLEAN VIEW / INBOX ZERO: Produk yang sudah dinonaktifkan HILANG dari antrean aktif saat refresh!
+                act_txt, act_kb = render_failed_products_report(period='30d', page=1, per_page=5, filter_mode='active')
+                assert test_sku_1 not in act_txt, "Produk 1 yang sudah nonaktif tidak boleh muncul di filter aktif!"
+                assert test_sku_3 not in act_txt, "Produk 3 yang sudah nonaktif tidak boleh muncul di filter aktif!"
+                # Tapi saat dibuka dengan filter 'all' (arsip riwayat), produk tetap muncul:
+                all_txt, all_kb = render_failed_products_report(period='30d', page=1, per_page=5, filter_mode='all')
+                assert test_sku_1 in all_txt
+                assert test_sku_3 in all_txt
+
+                print("[LULUS 8/10] Tombol Matikan Per Seller (fp_slroff) terbukti aman (produk normal tetap aktif) & Clean View (Inbox Zero) akurat 100%.")
 
                 # TEST 9: Konfirmasi Hapus & Eksekusi Hapus Produk dari Katalog (fp_delask & fp_delok)
                 handle_admin_callback(app, {
@@ -373,8 +420,8 @@ def run_all_tests():
             print("HASIL AKHIR: 10/10 PENGUJIAN BOT 3 PANEL & FITUR ADMIN LULUS 100%!")
             print("=" * 72)
         finally:
-            Product.query.filter(Product.sku_code.in_([test_sku_1, test_sku_2, test_sku_3])).delete(synchronize_session=False)
-            Transaction.query.filter(Transaction.sku_code.in_([test_sku_1, test_sku_2, test_sku_3])).delete(synchronize_session=False)
+            Product.query.filter(Product.sku_code.in_([test_sku_1, test_sku_2, test_sku_3, test_sku_normal])).delete(synchronize_session=False)
+            Transaction.query.filter(Transaction.sku_code.in_([test_sku_1, test_sku_2, test_sku_3, test_sku_normal])).delete(synchronize_session=False)
             db.session.commit()
 
 
