@@ -20,6 +20,9 @@ class Product(db.Model):
     # Nama Seller Digiflazz (dari endpoint /v1/price-list)
     seller_name = db.Column(db.String(100), nullable=True, index=True)
 
+    # Gembok Admin: jika True, Auto-Sync Digiflazz dilarang mengaktifkan kembali produk ini
+    is_admin_disabled = db.Column(db.Boolean, default=False, nullable=True, index=True)
+
     __table_args__ = (
         db.Index('idx_product_category_active', 'category', 'is_active'),
         db.Index('idx_product_brand_active', 'brand', 'is_active'),

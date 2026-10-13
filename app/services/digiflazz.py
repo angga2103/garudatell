@@ -307,9 +307,17 @@ def sync_products(force=False, notify_admin_bot=True, include_pasca=False):
                     update_count += 1
                 
                 # Sinkronkan status aktif / gangguan secara real-time
-                if product.is_active != product_active:
-                    product.is_active = product_active
-                    update_count += 1
+                # GEMBOK ADMIN: Jika produk dinonaktifkan manual oleh Admin (is_admin_disabled == True),
+                # Auto-Sync DILARANG mengaktifkan kembali produk ini!
+                is_admin_locked = bool(getattr(product, 'is_admin_disabled', False))
+                if is_admin_locked:
+                    if product.is_active:
+                        product.is_active = False
+                        update_count += 1
+                else:
+                    if product.is_active != product_active:
+                        product.is_active = product_active
+                        update_count += 1
 
                 # Sinkronkan nama seller Digiflazz secara otomatis
                 if seller_val and getattr(product, 'seller_name', None) != seller_val:

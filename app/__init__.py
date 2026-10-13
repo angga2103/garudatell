@@ -201,7 +201,8 @@ def create_app(test_config=None):
             if 'product' in inspector.get_table_names():
                 prod_cols = [c['name'] for c in inspector.get_columns('product')]
                 new_prod_cols = [
-                    ('seller_name', 'VARCHAR(100)')
+                    ('seller_name', 'VARCHAR(100)'),
+                    ('is_admin_disabled', 'BOOLEAN DEFAULT 0')
                 ]
                 with db.engine.connect() as conn:
                     for c_name, c_type in new_prod_cols:

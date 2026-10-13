@@ -1770,6 +1770,7 @@ def get_failed_products_analytics(period='30d', filter_mode='all', auto_fallback
                 'total_count': 0,
                 'products': [],
                 'active_sku_count': 0,
+                'disabled_sku_count': 0,
                 'sample_trx_id': b['last_fail_trx'].id if b['last_fail_trx'] else 0,
             }
         sa = seller_agg[s_key]
@@ -1779,6 +1780,8 @@ def get_failed_products_analytics(period='30d', filter_mode='all', auto_fallback
         sa['products'].append(b)
         if b['is_active']:
             sa['active_sku_count'] += 1
+        else:
+            sa['disabled_sku_count'] += 1
         if not sa['sample_trx_id'] and b['last_fail_trx']:
             sa['sample_trx_id'] = b['last_fail_trx'].id
 
@@ -2252,10 +2255,14 @@ def render_failed_sellers_report(period='30d', page=1, per_page=5, filter_mode='
             lines.append("✅ <i>Tidak ada seller dengan transaksi gagal pada periode ini.</i>")
     else:
         for idx, s in enumerate(page_sellers, start=start_idx + 1):
+            badges = []
             if s['active_sku_count'] > 0:
-                act_badge = f"🚨 <b>{s['active_sku_count']} masih Aktif di Web</b>"
-            else:
-                act_badge = "✅ <b>Semua Produk Sudah Nonaktif</b>"
+                badges.append(f"🚨 <b>{s['active_sku_count']} Aktif di Web</b>")
+            if s.get('disabled_sku_count', 0) > 0:
+                badges.append(f"🔴 <b>{s['disabled_sku_count']} Nonaktif (Terkunci)</b>")
+            if not badges:
+                badges.append("✅ <b>Semua Produk Selesai</b>")
+            act_badge = " | ".join(badges)
 
             lines.append(
                 f"<b>{idx}. 🏪 {s['seller_name']}</b> (<code>{s['seller_tag']}</code>)\n"
@@ -2282,11 +2289,24 @@ def render_failed_sellers_report(period='30d', page=1, per_page=5, filter_mode='
                     }
                 ])
 
+            # Tombol kelola produk nonaktif & aktivasi massal per seller
+            if s.get('disabled_sku_count', 0) > 0 and s['sample_trx_id']:
+                kb.append([
+                    {
+                        "text": f"📂 Lihat {s['disabled_sku_count']} Produk Nonaktif #{idx}",
+                        "callback_data": f"fp_slrdis:{norm_period}:{s['sample_trx_id']}:1"
+                    },
+                    {
+                        "text": f"🟢 Aktifkan Semua Produk #{idx}",
+                        "callback_data": f"fp_slron:{norm_period}:{s['sample_trx_id']}"
+                    }
+                ])
+
         lines.append("━━━━━━━━━━━━━━━━━━━━━━")
-        lines.append("💡 <b>PENTING TENTANG TOMBOL DI ATAS:</b>")
-        lines.append("• Tombol <b>[🛑 Matikan X Produk Gagal]</b> di atas <b>HANYA</b> menonaktifkan X produk dari Seller tersebut yang tercatat sering gagal dan saat ini statusnya masih AKTIF di web.")
-        lines.append("• Produk lain milik Seller tersebut yang transaksinya normal/sukses <b>TIDAK AKAN</b> ikut dinonaktifkan.")
-        lines.append("• Begitu produk dimatikan, saat me-refresh data tersebut <b>langsung hilang dari antrean tugas</b> agar tidak menumpuk!")
+        lines.append("💡 <b>PENTING TENTANG AKSI SELLER:</b>")
+        lines.append("• <b>[🛑 Matikan Produk]</b> hanya mematikan produk gagal aktif milik seller tersebut (produk normal tetap aman).")
+        lines.append("• Produk yang dinonaktifkan otomatis digembok dari Auto-Sync Digiflazz.")
+        lines.append("• Gunakan tombol <b>[📂 Lihat Produk Nonaktif]</b> atau <b>[🟢 Aktifkan Semua]</b> untuk mengembalikan produk seller yang sudah normal.")
 
     nav_row = []
     if page > 1:
@@ -2312,6 +2332,120 @@ def render_failed_sellers_report(period='30d', page=1, per_page=5, filter_mode='
     ])
 
     return "\n".join(lines), {"inline_keyboard": kb}
+
+
+def render_disabled_seller_products_report(sample_trx_id, period='30d', page=1, per_page=5):
+    """
+    Menampilkan daftar produk milik seller tertentu yang saat ini berstatus NONAKTIF (digembok dari Auto-Sync Digiflazz).
+    Dilengkapi tombol untuk mengaktifkan kembali produk (per-item maupun sekaligus per-seller).
+    """
+    import math
+    from app.extensions import db
+    from app.models.transaction import Transaction
+    from app.models.product import Product
+    sample_trx = Transaction.query.get(sample_trx_id)
+    target_seller = None
+    if sample_trx:
+        target_seller = getattr(sample_trx, 'resolved_seller_name', None) or sample_trx.seller_name
+
+    if not target_seller:
+        return "❌ <i>Data seller tidak ditemukan!</i>", get_back_button()
+
+    s_meta = format_seller_handle_and_name(target_seller, getattr(sample_trx, 'seller_tele', None))
+    analytics = get_failed_products_analytics(period=period, filter_mode='all')
+    period_label = analytics['period_label']
+    norm_period = analytics['period']
+
+    # Ambil produk nonaktif dari seller ini (dari analytics maupun langsung dari Product catalog)
+    seller_disabled_items = [
+        p for p in analytics['items']
+        if p['seller_name'].upper() == target_seller.upper() and not p['is_active']
+    ]
+
+    # Cek juga jika ada produk lain di database Product yang dimiliki seller ini dan is_active=False tapi tidak ada di analytics transaksi
+    existing_skus = {p['sku_code'] for p in seller_disabled_items}
+    db_extra_prods = Product.query.filter(
+        db.func.upper(Product.seller_name) == target_seller.upper(),
+        Product.is_active == False
+    ).all()
+    for dp in db_extra_prods:
+        if dp.sku_code not in existing_skus:
+            seller_disabled_items.append({
+                'sku_code': dp.sku_code,
+                'product_name': dp.name,
+                'seller_name': dp.seller_name,
+                'seller_tag': s_meta['seller_tag'],
+                'failed_count': 0,
+                'success_count': 0,
+                'fail_rate': 0.0,
+                'is_active': False,
+                'is_admin_disabled': getattr(dp, 'is_admin_disabled', False),
+                'product_obj': dp
+            })
+
+    total_prods = len(seller_disabled_items)
+    total_pages = max(1, math.ceil(total_prods / per_page))
+    page = max(1, min(int(page or 1), total_pages))
+
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    page_items = seller_disabled_items[start_idx:end_idx]
+
+    lines = [
+        "📂 <b>DAFTAR PRODUK NONAKTIF SELLER</b>",
+        "━━━━━━━━━━━━━━━━━━━━━━",
+        f"🏪 <b>Seller:</b> <b>{s_meta['seller_name']}</b> (<code>{s_meta['seller_tag']}</code>)",
+        f"📅 <b>Periode:</b> {period_label} (Hal {page}/{total_pages})",
+        f"🔒 <b>Total Nonaktif:</b> {total_prods} SKU (Aman dari Auto-Sync Digiflazz)",
+        "━━━━━━━━━━━━━━━━━━━━━━"
+    ]
+
+    kb = []
+
+    if not page_items:
+        lines.append("✅ <i>Tidak ada produk nonaktif untuk seller ini. Seluruh produk saat ini berstatus aktif di web.</i>")
+    else:
+        lines.append("<i>Produk di bawah ini saat ini dinonaktifkan dari katalog web dan digembok dari Auto-Sync Digiflazz:</i>\n")
+        for idx, item in enumerate(page_items, start=start_idx + 1):
+            is_locked = bool(item.get('is_admin_disabled', False)) or (item.get('product_obj') and getattr(item['product_obj'], 'is_admin_disabled', False))
+            lock_str = "🔒 Gembok Admin: Aktif" if is_locked else "🔓 Standar"
+            lines.append(
+                f"<b>{idx}. 🔴 {item['product_name']}</b> (<code>{item['sku_code']}</code>)\n"
+                f"   • Riwayat: <b>{item['failed_count']}x gagal</b> | <b>{item['success_count']}x sukses</b> (Gagal: <b>{item['fail_rate']}%</b>)\n"
+                f"   • Status: {lock_str}"
+            )
+            cb_sku = item['sku_code'][:28]
+            kb.append([
+                {"text": f"🔍 Kelola / Aktifkan #{idx} ({item['sku_code']})", "callback_data": f"fp_view:{norm_period}:{cb_sku}"}
+            ])
+            lines.append("")
+
+        lines.append("━━━━━━━━━━━━━━━━━━━━━━")
+        lines.append("💡 <i>Anda dapat mengaktifkan kembali produk di atas satu per satu atau sekaligus seluruhnya untuk seller ini.</i>")
+
+        # Tombol Aktifkan Semua Produk Nonaktif Seller Ini diletakkan paling atas
+        kb.insert(0, [
+            {
+                "text": f"🟢 Aktifkan Semua ({total_prods} Produk) Seller Ini",
+                "callback_data": f"fp_slron:{norm_period}:{sample_trx_id}"
+            }
+        ])
+
+    nav_row = []
+    if page > 1:
+        nav_row.append({"text": "« Hal Sebelumnya", "callback_data": f"fp_slrdis:{norm_period}:{sample_trx_id}:{page - 1}"})
+    if page < total_pages:
+        nav_row.append({"text": "Hal Berikutnya »", "callback_data": f"fp_slrdis:{norm_period}:{sample_trx_id}:{page + 1}"})
+    if nav_row:
+        kb.append(nav_row)
+
+    kb.append([
+        {"text": "« Kembali ke Rapor Seller", "callback_data": f"fp_sellers:{norm_period}:1:all"},
+        {"text": "🏠 Menu Utama", "callback_data": "cmd_menu"}
+    ])
+
+    return "\n".join(lines), {"inline_keyboard": kb}
+
 
 
 
@@ -3100,6 +3234,9 @@ def handle_admin_callback(app, callback_query):
                 _edit_message(token, chat_id, message_id, f"❌ Produk dengan SKU <code>{sku_clean}</code> tidak ditemukan di katalog database!", get_back_button())
                 return
             prod.is_active = not bool(prod.is_active)
+            # Jika dinonaktifkan: aktifkan gembok admin (is_admin_disabled=True) agar tidak tertimpa Auto-Sync
+            # Jika diaktifkan kembali: buka gembok admin (is_admin_disabled=False)
+            prod.is_admin_disabled = not bool(prod.is_active)
             db.session.commit()
             try:
                 cache.clear()
@@ -3108,7 +3245,7 @@ def handle_admin_callback(app, callback_query):
             banner = (
                 f"✅ <b>STATUS PRODUK BERHASIL DIPERBARUI!</b>\n"
                 f"Produk <b>{prod.name}</b> (<code>{prod.sku_code}</code>) kini berstatus: "
-                f"{'🟢 <b>AKTIF (Ditampilkan di Web)</b>' if prod.is_active else '🔴 <b>NONAKTIF (Disembunyikan dari Web)</b>'}\n"
+                f"{'🟢 <b>AKTIF (Ditampilkan di Web)</b> — <i>Gembok Admin Dibuka</i>' if prod.is_active else '🔴 <b>NONAKTIF (Disembunyikan dari Web)</b> — <i>Digembok dari Auto-Sync Digiflazz</i>'}\n"
                 "━━━━━━━━━━━━━━━━━━━━━━\n\n"
             )
             det_text, det_kb = render_failed_product_detail(sku_clean, period=period)
@@ -3145,6 +3282,8 @@ def handle_admin_callback(app, callback_query):
                         prod.seller_name = new_seller
                     if new_price > 0:
                         prod.base_price = new_price
+                    # Saat admin sengaja klik sync untuk mengaktifkan seller baru, lepas gembok admin
+                    prod.is_admin_disabled = False
                     prod.is_active = (b_stat and s_stat)
                     db.session.commit()
                     try:
@@ -3289,6 +3428,7 @@ def handle_admin_callback(app, callback_query):
             for item in analytics['items']:
                 if item['severity'] == 'CRITICAL' and item['product_obj'] and item['product_obj'].is_active:
                     item['product_obj'].is_active = False
+                    item['product_obj'].is_admin_disabled = True
                     disabled_names.append(f"{item['product_name']} ({item['sku_code']})")
             if disabled_names:
                 db.session.commit()
@@ -3335,6 +3475,7 @@ def handle_admin_callback(app, callback_query):
                     if item['seller_name'].upper() == target_seller.strip().upper():
                         if item['product_obj'] and item['product_obj'].is_active:
                             item['product_obj'].is_active = False
+                            item['product_obj'].is_admin_disabled = True
                             disabled_count += 1
                             disabled_names.append(f"{item['product_name']} ({item['sku_code']})")
 
@@ -3346,7 +3487,7 @@ def handle_admin_callback(app, callback_query):
                         pass
                     banner = (
                         f"🛑 <b>{disabled_count} PRODUK GAGAL SELLER {target_seller.upper()} DINONAKTIFKAN!</b>\n"
-                        f"• Produk bermasalah berhasil dinonaktifkan dari katalog web.\n"
+                        f"• Produk bermasalah berhasil dinonaktifkan dari katalog web & digembok dari Auto-Sync.\n"
                         f"• <i>Produk normal milik seller ini tetap aman & aktif.</i>\n"
                         + "\n".join(f"• 🔴 {n}" for n in disabled_names[:5])
                         + "\n━━━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -3358,6 +3499,66 @@ def handle_admin_callback(app, callback_query):
 
             # Render ulang seller report dengan filter_mode='active' sehingga seller yang sudah beres langsung hilang dari antrean (Clean View)!
             s_text, s_kb = render_failed_sellers_report(period=period, page=1, per_page=5, filter_mode='active')
+            _edit_message(token, chat_id, message_id, banner + s_text, s_kb)
+
+        elif data.startswith('fp_slrdis:'):
+            parts = data.split(':')
+            period = parts[1] if len(parts) > 1 else '30d'
+            sample_trx_id = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
+            page = int(parts[3]) if len(parts) > 3 and parts[3].isdigit() else 1
+            dis_text, dis_kb = render_disabled_seller_products_report(sample_trx_id, period=period, page=page, per_page=5)
+            _edit_message(token, chat_id, message_id, dis_text, dis_kb)
+
+        elif data.startswith('fp_slron:'):
+            from app.extensions import db, cache
+            parts = data.split(':')
+            period = parts[1] if len(parts) > 1 else '30d'
+            sample_trx_id = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
+            sample_trx = Transaction.query.get(sample_trx_id)
+            target_seller = None
+            if sample_trx:
+                target_seller = getattr(sample_trx, 'resolved_seller_name', None) or sample_trx.seller_name
+
+            enabled_count = 0
+            enabled_names = []
+            if target_seller:
+                # Cari semua produk yang berstatus nonaktif dari seller ini di katalog
+                seller_prods = Product.query.filter(
+                    db.func.upper(Product.seller_name) == target_seller.strip().upper(),
+                    Product.is_active == False
+                ).all()
+                analytics = get_failed_products_analytics(period=period, filter_mode='all')
+                prods_to_enable = set(seller_prods)
+                for item in analytics['items']:
+                    if item['seller_name'].upper() == target_seller.strip().upper() and item['product_obj'] and not item['product_obj'].is_active:
+                        prods_to_enable.add(item['product_obj'])
+
+                for p in prods_to_enable:
+                    p.is_active = True
+                    p.is_admin_disabled = False
+                    enabled_count += 1
+                    enabled_names.append(f"{p.name} ({p.sku_code})")
+
+                if enabled_count > 0:
+                    db.session.commit()
+                    try:
+                        cache.clear()
+                    except Exception:
+                        pass
+                    banner = (
+                        f"🟢 <b>{enabled_count} PRODUK SELLER {target_seller.upper()} BERHASIL DIAKTIFKAN!</b>\n"
+                        f"• Produk kini kembali tayang di web & kasir POS.\n"
+                        f"• Gembok Admin telah dibuka sehingga dapat mengikuti status seller.\n"
+                        + "\n".join(f"• 🟢 {n}" for n in enabled_names[:5])
+                        + "\n━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                    )
+                else:
+                    banner = f"ℹ️ <b>Seluruh produk seller {target_seller.upper()} sudah dalam keadaan aktif.</b>\n\n"
+            else:
+                banner = "⚠️ <b>Identitas Seller tidak ditemukan.</b>\n\n"
+
+            # Tampilkan kembali laporan seller
+            s_text, s_kb = render_failed_sellers_report(period=period, page=1, per_page=5, filter_mode='all')
             _edit_message(token, chat_id, message_id, banner + s_text, s_kb)
 
         elif data == 'cmd_tarik_deposit':

@@ -352,6 +352,7 @@ def run_all_tests():
                 })
                 db.session.refresh(p1)
                 assert p1.is_active is False
+                assert p1.is_admin_disabled is True, "Produk kritis yang dimatikan harus digembok dari auto-sync!"
                 assert 'PRODUK KRITIS BERHASIL DINONAKTIFKAN!' in edits[-1][0]
 
                 # UJI AMAN TOMBOL SELLER: Pastikan p_norm (produk sukses) tetap AKTIF saat seller dimatikan!
@@ -368,22 +369,61 @@ def run_all_tests():
                 })
                 db.session.refresh(p3)
                 db.session.refresh(p_norm)
-                # Produk yang sering gagal dinonaktifkan:
+                # Produk yang sering gagal dinonaktifkan & digembok:
                 assert p3.is_active is False
+                assert p3.is_admin_disabled is True, "Produk yang dimatikan via seller harus digembok dari auto-sync!"
                 # PRODUK NORMAL TETAP AKTIF (100% AMAN!):
                 assert p_norm.is_active is True, "Produk normal seller tidak boleh ikut dinonaktifkan!"
                 assert 'DINONAKTIFKAN!' in edits[-1][0]
 
+                # UJI PROTEKSI AUTO-SYNC DIGIFLAZZ:
+                # Saat Auto-Sync Digiflazz berjalan dan produk di Digiflazz statusnya masih ON,
+                # produk yang digembok (is_admin_disabled=True) DILARANG diaktifkan kembali!
+                from app.services.digiflazz import sync_products
+                with patch('app.services.digiflazz.get_price_list', return_value=(True, [{
+                    'buyer_sku_code': test_sku_3,
+                    'product_name': 'XL Xtra Combo Plus 20GB',
+                    'category': 'Data',
+                    'brand': 'XL',
+                    'seller_name': 'Payfast Official',
+                    'price': 55000,
+                    'buyer_product_status': True,  # Di Digiflazz masih ON
+                    'seller_product_status': True  # Di Digiflazz normal
+                }], 'OK')):
+                    sync_ok, _ = sync_products(force=True, notify_admin_bot=False)
+                    db.session.refresh(p3)
+                    assert p3.is_active is False, "Auto-Sync TIDAK BOLEH mengaktifkan produk yang digembok oleh Admin!"
+                    assert p3.is_admin_disabled is True
+
+                # UJI FITUR LIHAT PRODUK NONAKTIF PER SELLER (fp_slrdis):
+                handle_admin_callback(app, {
+                    'id': 'cb_slrdis',
+                    'message': {'chat': {'id': '999888'}, 'message_id': 1},
+                    'data': f'fp_slrdis:30d:{xl_fail_trx.id}:1'
+                })
+                assert 'DAFTAR PRODUK NONAKTIF SELLER' in edits[-1][0]
+                assert test_sku_3 in edits[-1][0]
+                assert_valid_telegram_keyboard(edits[-1][1])
+
+                # UJI FITUR AKTIFKAN KEMBALI PRODUK PER SELLER (fp_slron):
+                handle_admin_callback(app, {
+                    'id': 'cb_slron',
+                    'message': {'chat': {'id': '999888'}, 'message_id': 1},
+                    'data': f'fp_slron:30d:{xl_fail_trx.id}'
+                })
+                db.session.refresh(p3)
+                assert p3.is_active is True, "Produk harus kembali aktif setelah diaktifkan massal per seller!"
+                assert p3.is_admin_disabled is False, "Gembok admin harus terbuka setelah diaktifkan kembali!"
+                assert 'BERHASIL DIAKTIFKAN!' in edits[-1][0]
+
                 # UJI CLEAN VIEW / INBOX ZERO: Produk yang sudah dinonaktifkan HILANG dari antrean aktif saat refresh!
                 act_txt, act_kb = render_failed_products_report(period='30d', page=1, per_page=5, filter_mode='active')
                 assert test_sku_1 not in act_txt, "Produk 1 yang sudah nonaktif tidak boleh muncul di filter aktif!"
-                assert test_sku_3 not in act_txt, "Produk 3 yang sudah nonaktif tidak boleh muncul di filter aktif!"
                 # Tapi saat dibuka dengan filter 'all' (arsip riwayat), produk tetap muncul:
                 all_txt, all_kb = render_failed_products_report(period='30d', page=1, per_page=5, filter_mode='all')
                 assert test_sku_1 in all_txt
-                assert test_sku_3 in all_txt
 
-                print("[LULUS 8/10] Tombol Matikan Per Seller (fp_slroff) terbukti aman (produk normal tetap aktif) & Clean View (Inbox Zero) akurat 100%.")
+                print("[LULUS 8/10] Gembok Admin, Proteksi Auto-Sync, Menu Produk Nonaktif per Seller, dan Tombol Aktifkan Massal berfungsi 100%.")
 
                 # TEST 9: Konfirmasi Hapus & Eksekusi Hapus Produk dari Katalog (fp_delask & fp_delok)
                 handle_admin_callback(app, {
