@@ -2554,6 +2554,11 @@ def render_disabled_seller_products_report(sample_trx_id, period='30d', page=1, 
     return "\n".join(lines), {"inline_keyboard": kb}
 
 
+# State & Cache Pencarian Produk Nonaktif Admin (Bot 3)
+_ADMIN_SEARCH_STATE = {}
+_SEARCH_KEYWORDS_CACHE = {}
+
+
 def get_disabled_sellers_list():
     """
     Mengambil daftar seluruh seller yang memiliki produk berstatus nonaktif
@@ -2593,7 +2598,8 @@ def get_disabled_sellers_list():
 def render_disabled_catalog_sellers_menu(page=1, per_page=6):
     """
     Menampilkan menu daftar seller yang memiliki produk nonaktif di katalog.
-    Admin dapat memilih salah satu seller untuk melihat dan mengaktifkan produknya.
+    Admin dapat memilih salah satu seller untuk melihat dan mengaktifkan produknya,
+    atau menggunakan tombol pencarian untuk mencari nama produk secara langsung.
     """
     import math
 
@@ -2629,7 +2635,12 @@ def render_disabled_catalog_sellers_menu(page=1, per_page=6):
         ])
         return "\n".join(lines), {"inline_keyboard": kb}
 
-    lines.append("Silakan <b>klik nama seller</b> di bawah untuk melihat rincian produk & memilih yang ingin diaktifkan:\n")
+    # Tombol Pencarian Cepat di bagian paling atas
+    kb.append([
+        {"text": "🔍 CARI PRODUK NONAKTIF (Ketik Nama / SKU)", "callback_data": "dis_search_prompt"}
+    ])
+
+    lines.append("Silakan <b>klik nama seller</b> di bawah untuk melihat rincian produk, atau klik <b>Cari Produk</b> di atas:\n")
 
     for i, s_item in enumerate(page_sellers, start=start_idx + 1):
         s_count = len(s_item['products'])
@@ -2755,9 +2766,140 @@ def render_disabled_catalog_seller_products(seller_hash, page=1, per_page=5):
         kb.append(nav_row)
 
     kb.append([
-        {"text": "« Pilih Seller Lain", "callback_data": "cmd_disabled_catalog"},
+        {"text": "🔍 Cari Produk Nonaktif", "callback_data": "dis_search_prompt"},
+        {"text": "« Pilih Seller Lain", "callback_data": "cmd_disabled_catalog"}
+    ])
+    kb.append([
         {"text": "🏠 Menu Utama", "callback_data": "cmd_menu"}
     ])
+
+    return "\n".join(lines), {"inline_keyboard": kb}
+
+
+def render_disabled_search_results(keyword, page=1, per_page=5):
+    """
+    Mencari produk nonaktif (is_active == False atau is_admin_disabled == True)
+    berdasarkan nama produk, brand, kode SKU, kategori, atau nama seller.
+    Mendukung aktivasi satuan (1-klik) dan aktivasi massal seluruh hasil pencarian.
+    """
+    import math
+    import hashlib
+    from app.models.product import Product
+    from sqlalchemy import or_, and_
+
+    kw = (keyword or '').strip()
+    if not kw:
+        return (
+            "⚠️ <b>KATA KUNCI PENCARIAN KOSONG</b>\n\n"
+            "Silakan ketik nama produk, brand, atau kode SKU yang ingin Anda cari.\n"
+            "Contoh: <code>/cari telkomsel 10</code>",
+            {
+                "inline_keyboard": [
+                    [{"text": "🔍 Coba Cari Lagi", "callback_data": "dis_search_prompt"}],
+                    [{"text": "« Kembali ke Katalog Seller", "callback_data": "cmd_disabled_catalog"}]
+                ]
+            }
+        )
+
+    kw_hash = hashlib.md5(kw.lower().encode('utf-8')).hexdigest()[:8]
+    _SEARCH_KEYWORDS_CACHE[kw_hash] = kw
+
+    # Parsing multi-kata (semua kata harus cocok pada produk)
+    terms = kw.split()
+    conds = []
+    for term in terms:
+        t_pat = f"%{term}%"
+        conds.append(or_(
+            Product.name.ilike(t_pat),
+            Product.sku_code.ilike(t_pat),
+            Product.brand.ilike(t_pat),
+            Product.category.ilike(t_pat),
+            Product.seller_name.ilike(t_pat)
+        ))
+
+    status_filter = or_(Product.is_active == False, Product.is_admin_disabled == True)
+    query = Product.query.filter(and_(status_filter, *conds)).order_by(Product.name.asc())
+    prods = query.all()
+    total_found = len(prods)
+
+    total_pages = max(1, math.ceil(total_found / per_page))
+    page = max(1, min(int(page or 1), total_pages))
+
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    page_prods = prods[start_idx:end_idx]
+
+    lines = [
+        "🔍 <b>HASIL PENCARIAN PRODUK NONAKTIF</b>",
+        "━━━━━━━━━━━━━━━━━━━━━━",
+        f"🔎 <b>Kata Kunci:</b> <code>{kw}</code>",
+        f"📊 <b>Ditemukan:</b> <b>{total_found}</b> Produk Nonaktif",
+        f"📄 <b>Halaman:</b> {page} dari {total_pages}",
+        "━━━━━━━━━━━━━━━━━━━━━━"
+    ]
+
+    kb = []
+
+    if not prods:
+        lines.append("❌ <b>TIDAK ADA PRODUK NONAKTIF YANG COCOK!</b>\n")
+        lines.append(f"Tidak ditemukan produk nonaktif dengan kata kunci: <i>'{kw}'</i>.")
+        lines.append("<i>Kemungkinan produk sudah berstatus aktif, atau silakan coba kata kunci lain.</i>")
+        kb.append([
+            {"text": "🔍 Cari Kata Kunci Lain", "callback_data": "dis_search_prompt"},
+            {"text": "« Kembali ke Daftar Seller", "callback_data": "cmd_disabled_catalog"}
+        ])
+        kb.append([{"text": "🏠 Menu Utama", "callback_data": "cmd_menu"}])
+        return "\n".join(lines), {"inline_keyboard": kb}
+
+    lines.append("<i>Pilih produk yang ingin Anda aktifkan kembali di bawah:</i>\n")
+
+    # Tombol Aktifkan Semua Hasil Pencarian jika ada lebih dari 1 produk
+    if total_found > 1:
+        kb.append([
+            {
+                "text": f"⚡ Aktifkan SEMUA ({total_found} Produk) Hasil Pencarian Ini",
+                "callback_data": f"dis_act_srch_all:{kw_hash}"
+            }
+        ])
+
+    for num, p in enumerate(page_prods, start=start_idx + 1):
+        seller_disp = (p.seller_name or '').strip() or 'Tanpa Seller / Default'
+        price_str = format_rupiah(p.base_price) if getattr(p, 'base_price', None) else '-'
+        lock_status = "🔒 Digembok Admin" if getattr(p, 'is_admin_disabled', False) else "🔴 Nonaktif"
+
+        lines.append(
+            f"<b>{num}. 🔴 {p.name}</b>\n"
+            f"   • SKU: <code>{p.sku_code}</code> | Modal: {price_str}\n"
+            f"   • 🏪 Seller: <b>{seller_disp}</b>\n"
+            f"   • Kategori: {p.category or '-'} | Status: {lock_status}"
+        )
+        lines.append("")
+
+        btn_label = f"🟢 Aktifkan #{num}: {p.sku_code[:16]}"
+        kb.append([
+            {
+                "text": btn_label,
+                "callback_data": f"dis_act_srch_one:{p.id}:{kw_hash}:{page}"
+            }
+        ])
+
+    lines.append("━━━━━━━━━━━━━━━━━━━━━━")
+    lines.append("💡 <i>Klik tombol hijau [🟢 Aktifkan] pada produk yang ingin Anda nyalakan kembali.</i>")
+
+    # Pagination baris
+    nav_row = []
+    if page > 1:
+        nav_row.append({"text": "« Hal Sebelumnya", "callback_data": f"dis_srch_pg:{kw_hash}:{page - 1}"})
+    if page < total_pages:
+        nav_row.append({"text": "Hal Berikutnya »", "callback_data": f"dis_srch_pg:{kw_hash}:{page + 1}"})
+    if nav_row:
+        kb.append(nav_row)
+
+    kb.append([
+        {"text": "🔍 Cari Kata Kunci Lain", "callback_data": "dis_search_prompt"},
+        {"text": "« Kembali ke Daftar Seller", "callback_data": "cmd_disabled_catalog"}
+    ])
+    kb.append([{"text": "🏠 Menu Utama", "callback_data": "cmd_menu"}])
 
     return "\n".join(lines), {"inline_keyboard": kb}
 
@@ -3956,6 +4098,120 @@ def handle_admin_callback(app, callback_query):
             c_text, c_kb = render_disabled_catalog_sellers_menu(page=1, per_page=6)
             _edit_message(token, chat_id, message_id, banner + c_text, c_kb)
 
+        # ==========================================================
+        # FITUR PENCARIAN & AKTIVASI PRODUK NONAKTIF
+        # ==========================================================
+        elif data == 'dis_search_prompt':
+            _ADMIN_SEARCH_STATE[str(chat_id)] = True
+            prompt_text = (
+                "🔍 <b>PENCARIAN PRODUK NONAKTIF</b>\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n"
+                "Ketik nama produk, brand, kategori, atau kode SKU yang ingin Anda cari:\n"
+                "(Contoh: <code>telkomsel 10</code>, <code>mobile legends</code>, <code>dana</code>, <code>bca</code>, atau <code>pln</code>)\n\n"
+                "💡 <i>Langsung ketik dan kirim pesan di chat ini untuk mencari, atau ketik <code>/batal</code> untuk kembali.</i>"
+            )
+            prompt_kb = {
+                "inline_keyboard": [
+                    [{"text": "« Kembali ke Katalog Seller", "callback_data": "cmd_disabled_catalog"}],
+                    [{"text": "🏠 Menu Utama", "callback_data": "cmd_menu"}]
+                ]
+            }
+            _edit_message(token, chat_id, message_id, prompt_text, prompt_kb)
+
+        elif data.startswith('dis_srch_pg:'):
+            parts = data.split(':')
+            kw_hash = parts[1] if len(parts) > 1 else ''
+            page = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 1
+            kw = _SEARCH_KEYWORDS_CACHE.get(kw_hash, '')
+            if not kw:
+                _edit_message(token, chat_id, message_id, "⚠️ Sesi pencarian kedaluwarsa. Silakan cari ulang:", {
+                    "inline_keyboard": [
+                        [{"text": "🔍 Cari Produk Nonaktif", "callback_data": "dis_search_prompt"}],
+                        [{"text": "« Kembali ke Katalog Seller", "callback_data": "cmd_disabled_catalog"}]
+                    ]
+                })
+                return
+            s_text, s_kb = render_disabled_search_results(keyword=kw, page=page, per_page=5)
+            _edit_message(token, chat_id, message_id, s_text, s_kb)
+
+        elif data.startswith('dis_act_srch_one:'):
+            from app.extensions import db, cache
+            parts = data.split(':')
+            prod_id = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
+            kw_hash = parts[2] if len(parts) > 2 else ''
+            page = int(parts[3]) if len(parts) > 3 and parts[3].isdigit() else 1
+            kw = _SEARCH_KEYWORDS_CACHE.get(kw_hash, '')
+            prod = Product.query.get(prod_id)
+            if not prod:
+                _edit_message(token, chat_id, message_id, "❌ Produk tidak ditemukan di database!", get_back_button())
+                return
+            prod.is_active = True
+            prod.is_admin_disabled = False
+            db.session.commit()
+            try:
+                cache.clear()
+            except Exception:
+                pass
+            banner = (
+                f"✅ <b>PRODUK BERHASIL DIAKTIFKAN KEMBALI!</b>\n"
+                f"Produk <b>{prod.name}</b> (<code>{prod.sku_code}</code>) kini berstatus:\n"
+                f"🟢 <b>AKTIF</b> — <i>Gembok Admin telah dibuka & tayang di web!</i>\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            )
+            s_text, s_kb = render_disabled_search_results(keyword=kw, page=page, per_page=5)
+            _edit_message(token, chat_id, message_id, banner + s_text, s_kb)
+
+        elif data.startswith('dis_act_srch_all:'):
+            from app.extensions import db, cache
+            from sqlalchemy import or_, and_
+            parts = data.split(':')
+            kw_hash = parts[1] if len(parts) > 1 else ''
+            kw = _SEARCH_KEYWORDS_CACHE.get(kw_hash, '')
+            if not kw:
+                _edit_message(token, chat_id, message_id, "⚠️ Sesi pencarian kedaluwarsa. Silakan cari ulang:", {
+                    "inline_keyboard": [
+                        [{"text": "🔍 Cari Produk Nonaktif", "callback_data": "dis_search_prompt"}],
+                        [{"text": "« Kembali ke Katalog Seller", "callback_data": "cmd_disabled_catalog"}]
+                    ]
+                })
+                return
+            terms = kw.split()
+            conds = []
+            for term in terms:
+                t_pat = f"%{term}%"
+                conds.append(or_(
+                    Product.name.ilike(t_pat),
+                    Product.sku_code.ilike(t_pat),
+                    Product.brand.ilike(t_pat),
+                    Product.category.ilike(t_pat),
+                    Product.seller_name.ilike(t_pat)
+                ))
+            status_filter = or_(Product.is_active == False, Product.is_admin_disabled == True)
+            matching_prods = Product.query.filter(and_(status_filter, *conds)).all()
+            enabled_count = 0
+            enabled_names = []
+            for p in matching_prods:
+                p.is_active = True
+                p.is_admin_disabled = False
+                enabled_count += 1
+                enabled_names.append(f"{p.name} ({p.sku_code})")
+            if enabled_count > 0:
+                db.session.commit()
+                try:
+                    cache.clear()
+                except Exception:
+                    pass
+                banner = (
+                    f"✅ <b>{enabled_count} PRODUK HASIL PENCARIAN '{kw.upper()}' BERHASIL DIAKTIFKAN!</b>\n"
+                    f"Semua produk yang cocok telah dibuka gemboknya dan kembali aktif di katalog website.\n"
+                    + "\n".join(f"• 🟢 {n}" for n in enabled_names[:5])
+                    + "\n━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                )
+            else:
+                banner = f"ℹ️ Semua produk hasil pencarian '{kw}' sudah aktif.\n\n"
+            s_text, s_kb = render_disabled_search_results(keyword=kw, page=1, per_page=5)
+            _edit_message(token, chat_id, message_id, banner + s_text, s_kb)
+
         elif data == 'cmd_tarik_deposit':
             dep_text, dep_kb = render_tarik_deposit_menu()
             _edit_message(token, chat_id, message_id, dep_text, dep_kb)
@@ -4898,6 +5154,41 @@ def handle_admin_message(app, message):
             _send_message(token, chat_id, f"{icon} <b>HASIL SINKRONISASI DIGIFLAZZ:</b>\n\n{msg}")
         return
 
+    # Perintah /batal jika dalam mode pencarian produk nonaktif
+    if text.strip() == '/batal':
+        _ADMIN_SEARCH_STATE.pop(str(chat_id), None)
+        _ADMIN_SEARCH_STATE.pop(int(chat_id) if str(chat_id).isdigit() else chat_id, None)
+        with app.app_context():
+            c_text, c_kb = render_disabled_catalog_sellers_menu(page=1, per_page=6)
+            _send_message(token, chat_id, "ℹ️ <i>Pencarian dibatalkan.</i>\n\n" + c_text, reply_markup=c_kb)
+        return
+
+    # Perintah /cari, /cariproduk, /carinonaktif ATAU sedang dalam mode search text prompt
+    is_in_search_state = _ADMIN_SEARCH_STATE.get(str(chat_id)) or _ADMIN_SEARCH_STATE.get(int(chat_id) if str(chat_id).isdigit() else chat_id)
+    if text.startswith('/cari') or text.startswith('/cariproduk') or text.startswith('/carinonaktif') or (is_in_search_state and not text.startswith('/')):
+        if text.startswith('/'):
+            parts = text.split(maxsplit=1)
+            search_query = parts[1].strip() if len(parts) > 1 else ''
+        else:
+            search_query = text.strip()
+            _ADMIN_SEARCH_STATE.pop(str(chat_id), None)
+            _ADMIN_SEARCH_STATE.pop(int(chat_id) if str(chat_id).isdigit() else chat_id, None)
+
+        if not search_query:
+            _send_message(
+                token, chat_id,
+                "🔍 <b>FORMAT PENCARIAN PRODUK NONAKTIF</b>\n"
+                "Ketik kata kunci nama produk setelah perintah /cari.\n"
+                "Contoh: <code>/cari telkomsel 10</code> atau <code>/cari dana</code>",
+                reply_markup={"inline_keyboard": [[{"text": "🔍 Buka Form Cari", "callback_data": "dis_search_prompt"}]]}
+            )
+            return
+
+        with app.app_context():
+            s_text, s_kb = render_disabled_search_results(keyword=search_query, page=1, per_page=5)
+            _send_message(token, chat_id, s_text, reply_markup=s_kb)
+        return
+
     # Perintah /produknonaktif atau /nonaktif atau /aktifkanproduk
     if text.startswith('/produknonaktif') or text.startswith('/nonaktif') or text.startswith('/aktifkanproduk'):
         with app.app_context():
@@ -4911,8 +5202,9 @@ def handle_admin_message(app, message):
         "━━━━━━━━━━━━━━━━━━━━━━\n"
         "Selamat datang di Bot 3 (Panel & Fitur Admin Telegram).\n"
         "Gunakan tombol interaktif di bawah ini atau ketik pintasan cepat:\n"
-        "• <code>/produkgagal</code> — Analisa Produk & Seller Sering Gagal\n"
+        "• <code>/cari nama_produk</code> — Cari & Aktifkan Produk Nonaktif Cepat\n"
         "• <code>/produknonaktif</code> — Kelola & Aktifkan Produk Nonaktif Per Seller\n"
+        "• <code>/produkgagal</code> — Analisa Produk & Seller Sering Gagal\n"
         "• <code>/analisaseller</code> — Rapor Seller Paling Sering Gagal\n"
         "• <code>/toko</code> | <code>/saldo</code> | <code>/topusers</code> | <code>/otp</code>"
     )

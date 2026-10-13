@@ -28,6 +28,9 @@ from app.services.telegram_service import (
     get_disabled_sellers_list,
     render_disabled_catalog_sellers_menu,
     render_disabled_catalog_seller_products,
+    render_disabled_search_results,
+    _ADMIN_SEARCH_STATE,
+    _SEARCH_KEYWORDS_CACHE,
     handle_admin_callback,
     handle_admin_message,
 )
@@ -540,13 +543,104 @@ def run_all_tests():
                 assert 'KATALOG PRODUK NONAKTIF PER SELLER' in sends[-1][0]
                 assert_valid_telegram_keyboard(sends[-1][1])
 
-                print("[LULUS 11/11] Fitur Katalog Produk Nonaktif Per Seller & Seleksi Aktivasi Produk (dis_act_one, dis_act_all, /produknonaktif) berfungsi 100%.")
+                print("[LULUS 11/12] Fitur Katalog Produk Nonaktif Per Seller & Seleksi Aktivasi Produk (dis_act_one, dis_act_all, /produknonaktif) berfungsi 100%.")
+
+                # ==========================================================
+                # PENGUJIAN 12: FITUR PENCARIAN & AKTIVASI PRODUK NONAKTIF
+                # ==========================================================
+                test_sku_srch = 'TEST_SRCH_FREEDOM_10GB'
+                p_srch = Product(
+                    sku_code=test_sku_srch,
+                    name='Indosat Freedom Internet 10GB 30 Hari',
+                    category='Paket Data',
+                    brand='INDOSAT',
+                    seller_name='BCA PULSA CV BALI',
+                    base_price=25000,
+                    sell_price=27000,
+                    is_active=False,
+                    is_admin_disabled=True
+                )
+                db.session.add(p_srch)
+                p1.is_active = False
+                p1.is_admin_disabled = True
+                db.session.commit()
+
+                # 1. Pastikan tombol CARI PRODUK NONAKTIF ada di menu katalog seller
+                m_text, m_kb = render_disabled_catalog_sellers_menu(page=1)
+                assert any('dis_search_prompt' in btn.get('callback_data', '') for r in m_kb['inline_keyboard'] for btn in r), "Tombol Cari Produk Nonaktif harus ada di menu!"
+                assert_valid_telegram_keyboard(m_kb)
+
+                # 2. Uji klik tombol 'dis_search_prompt'
+                handle_admin_callback(app, {
+                    'id': 'cb_srch_prompt',
+                    'message': {'chat': {'id': '999888'}, 'message_id': 1},
+                    'data': 'dis_search_prompt'
+                })
+                assert _ADMIN_SEARCH_STATE.get('999888') is True, "State pencarian admin harus aktif!"
+                assert 'PENCARIAN PRODUK NONAKTIF' in edits[-1][0]
+                assert_valid_telegram_keyboard(edits[-1][1])
+
+                # 3. Uji kirim teks pencarian via chat biasa (State-based Search: 'telkomsel')
+                handle_admin_message(app, {'chat': {'id': '999888'}, 'text': 'telkomsel'})
+                assert _ADMIN_SEARCH_STATE.get('999888') is None, "State pencarian harus dibersihkan setelah teks dikirim!"
+                srch_res_text = sends[-1][0]
+                srch_res_kb = sends[-1][1]
+                assert 'HASIL PENCARIAN PRODUK NONAKTIF' in srch_res_text
+                assert test_sku_1 in srch_res_text, "Produk p1 (Telkomsel) harus ditemukan dalam hasil pencarian!"
+                assert_valid_telegram_keyboard(srch_res_kb)
+
+                # 4. Uji perintah langsung /cari dengan keyword multi-kata ('freedom 10gb')
+                handle_admin_message(app, {'chat': {'id': '999888'}, 'text': '/cari freedom 10gb'})
+                srch_multi_text = sends[-1][0]
+                srch_multi_kb = sends[-1][1]
+                assert 'HASIL PENCARIAN PRODUK NONAKTIF' in srch_multi_text
+                assert test_sku_srch in srch_multi_text, "Produk p_srch (Indosat Freedom 10GB) harus ditemukan!"
+                assert_valid_telegram_keyboard(srch_multi_kb)
+
+                # Dapatkan kw_hash untuk freedom 10gb
+                import hashlib
+                kw_hash_freedom = hashlib.md5('freedom 10gb'.encode('utf-8')).hexdigest()[:8]
+
+                # 5. Uji tombol 1-klik aktifkan produk dari hasil pencarian (dis_act_srch_one)
+                handle_admin_callback(app, {
+                    'id': 'cb_act_srch_one',
+                    'message': {'chat': {'id': '999888'}, 'message_id': 1},
+                    'data': f'dis_act_srch_one:{p_srch.id}:{kw_hash_freedom}:1'
+                })
+                db.session.refresh(p_srch)
+                assert p_srch.is_active is True, "Produk p_srch harus aktif kembali setelah diklik tombol aktivasi di hasil pencarian!"
+                assert p_srch.is_admin_disabled is False, "Gembok admin produk p_srch harus terbuka!"
+                assert 'BERHASIL DIAKTIFKAN KEMBALI!' in edits[-1][0]
+                assert_valid_telegram_keyboard(edits[-1][1])
+
+                # 6. Uji tombol aktifkan massal hasil pencarian (dis_act_srch_all)
+                # Cari 'telkomsel' dan aktifkan semua hasilnya
+                kw_hash_tsel = hashlib.md5('telkomsel'.encode('utf-8')).hexdigest()[:8]
+                handle_admin_callback(app, {
+                    'id': 'cb_act_srch_all',
+                    'message': {'chat': {'id': '999888'}, 'message_id': 1},
+                    'data': f'dis_act_srch_all:{kw_hash_tsel}'
+                })
+                db.session.refresh(p1)
+                assert p1.is_active is True, "Produk p1 harus aktif setelah tombol Aktifkan SEMUA diklik!"
+                assert p1.is_admin_disabled is False, "Gembok p1 harus terbuka!"
+                assert 'BERHASIL DIAKTIFKAN!' in edits[-1][0]
+                assert_valid_telegram_keyboard(edits[-1][1])
+
+                # 7. Uji perintah /batal
+                _ADMIN_SEARCH_STATE['999888'] = True
+                handle_admin_message(app, {'chat': {'id': '999888'}, 'text': '/batal'})
+                assert _ADMIN_SEARCH_STATE.get('999888') is None
+                assert 'Pencarian dibatalkan' in sends[-1][0]
+                assert_valid_telegram_keyboard(sends[-1][1])
+
+                print("[LULUS 12/12] Fitur Pencarian Nama Produk Nonaktif (dis_search_prompt, /cari, dis_act_srch_one, dis_act_srch_all, /batal) berfungsi 100%.")
 
             print("=" * 72)
-            print("HASIL AKHIR: 11/11 PENGUJIAN BOT 3 PANEL & FITUR ADMIN LULUS 100%!")
+            print("HASIL AKHIR: 12/12 PENGUJIAN BOT 3 PANEL & FITUR ADMIN LULUS 100%!")
             print("=" * 72)
         finally:
-            Product.query.filter(Product.sku_code.in_([test_sku_1, test_sku_2, test_sku_3, test_sku_normal])).delete(synchronize_session=False)
+            Product.query.filter(Product.sku_code.in_([test_sku_1, test_sku_2, test_sku_3, test_sku_normal, 'TEST_SRCH_FREEDOM_10GB'])).delete(synchronize_session=False)
             Transaction.query.filter(Transaction.sku_code.in_([test_sku_1, test_sku_2, test_sku_3, test_sku_normal])).delete(synchronize_session=False)
             db.session.commit()
 
