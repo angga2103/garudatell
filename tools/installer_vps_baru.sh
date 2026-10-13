@@ -95,7 +95,17 @@ apt-get install -y python3 python3-venv python3-pip python3-dev sqlite3 curl git
     apt-get install -y python3 python3-venv python3-pip python3-dev sqlite3 curl git build-essential unzip
 }
 
-echo -e "${GREEN}[✔] Dependensi OS berhasil disiapkan.${NC}"
+# Optimasi Jaringan: Prioritaskan IPv4 daripada IPv6 untuk mencegah timeout Telegram API & Webhook
+if [ -f /etc/gai.conf ]; then
+    sed -i 's/^#precedence ::ffff:0:0\/96  100/precedence ::ffff:0:0\/96  100/' /etc/gai.conf
+    if ! grep -q "precedence ::ffff:0:0/96  100" /etc/gai.conf; then
+        echo "precedence ::ffff:0:0/96  100" >> /etc/gai.conf
+    fi
+else
+    echo "precedence ::ffff:0:0/96  100" > /etc/gai.conf
+fi
+
+echo -e "${GREEN}[✔] Dependensi OS berhasil disiapkan & prioritas IPv4 aktif.${NC}"
 
 # 3. Setup Node.js & PM2 untuk Mesin WhatsApp
 echo ""

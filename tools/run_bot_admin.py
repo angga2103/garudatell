@@ -16,8 +16,16 @@ import time
 import signal
 import logging
 import threading
+import socket
 import requests
+import urllib3.util.connection as urllib3_conn
 from dotenv import load_dotenv
+
+# Enforce IPv4 globally to eliminate IPv6 routing blackholes on Linux VPS
+try:
+    urllib3_conn.allowed_gai_family = lambda: socket.AF_INET
+except Exception:
+    pass
 
 # Set base dir
 BASE_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
@@ -42,7 +50,9 @@ from app.services.telegram_service import (
     handle_admin_callback,
     handle_admin_message,
     handle_notif_callback,
-    handle_cs_bot_update
+    handle_cs_bot_update,
+    get_telegram_api_url,
+    get_telegram_session
 )
 
 # Flag stop global
@@ -63,8 +73,10 @@ def poll_bot_notif_worker(app, token, allowed_chat):
     (seperti tombol '🔄 Restore Data ke VPS Ini' pada auto-backup 30 menit).
     """
     logger.info(f"🟢 [Bot 2 Notif] Listener Callback aktif untuk Bot 2 (Token: ...{token[-6:]})")
+    session = get_telegram_session()
+    base_url = get_telegram_api_url()
     offset = 0
-    poll_url = f"https://api.telegram.org/bot{token}/getUpdates"
+    poll_url = f"{base_url}/bot{token}/getUpdates"
 
     while running:
         try:
@@ -73,7 +85,7 @@ def poll_bot_notif_worker(app, token, allowed_chat):
                 'timeout': 20,
                 'allowed_updates': ['callback_query', 'message']
             }
-            resp = requests.get(poll_url, params=params, timeout=30)
+            resp = session.get(poll_url, params=params, timeout=(15, 35))
             if resp.status_code != 200:
                 time.sleep(3)
                 continue
@@ -98,6 +110,9 @@ def poll_bot_notif_worker(app, token, allowed_chat):
                     except Exception as err:
                         logger.error(f"[Bot 2 Notif] Error handle callback {action}: {err}")
 
+        except requests.exceptions.ConnectTimeout:
+            logger.warning("[Bot 2 Notif] Connect timeout ke Telegram API. Reconnecting in 3s...")
+            time.sleep(3)
         except requests.exceptions.Timeout:
             continue
         except requests.exceptions.RequestException as net_err:
@@ -115,20 +130,22 @@ def poll_bot_cs_worker(app, token, allowed_chat):
     Mendengarkan balasan manual dari admin Telegram dan meneruskannya ke web pengguna.
     """
     logger.info(f"🟢 [Bot 1 CS] Listener Balasan aktif untuk Bot 1 (Token: ...{token[-6:]})")
+    session = get_telegram_session()
+    base_url = get_telegram_api_url()
 
     # Pastikan webhook dinonaktifkan agar getUpdates selalu diizinkan oleh Telegram API
     try:
-        del_res = requests.post(
-            f"https://api.telegram.org/bot{token}/deleteWebhook",
+        del_res = session.post(
+            f"{base_url}/bot{token}/deleteWebhook",
             json={"drop_pending_updates": False},
-            timeout=10
+            timeout=15
         )
         logger.info(f"[Bot 1 CS] Webhook status check: {del_res.json().get('description', 'OK')}")
     except Exception as ex_wh:
         logger.warning(f"[Bot 1 CS] Gagal cek deleteWebhook: {ex_wh}")
 
     offset = 0
-    poll_url = f"https://api.telegram.org/bot{token}/getUpdates"
+    poll_url = f"{base_url}/bot{token}/getUpdates"
 
     while running:
         try:
@@ -137,7 +154,7 @@ def poll_bot_cs_worker(app, token, allowed_chat):
                 'timeout': 20,
                 'allowed_updates': ['message', 'callback_query']
             }
-            resp = requests.get(poll_url, params=params, timeout=30)
+            resp = session.get(poll_url, params=params, timeout=(15, 35))
             if resp.status_code != 200:
                 logger.warning(f"[Bot 1 CS] Polling HTTP {resp.status_code}: {resp.text}")
                 time.sleep(3)
@@ -161,6 +178,9 @@ def poll_bot_cs_worker(app, token, allowed_chat):
                 except Exception as err:
                     logger.error(f"[Bot 1 CS] Error handle update {update.get('update_id')}: {err}", exc_info=True)
 
+        except requests.exceptions.ConnectTimeout:
+            logger.warning("[Bot 1 CS] Connect timeout ke Telegram API. Reconnecting in 3s...")
+            time.sleep(3)
         except requests.exceptions.Timeout:
             continue
         except requests.exceptions.RequestException as req_err:
@@ -186,8 +206,11 @@ def main():
     logger.info("   GARUDATEL v2 - TELEGRAM BOT UNIFIED DAEMON")
     logger.info("=======================================================")
     logger.info(f"Target Chat ID Admin Terdaftar: {admin_chat or 'Semua Admin'}")
+    logger.info(f"Telegram API Base URL: {get_telegram_api_url()}")
 
     app = create_app()
+    session = get_telegram_session()
+    base_url = get_telegram_api_url()
 
     # 1. Jalankan Bot 1 CS Listener di thread terpisah jika token ada
     if cs_token:
@@ -218,9 +241,9 @@ def main():
             time.sleep(1)
         return
 
-    # Validasi token Bot 3
+    # Validasi token Bot 3 & Pastikan Webhook Bersih
     try:
-        me_res = requests.get(f"https://api.telegram.org/bot{admin_token}/getMe", timeout=15)
+        me_res = session.get(f"{base_url}/bot{admin_token}/getMe", timeout=15)
         me_data = me_res.json()
         if me_data.get('ok'):
             bot_user = me_data.get('result', {}).get('username', 'UnknownBot')
@@ -230,8 +253,19 @@ def main():
     except Exception as e:
         logger.warning(f"Koneksi awal Bot 3 mengalami kendala: {e}. Tetap melanjutkan polling loop...")
 
+    # Bersihkan sisa webhook jika ada
+    try:
+        del_wh = session.post(
+            f"{base_url}/bot{admin_token}/deleteWebhook",
+            json={"drop_pending_updates": False},
+            timeout=15
+        )
+        logger.info(f"Bot 3 deleteWebhook status: {del_wh.json().get('description', 'OK')}")
+    except Exception as ex_wh:
+        logger.warning(f"Gagal deleteWebhook Bot 3: {ex_wh}")
+
     offset = 0
-    poll_url = f"https://api.telegram.org/bot{admin_token}/getUpdates"
+    poll_url = f"{base_url}/bot{admin_token}/getUpdates"
     logger.info("🟢 Bot 3 Siap! Memulai Long Polling Panel Admin...")
 
     while running:
@@ -241,7 +275,7 @@ def main():
                 'timeout': 20,
                 'allowed_updates': ['message', 'callback_query']
             }
-            resp = requests.get(poll_url, params=params, timeout=30)
+            resp = session.get(poll_url, params=params, timeout=(15, 35))
             if resp.status_code != 200:
                 logger.warning(f"Telegram returned HTTP {resp.status_code}: {resp.text}")
                 time.sleep(3)
@@ -287,6 +321,9 @@ def main():
                     except Exception as err:
                         logger.error(f"Error executing message {text}: {err}")
 
+        except requests.exceptions.ConnectTimeout:
+            logger.warning("[Bot 3] Timeout koneksi ke Telegram API (ConnectTimeout). Memeriksa jalur IPv4 / proxy...")
+            time.sleep(3)
         except requests.exceptions.Timeout:
             continue
         except requests.exceptions.RequestException as net_err:

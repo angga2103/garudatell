@@ -153,20 +153,169 @@ menu_tail_log() {
     pause
 }
 
-# 4. Cek Status Bot 3 Admin
+# 4. Cek Status Bot 3 Admin & Diagnosa Jaringan Telegram
 menu_status_bot() {
-    echo -e "${CYAN}${BOLD}[4] STATUS TELEGRAM BOT 3 ADMIN PANEL${NC}"
-    echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    sudo systemctl status garudatel-bot-admin --no-pager || true
-    echo ""
-    read -p "Apakah Anda ingin merestart Bot Admin sekarang? (Y/N): " ans_bot
-    if [[ "$ans_bot" =~ ^[Yy]$ ]]; then
-        echo -e "${BLUE}[*] Merestart garudatel-bot-admin.service...${NC}"
-        sudo systemctl restart garudatel-bot-admin
-        sleep 1
-        echo -e "${GREEN}[✔] Bot 3 Admin berhasil direstart.${NC}"
-    fi
-    pause
+    while true; do
+        clear
+        echo -e "${CYAN}${BOLD}"
+        echo "  ╔══════════════════════════════════════════════════════════════╗"
+        echo "  ║        🤖 STATUS & DIAGNOSA TELEGRAM BOT ADMIN (BOT 3) 🤖     ║"
+        echo "  ╚══════════════════════════════════════════════════════════════╝"
+        echo -e "${NC}"
+
+        # Status Service
+        if systemctl is-active --quiet garudatel-bot-admin 2>/dev/null; then
+            STATUS_BOT="${GREEN}● ACTIVE (RUNNING)${NC}"
+        else
+            STATUS_BOT="${RED}● STOPPED / FAILED${NC}"
+        fi
+        echo -e "  Status Service : $STATUS_BOT (garudatel-bot-admin.service)"
+
+        # Cek Preferensi IPv4 di Sistem Linux (/etc/gai.conf)
+        if grep -q "^precedence ::ffff:0:0/96  100" /etc/gai.conf 2>/dev/null; then
+            GAI_STATUS="${GREEN}● AKTIF (IPv4 Prioritas - Bebas Timeout)${NC}"
+        else
+            GAI_STATUS="${YELLOW}● BELUM DIAKTIFKAN (Beresiko Timeout IPv6)${NC}"
+        fi
+        echo -e "  Prioritas IPv4 : $GAI_STATUS"
+        echo -e "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo -e "  ${BOLD}[1]${NC} Cek Detail Status Service (systemctl status)"
+        echo -e "  ${BOLD}[2]${NC} Restart Service Bot Admin (systemctl restart)"
+        echo -e "  ${BOLD}[3]${NC} Pantau Log Aktivitas Bot Real-time (Live Stream)"
+        echo -e "  ${BOLD}[4]${NC} Jalankan Diagnosa Koneksi Telegram API (IPv4 & Token Test)"
+        echo -e "  ${BOLD}[5]${NC} ${GREEN}${BOLD}Optimasi Otomatis: Paksa IPv4 Sistem (Fix Bot Tidak Respon / Timeout)${NC}"
+        echo -e "  ${BOLD}[6]${NC} Tes Kirim Pesan Menu ke Telegram Admin"
+        echo -e "  ${BOLD}[0]${NC} Kembali ke Menu Utama"
+        echo -e "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        read -p ">> Masukkan pilihan Anda [0-6]: " bot_choice
+
+        case $bot_choice in
+            1)
+                echo ""
+                sudo systemctl status garudatel-bot-admin --no-pager || true
+                pause
+                ;;
+            2)
+                echo ""
+                echo -e "${BLUE}[*] Merestart garudatel-bot-admin.service...${NC}"
+                sudo systemctl restart garudatel-bot-admin
+                sleep 2
+                if systemctl is-active --quiet garudatel-bot-admin; then
+                    echo -e "${GREEN}[✔] Bot 3 Admin berhasil direstart dan aktif!${NC}"
+                else
+                    echo -e "${RED}[✖] Gagal merestart Bot Admin. Periksa log error.${NC}"
+                fi
+                pause
+                ;;
+            3)
+                echo ""
+                echo -e "${PURPLE}Menampilkan live log aktivitas Bot 3 & Bot 2. Tekan CTRL+C untuk kembali...${NC}\n"
+                sleep 1
+                journalctl -u garudatel-bot-admin -n 50 -f || true
+                pause
+                ;;
+            4)
+                echo ""
+                echo -e "${BLUE}[*] Menjalankan uji konektivitas ke api.telegram.org dari VPS ini...${NC}"
+                $VENV_PYTHON -c "
+import socket
+import urllib3.util.connection as c
+c.allowed_gai_family = lambda: socket.AF_INET
+import requests
+import os
+from dotenv import load_dotenv
+load_dotenv('$PROJECT_DIR/.env', override=True)
+
+token = os.getenv('BOT_ADMIN_TOKEN')
+chat_id = os.getenv('BOT_ADMIN_CHAT_ID')
+
+print('1. Menguji DNS & Koneksi HTTPS ke api.telegram.org (IPv4)...')
+try:
+    r = requests.get('https://api.telegram.org', timeout=8)
+    print('   \033[0;32m[✔] Sukses terhubung ke api.telegram.org (Status HTTP ' + str(r.status_code) + ')\033[0m')
+except Exception as e:
+    print('   \033[0;31m[✖] Gagal terhubung: ' + str(e) + '\033[0m')
+    print('   \033[1;33m[!] Saran: Jalankan menu [5] Optimasi Otomatis Paksa IPv4 atau periksa pemblokiran ISP VPS Anda.\033[0m')
+
+if token:
+    print('2. Menguji Kredensial Bot Token (' + token[:10] + '...)...')
+    try:
+        r2 = requests.get(f'https://api.telegram.org/bot{token}/getMe', timeout=8)
+        data2 = r2.json()
+        if data2.get('ok'):
+            bot_uname = data2.get('result', {}).get('username')
+            print('   \033[0;32m[✔] Token Valid! Terhubung sebagai @' + str(bot_uname) + '\033[0m')
+        else:
+            print('   \033[0;31m[✖] Token Ditolak Telegram: ' + str(data2.get('description')) + '\033[0m')
+    except Exception as e2:
+        print('   \033[0;31m[✖] Gagal menghubungi Telegram: ' + str(e2) + '\033[0m')
+else:
+    print('   \033[1;33m[!] BOT_ADMIN_TOKEN belum diisi di file .env!\033[0m')
+"
+                pause
+                ;;
+            5)
+                echo ""
+                echo -e "${YELLOW}${BOLD}🔧 OPTIMASI SISTEM: PAKSA IPv4 PRIORITAS UNTUK TELEGRAM API${NC}"
+                echo -e "Langkah ini akan mengatur /etc/gai.conf agar seluruh koneksi HTTPS keluar"
+                echo -e "mendahulukan jalur IPv4, menyelesaikan kendala 'Connection timed out' ke Telegram."
+                echo ""
+                if [ -f /etc/gai.conf ]; then
+                    sudo sed -i 's/^#precedence ::ffff:0:0\/96  100/precedence ::ffff:0:0\/96  100/' /etc/gai.conf
+                    if ! grep -q "precedence ::ffff:0:0/96  100" /etc/gai.conf; then
+                        echo "precedence ::ffff:0:0/96  100" | sudo tee -a /etc/gai.conf >/dev/null
+                    fi
+                else
+                    echo "precedence ::ffff:0:0/96  100" | sudo tee /etc/gai.conf >/dev/null
+                fi
+                echo -e "${GREEN}[✔] File /etc/gai.conf berhasil dioptimasi.${NC}"
+                echo -e "${BLUE}[*] Merestart service web garudatel dan bot admin...${NC}"
+                sudo systemctl restart garudatel 2>/dev/null || true
+                sudo systemctl restart garudatel-bot-admin 2>/dev/null || true
+                sleep 2
+                echo -e "${GREEN}[✔] Optimasi selesai! Bot Admin dan Web telah direstart dengan mode IPv4 prioritas.${NC}"
+                pause
+                ;;
+            6)
+                echo ""
+                echo -e "${BLUE}[*] Mengirimkan pesan menu tes ke Telegram Admin...${NC}"
+                $VENV_PYTHON -c "
+import os
+from dotenv import load_dotenv
+load_dotenv('$PROJECT_DIR/.env', override=True)
+from app.services.telegram_service import get_bot_admin_credentials, get_admin_inline_keyboard, call_telegram_api
+token, chat_id = get_bot_admin_credentials()
+if not token or not chat_id:
+    print('\033[0;31m[✖] Token atau Chat ID belum lengkap di .env\033[0m')
+else:
+    target_chat = chat_id.split(',')[0].strip()
+    payload = {
+        'chat_id': target_chat,
+        'text': '🦅 <b>BOT 3 ADMIN GARUDATEL - TES KONEKSI VPS</b>\n━━━━━━━━━━━━━━━━━━━━━━\n✅ Service bot berjalan normal dari VPS.\nSilakan pilih menu di bawah ini:',
+        'parse_mode': 'HTML',
+        'reply_markup': get_admin_inline_keyboard()
+    }
+    try:
+        r = call_telegram_api('post', f'bot{token}/sendMessage', json=payload, timeout=15)
+        res = r.json()
+        if res.get('ok'):
+            print('\033[0;32m[✔] Pesan tes berhasil dikirim ke Telegram! Cek aplikasi Telegram Anda.\033[0m')
+        else:
+            print('\033[0;31m[✖] Telegram menolak: ' + str(res.get('description')) + '\033[0m')
+    except Exception as e:
+        print('\033[0;31m[✖] Gagal kirim: ' + str(e) + '\033[0m')
+"
+                pause
+                ;;
+            0)
+                break
+                ;;
+            *)
+                echo -e "${RED}[!] Pilihan tidak valid.${NC}"
+                sleep 1
+                ;;
+        esac
+    done
 }
 
 # 6. Manajemen Backup & Restore Data

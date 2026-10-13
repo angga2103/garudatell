@@ -1,11 +1,103 @@
 import os
 import json
+import socket
 import urllib.parse
 import requests
 import logging
 from datetime import datetime, timezone, timedelta
+import urllib3.util.connection as urllib3_conn
+from urllib3.util.retry import Retry
+from requests.adapters import HTTPAdapter
 
 logger = logging.getLogger(__name__)
+
+# ==============================================================================
+# RESOLUSI KONEKSI TELEGRAM API DI VPS LINUX (FORCE IPv4 & RESILIENT SESSION)
+# ==============================================================================
+# Masalah: Di VPS Linux (Ubuntu), getaddrinfo mendahulukan AAAA (IPv6). Jika upstream
+# IPv6 ISP/datacenter tidak merespons (blackhole), urllib3 akan gantung hingga timeout
+# 10s (ConnectTimeoutError). Memaksa socket.AF_INET menjamin koneksi langsung ke IPv4.
+try:
+    urllib3_conn.allowed_gai_family = lambda: socket.AF_INET
+except Exception as _e_af:
+    pass
+
+def get_telegram_api_url():
+    """Mengembalikan Base URL API Telegram (mendukung custom proxy / Cloudflare Worker)."""
+    custom = (os.getenv('TELEGRAM_API_BASE_URL') or os.getenv('TELEGRAM_API_URL') or '').strip().rstrip('/')
+    if custom:
+        return custom
+    return "https://api.telegram.org"
+
+def get_telegram_session():
+    """
+    Membuat session requests yang tangguh khusus untuk Telegram API:
+    - Memaksa IPv4
+    - Retry otomatis untuk kendala koneksi sementara
+    - Mendukung proxy opsional jika disetel di TELEGRAM_PROXY atau HTTPS_PROXY
+    """
+    session = requests.Session()
+    proxy = (os.getenv('TELEGRAM_PROXY') or os.getenv('HTTPS_PROXY') or os.getenv('HTTP_PROXY') or '').strip()
+    if proxy:
+        session.proxies = {
+            'http': proxy,
+            'https': proxy
+        }
+    retries = Retry(total=2, backoff_factor=1, status_forcelist=[500, 502, 503, 504])
+    adapter = HTTPAdapter(max_retries=retries)
+    session.mount('https://', adapter)
+    session.mount('http://', adapter)
+    return session
+
+def call_telegram_api(method, endpoint, **kwargs):
+    """
+    Helper terpadu untuk memanggil endpoint Telegram Bot API:
+    - Menggunakan URL basis dinamis (get_telegram_api_url)
+    - Memaksa IPv4 globally via urllib3.util.connection.allowed_gai_family
+    - Mendukung proxy opsional jika disetel di TELEGRAM_PROXY atau HTTPS_PROXY
+    - Kompatibel dengan unit test mocking requests.post / requests.get
+    """
+    base_url = get_telegram_api_url()
+    clean_endpoint = endpoint.lstrip('/')
+    url = f"{base_url}/{clean_endpoint}"
+    
+    # Timeout adaptif: connect 15s, read 35s jika tidak ditentukan
+    if 'timeout' not in kwargs:
+        kwargs['timeout'] = (15, 35)
+
+    proxy = (os.getenv('TELEGRAM_PROXY') or os.getenv('HTTPS_PROXY') or os.getenv('HTTP_PROXY') or '').strip()
+    if not proxy:
+        fn = getattr(requests, method.lower())
+        return fn(url, **kwargs)
+        
+    session = get_telegram_session()
+    return session.request(method, url, **kwargs)
+
+def is_admin_chat_authorized(chat_id, allowed_chat=None):
+    """
+    Memeriksa apakah chat_id berasal dari Admin terdaftar.
+    Mendukung format multiple chat ID (dipisahkan koma), menghilangkan spasi,
+    dan fallback ke BOT_ADMIN_CHAT_ID serta BOT_NOTIF_CHAT_ID.
+    """
+    chat_str = str(chat_id).strip()
+    if not chat_str:
+        return False
+    
+    admin_tokens, admin_c = get_bot_admin_credentials()
+    notif_tokens, notif_c = get_bot_notif_credentials()
+    
+    targets = []
+    if allowed_chat:
+        targets.extend(str(allowed_chat).replace(';', ',').split(','))
+    if admin_c:
+        targets.extend(str(admin_c).replace(';', ',').split(','))
+    if notif_c:
+        targets.extend(str(notif_c).replace(';', ',').split(','))
+        
+    valid_ids = {t.strip() for t in targets if t and t.strip()}
+    if not valid_ids:
+        return True
+    return chat_str in valid_ids
 
 # Standardisasi Timezone WIB (Waktu Indonesia Barat / GMT+7)
 WIB_TZ = timezone(timedelta(hours=7))
@@ -820,14 +912,13 @@ def send_emergency_otp_request(phone, otp_code=None, user_name=None, action_type
         return False, err_msg, wa_direct_link
 
     try:
-        api_url = f"https://api.telegram.org/bot{token}/sendMessage"
         payload = {
             "chat_id": chat_id,
             "text": full_text,
             "parse_mode": "HTML",
             "disable_web_page_preview": True
         }
-        resp = requests.post(api_url, json=payload, timeout=12)
+        resp = call_telegram_api('post', f"bot{token}/sendMessage", json=payload, timeout=(15, 30))
         res_data = resp.json()
 
         if res_data.get('ok'):
@@ -962,14 +1053,13 @@ def send_trx_notification(trx, title="TRANSAKSI MASUK"):
     full_text = "\n".join(lines)
 
     try:
-        api_url = f"https://api.telegram.org/bot{token}/sendMessage"
         payload = {
             "chat_id": chat_id,
             "text": full_text,
             "parse_mode": "HTML",
             "disable_web_page_preview": True
         }
-        r = requests.post(api_url, json=payload, timeout=10)
+        r = call_telegram_api('post', f"bot{token}/sendMessage", json=payload, timeout=(15, 30))
         return r.status_code == 200, r.text
     except Exception as e:
         logger.error(f"[Bot 2 Notif] Gagal kirim notifikasi transaksi: {e}")
@@ -1103,7 +1193,6 @@ def send_backup_notification(backup_file_path=None, status="SUKSES", details="",
     try:
         # Jika ada file fisik dan ukuran wajar (< 48MB), kirim sebagai Dokumen Telegram
         if backup_file_path and os.path.exists(backup_file_path):
-            doc_url = f"https://api.telegram.org/bot{token}/sendDocument"
             with open(backup_file_path, 'rb') as f:
                 files = {'document': (filename_only, f, 'application/zip')}
                 data = {
@@ -1112,17 +1201,16 @@ def send_backup_notification(backup_file_path=None, status="SUKSES", details="",
                     'parse_mode': 'HTML',
                     'reply_markup': json.dumps(reply_markup)
                 }
-                res = requests.post(doc_url, files=files, data=data, timeout=90)
+                res = call_telegram_api('post', f"bot{token}/sendDocument", files=files, data=data, timeout=90)
                 return res.status_code == 200, res.text
         else:
-            msg_url = f"https://api.telegram.org/bot{token}/sendMessage"
             payload = {
                 'chat_id': chat_id,
                 'text': caption,
                 'parse_mode': 'HTML',
                 'reply_markup': reply_markup
             }
-            res = requests.post(msg_url, json=payload, timeout=10)
+            res = call_telegram_api('post', f"bot{token}/sendMessage", json=payload, timeout=(15, 30))
             return res.status_code == 200, res.text
     except Exception as e:
         logger.error(f"[Bot 2 Backup] Gagal kirim laporan backup: {e}")
@@ -1255,14 +1343,13 @@ def send_sync_report_to_admin_bot(msg, is_cron=True):
         "✅ <i>Katalog produk dan status gangguan operator telah tersinkronisasi otomatis.</i>"
     )
     try:
-        api_url = f"https://api.telegram.org/bot{token}/sendMessage"
         payload = {
             "chat_id": chat_id,
             "text": text,
             "parse_mode": "HTML",
             "disable_web_page_preview": True
         }
-        res = requests.post(api_url, json=payload, timeout=15)
+        res = call_telegram_api('post', f"bot{token}/sendMessage", json=payload, timeout=(15, 30))
         return res.status_code == 200, res.text
     except Exception as e:
         logger.error(f"[Bot 3 Sync Report] Gagal kirim laporan ke Telegram: {e}")
@@ -3011,7 +3098,7 @@ def handle_admin_callback(app, callback_query):
     data = callback_query.get('data', '')
 
     # Validasi otorisasi chat_id admin
-    if allowed_chat and chat_id != str(allowed_chat):
+    if allowed_chat and not is_admin_chat_authorized(chat_id, allowed_chat):
         _answer_callback(token, query_id, "Akses ditolak! Anda bukan Admin terdaftar.")
         return
 
@@ -4376,7 +4463,7 @@ def handle_admin_message(app, message):
     text = message.get('text', '').strip()
 
     # Validasi otorisasi chat_id admin
-    if allowed_chat and chat_id != str(allowed_chat):
+    if allowed_chat and not is_admin_chat_authorized(chat_id, allowed_chat):
         _send_message(token, chat_id, "⛔ <b>Akses Ditolak!</b>\nAkun Telegram Anda tidak terdaftar sebagai Admin GarudaTel.")
         return
 
@@ -4822,10 +4909,10 @@ def handle_admin_message(app, message):
 
 def _answer_callback(token, callback_query_id, text=""):
     try:
-        requests.post(f"https://api.telegram.org/bot{token}/answerCallbackQuery", json={
+        call_telegram_api('post', f"bot{token}/answerCallbackQuery", json={
             "callback_query_id": callback_query_id,
             "text": text
-        }, timeout=5)
+        }, timeout=8)
     except Exception:
         pass
 
@@ -4841,7 +4928,7 @@ def _edit_message(token, chat_id, message_id, text, reply_markup=None):
         }
         if reply_markup:
             payload["reply_markup"] = reply_markup
-        requests.post(f"https://api.telegram.org/bot{token}/editMessageText", json=payload, timeout=10)
+        call_telegram_api('post', f"bot{token}/editMessageText", json=payload, timeout=15)
     except Exception as e:
         logger.error(f"[Bot 3] Gagal edit pesan: {e}")
 
@@ -4856,6 +4943,6 @@ def _send_message(token, chat_id, text, reply_markup=None):
         }
         if reply_markup:
             payload["reply_markup"] = reply_markup
-        requests.post(f"https://api.telegram.org/bot{token}/sendMessage", json=payload, timeout=10)
+        call_telegram_api('post', f"bot{token}/sendMessage", json=payload, timeout=15)
     except Exception as e:
         logger.error(f"[Bot 3] Gagal kirim pesan: {e}")

@@ -66,7 +66,8 @@ def dashboard():
         'bot_admin_chat': clean_str(os.getenv('BOT_ADMIN_CHAT_ID')),
         'vip_api_id': clean_str(os.getenv('VIP_API_ID')),
         'vip_api_key': clean_str(os.getenv('VIP_API_KEY')),
-        'digi_webhook_secret': clean_str(os.getenv('DIGI_WEBHOOK_SECRET'))
+        'digi_webhook_secret': clean_str(os.getenv('DIGI_WEBHOOK_SECRET')),
+        'telegram_api_url': clean_str(os.getenv('TELEGRAM_API_BASE_URL') or os.getenv('TELEGRAM_API_URL', ''))
     }
 
     # Metrik Riil dari Database
@@ -166,6 +167,8 @@ def save_config():
     elif form_type == 'bot_admin':
         set_key(ENV_FILE, 'BOT_ADMIN_CHAT_ID', clean_str(request.form.get('bot_admin_chat')))
         if request.form.get('bot_admin_token'): set_key(ENV_FILE, 'BOT_ADMIN_TOKEN', clean_str(request.form.get('bot_admin_token')))
+        if request.form.get('telegram_api_url') is not None:
+            set_key(ENV_FILE, 'TELEGRAM_API_BASE_URL', clean_str(request.form.get('telegram_api_url')))
         
     load_dotenv(ENV_FILE, override=True)
     flash('Konfigurasi berhasil disimpan!', 'success')
@@ -276,26 +279,33 @@ def test_connection(tipe):
             flash('❌ Token atau Chat ID Bot belum lengkap!', 'danger')
             return redirect(url_for('admin.dashboard'))
         try:
+            from app.services.telegram_service import call_telegram_api, get_admin_inline_keyboard
+            target_chat = chat_id.split(',')[0].strip()
             payload = {
-                "chat_id": chat_id,
+                "chat_id": target_chat,
                 "text": "✅ <b>Tes koneksi dari Panel Admin GarudaTel berhasil!</b>\nBot siap digunakan.",
                 "parse_mode": "HTML"
             }
             if tipe == 'bot_admin':
-                from app.services.telegram_service import get_admin_inline_keyboard
                 payload["text"] = (
                     "🦅 <b>BOT 3 : PANEL & FITUR ADMIN GARUDATEL</b>\n"
                     "━━━━━━━━━━━━━━━━━━━━━━\n"
                     "✅ Tes koneksi berhasil! Silakan pilih fitur admin di bawah ini:"
                 )
                 payload["reply_markup"] = get_admin_inline_keyboard()
-            res = requests.post(f"https://api.telegram.org/bot{token}/sendMessage", json=payload, timeout=10).json()
+            
+            resp = call_telegram_api('post', f"bot{token}/sendMessage", json=payload, timeout=(15, 30))
+            res = resp.json()
             if res.get('ok'):
-                flash('✅ Tes koneksi sukses! Cek pesan masuk di Telegram Anda.', 'success')
+                flash('✅ Tes koneksi sukses! Pesan menu berhasil dikirim ke Telegram Anda.', 'success')
             else:
                 flash(f"❌ Gagal kirim pesan: {res.get('description')}", 'danger')
         except Exception as e:
-            flash(f"❌ Error Telegram: {str(e)}", 'danger')
+            err_text = str(e)
+            hint = ""
+            if "timeout" in err_text.lower() or "timed out" in err_text.lower():
+                hint = " (Penyebab: VPS mengalami kendala koneksi ke Telegram API karena prioritas IPv6 atau blokir ISP hosting. Solusi: Gunakan menu [4] -> [5] di CLI 'garudatell' untuk optimasi IPv4 atau masukkan Proxy Telegram di konfigurasi)."
+            flash(f"❌ Error Telegram: {err_text}{hint}", 'danger')
             
     else:
         flash(f'✅ Konfigurasi {tipe} telah tersimpan.', 'success')
