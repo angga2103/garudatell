@@ -307,16 +307,21 @@ def sync_products(force=False, notify_admin_bot=True, include_pasca=False):
                     update_count += 1
                 
                 # Sinkronkan status aktif / gangguan secara real-time
-                # GEMBOK ADMIN: Jika produk dinonaktifkan manual oleh Admin (is_admin_disabled == True),
-                # Auto-Sync DILARANG mengaktifkan kembali produk ini!
-                is_admin_locked = bool(getattr(product, 'is_admin_disabled', False))
-                if is_admin_locked:
+                # ATURAN BAKU ANTI-JEBOL:
+                # Jika produk lokal sudah NONAKTIF (is_active == False) ATAU digembok admin (is_admin_disabled == True):
+                # Sync Digiflazz DILARANG KERAS mengaktifkan kembali produk ini!
+                # Produk hanya boleh diaktifkan jika Admin sendiri yang membukanya lewat Bot Telegram / Web Panel.
+                if not product.is_active or bool(getattr(product, 'is_admin_disabled', False)):
                     if product.is_active:
                         product.is_active = False
                         update_count += 1
+                    if not getattr(product, 'is_admin_disabled', False):
+                        product.is_admin_disabled = True
                 else:
-                    if product.is_active != product_active:
-                        product.is_active = product_active
+                    # Produk lokal saat ini berstatus AKTIF:
+                    # Nonaktifkan sementara jika provider/seller Digiflazz mengirimkan status gangguan (product_active == False)
+                    if not product_active:
+                        product.is_active = False
                         update_count += 1
 
                 # Sinkronkan nama seller Digiflazz secara otomatis

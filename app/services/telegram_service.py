@@ -3716,6 +3716,13 @@ def handle_admin_callback(app, callback_query):
 
         elif data == 'cmd_sync_digi':
             _edit_message(token, chat_id, message_id, "⏳ <i>Sedang menarik data produk dari Digiflazz... Harap tunggu sebentar.</i>", None)
+            from app.extensions import db
+            try:
+                # Pastikan semua produk yang saat ini berstatus nonaktif terkunci agar tidak tertimpa sync Digiflazz
+                Product.query.filter(Product.is_active == False, Product.is_admin_disabled != True).update({'is_admin_disabled': True})
+                db.session.commit()
+            except Exception:
+                pass
             ok, msg = sync_products()
             res_icon = "✅" if ok else "🚨"
             text = f"{res_icon} <b>HASIL SINKRONISASI DIGIFLAZZ:</b>\n\n{msg}"
@@ -4474,7 +4481,13 @@ def handle_admin_message(app, message):
         force_flag = 'force' in text.lower()
         _send_message(token, chat_id, "⏳ <i>Sedang melakukan sinkronisasi katalog produk dari Digiflazz...</i>")
         with app.app_context():
+            from app.extensions import db
             from app.services.digiflazz import sync_products
+            try:
+                Product.query.filter(Product.is_active == False, Product.is_admin_disabled != True).update({'is_admin_disabled': True})
+                db.session.commit()
+            except Exception:
+                pass
             ok, msg = sync_products(force=force_flag, notify_admin_bot=False)
             icon = "✅" if ok else "🚨"
             _send_message(token, chat_id, f"{icon} <b>HASIL SINKRONISASI DIGIFLAZZ:</b>\n\n{msg}")

@@ -212,6 +212,13 @@ def create_app(test_config=None):
                                 app.logger.info(f"[AUTO-MIGRATE] Kolom product.{c_name} berhasil ditambahkan ke database.")
                             except Exception as ex_col:
                                 app.logger.warning(f"Gagal tambah kolom product.{c_name}: {ex_col}")
+                    
+                    # Backfill Pengaman: Pastikan semua produk yang saat ini nonaktif (is_active=0) otomatis digembok (is_admin_disabled=1)
+                    try:
+                        conn.execute(db.text("UPDATE product SET is_admin_disabled = 1 WHERE is_active = 0 AND (is_admin_disabled IS NULL OR is_admin_disabled = 0)"))
+                    except Exception as ex_backfill:
+                        app.logger.warning(f"Gagal backfill is_admin_disabled: {ex_backfill}")
+
                     conn.commit()
 
             # Auto-migrate kolom baru tabel transaction jika belum ada
