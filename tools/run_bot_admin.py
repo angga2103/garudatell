@@ -86,8 +86,16 @@ def poll_bot_notif_worker(app, token, allowed_chat):
                 'allowed_updates': ['callback_query', 'message']
             }
             resp = session.get(poll_url, params=params, timeout=(15, 35))
+            if resp.status_code == 409:
+                logger.warning("[Bot 2 Notif] 409 Conflict: Bot instance lain aktif. Jeda 15s...")
+                time.sleep(15)
+                continue
+            if resp.status_code == 429:
+                logger.warning("[Bot 2 Notif] 429 Rate Limit: Telegram meminta jeda. Menunggu 20s...")
+                time.sleep(20)
+                continue
             if resp.status_code != 200:
-                time.sleep(3)
+                time.sleep(5)
                 continue
 
             data = resp.json()
@@ -155,9 +163,17 @@ def poll_bot_cs_worker(app, token, allowed_chat):
                 'allowed_updates': ['message', 'callback_query']
             }
             resp = session.get(poll_url, params=params, timeout=(15, 35))
+            if resp.status_code == 409:
+                logger.warning("[Bot 1 CS] 409 Conflict: Bot instance lain aktif. Jeda 15s...")
+                time.sleep(15)
+                continue
+            if resp.status_code == 429:
+                logger.warning("[Bot 1 CS] 429 Rate Limit: Telegram meminta jeda. Menunggu 20s...")
+                time.sleep(20)
+                continue
             if resp.status_code != 200:
                 logger.warning(f"[Bot 1 CS] Polling HTTP {resp.status_code}: {resp.text}")
-                time.sleep(3)
+                time.sleep(5)
                 continue
 
             data = resp.json()
@@ -212,8 +228,8 @@ def main():
     session = get_telegram_session()
     base_url = get_telegram_api_url()
 
-    # 1. Jalankan Bot 1 CS Listener di thread terpisah jika token ada
-    if cs_token:
+    # 1. Jalankan Bot 1 CS Listener di thread terpisah HANYA jika token berbeda dari Bot 3
+    if cs_token and cs_token != admin_token:
         cs_thread = threading.Thread(
             target=poll_bot_cs_worker,
             args=(app, cs_token, cs_chat),
@@ -222,6 +238,8 @@ def main():
         )
         cs_thread.start()
         logger.info(f"🚀 [Bot 1 CS] Bot 1 CS Listener aktif (Token: ...{cs_token[-6:]})")
+    elif cs_token and cs_token == admin_token:
+        logger.info("[Bot Daemon] Bot 1 CS menggunakan token yang sama dengan Bot 3 Admin. Polling dipusatkan di loop utama.")
 
     # 2. Jalankan Bot 2 Notif Listener di thread terpisah jika token berbeda
     if notif_token and notif_token != admin_token and notif_token != cs_token:
@@ -276,9 +294,17 @@ def main():
                 'allowed_updates': ['message', 'callback_query']
             }
             resp = session.get(poll_url, params=params, timeout=(15, 35))
+            if resp.status_code == 409:
+                logger.warning("[Telegram 409 Conflict] Bot instance lain atau token ganda aktif. Jeda 15 detik sebelum re-polling...")
+                time.sleep(15)
+                continue
+            if resp.status_code == 429:
+                logger.warning("[Telegram 429 Rate Limit] Terkena batas frekuensi Telegram. Jeda 20 detik...")
+                time.sleep(20)
+                continue
             if resp.status_code != 200:
                 logger.warning(f"Telegram returned HTTP {resp.status_code}: {resp.text}")
-                time.sleep(3)
+                time.sleep(5)
                 continue
 
             data = resp.json()

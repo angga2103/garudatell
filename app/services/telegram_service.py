@@ -4110,7 +4110,7 @@ def handle_admin_callback(app, callback_query):
             _edit_message(token, chat_id, message_id, text, get_back_button())
 
         elif data == 'cmd_sync_digi':
-            _edit_message(token, chat_id, message_id, "⏳ <i>Sedang menarik data produk dari Digiflazz... Harap tunggu sebentar.</i>", None)
+            _edit_message(token, chat_id, message_id, "⏳ <i>Sedang menarik data produk dari Digiflazz di background... Anda akan menerima pesan notifikasi saat selesai.</i>", get_back_button())
             from app.extensions import db
             try:
                 # Pastikan semua produk yang saat ini berstatus nonaktif terkunci agar tidak tertimpa sync Digiflazz
@@ -4118,10 +4118,15 @@ def handle_admin_callback(app, callback_query):
                 db.session.commit()
             except Exception:
                 pass
-            ok, msg = sync_products()
-            res_icon = "✅" if ok else "🚨"
-            text = f"{res_icon} <b>HASIL SINKRONISASI DIGIFLAZZ:</b>\n\n{msg}"
-            _edit_message(token, chat_id, message_id, text, get_back_button())
+
+            def async_sync_runner():
+                with app.app_context():
+                    ok, msg = sync_products(notify_admin_bot=False)
+                    res_icon = "✅" if ok else "🚨"
+                    text = f"{res_icon} <b>HASIL SINKRONISASI DIGIFLAZZ:</b>\n\n{msg}"
+                    _send_message(token, chat_id, text, reply_markup=get_back_button())
+
+            threading.Thread(target=async_sync_runner, daemon=True).start()
 
         elif data == 'cmd_sync_vip':
             _edit_message(token, chat_id, message_id, "⏳ <i>Sedang menarik layanan game dari VIP-Reseller... Harap tunggu sebentar.</i>", None)
