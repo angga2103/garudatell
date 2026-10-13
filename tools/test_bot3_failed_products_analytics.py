@@ -25,6 +25,9 @@ from app.services.telegram_service import (
     render_failed_products_report,
     render_failed_product_detail,
     render_failed_sellers_report,
+    get_disabled_sellers_list,
+    render_disabled_catalog_sellers_menu,
+    render_disabled_catalog_seller_products,
     handle_admin_callback,
     handle_admin_message,
 )
@@ -227,7 +230,8 @@ def run_all_tests():
             assert_valid_telegram_keyboard(kb_main)
             cb_list = [b.get('callback_data') for r in kb_main['inline_keyboard'] for b in r]
             assert 'cmd_failed_products' in cb_list
-            print("[LULUS 1/10] Tombol '🚨 Analisa Produk & Seller Gagal' terdaftar di Menu Utama Bot 3.")
+            assert 'cmd_disabled_catalog' in cb_list
+            print("[LULUS 1/11] Tombol '🚨 Analisa Produk & Seller Gagal' & '🔓 Kelola Produk Nonaktif' terdaftar di Menu Utama Bot 3.")
 
             # TEST 2: Format Seller Tag & Analytics Engine (CRITICAL, WARNING, INFO)
             analytics = get_failed_products_analytics(period='30d', filter_mode='all')
@@ -454,10 +458,92 @@ def run_all_tests():
 
                 handle_admin_message(app, {'chat': {'id': '999888'}, 'text': '/analisaseller'})
                 assert 'RAPOR ANALISA SELLER DIGIFLAZZ SERING GAGAL' in sends[-1][0]
-                print("[LULUS 10/10] Seluruh Perintah Teks Bot 3 (/start, /produkgagal, /analisaseller) berfungsi 100%.")
+                print("[LULUS 10/11] Seluruh Perintah Teks Bot 3 (/start, /produkgagal, /analisaseller) berfungsi 100%.")
+
+                # TEST 11: Fitur Katalog Produk Nonaktif Per Seller & Seleksi Aktivasi Produk (dis_act_one, dis_act_all, /produknonaktif)
+                p1.seller_name = 'Payfast Official'
+                p1.is_active = False
+                p1.is_admin_disabled = True
+                p3.seller_name = 'Payfast Official'
+                p3.is_active = False
+                p3.is_admin_disabled = True
+                db.session.commit()
+
+                # Uji get_disabled_sellers_list()
+                d_sellers = get_disabled_sellers_list()
+                assert len(d_sellers) >= 1
+                payfast_group = next((s for s in d_sellers if 'PAYFAST' in s['key']), None)
+                assert payfast_group is not None
+                assert len(payfast_group['products']) >= 2
+                payfast_hash = payfast_group['hash']
+
+                # Uji render_disabled_catalog_sellers_menu()
+                menu_txt, menu_kb = render_disabled_catalog_sellers_menu(page=1, per_page=6)
+                assert_valid_telegram_keyboard(menu_kb)
+                assert 'KATALOG PRODUK NONAKTIF PER SELLER' in menu_txt
+                assert 'Payfast Official' in menu_txt
+
+                # Uji callback cmd_disabled_catalog via handle_admin_callback
+                handle_admin_callback(app, {
+                    'id': 'cb_cat_menu',
+                    'message': {'chat': {'id': '999888'}, 'message_id': 1},
+                    'data': 'cmd_disabled_catalog'
+                })
+                assert 'KATALOG PRODUK NONAKTIF PER SELLER' in edits[-1][0]
+                assert_valid_telegram_keyboard(edits[-1][1])
+
+                # Uji buka daftar produk seller (dis_slr)
+                handle_admin_callback(app, {
+                    'id': 'cb_cat_slr',
+                    'message': {'chat': {'id': '999888'}, 'message_id': 1},
+                    'data': f'dis_slr:{payfast_hash}:1'
+                })
+                assert 'PRODUK NONAKTIF SELLER' in edits[-1][0]
+                assert 'Payfast Official' in edits[-1][0]
+                assert test_sku_1 in edits[-1][0]
+                assert test_sku_3 in edits[-1][0]
+                assert_valid_telegram_keyboard(edits[-1][1])
+
+                # Uji Seleksi Aktivasi 1 Produk (dis_act_one): Aktifkan p1 saja!
+                handle_admin_callback(app, {
+                    'id': 'cb_act_one',
+                    'message': {'chat': {'id': '999888'}, 'message_id': 1},
+                    'data': f'dis_act_one:{p1.id}:{payfast_hash}'
+                })
+                db.session.refresh(p1)
+                db.session.refresh(p3)
+                assert p1.is_active is True, "Produk 1 harus aktif kembali!"
+                assert p1.is_admin_disabled is False, "Gembok admin produk 1 harus terbuka!"
+                assert p3.is_active is False, "Produk 3 harus tetap nonaktif karena belum dipilih!"
+                # Clean View / Inbox Zero: Tombol dan entri produk 1 langsung hilang dari daftar nonaktif!
+                cb_buttons = [b.get('callback_data') for r in edits[-1][1]['inline_keyboard'] for b in r if 'callback_data' in b]
+                assert f'dis_act_one:{p1.id}:{payfast_hash}' not in cb_buttons, "Tombol produk 1 harus hilang dari daftar nonaktif!"
+                assert f'dis_act_one:{p3.id}:{payfast_hash}' in cb_buttons, "Tombol produk 3 masih ada!"
+                body_after_banner = edits[-1][0].split('━━━━━━━━━━━━━━━━━━━━━━\n\n', 1)[1]
+                assert test_sku_1 not in body_after_banner, "Produk 1 harus hilang dari daftar produk nonaktif di bodi pesan!"
+                assert test_sku_3 in body_after_banner, "Produk 3 masih tertinggal di daftar nonaktif!"
+
+                # Uji Tombol Aktifkan Semua Produk Seller (dis_act_all): Aktifkan sisa produk seller Payfast
+                handle_admin_callback(app, {
+                    'id': 'cb_act_all',
+                    'message': {'chat': {'id': '999888'}, 'message_id': 1},
+                    'data': f'dis_act_all:{payfast_hash}'
+                })
+                db.session.refresh(p3)
+                assert p3.is_active is True
+                assert p3.is_admin_disabled is False
+                assert 'BERHASIL DIAKTIFKAN!' in edits[-1][0]
+                assert 'KATALOG PRODUK NONAKTIF PER SELLER' in edits[-1][0]
+
+                # Uji Perintah Chat Langsung /produknonaktif
+                handle_admin_message(app, {'chat': {'id': '999888'}, 'text': '/produknonaktif'})
+                assert 'KATALOG PRODUK NONAKTIF PER SELLER' in sends[-1][0]
+                assert_valid_telegram_keyboard(sends[-1][1])
+
+                print("[LULUS 11/11] Fitur Katalog Produk Nonaktif Per Seller & Seleksi Aktivasi Produk (dis_act_one, dis_act_all, /produknonaktif) berfungsi 100%.")
 
             print("=" * 72)
-            print("HASIL AKHIR: 10/10 PENGUJIAN BOT 3 PANEL & FITUR ADMIN LULUS 100%!")
+            print("HASIL AKHIR: 11/11 PENGUJIAN BOT 3 PANEL & FITUR ADMIN LULUS 100%!")
             print("=" * 72)
         finally:
             Product.query.filter(Product.sku_code.in_([test_sku_1, test_sku_2, test_sku_3, test_sku_normal])).delete(synchronize_session=False)

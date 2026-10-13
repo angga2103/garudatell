@@ -1285,6 +1285,9 @@ def get_admin_inline_keyboard():
                 {"text": "🚨 Analisa Produk & Seller Gagal", "callback_data": "cmd_failed_products"}
             ],
             [
+                {"text": "🔓 Kelola & Aktifkan Produk Nonaktif", "callback_data": "cmd_disabled_catalog"}
+            ],
+            [
                 {"text": "💰 Saldo Digiflazz", "callback_data": "cmd_saldo"},
                 {"text": "📥 Tarik Deposit", "callback_data": "cmd_tarik_deposit"}
             ],
@@ -2327,6 +2330,9 @@ def render_failed_sellers_report(period='30d', page=1, per_page=5, filter_mode='
         ])
 
     kb.append([
+        {"text": "🔓 Katalog Produk Nonaktif Per Seller", "callback_data": "cmd_disabled_catalog"}
+    ])
+    kb.append([
         {"text": "📦 Kembali ke Daftar Produk Gagal", "callback_data": f"fp_list:{norm_period}:1:active"},
         {"text": "🏠 Menu Utama", "callback_data": "cmd_menu"}
     ])
@@ -2340,6 +2346,7 @@ def render_disabled_seller_products_report(sample_trx_id, period='30d', page=1, 
     Dilengkapi tombol untuk mengaktifkan kembali produk (per-item maupun sekaligus per-seller).
     """
     import math
+    import hashlib
     from app.extensions import db
     from app.models.transaction import Transaction
     from app.models.product import Product
@@ -2406,6 +2413,7 @@ def render_disabled_seller_products_report(sample_trx_id, period='30d', page=1, 
         lines.append("✅ <i>Tidak ada produk nonaktif untuk seller ini. Seluruh produk saat ini berstatus aktif di web.</i>")
     else:
         lines.append("<i>Produk di bawah ini saat ini dinonaktifkan dari katalog web dan digembok dari Auto-Sync Digiflazz:</i>\n")
+        s_hash = hashlib.md5(target_seller.strip().upper().encode('utf-8')).hexdigest()[:8]
         for idx, item in enumerate(page_items, start=start_idx + 1):
             is_locked = bool(item.get('is_admin_disabled', False)) or (item.get('product_obj') and getattr(item['product_obj'], 'is_admin_disabled', False))
             lock_str = "🔒 Gembok Admin: Aktif" if is_locked else "🔓 Standar"
@@ -2415,13 +2423,20 @@ def render_disabled_seller_products_report(sample_trx_id, period='30d', page=1, 
                 f"   • Status: {lock_str}"
             )
             cb_sku = item['sku_code'][:28]
-            kb.append([
-                {"text": f"🔍 Kelola / Aktifkan #{idx} ({item['sku_code']})", "callback_data": f"fp_view:{norm_period}:{cb_sku}"}
-            ])
+            p_obj = item.get('product_obj')
+            if p_obj:
+                kb.append([
+                    {"text": f"🟢 Aktifkan #{idx} ({item['sku_code'][:12]})", "callback_data": f"dis_act_one:{p_obj.id}:{s_hash}"},
+                    {"text": f"🔍 Detail", "callback_data": f"fp_view:{norm_period}:{cb_sku}"}
+                ])
+            else:
+                kb.append([
+                    {"text": f"🔍 Kelola / Aktifkan #{idx} ({item['sku_code']})", "callback_data": f"fp_view:{norm_period}:{cb_sku}"}
+                ])
             lines.append("")
 
         lines.append("━━━━━━━━━━━━━━━━━━━━━━")
-        lines.append("💡 <i>Anda dapat mengaktifkan kembali produk di atas satu per satu atau sekaligus seluruhnya untuk seller ini.</i>")
+        lines.append("💡 <i>Anda dapat mengaktifkan kembali produk di atas satu per satu (tombol hijau) atau sekaligus seluruhnya untuk seller ini.</i>")
 
         # Tombol Aktifkan Semua Produk Nonaktif Seller Ini diletakkan paling atas
         kb.insert(0, [
@@ -2440,7 +2455,218 @@ def render_disabled_seller_products_report(sample_trx_id, period='30d', page=1, 
         kb.append(nav_row)
 
     kb.append([
-        {"text": "« Kembali ke Rapor Seller", "callback_data": f"fp_sellers:{norm_period}:1:all"},
+        {"text": "🔓 Buka Katalog Nonaktif Lengkap", "callback_data": "cmd_disabled_catalog"},
+        {"text": "« Kembali ke Rapor Seller", "callback_data": f"fp_sellers:{norm_period}:1:all"}
+    ])
+    kb.append([
+        {"text": "🏠 Menu Utama", "callback_data": "cmd_menu"}
+    ])
+
+    return "\n".join(lines), {"inline_keyboard": kb}
+
+
+def get_disabled_sellers_list():
+    """
+    Mengambil daftar seluruh seller yang memiliki produk berstatus nonaktif
+    atau terkunci gembok admin (is_active == False atau is_admin_disabled == True)
+    langsung dari tabel Product.
+    Mengembalikan list of dict terurut dari yang terbanyak produk nonaktifnya.
+    """
+    import hashlib
+    from app.models.product import Product
+
+    prods = Product.query.filter(
+        (Product.is_active == False) | (Product.is_admin_disabled == True)
+    ).all()
+
+    seller_map = {}
+    for p in prods:
+        s_raw = (p.seller_name or '').strip()
+        s_key = s_raw.upper() if s_raw else '__NONE__'
+        if s_key not in seller_map:
+            s_hash = hashlib.md5(s_key.encode('utf-8')).hexdigest()[:8]
+            seller_map[s_key] = {
+                'key': s_key,
+                'hash': s_hash,
+                'raw_name': s_raw,
+                'display_name': s_raw if s_raw else 'Tanpa Seller / Default',
+                'products': []
+            }
+        seller_map[s_key]['products'].append(p)
+
+    sorted_sellers = sorted(
+        seller_map.values(),
+        key=lambda item: (-len(item['products']), item['display_name'].lower())
+    )
+    return sorted_sellers
+
+
+def render_disabled_catalog_sellers_menu(page=1, per_page=6):
+    """
+    Menampilkan menu daftar seller yang memiliki produk nonaktif di katalog.
+    Admin dapat memilih salah satu seller untuk melihat dan mengaktifkan produknya.
+    """
+    import math
+
+    sellers = get_disabled_sellers_list()
+    total_sellers = len(sellers)
+    total_disabled_products = sum(len(s['products']) for s in sellers)
+
+    total_pages = max(1, math.ceil(total_sellers / per_page))
+    page = max(1, min(int(page or 1), total_pages))
+
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    page_sellers = sellers[start_idx:end_idx]
+
+    lines = [
+        "🔓 <b>KATALOG PRODUK NONAKTIF PER SELLER</b>",
+        "━━━━━━━━━━━━━━━━━━━━━━",
+        "Kelola dan aktifkan kembali produk yang dinonaktifkan / digembok.",
+        f"📊 <b>Total Nonaktif:</b> {total_disabled_products} Produk ({total_sellers} Seller)",
+        f"📄 <b>Halaman:</b> {page} dari {total_pages}",
+        "━━━━━━━━━━━━━━━━━━━━━━"
+    ]
+
+    kb = []
+
+    if not sellers:
+        lines.append("🎉 <b>SEMUA PRODUK AKTIF!</b>")
+        lines.append("<i>Saat ini tidak ada produk yang berstatus nonaktif di katalog database.</i>")
+        lines.append("<i>Seluruh produk sedang tayang dan aktif di website & kasir POS.</i>")
+        kb.append([
+            {"text": "🔄 Refresh", "callback_data": "cmd_disabled_catalog"},
+            {"text": "🏠 Menu Utama", "callback_data": "cmd_menu"}
+        ])
+        return "\n".join(lines), {"inline_keyboard": kb}
+
+    lines.append("Silakan <b>klik nama seller</b> di bawah untuk melihat rincian produk & memilih yang ingin diaktifkan:\n")
+
+    for i, s_item in enumerate(page_sellers, start=start_idx + 1):
+        s_count = len(s_item['products'])
+        lines.append(f"<b>{i}. 🏪 {s_item['display_name']}</b> — <b>{s_count}</b> Produk Nonaktif")
+        btn_text = f"🏪 #{i}. {s_item['display_name'][:20]} ({s_count} Produk)"
+        kb.append([
+            {"text": btn_text, "callback_data": f"dis_slr:{s_item['hash']}:1"}
+        ])
+
+    lines.append("\n━━━━━━━━━━━━━━━━━━━━━━")
+    lines.append("💡 <i>Produk yang diaktifkan kembali otomatis membuka gembok admin dan langsung aktif di web.</i>")
+
+    # Pagination row
+    nav_row = []
+    if page > 1:
+        nav_row.append({"text": "« Hal Sebelumnya", "callback_data": f"dis_menu:{page - 1}"})
+    if page < total_pages:
+        nav_row.append({"text": "Hal Berikutnya »", "callback_data": f"dis_menu:{page + 1}"})
+    if nav_row:
+        kb.append(nav_row)
+
+    kb.append([
+        {"text": "🚨 Laporan Produk Sering Gagal", "callback_data": "cmd_failed_products"},
+        {"text": "🏠 Menu Utama", "callback_data": "cmd_menu"}
+    ])
+
+    return "\n".join(lines), {"inline_keyboard": kb}
+
+
+def render_disabled_catalog_seller_products(seller_hash, page=1, per_page=5):
+    """
+    Menampilkan daftar produk nonaktif milik seller yang dipilih (berdasarkan seller hash).
+    Admin dapat:
+    1. Memilih produk tertentu untuk diaktifkan (1-klik tombol per produk).
+    2. Mengaktifkan seluruh produk nonaktif seller ini sekaligus (1-klik tombol).
+    """
+    import math
+
+    sellers = get_disabled_sellers_list()
+    target_seller = next((s for s in sellers if s['hash'] == str(seller_hash).strip()), None)
+
+    if not target_seller:
+        return (
+            "🎉 <b>SEMUA PRODUK SELLER INI TELAH AKTIF!</b>\n"
+            "Seluruh produk milik seller ini sudah berhasil diaktifkan kembali dan sedang tayang di website & kasir POS.",
+            {
+                "inline_keyboard": [
+                    [{"text": "« Kembali ke Daftar Seller", "callback_data": "cmd_disabled_catalog"}],
+                    [{"text": "🏠 Menu Utama", "callback_data": "cmd_menu"}]
+                ]
+            }
+        )
+
+    prods = target_seller['products']
+    total_prods = len(prods)
+
+    total_pages = max(1, math.ceil(total_prods / per_page))
+    page = max(1, min(int(page or 1), total_pages))
+
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    page_prods = prods[start_idx:end_idx]
+
+    lines = [
+        "📂 <b>PRODUK NONAKTIF SELLER</b>",
+        "━━━━━━━━━━━━━━━━━━━━━━",
+        f"🏪 <b>Seller:</b> <b>{target_seller['display_name']}</b>",
+        f"🔒 <b>Total Nonaktif:</b> {total_prods} Produk (Digembok dari Auto-Sync)",
+        f"📄 <b>Halaman:</b> {page} dari {total_pages}",
+        "━━━━━━━━━━━━━━━━━━━━━━"
+    ]
+
+    kb = []
+
+    if not page_prods:
+        lines.append("🎉 <b>SEMUA PRODUK SELLER INI TELAH AKTIF!</b>")
+        lines.append("<i>Tidak ada lagi produk nonaktif untuk seller ini.</i>")
+        kb.append([
+            {"text": "« Kembali ke Daftar Seller", "callback_data": "cmd_disabled_catalog"},
+            {"text": "🏠 Menu Utama", "callback_data": "cmd_menu"}
+        ])
+        return "\n".join(lines), {"inline_keyboard": kb}
+
+    lines.append("<i>Pilih produk yang ingin Anda aktifkan kembali di bawah:</i>\n")
+
+    # Tombol Aktifkan Semua Produk Seller Ini diletakkan paling atas
+    kb.append([
+        {
+            "text": f"🟢 Aktifkan SEMUA ({total_prods} Produk) Seller Ini",
+            "callback_data": f"dis_act_all:{seller_hash}"
+        }
+    ])
+
+    for num, p in enumerate(page_prods, start=start_idx + 1):
+        price_str = format_rupiah(p.base_price) if getattr(p, 'base_price', None) else '-'
+        lock_status = "🔒 Digembok Admin" if getattr(p, 'is_admin_disabled', False) else "🔴 Nonaktif"
+        lines.append(
+            f"<b>{num}. 🔴 {p.name}</b>\n"
+            f"   • SKU: <code>{p.sku_code}</code> | Modal: {price_str}\n"
+            f"   • Kategori: {p.category or '-'} | Status: {lock_status}"
+        )
+        lines.append("")
+
+        # Tombol 1-klik aktifkan produk ini
+        btn_label = f"🟢 Aktifkan #{num}: {p.sku_code[:16]}"
+        kb.append([
+            {
+                "text": btn_label,
+                "callback_data": f"dis_act_one:{p.id}:{seller_hash}"
+            }
+        ])
+
+    lines.append("━━━━━━━━━━━━━━━━━━━━━━")
+    lines.append("💡 <i>Klik tombol hijau [🟢 Aktifkan] pada produk yang ingin Anda nyalakan kembali.</i>")
+
+    # Pagination baris
+    nav_row = []
+    if page > 1:
+        nav_row.append({"text": "« Hal Sebelumnya", "callback_data": f"dis_slr:{seller_hash}:{page - 1}"})
+    if page < total_pages:
+        nav_row.append({"text": "Hal Berikutnya »", "callback_data": f"dis_slr:{seller_hash}:{page + 1}"})
+    if nav_row:
+        kb.append(nav_row)
+
+    kb.append([
+        {"text": "« Pilih Seller Lain", "callback_data": "cmd_disabled_catalog"},
         {"text": "🏠 Menu Utama", "callback_data": "cmd_menu"}
     ])
 
@@ -3561,6 +3787,86 @@ def handle_admin_callback(app, callback_query):
             s_text, s_kb = render_failed_sellers_report(period=period, page=1, per_page=5, filter_mode='all')
             _edit_message(token, chat_id, message_id, banner + s_text, s_kb)
 
+        # ==========================================================
+        # FITUR KATALOG PRODUK NONAKTIF PER SELLER & SELEKSI AKTIVASI
+        # ==========================================================
+        elif data == 'cmd_disabled_catalog':
+            c_text, c_kb = render_disabled_catalog_sellers_menu(page=1, per_page=6)
+            _edit_message(token, chat_id, message_id, c_text, c_kb)
+
+        elif data.startswith('dis_menu:'):
+            parts = data.split(':')
+            page = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 1
+            c_text, c_kb = render_disabled_catalog_sellers_menu(page=page, per_page=6)
+            _edit_message(token, chat_id, message_id, c_text, c_kb)
+
+        elif data.startswith('dis_slr:'):
+            parts = data.split(':')
+            s_hash = parts[1] if len(parts) > 1 else ''
+            page = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 1
+            p_text, p_kb = render_disabled_catalog_seller_products(seller_hash=s_hash, page=page, per_page=5)
+            _edit_message(token, chat_id, message_id, p_text, p_kb)
+
+        elif data.startswith('dis_act_one:'):
+            from app.extensions import db, cache
+            parts = data.split(':')
+            prod_id = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
+            s_hash = parts[2] if len(parts) > 2 else ''
+            prod = Product.query.get(prod_id)
+            if not prod:
+                _edit_message(token, chat_id, message_id, "❌ Produk tidak ditemukan di database!", get_back_button())
+                return
+            prod.is_active = True
+            prod.is_admin_disabled = False  # Buka gembok admin
+            db.session.commit()
+            try:
+                cache.clear()
+            except Exception:
+                pass
+            banner = (
+                f"✅ <b>PRODUK BERHASIL DIAKTIFKAN KEMBALI!</b>\n"
+                f"Produk <b>{prod.name}</b> (<code>{prod.sku_code}</code>) kini berstatus:\n"
+                f"🟢 <b>AKTIF</b> — <i>Gembok Admin telah dibuka & tayang di web!</i>\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            )
+            # Re-render halaman produk seller ini (Clean View / Inbox Zero: produk yang baru diaktifkan langsung lenyap dari daftar nonaktif)
+            p_text, p_kb = render_disabled_catalog_seller_products(seller_hash=s_hash, page=1, per_page=5)
+            _edit_message(token, chat_id, message_id, banner + p_text, p_kb)
+
+        elif data.startswith('dis_act_all:'):
+            from app.extensions import db, cache
+            parts = data.split(':')
+            s_hash = parts[1] if len(parts) > 1 else ''
+            sellers = get_disabled_sellers_list()
+            target_seller = next((s for s in sellers if s['hash'] == s_hash), None)
+            if not target_seller:
+                _edit_message(token, chat_id, message_id, "ℹ️ Seluruh produk milik seller ini sudah aktif.", get_back_button())
+                return
+            enabled_count = 0
+            enabled_names = []
+            for p in target_seller['products']:
+                p.is_active = True
+                p.is_admin_disabled = False
+                enabled_count += 1
+                enabled_names.append(f"{p.name} ({p.sku_code})")
+            if enabled_count > 0:
+                db.session.commit()
+                try:
+                    cache.clear()
+                except Exception:
+                    pass
+                banner = (
+                    f"✅ <b>{enabled_count} PRODUK SELLER {target_seller['display_name'].upper()} BERHASIL DIAKTIFKAN!</b>\n"
+                    f"Semua produk milik seller ini telah dibuka gemboknya dan kembali aktif di katalog website.\n"
+                    + "\n".join(f"• 🟢 {n}" for n in enabled_names[:5])
+                    + "\n━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                )
+            else:
+                banner = f"ℹ️ Semua produk milik seller {target_seller['display_name']} sudah aktif.\n\n"
+            # Kembali ke menu daftar seller (Clean View: seller ini langsung hilang dari daftar seller nonaktif jika 0 produk)
+            c_text, c_kb = render_disabled_catalog_sellers_menu(page=1, per_page=6)
+            _edit_message(token, chat_id, message_id, banner + c_text, c_kb)
+
         elif data == 'cmd_tarik_deposit':
             dep_text, dep_kb = render_tarik_deposit_menu()
             _edit_message(token, chat_id, message_id, dep_text, dep_kb)
@@ -4493,6 +4799,13 @@ def handle_admin_message(app, message):
             _send_message(token, chat_id, f"{icon} <b>HASIL SINKRONISASI DIGIFLAZZ:</b>\n\n{msg}")
         return
 
+    # Perintah /produknonaktif atau /nonaktif atau /aktifkanproduk
+    if text.startswith('/produknonaktif') or text.startswith('/nonaktif') or text.startswith('/aktifkanproduk'):
+        with app.app_context():
+            c_text, c_kb = render_disabled_catalog_sellers_menu(page=1, per_page=6)
+            _send_message(token, chat_id, c_text, reply_markup=c_kb)
+        return
+
     # Perintah Menu Utama (/start, /menu, /help)
     welcome_text = (
         "🦅 <b>BOT 3 : PANEL & FITUR ADMIN GARUDATEL v2</b>\n"
@@ -4500,6 +4813,7 @@ def handle_admin_message(app, message):
         "Selamat datang di Bot 3 (Panel & Fitur Admin Telegram).\n"
         "Gunakan tombol interaktif di bawah ini atau ketik pintasan cepat:\n"
         "• <code>/produkgagal</code> — Analisa Produk & Seller Sering Gagal\n"
+        "• <code>/produknonaktif</code> — Kelola & Aktifkan Produk Nonaktif Per Seller\n"
         "• <code>/analisaseller</code> — Rapor Seller Paling Sering Gagal\n"
         "• <code>/toko</code> | <code>/saldo</code> | <code>/topusers</code> | <code>/otp</code>"
     )
