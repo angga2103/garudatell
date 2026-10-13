@@ -231,7 +231,8 @@ def send_provision_telegram_alert(prov_req):
     from app.services.telegram_service import (
         get_bot_admin_credentials,
         get_bot_notif_credentials,
-        format_wib
+        format_wib,
+        call_telegram_api
     )
     token, chat_id = get_bot_admin_credentials()
     if not token or not chat_id:
@@ -265,8 +266,7 @@ def send_provision_telegram_alert(prov_req):
     }
 
     try:
-        url = f"https://api.telegram.org/bot{token}/sendMessage"
-        resp = requests.post(url, json={
+        resp = call_telegram_api('post', f"bot{token}/sendMessage", json={
             "chat_id": chat_id,
             "text": text,
             "parse_mode": "HTML",

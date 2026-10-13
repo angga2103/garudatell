@@ -303,7 +303,6 @@ def send_cs_ticket(ticket, transaction=None):
     full_text = "\n".join(lines)
 
     try:
-        api_url = f"https://api.telegram.org/bot{token}/sendMessage"
         payload = {
             "chat_id": chat_id,
             "text": full_text,
@@ -313,7 +312,7 @@ def send_cs_ticket(ticket, transaction=None):
         if reply_markup:
             payload["reply_markup"] = reply_markup
 
-        resp = requests.post(api_url, json=payload, timeout=12)
+        resp = call_telegram_api('post', f"bot{token}/sendMessage", json=payload, timeout=12)
         res_data = resp.json()
 
         if res_data.get('ok'):
@@ -369,8 +368,9 @@ def handle_cs_bot_update(app, update, bot_token=None):
 
             def answer_cb(text, show_alert=False):
                 try:
-                    res = requests.post(
-                        f"https://api.telegram.org/bot{bot_token}/answerCallbackQuery",
+                    res = call_telegram_api(
+                        'post',
+                        f"bot{bot_token}/answerCallbackQuery",
                         json={"callback_query_id": cb_id, "text": text, "show_alert": show_alert},
                         timeout=8
                     )
@@ -391,8 +391,9 @@ def handle_cs_bot_update(app, update, bot_token=None):
                 if reply_markup:
                     payload["reply_markup"] = reply_markup
                 try:
-                    res = requests.post(
-                        f"https://api.telegram.org/bot{bot_token}/sendMessage",
+                    res = call_telegram_api(
+                        'post',
+                        f"bot{bot_token}/sendMessage",
                         json=payload,
                         timeout=10
                     )
@@ -702,8 +703,9 @@ def handle_cs_bot_update(app, update, bot_token=None):
 
             def send_tg_msg(resp_text, reply_to=None):
                 try:
-                    res = requests.post(
-                        f"https://api.telegram.org/bot{bot_token}/sendMessage",
+                    res = call_telegram_api(
+                        'post',
+                        f"bot{bot_token}/sendMessage",
                         json={
                             "chat_id": chat_id,
                             "text": resp_text,
@@ -4147,9 +4149,14 @@ def handle_admin_callback(app, callback_query):
                     f"⏰ <b>Waktu:</b> {format_wib(fmt='%d/%m/%Y %H:%M:%S WIB')}\n\n"
                     f"File cadangan dilampirkan langsung di bawah ini:"
                 )
-                doc_url = f"https://api.telegram.org/bot{token}/sendDocument"
                 with open(backup_path, 'rb') as f:
-                    requests.post(doc_url, files={'document': (display_name, f, 'application/zip')}, data={'chat_id': chat_id, 'caption': caption, 'parse_mode': 'HTML'}, timeout=90)
+                    call_telegram_api(
+                        'post',
+                        f"bot{token}/sendDocument",
+                        files={'document': (display_name, f, 'application/zip')},
+                        data={'chat_id': chat_id, 'caption': caption, 'parse_mode': 'HTML'},
+                        timeout=90
+                    )
                 
                 # Kirim juga salinan laporan ke Bot 2 Notifikasi (dengan tombol restore)
                 send_backup_notification(backup_path, status="SUKSES", details="Trigger instan via Bot 3 Admin Telegram", display_filename=display_name)

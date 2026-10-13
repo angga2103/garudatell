@@ -173,21 +173,31 @@ menu_status_bot() {
 
         # Cek Preferensi IPv4 di Sistem Linux (/etc/gai.conf)
         if grep -q "^precedence ::ffff:0:0/96  100" /etc/gai.conf 2>/dev/null; then
-            GAI_STATUS="${GREEN}● AKTIF (IPv4 Prioritas - Bebas Timeout)${NC}"
+            GAI_STATUS="${GREEN}● AKTIF (IPv4 Prioritas)${NC}"
         else
             GAI_STATUS="${YELLOW}● BELUM DIAKTIFKAN (Beresiko Timeout IPv6)${NC}"
         fi
         echo -e "  Prioritas IPv4 : $GAI_STATUS"
+
+        # Cek Base URL Telegram saat ini
+        CURRENT_TG_URL=$(grep "^TELEGRAM_API_BASE_URL=" "$PROJECT_DIR/.env" 2>/dev/null | cut -d '=' -f2- | tr -d '"' | tr -d "'" | tr -d ' ')
+        if [ -n "$CURRENT_TG_URL" ]; then
+            echo -e "  API Endpoint   : ${CYAN}● PROXY AKTIF ($CURRENT_TG_URL)${NC}"
+        else
+            echo -e "  API Endpoint   : ${YELLOW}● STANDAR DIRECT (https://api.telegram.org)${NC}"
+        fi
+
         echo -e "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         echo -e "  ${BOLD}[1]${NC} Cek Detail Status Service (systemctl status)"
         echo -e "  ${BOLD}[2]${NC} Restart Service Bot Admin (systemctl restart)"
         echo -e "  ${BOLD}[3]${NC} Pantau Log Aktivitas Bot Real-time (Live Stream)"
-        echo -e "  ${BOLD}[4]${NC} Jalankan Diagnosa Koneksi Telegram API (IPv4 & Token Test)"
-        echo -e "  ${BOLD}[5]${NC} ${GREEN}${BOLD}Optimasi Otomatis: Paksa IPv4 Sistem (Fix Bot Tidak Respon / Timeout)${NC}"
+        echo -e "  ${BOLD}[4]${NC} Jalankan Diagnosa Koneksi Telegram API (Lengkap)"
+        echo -e "  ${BOLD}[5]${NC} Optimasi Jaringan VPS (Paksa IPv4 & DNS Google 8.8.8.8)"
         echo -e "  ${BOLD}[6]${NC} Tes Kirim Pesan Menu ke Telegram Admin"
+        echo -e "  ${BOLD}[7]${NC} ${GREEN}${BOLD}Atur Custom Telegram API Proxy / Cloudflare Worker (Solusi Anti-Timeout)${NC}"
         echo -e "  ${BOLD}[0]${NC} Kembali ke Menu Utama"
         echo -e "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        read -p ">> Masukkan pilihan Anda [0-6]: " bot_choice
+        read -p ">> Masukkan pilihan Anda [0-7]: " bot_choice
 
         case $bot_choice in
             1)
@@ -216,8 +226,10 @@ menu_status_bot() {
                 ;;
             4)
                 echo ""
-                echo -e "${BLUE}[*] Menjalankan uji konektivitas ke api.telegram.org dari VPS ini...${NC}"
+                echo -e "${BLUE}[*] Menjalankan uji konektivitas Telegram API dari VPS ini...${NC}"
                 $VENV_PYTHON -c "
+import sys
+sys.path.insert(0, '$PROJECT_DIR')
 import socket
 import urllib3.util.connection as c
 c.allowed_gai_family = lambda: socket.AF_INET
@@ -226,29 +238,53 @@ import os
 from dotenv import load_dotenv
 load_dotenv('$PROJECT_DIR/.env', override=True)
 
-token = os.getenv('BOT_ADMIN_TOKEN')
-chat_id = os.getenv('BOT_ADMIN_CHAT_ID')
+from app.services.telegram_service import get_telegram_api_url, get_bot_admin_credentials, call_telegram_api
 
-print('1. Menguji DNS & Koneksi HTTPS ke api.telegram.org (IPv4)...')
+token, chat_id = get_bot_admin_credentials()
+base_url = get_telegram_api_url()
+
+print('1. Menguji Resolusi DNS Telegram...')
 try:
-    r = requests.get('https://api.telegram.org', timeout=8)
-    print('   \033[0;32m[✔] Sukses terhubung ke api.telegram.org (Status HTTP ' + str(r.status_code) + ')\033[0m')
-except Exception as e:
-    print('   \033[0;31m[✖] Gagal terhubung: ' + str(e) + '\033[0m')
-    print('   \033[1;33m[!] Saran: Jalankan menu [5] Optimasi Otomatis Paksa IPv4 atau periksa pemblokiran ISP VPS Anda.\033[0m')
+    infos = socket.getaddrinfo('api.telegram.org', 443, socket.AF_INET)
+    ips = list({info[4][0] for info in infos})
+    print(f'   \033[0;32m[✔] DNS Berhasil: api.telegram.org -> {ips}\033[0m')
+except Exception as e_dns:
+    print(f'   \033[0;31m[✖] Gagal Resolusi DNS: {e_dns}\033[0m')
+
+print('2. Menguji Koneksi HTTPS Direct ke api.telegram.org:443 (IPv4)...')
+try:
+    r = requests.get('https://api.telegram.org', timeout=5)
+    print(f'   \033[0;32m[✔] Sukses terhubung langsung ke api.telegram.org (HTTP {r.status_code})\033[0m')
+except Exception as e_direct:
+    print(f'   \033[0;31m[✖] Gagal terhubung direct: {e_direct}\033[0m')
+    print('   \033[1;33m[!] Catatan: IP VPS atau ISP hosting kemungkinan memblokir/memutus koneksi port 443 ke Telegram.\033[0m')
+
+print(f'3. Menguji Endpoint Aktif Sistem ({base_url})...')
+if base_url != 'https://api.telegram.org':
+    try:
+        r_proxy = requests.get(base_url, timeout=8)
+        print(f'   \033[0;32m[✔] Proxy / Cloudflare Worker Terhubung! (HTTP {r_proxy.status_code})\033[0m')
+    except Exception as e_proxy:
+        print(f'   \033[0;31m[✖] Gagal terhubung ke Proxy: {e_proxy}\033[0m')
+else:
+    print('   \033[1;33m[*] Sistem saat ini menggunakan direct connection (tanpa proxy).\033[0m')
 
 if token:
-    print('2. Menguji Kredensial Bot Token (' + token[:10] + '...)...')
+    print(f'4. Menguji Kredensial Bot Token ({token[:10]}...)...')
     try:
-        r2 = requests.get(f'https://api.telegram.org/bot{token}/getMe', timeout=8)
+        r2 = call_telegram_api('get', f'bot{token}/getMe', timeout=10)
         data2 = r2.json()
         if data2.get('ok'):
             bot_uname = data2.get('result', {}).get('username')
-            print('   \033[0;32m[✔] Token Valid! Terhubung sebagai @' + str(bot_uname) + '\033[0m')
+            print(f'   \033[0;32m[✔] SUKSES! Bot Terhubung sebagai @{bot_uname}\033[0m')
+            print('   \033[0;32m[✔] Bot siap merespons perintah di Telegram!\033[0m')
         else:
-            print('   \033[0;31m[✖] Token Ditolak Telegram: ' + str(data2.get('description')) + '\033[0m')
+            print(f'   \033[0;31m[✖] Token Ditolak Telegram: {data2.get(\"description\")}\033[0m')
     except Exception as e2:
-        print('   \033[0;31m[✖] Gagal menghubungi Telegram: ' + str(e2) + '\033[0m')
+        print(f'   \033[0;31m[✖] Gagal verifikasi Bot via Endpoint Aktif: {e2}\033[0m')
+        if base_url == 'https://api.telegram.org':
+            print('   \033[1;36m[💡 SOLUSI PASTI] Gunakan menu [7] untuk memasang Cloudflare Worker Proxy gratis.\033[0m')
+            print('   \033[1;36m                  Cloudflare Worker akan mem-bypass blokir IP VPS secara instan.\033[0m')
 else:
     print('   \033[1;33m[!] BOT_ADMIN_TOKEN belum diisi di file .env!\033[0m')
 "
@@ -256,9 +292,11 @@ else:
                 ;;
             5)
                 echo ""
-                echo -e "${YELLOW}${BOLD}🔧 OPTIMASI SISTEM: PAKSA IPv4 PRIORITAS UNTUK TELEGRAM API${NC}"
-                echo -e "Langkah ini akan mengatur /etc/gai.conf agar seluruh koneksi HTTPS keluar"
-                echo -e "mendahulukan jalur IPv4, menyelesaikan kendala 'Connection timed out' ke Telegram."
+                echo -e "${YELLOW}${BOLD}🔧 OPTIMASI JARINGAN VPS: PAKSA IPv4 & DNS GOOGLE (8.8.8.8)${NC}"
+                echo -e "Langkah ini akan:"
+                echo -e "1. Mengatur /etc/gai.conf agar mendahulukan rute IPv4."
+                echo -e "2. Mengarahkan DNS sistem ke Google (8.8.8.8 & 1.1.1.1) jika terhambat DNS ISP."
+                echo -e "3. Merestart service web dan bot admin."
                 echo ""
                 if [ -f /etc/gai.conf ]; then
                     sudo sed -i 's/^#precedence ::ffff:0:0\/96  100/precedence ::ffff:0:0\/96  100/' /etc/gai.conf
@@ -268,18 +306,29 @@ else:
                 else
                     echo "precedence ::ffff:0:0/96  100" | sudo tee /etc/gai.conf >/dev/null
                 fi
-                echo -e "${GREEN}[✔] File /etc/gai.conf berhasil dioptimasi.${NC}"
+                echo -e "${GREEN}[✔] Prioritas IPv4 (/etc/gai.conf) berhasil disetel.${NC}"
+
+                # Cek dan tambahkan DNS Google jika belum ada
+                if ! grep -q "8.8.8.8" /etc/resolv.conf 2>/dev/null; then
+                    echo -e "${BLUE}[*] Menambahkan DNS Google (8.8.8.8, 1.1.1.1) ke /etc/resolv.conf...${NC}"
+                    echo "nameserver 8.8.8.8" | sudo tee -a /etc/resolv.conf >/dev/null
+                    echo "nameserver 1.1.1.1" | sudo tee -a /etc/resolv.conf >/dev/null
+                    echo -e "${GREEN}[✔] DNS Google berhasil ditambahkan.${NC}"
+                fi
+
                 echo -e "${BLUE}[*] Merestart service web garudatel dan bot admin...${NC}"
                 sudo systemctl restart garudatel 2>/dev/null || true
                 sudo systemctl restart garudatel-bot-admin 2>/dev/null || true
                 sleep 2
-                echo -e "${GREEN}[✔] Optimasi selesai! Bot Admin dan Web telah direstart dengan mode IPv4 prioritas.${NC}"
+                echo -e "${GREEN}[✔] Optimasi jaringan selesai! Bot Admin dan Web telah direstart.${NC}"
                 pause
                 ;;
             6)
                 echo ""
                 echo -e "${BLUE}[*] Mengirimkan pesan menu tes ke Telegram Admin...${NC}"
                 $VENV_PYTHON -c "
+import sys
+sys.path.insert(0, '$PROJECT_DIR')
 import os
 from dotenv import load_dotenv
 load_dotenv('$PROJECT_DIR/.env', override=True)
@@ -304,6 +353,63 @@ else:
             print('\033[0;31m[✖] Telegram menolak: ' + str(res.get('description')) + '\033[0m')
     except Exception as e:
         print('\033[0;31m[✖] Gagal kirim: ' + str(e) + '\033[0m')
+"
+                pause
+                ;;
+            7)
+                echo ""
+                echo -e "${CYAN}${BOLD}🌐 KONFIGURASI TELEGRAM API PROXY / CLOUDFLARE WORKER${NC}"
+                echo -e "Jika IP VPS Anda diblokir oleh Telegram (ConnectTimeoutError),"
+                echo -e "Cloudflare Worker adalah solusi resmi, gratis, & instan untuk mem-bypass blokir."
+                echo ""
+                CUR_URL=$(grep "^TELEGRAM_API_BASE_URL=" "$PROJECT_DIR/.env" 2>/dev/null | cut -d '=' -f2- | tr -d '"' | tr -d "'" | tr -d ' ')
+                echo -e "Proxy Saat Ini : ${BOLD}${CUR_URL:-https://api.telegram.org (Direct)}${NC}"
+                echo ""
+                echo -e "Masukkan URL Cloudflare Worker Anda (contoh: ${YELLOW}https://my-tg-proxy.subdomain.workers.dev${NC})"
+                echo -e "Atau ketik '${BOLD}reset${NC}' untuk kembali ke direct https://api.telegram.org."
+                read -p ">> Masukkan URL: " input_proxy_url
+                input_proxy_url=$(echo "$input_proxy_url" | xargs)
+
+                if [ "$input_proxy_url" = "reset" ] || [ "$input_proxy_url" = "https://api.telegram.org" ]; then
+                    sed -i '/^TELEGRAM_API_BASE_URL=/d' "$PROJECT_DIR/.env"
+                    echo -e "${GREEN}[✔] Konfigurasi proxy dihapus. Kembali ke direct api.telegram.org.${NC}"
+                elif [ -n "$input_proxy_url" ]; then
+                    clean_proxy="${input_proxy_url%/}"
+                    if grep -q "^TELEGRAM_API_BASE_URL=" "$PROJECT_DIR/.env"; then
+                        sed -i "s|^TELEGRAM_API_BASE_URL=.*|TELEGRAM_API_BASE_URL=$clean_proxy|" "$PROJECT_DIR/.env"
+                    else
+                        echo "TELEGRAM_API_BASE_URL=$clean_proxy" >> "$PROJECT_DIR/.env"
+                    fi
+                    echo -e "${GREEN}[✔] Proxy Telegram berhasil disimpan: $clean_proxy${NC}"
+                else
+                    echo -e "${YELLOW}[!] Tidak ada perubahan dilakukan.${NC}"
+                fi
+
+                echo -e "${BLUE}[*] Merestart service web garudatel dan bot admin...${NC}"
+                sudo systemctl restart garudatel 2>/dev/null || true
+                sudo systemctl restart garudatel-bot-admin 2>/dev/null || true
+                sleep 2
+                echo -e "${GREEN}[✔] Service berhasil direstart dengan pengaturan baru.${NC}"
+                echo ""
+                echo -e "${BLUE}[*] Menguji koneksi melalui endpoint baru...${NC}"
+                $VENV_PYTHON -c "
+import sys
+sys.path.insert(0, '$PROJECT_DIR')
+from dotenv import load_dotenv
+load_dotenv('$PROJECT_DIR/.env', override=True)
+from app.services.telegram_service import get_bot_admin_credentials, call_telegram_api, get_telegram_api_url
+token, _ = get_bot_admin_credentials()
+print(f'Endpoint aktif: {get_telegram_api_url()}')
+if token:
+    try:
+        r = call_telegram_api('get', f'bot{token}/getMe', timeout=10)
+        res = r.json()
+        if res.get('ok'):
+            print('\033[0;32m[✔] SUKSES! Bot terhubung sebagai @' + str(res.get('result', {}).get('username')) + '\033[0m')
+        else:
+            print('\033[0;31m[✖] Respons Telegram: ' + str(res.get('description')) + '\033[0m')
+    except Exception as ex:
+        print('\033[0;31m[✖] Uji koneksi gagal: ' + str(ex) + '\033[0m')
 "
                 pause
                 ;;
@@ -372,6 +478,8 @@ menu_backup_management() {
                 if [[ "$ans_restore" =~ ^[Yy]$ ]]; then
                     echo -e "${BLUE}[*] Memulihkan database SQLite dari latest_backup.zip...${NC}"
                     $VENV_PYTHON -c "
+import sys
+sys.path.insert(0, '$PROJECT_DIR')
 from app.core.backup.backup_engine import BackupEngine
 engine = BackupEngine()
 ok, msg = engine.restore_from_latest_backup()
