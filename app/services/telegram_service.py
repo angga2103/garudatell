@@ -2573,10 +2573,13 @@ def handle_admin_callback(app, callback_query):
 
         if data == 'cmd_menu':
             text = (
-                "🦅 <b>PANEL KONTROL ADMIN GARUDATEL v2</b>\n"
+                "🦅 <b>BOT 3 : PANEL & FITUR ADMIN GARUDATEL v2</b>\n"
                 "━━━━━━━━━━━━━━━━━━━━━━\n"
-                "Selamat datang di Panel Cepat Telegram Admin.\n"
-                "Pilih salah satu tombol di bawah untuk menjalankan fitur:"
+                "Selamat datang di Panel Cepat Telegram Admin (Bot 3).\n"
+                "Pilih salah satu tombol di bawah atau gunakan pintasan:\n"
+                "• <code>/produkgagal</code> — Analisa Produk & Seller Sering Gagal\n"
+                "• <code>/analisaseller</code> — Rapor Seller Paling Sering Gagal\n"
+                "• <code>/toko</code> | <code>/saldo</code> | <code>/topusers</code> | <code>/otp</code>"
             )
             _edit_message(token, chat_id, message_id, text, get_admin_inline_keyboard())
 
@@ -4175,10 +4178,13 @@ def handle_admin_message(app, message):
 
     # Perintah Menu Utama (/start, /menu, /help)
     welcome_text = (
-        "🦅 <b>PANEL KONTROL ADMIN GARUDATEL v2</b>\n"
+        "🦅 <b>BOT 3 : PANEL & FITUR ADMIN GARUDATEL v2</b>\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n"
-        "Selamat datang di Bot Panel Admin Telegram.\n"
-        "Gunakan tombol interaktif di bawah ini untuk mengakses fitur secara cepat:"
+        "Selamat datang di Bot 3 (Panel & Fitur Admin Telegram).\n"
+        "Gunakan tombol interaktif di bawah ini atau ketik pintasan cepat:\n"
+        "• <code>/produkgagal</code> — Analisa Produk & Seller Sering Gagal\n"
+        "• <code>/analisaseller</code> — Rapor Seller Paling Sering Gagal\n"
+        "• <code>/toko</code> | <code>/saldo</code> | <code>/topusers</code> | <code>/otp</code>"
     )
     _send_message(token, chat_id, welcome_text, reply_markup=get_admin_inline_keyboard())
 

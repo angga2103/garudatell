@@ -518,6 +518,9 @@
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <input type="hidden" name="form_type" value="bot_admin">
                 <div class="config-title" style="color: #16A34A;"><i class="fas fa-terminal"></i> Bot 3 : Panel & Fitur Admin</div>
+                <div style="font-size: 11px; color: #64748b; margin-bottom: 10px; line-height: 1.4;">
+                    Fitur: <b>🚨 Analisa Produk & Seller Sering Gagal</b> (<code>/produkgagal</code> &amp; <code>/analisaseller</code>), Nonaktifkan/Hapus Produk 1-Klik, Cek Toko, Omset, Saldo Digiflazz, Tarik Deposit &amp; OTP Darurat.
+                </div>
                 <div class="form-group">
                     <label>Bot Token</label>
                     <input type="password" name="bot_admin_token" class="form-control" placeholder="{% if bot_admin_token %}••••••••••••••••{% else %}Masukkan Bot Token{% endif %}">
@@ -528,7 +531,7 @@
                 </div>
                 <div class="btn-group">
                     <button type="submit" class="btn-save" style="background:#16A34A;"><i class="fas fa-save"></i> Simpan Bot Admin</button>
-                    <a href="{{ url_for('admin.test_connection', tipe='bot_admin') }}" class="btn-test"><i class="fas fa-paper-plane"></i> Tes</a>
+                    <a href="{{ url_for('admin.test_connection', tipe='bot_admin') }}" class="btn-test"><i class="fas fa-paper-plane"></i> Tes &amp; Kirim Menu</a>
                 </div>
             </form>
         </div>

@@ -276,9 +276,20 @@ def test_connection(tipe):
             flash('❌ Token atau Chat ID Bot belum lengkap!', 'danger')
             return redirect(url_for('admin.dashboard'))
         try:
-            res = requests.post(f"https://api.telegram.org/bot{token}/sendMessage", json={
-                "chat_id": chat_id, "text": "✅ Tes koneksi dari Panel Admin Garudatel berhasil! Bot siap digunakan."
-            }, timeout=10).json()
+            payload = {
+                "chat_id": chat_id,
+                "text": "✅ <b>Tes koneksi dari Panel Admin GarudaTel berhasil!</b>\nBot siap digunakan.",
+                "parse_mode": "HTML"
+            }
+            if tipe == 'bot_admin':
+                from app.services.telegram_service import get_admin_inline_keyboard
+                payload["text"] = (
+                    "🦅 <b>BOT 3 : PANEL & FITUR ADMIN GARUDATEL</b>\n"
+                    "━━━━━━━━━━━━━━━━━━━━━━\n"
+                    "✅ Tes koneksi berhasil! Silakan pilih fitur admin di bawah ini:"
+                )
+                payload["reply_markup"] = get_admin_inline_keyboard()
+            res = requests.post(f"https://api.telegram.org/bot{token}/sendMessage", json=payload, timeout=10).json()
             if res.get('ok'):
                 flash('✅ Tes koneksi sukses! Cek pesan masuk di Telegram Anda.', 'success')
             else:
