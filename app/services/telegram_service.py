@@ -1282,6 +1282,9 @@ def get_admin_inline_keyboard():
                 {"text": "⏳ Trx Pending", "callback_data": "cmd_pending"}
             ],
             [
+                {"text": "🚨 Analisa Produk & Seller Gagal", "callback_data": "cmd_failed_products"}
+            ],
+            [
                 {"text": "💰 Saldo Digiflazz", "callback_data": "cmd_saldo"},
                 {"text": "📥 Tarik Deposit", "callback_data": "cmd_tarik_deposit"}
             ],
@@ -1504,6 +1507,717 @@ def render_top_users_report(limit=8):
     ])
 
     return "\n".join(lines), {"inline_keyboard": inline_kb}
+
+
+# ==============================================================================
+# FITUR ANALISA PRODUK & SELLER SERING GAGAL (SMART CATALOG HEALTH & ACTION)
+# ==============================================================================
+EXCLUDED_INTERNAL_SKUS = [
+    'DEPOSIT_SALDO', 'DEPOSIT_MANUAL', 'MANUAL_DEDUCTION',
+    'COMMISSION_PAYOUT', 'ADMIN_BALANCE'
+]
+FAILED_STATUS_LIST = ['FAILED', 'GAGAL', 'CANCELLED', 'BATAL', 'ERROR']
+
+
+def format_seller_handle_and_name(seller_name=None, seller_tele=None):
+    """
+    Merapikan nama Seller & membuat tag standar 'seller@username' seperti contoh:
+    'seller@payfast_id' beserta nama resmi Seller Digiflazz.
+    """
+    import re
+    from app.services.digiflazz import normalize_seller_tele_username
+
+    clean_name = clean_str(seller_name)
+    if clean_name in ['-', 'None', 'null']:
+        clean_name = ''
+
+    tele_user = normalize_seller_tele_username(seller_tele)
+    if tele_user:
+        seller_tag = f"seller@{tele_user}"
+        tele_display = f"@{tele_user}"
+    elif clean_name:
+        # Jika username telegram belum ditarik dari API transaksi, bentuk slug bersih dari nama seller
+        slug = re.sub(r'[^a-zA-Z0-9]+', '_', clean_name.lower()).strip('_')
+        slug = re.sub(r'^(pt|cv|ud|toko)_+', '', slug) or 'digiflazz'
+        seller_tag = f"seller@{slug[:24]}"
+        tele_display = ""
+    else:
+        clean_name = "Seller Digiflazz"
+        seller_tag = "seller@digiflazz"
+        tele_display = ""
+
+    display_name = clean_name or (f"@{tele_user}" if tele_user else "Seller Digiflazz")
+    return {
+        "seller_name": display_name,
+        "seller_tag": seller_tag,
+        "seller_tele_username": tele_user,
+        "seller_tele_display": tele_display,
+    }
+
+
+def _get_period_start_utc(period_code='30d'):
+    """Mengembalikan tuple (start_utc_naive, label_periode) berdasarkan kode periode."""
+    wib_now = get_wib_now()
+    p = str(period_code or '30d').lower().strip()
+    if p in ['1d', 'today', 'hariini']:
+        start_wib = wib_now.replace(hour=0, minute=0, second=0, microsecond=0)
+        return start_wib.astimezone(timezone.utc).replace(tzinfo=None), "Hari Ini", "1d"
+    elif p in ['7d', '7hari', 'week']:
+        start_wib = (wib_now - timedelta(days=7)).replace(hour=0, minute=0, second=0, microsecond=0)
+        return start_wib.astimezone(timezone.utc).replace(tzinfo=None), "7 Hari Terakhir", "7d"
+    elif p in ['all', 'semua']:
+        return None, "Semua Waktu", "all"
+    else:
+        start_wib = (wib_now - timedelta(days=30)).replace(hour=0, minute=0, second=0, microsecond=0)
+        return start_wib.astimezone(timezone.utc).replace(tzinfo=None), "30 Hari Terakhir", "30d"
+
+
+def get_failed_products_analytics(period='30d', filter_mode='all', auto_fallback=False):
+    """
+    Menganalisa seluruh transaksi produk untuk menemukan produk-produk yang sering gagal
+    beserta performa suksesnya, identitas Seller Digiflazz, alasan gagal terakhir,
+    dan rekomendasi tindakan otomatis (Pertahankan / Evaluasi / Ganti Seller / Nonaktifkan / Hapus).
+    """
+    from app.extensions import db
+    from app.models.transaction import Transaction
+    from app.models.product import Product
+
+    start_utc, period_label, norm_period = _get_period_start_utc(period)
+
+    def _fetch_trxs(since_dt):
+        q = Transaction.query.filter(
+            ~Transaction.sku_code.in_(EXCLUDED_INTERNAL_SKUS),
+            Transaction.payment_method != 'admin_manual'
+        )
+        if since_dt is not None:
+            q = q.filter(Transaction.created_at >= since_dt)
+        return q.order_by(Transaction.id.desc()).all()
+
+    trxs = _fetch_trxs(start_utc)
+
+    # Jika auto_fallback aktif dan periode default belum memiliki transaksi gagal, cek Semua Waktu
+    has_failed_in_period = any((t.status or '').upper() in FAILED_STATUS_LIST for t in trxs)
+    if auto_fallback and not has_failed_in_period and norm_period != 'all':
+        all_trxs = _fetch_trxs(None)
+        if any((t.status or '').upper() in FAILED_STATUS_LIST for t in all_trxs):
+            trxs = all_trxs
+            start_utc = None
+            period_label = "Semua Waktu (Auto)"
+            norm_period = "all"
+
+    # Peta katalog Product berdasarkan sku_code
+    all_products = Product.query.all()
+    prod_map = {p.sku_code: p for p in all_products if p.sku_code}
+
+    sku_buckets = {}
+    global_failed_trx = 0
+    global_success_trx = 0
+    global_pending_trx = 0
+
+    for t in trxs:
+        sku = (t.sku_code or 'UNKNOWN').strip()
+        st = (t.status or 'PENDING').upper()
+
+        if st == 'SUCCESS':
+            global_success_trx += 1
+        elif st in FAILED_STATUS_LIST:
+            global_failed_trx += 1
+        else:
+            global_pending_trx += 1
+
+        if sku not in sku_buckets:
+            p_obj = prod_map.get(sku)
+            sku_buckets[sku] = {
+                'sku_code': sku,
+                'product_obj': p_obj,
+                'product_id': p_obj.id if p_obj else None,
+                'product_name': (p_obj.name if p_obj and p_obj.name else None) or t.product_name or sku,
+                'category': (p_obj.category if p_obj else None) or '-',
+                'brand': (p_obj.brand if p_obj else None) or '-',
+                'is_active': bool(p_obj.is_active) if p_obj is not None else None,
+                'in_catalog': p_obj is not None,
+                'base_price': float(p_obj.base_price or 0.0) if p_obj else float(t.base_price or 0.0),
+                'sell_price': float(p_obj.sell_price or 0.0) if p_obj else float(t.amount or 0.0),
+                'failed_count': 0,
+                'success_count': 0,
+                'pending_count': 0,
+                'total_count': 0,
+                'failed_amount': 0.0,
+                'success_amount': 0.0,
+                'raw_seller_name': (p_obj.seller_name if p_obj and p_obj.seller_name else None),
+                'raw_seller_tele': None,
+                'raw_seller_wa': None,
+                'last_fail_reason': None,
+                'last_fail_time': None,
+                'last_fail_trx': None,
+                'failed_trxs': [],
+            }
+
+        b = sku_buckets[sku]
+        b['total_count'] += 1
+
+        # Ambil metadata seller dari transaksi terbaru jika ada
+        if t.seller_name and t.seller_name.strip() and t.seller_name.strip() != '-':
+            if not b['raw_seller_name']:
+                b['raw_seller_name'] = t.seller_name.strip()
+        if t.seller_tele and t.seller_tele.strip() and t.seller_tele.strip() != '-':
+            if not b['raw_seller_tele']:
+                b['raw_seller_tele'] = t.seller_tele.strip()
+        if t.seller_wa and t.seller_wa.strip() and t.seller_wa.strip() != '-':
+            if not b['raw_seller_wa']:
+                b['raw_seller_wa'] = t.seller_wa.strip()
+
+        if st == 'SUCCESS':
+            b['success_count'] += 1
+            b['success_amount'] += float(t.amount or 0.0)
+        elif st in FAILED_STATUS_LIST:
+            b['failed_count'] += 1
+            b['failed_amount'] += float(t.amount or 0.0)
+            if len(b['failed_trxs']) < 5:
+                b['failed_trxs'].append(t)
+            if b['last_fail_trx'] is None:
+                b['last_fail_trx'] = t
+                b['last_fail_reason'] = (t.sn or 'Gagal dari provider / biller').strip()
+                b['last_fail_time'] = format_wib(t.created_at, '%d/%m %H:%M') if t.created_at else '-'
+        else:
+            b['pending_count'] += 1
+
+    # Filter hanya produk yang memiliki minimal 1 kejadian gagal & hitung metrik kelayakan
+    failed_items = []
+    seller_agg = {}
+    critical_count = 0
+    warning_count = 0
+
+    for sku, b in sku_buckets.items():
+        if b['failed_count'] <= 0:
+            continue
+
+        # Fallback nama seller jika masih kosong
+        if not b['raw_seller_name'] and b['last_fail_trx']:
+            b['raw_seller_name'] = getattr(b['last_fail_trx'], 'resolved_seller_name', None)
+
+        s_meta = format_seller_handle_and_name(b['raw_seller_name'], b['raw_seller_tele'])
+        b['seller_name'] = s_meta['seller_name']
+        b['seller_tag'] = s_meta['seller_tag']
+        b['seller_tele_username'] = s_meta['seller_tele_username']
+        b['seller_tele_display'] = s_meta['seller_tele_display']
+
+        decided_total = b['failed_count'] + b['success_count']
+        denom = decided_total if decided_total > 0 else b['total_count']
+        fail_rate = round((b['failed_count'] / denom * 100.0), 1) if denom > 0 else 100.0
+        succ_rate = round((b['success_count'] / denom * 100.0), 1) if denom > 0 else 0.0
+        b['fail_rate'] = fail_rate
+        b['success_rate'] = succ_rate
+
+        # Format kalimat ringkasan persis gaya user:
+        # misal: "Telkomsel Data UMKM 4GB 30 Hari — 9 kali gagal, 1 kali sukses • seller@payfast_id"
+        b['compact_line'] = (
+            f"{b['product_name']} — {b['failed_count']} kali gagal, "
+            f"{b['success_count']} kali sukses • {b['seller_tag']}"
+        )
+
+        # Evaluasi tingkat keparahan & rekomendasi tindakan katalog
+        if (b['failed_count'] >= 3 and fail_rate >= 70.0) or (b['failed_count'] >= 5 and fail_rate >= 50.0) or (b['failed_count'] >= 2 and b['success_count'] == 0):
+            b['severity'] = 'CRITICAL'
+            b['severity_icon'] = '🚨'
+            b['recommendation_short'] = 'GANTI SELLER / NONAKTIFKAN / HAPUS!'
+            b['recommendation_detail'] = (
+                'Produk ini memiliki rasio gagal sangat tinggi. Sangat disarankan segera '
+                'DINONAKTIFKAN dari web, DIGANTI SELLER di portal Digiflazz, atau DIHAPUS dari katalog.'
+            )
+            critical_count += 1
+        elif (b['failed_count'] >= 2 and fail_rate >= 35.0) or (b['failed_count'] >= 3):
+            b['severity'] = 'WARNING'
+            b['severity_icon'] = '⚠️'
+            b['recommendation_short'] = 'RAWAN GAGAL — EVALUASI SELLER'
+            b['recommendation_detail'] = (
+                'Produk ini cukup sering gagal. Periksa apakah jam cut-off seller atau stok seller '
+                'tidak stabil, dan pertimbangkan pindah ke seller cadangan.'
+            )
+            warning_count += 1
+        else:
+            b['severity'] = 'INFO'
+            b['severity_icon'] = '🟢'
+            b['recommendation_short'] = 'MASIH LAYAK (PANTAU / CEK INPUT)'
+            b['recommendation_detail'] = (
+                'Tingkat keberhasilan produk masih bagus atau kegagalan baru terjadi 1 kali '
+                '(bisa karena nomor tujuan salah/terblokir). Produk masih layak ditampilkan.'
+            )
+
+        # Agregasi per Seller
+        s_key = b['seller_name'].upper()
+        if s_key not in seller_agg:
+            seller_agg[s_key] = {
+                'seller_name': b['seller_name'],
+                'seller_tag': b['seller_tag'],
+                'seller_tele_display': b['seller_tele_display'],
+                'failed_count': 0,
+                'success_count': 0,
+                'total_count': 0,
+                'products': [],
+                'active_sku_count': 0,
+                'sample_trx_id': b['last_fail_trx'].id if b['last_fail_trx'] else 0,
+            }
+        sa = seller_agg[s_key]
+        sa['failed_count'] += b['failed_count']
+        sa['success_count'] += b['success_count']
+        sa['total_count'] += (b['failed_count'] + b['success_count'])
+        sa['products'].append(b)
+        if b['is_active']:
+            sa['active_sku_count'] += 1
+        if not sa['sample_trx_id'] and b['last_fail_trx']:
+            sa['sample_trx_id'] = b['last_fail_trx'].id
+
+        if filter_mode == 'crit' and b['severity'] != 'CRITICAL':
+            continue
+
+        failed_items.append(b)
+
+    # Urutkan produk dari gagal terbanyak -> rasio gagal tertinggi -> sukses paling sedikit
+    failed_items.sort(
+        key=lambda x: (x['failed_count'], x['fail_rate'], -x['success_count']),
+        reverse=True
+    )
+
+    # Hitung rasio gagal per seller & urutkan
+    seller_leaderboard = []
+    for s_val in seller_agg.values():
+        s_tot = s_val['failed_count'] + s_val['success_count']
+        s_val['fail_rate'] = round((s_val['failed_count'] / s_tot * 100.0), 1) if s_tot > 0 else 100.0
+        s_val['products'].sort(key=lambda x: (x['failed_count'], x['fail_rate']), reverse=True)
+        seller_leaderboard.append(s_val)
+
+    seller_leaderboard.sort(
+        key=lambda s: (s['failed_count'], s['fail_rate'], len(s['products'])),
+        reverse=True
+    )
+
+    return {
+        'period': norm_period,
+        'period_label': period_label,
+        'filter_mode': filter_mode,
+        'items': failed_items,
+        'total_failed_products': len(failed_items),
+        'critical_count': critical_count,
+        'warning_count': warning_count,
+        'global_failed_trx': global_failed_trx,
+        'global_success_trx': global_success_trx,
+        'global_pending_trx': global_pending_trx,
+        'seller_leaderboard': seller_leaderboard,
+    }
+
+
+def render_failed_products_report(period='30d', page=1, per_page=5, filter_mode='all', auto_fallback=False):
+    """
+    Menghasilkan tampilan pesan HTML Telegram dan Inline Keyboard interaktif
+    untuk Laporan Analisa Produk & Seller yang Sering Gagal.
+    """
+    import math
+    analytics = get_failed_products_analytics(
+        period=period,
+        filter_mode=filter_mode,
+        auto_fallback=auto_fallback
+    )
+
+    norm_period = analytics['period']
+    period_label = analytics['period_label']
+    items = analytics['items']
+    total_items = len(items)
+    total_pages = max(1, math.ceil(total_items / per_page))
+    page = max(1, min(int(page or 1), total_pages))
+
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    page_items = items[start_idx:end_idx]
+
+    filter_title = "Hanya Produk Kritis 🚨" if filter_mode == 'crit' else "Semua Produk Gagal 📋"
+
+    lines = [
+        "🚨 <b>LAPORAN ANALISA PRODUK & SELLER SERING GAGAL</b>",
+        "━━━━━━━━━━━━━━━━━━━━━━",
+        f"📅 <b>Periode:</b> {period_label} (Hal {page}/{total_pages})",
+        f"🔍 <b>Mode Filter:</b> {filter_title}",
+        "",
+        "📊 <b>RINGKASAN KESEHATAN KATALOG:</b>",
+        f"• 🚨 <b>Wajib Evaluasi / Kritis:</b> <b>{analytics['critical_count']}</b> produk",
+        f"• ⚠️ <b>Rawan Gangguan:</b> <b>{analytics['warning_count']}</b> produk",
+        f"• 📦 <b>Total Produk Pernah Gagal:</b> <b>{total_items}</b> SKU",
+        f"• 🔄 <b>Total Trx Periode Ini:</b> ❌ {analytics['global_failed_trx']} Gagal | ✅ {analytics['global_success_trx']} Sukses",
+        "━━━━━━━━━━━━━━━━━━━━━━"
+    ]
+
+    inline_kb = []
+
+    if not page_items:
+        lines.append("✅ <i>Tidak ditemukan produk yang mengalami kegagalan pada periode/filter ini.</i>")
+        lines.append("💡 <i>Gunakan tombol periode di bawah untuk mengecek rentang waktu 7 Hari / 30 Hari / Semua Waktu.</i>")
+    else:
+        lines.append("📋 <b>PERINGKAT PRODUK SERING GAGAL:</b>\n")
+        prod_btn_row = []
+
+        for idx, item in enumerate(page_items, start=start_idx + 1):
+            if not item['in_catalog']:
+                cat_badge = "🗑️ <b>SUDAH DIHAPUS</b>"
+            elif item['is_active']:
+                cat_badge = "🟢 <b>AKTIF (Tampil di Web)</b>"
+            else:
+                cat_badge = "🔴 <b>NONAKTIF (Disembunyikan)</b>"
+
+            seller_disp = f"<b>{item['seller_name']}</b>"
+            if item['seller_tele_display']:
+                seller_disp += f" (✈️ <code>{item['seller_tele_display']}</code>)"
+
+            last_reason = (item['last_fail_reason'] or '-')[:75]
+
+            lines.append(
+                f"<b>{idx}. {item['product_name']}</b> (<code>{item['sku_code']}</code>)\n"
+                f"   📌 <b>{item['failed_count']} kali gagal</b> | <b>{item['success_count']} kali sukses</b> • <code>{item['seller_tag']}</code>\n"
+                f"   🏪 Seller: {seller_disp} | Rasio Gagal: <b>{item['fail_rate']}%</b> (SR: {item['success_rate']}%)\n"
+                f"   🏷️ Katalog: {cat_badge} | Modal: {format_rupiah(item['base_price'])}\n"
+                f"   ⚠️ Alasan Terakhir: <i>{last_reason}</i>\n"
+                f"   💡 Analisa: {item['severity_icon']} <b>{item['recommendation_short']}</b>\n"
+            )
+
+            short_prod = (item['product_name'][:13] + "..") if len(item['product_name']) > 15 else item['product_name']
+            cb_sku = item['sku_code'][:28]
+            prod_btn_row.append({
+                "text": f"🛠️ #{idx} {short_prod} ({item['failed_count']}G/{item['success_count']}S)",
+                "callback_data": f"fp_view:{norm_period}:{cb_sku}"
+            })
+            if len(prod_btn_row) == 2:
+                inline_kb.append(prod_btn_row)
+                prod_btn_row = []
+
+        if prod_btn_row:
+            inline_kb.append(prod_btn_row)
+
+        # Tampilkan Top 3 Seller Paling Sering Gagal
+        top_sellers = analytics['seller_leaderboard'][:3]
+        if top_sellers:
+            lines.append("━━━━━━━━━━━━━━━━━━━━━━")
+            lines.append("🏪 <b>TOP SELLER PALING SERING GAGAL:</b>")
+            for s_idx, s_row in enumerate(top_sellers, 1):
+                lines.append(
+                    f"{s_idx}. <b>{s_row['seller_name']}</b> (<code>{s_row['seller_tag']}</code>)\n"
+                    f"   └ ❌ <b>{s_row['failed_count']}x Gagal</b> | ✅ <b>{s_row['success_count']}x Sukses</b> "
+                    f"(Gagal: {s_row['fail_rate']}% • {len(s_row['products'])} Produk)"
+                )
+
+        lines.append("━━━━━━━━━━━━━━━━━━━━━━")
+        lines.append("👇 <i>Klik tombol produk di bawah untuk Nonaktifkan, Hapus, Ganti/Sync Seller, atau Komplain:</i>")
+
+    # Tombol Aksi Masal: Nonaktifkan Semua Produk Kritis yang masih Aktif
+    active_crit_count = sum(1 for x in analytics['items'] if x['severity'] == 'CRITICAL' and x['is_active'])
+    if active_crit_count > 0:
+        inline_kb.append([
+            {
+                "text": f"🛑 Matikan Semua Produk Kritis Aktif ({active_crit_count} SKU)",
+                "callback_data": f"fp_offcrit:{norm_period}"
+            }
+        ])
+
+    # Navigasi Halaman jika lebih dari 1 halaman
+    nav_row = []
+    if page > 1:
+        nav_row.append({"text": "« Hal Sebelumnya", "callback_data": f"fp_list:{norm_period}:{page - 1}:{filter_mode}"})
+    if page < total_pages:
+        nav_row.append({"text": "Hal Berikutnya »", "callback_data": f"fp_list:{norm_period}:{page + 1}:{filter_mode}"})
+    if nav_row:
+        inline_kb.append(nav_row)
+
+    # Baris Filter Mode & Analisa Per Seller
+    toggle_filter_btn = (
+        {"text": "📋 Tampilkan Semua Produk Gagal", "callback_data": f"fp_list:{norm_period}:1:all"}
+        if filter_mode == 'crit' else
+        {"text": f"🚨 Filter Hanya Kritis ({analytics['critical_count']})", "callback_data": f"fp_list:{norm_period}:1:crit"}
+    )
+    inline_kb.append([
+        toggle_filter_btn,
+        {"text": "🏪 Analisa Per Seller", "callback_data": f"fp_sellers:{norm_period}:1"}
+    ])
+
+    # Baris Filter Periode Waktu
+    p_buttons = [
+        ("1d", "Hari Ini"),
+        ("7d", "7 Hari"),
+        ("30d", "30 Hari"),
+        ("all", "Semua")
+    ]
+    period_row = []
+    for p_code, p_text in p_buttons:
+        prefix = "✅ " if norm_period == p_code else "📅 "
+        period_row.append({
+            "text": f"{prefix}{p_text}",
+            "callback_data": f"fp_list:{p_code}:1:{filter_mode}"
+        })
+    inline_kb.append(period_row)
+
+    # Baris Refresh & Menu Utama
+    inline_kb.append([
+        {"text": "🔄 Refresh Analisa", "callback_data": f"fp_list:{norm_period}:{page}:{filter_mode}"},
+        {"text": "🏠 Menu Utama", "callback_data": "cmd_menu"}
+    ])
+
+    return "\n".join(lines), {"inline_keyboard": inline_kb}
+
+
+def _resolve_fp_sku(sku_fragment):
+    """Mencari kode SKU lengkap berdasarkan potongan SKU dari callback_data (maks 28 karakter)."""
+    from app.models.product import Product
+    from app.models.transaction import Transaction
+
+    frag = str(sku_fragment or '').strip()
+    if not frag:
+        return ''
+    p_exact = Product.query.filter_by(sku_code=frag).first()
+    if p_exact:
+        return p_exact.sku_code
+    t_exact = Transaction.query.filter_by(sku_code=frag).first()
+    if t_exact:
+        return t_exact.sku_code
+    p_pref = Product.query.filter(Product.sku_code.startswith(frag)).first()
+    if p_pref:
+        return p_pref.sku_code
+    t_pref = Transaction.query.filter(Transaction.sku_code.startswith(frag)).first()
+    if t_pref:
+        return t_pref.sku_code
+    return frag
+
+
+def render_failed_product_detail(sku_code, period='30d'):
+    """
+    Menampilkan halaman detail analisa 1 produk yang sering gagal beserta tombol eksekusi:
+    - Nonaktifkan / Aktifkan produk di katalog web & POS
+    - Sync ulang harga & nama seller dari Digiflazz (setelah ganti seller di portal Digiflazz)
+    - Tarik kontak Telegram/WA Seller & kirim komplain otomatis
+    - Hapus produk dari katalog database
+    """
+    from app.models.product import Product
+    from app.models.transaction import Transaction
+    from app.services.digiflazz import build_seller_complaint_info
+
+    sku_clean = _resolve_fp_sku(sku_code)
+    start_utc, period_label, norm_period = _get_period_start_utc(period)
+
+    prod = Product.query.filter_by(sku_code=sku_clean).first()
+    q = Transaction.query.filter(Transaction.sku_code == sku_clean)
+    if start_utc is not None:
+        q = q.filter(Transaction.created_at >= start_utc)
+    trxs = q.order_by(Transaction.id.desc()).all()
+
+    # Jika di periode ini kosong, ambil dari semua waktu
+    if not trxs and start_utc is not None:
+        trxs = Transaction.query.filter(Transaction.sku_code == sku_clean).order_by(Transaction.id.desc()).all()
+        period_label = "Semua Waktu"
+
+    failed_trxs = [t for t in trxs if (t.status or '').upper() in FAILED_STATUS_LIST]
+    success_trxs = [t for t in trxs if (t.status or '').upper() == 'SUCCESS']
+    pending_trxs = [t for t in trxs if (t.status or '').upper() not in FAILED_STATUS_LIST + ['SUCCESS']]
+
+    f_cnt = len(failed_trxs)
+    s_cnt = len(success_trxs)
+    p_cnt = len(pending_trxs)
+    denom = (f_cnt + s_cnt) if (f_cnt + s_cnt) > 0 else len(trxs)
+    fail_rate = round((f_cnt / denom * 100.0), 1) if denom > 0 else 0.0
+    succ_rate = round((s_cnt / denom * 100.0), 1) if denom > 0 else 0.0
+
+    prod_name = (prod.name if prod else None) or (trxs[0].product_name if trxs else sku_clean)
+    raw_seller = (prod.seller_name if prod and prod.seller_name else None)
+    raw_tele = None
+    raw_wa = None
+    for t in trxs:
+        if not raw_seller and t.seller_name:
+            raw_seller = t.seller_name
+        if not raw_tele and t.seller_tele:
+            raw_tele = t.seller_tele
+        if not raw_wa and t.seller_wa:
+            raw_wa = t.seller_wa
+
+    s_meta = format_seller_handle_and_name(raw_seller, raw_tele)
+
+    if not prod:
+        status_web = "🗑️ <b>SUDAH DIHAPUS DARI KATALOG</b>"
+        price_line = "-"
+    else:
+        status_web = "🟢 <b>AKTIF (Ditampilkan di Web & Kasir)</b>" if prod.is_active else "🔴 <b>NONAKTIF (Disembunyikan dari Web)</b>"
+        margin_val = float(prod.sell_price or 0) - float(prod.base_price or 0)
+        price_line = f"Modal {format_rupiah(prod.base_price)} ➜ Jual {format_rupiah(prod.sell_price)} (Margin: {format_rupiah(margin_val)})"
+
+    if (f_cnt >= 3 and fail_rate >= 70.0) or (f_cnt >= 2 and s_cnt == 0):
+        verdict = "🚨 <b>TIDak LAYAK TAMPIL SEKARANG — Segera Ganti Seller di Digiflazz atau Nonaktifkan/Hapus!</b>"
+    elif f_cnt >= 2 and fail_rate >= 35.0:
+        verdict = "⚠️ <b>RAWAN GAGAL — Evaluasi Seller / Pertimbangkan Seller Cadangan.</b>"
+    else:
+        verdict = "🟢 <b>MASIH LAYAK TAMPIL — Kegagalan kemungkinan karena input nomor / gangguan sesaat.</b>"
+
+    lines = [
+        "🛠️ <b>DETAIL ANALISA & KEPUTUSAN PRODUK</b>",
+        "━━━━━━━━━━━━━━━━━━━━━━",
+        f"📦 <b>Nama Produk:</b> <b>{prod_name}</b>",
+        f"🔖 <b>Kode SKU:</b> <code>{sku_clean}</code>",
+        f"📂 <b>Kategori / Brand:</b> {(prod.category if prod else '-')} / {(prod.brand if prod else '-')}",
+        f"🌐 <b>Status Katalog:</b> {status_web}",
+        f"💰 <b>Harga & Margin:</b> {price_line}",
+        "━━━━━━━━━━━━━━━━━━━━━━",
+        f"📊 <b>PERFORMA TRANSAKSI ({period_label}):</b>",
+        f"👉 <b>{prod_name} — {f_cnt} kali gagal, {s_cnt} kali sukses • <code>{s_meta['seller_tag']}</code></b>",
+        f"• ❌ <b>Total Gagal:</b> <b>{f_cnt} kali</b> ({fail_rate}%)",
+        f"• ✅ <b>Total Sukses:</b> <b>{s_cnt} kali</b> ({succ_rate}%)",
+        f"• ⏳ <b>Pending:</b> {p_cnt} kali",
+        f"• 🏪 <b>Nama Seller:</b> <b>{s_meta['seller_name']}</b> (<code>{s_meta['seller_tag']}</code>)",
+        f"• ☎️ <b>Kontak CS Seller:</b> ✈️ <code>{raw_tele or 'Belum ditarik'}</code> | 📱 <code>{raw_wa or 'Belum ditarik'}</code>",
+        "━━━━━━━━━━━━━━━━━━━━━━",
+        f"💡 <b>KESIMPULAN ANALISA:</b>\n{verdict}",
+    ]
+
+    last_fail = failed_trxs[0] if failed_trxs else None
+    comp_info = build_seller_complaint_info(last_fail, mode='gagal') if last_fail else {}
+
+    if failed_trxs:
+        lines.append("━━━━━━━━━━━━━━━━━━━━━━")
+        lines.append("📋 <b>5 RIWAYAT GAGAL TERAKHIR PRODUK INI:</b>")
+        for idx, ft in enumerate(failed_trxs[:5], 1):
+            ft_time = format_wib(ft.created_at, '%d/%m %H:%M') if ft.created_at else '-'
+            ft_seller = ft.seller_name or s_meta['seller_name']
+            ft_reason = (ft.sn or 'Gagal dari provider')[:65]
+            lines.append(
+                f"{idx}. <code>{ft.ref_id}</code> ➜ <code>{ft.target_number}</code> ({ft_time})\n"
+                f"   🏪 {ft_seller} | ⚠️ <i>{ft_reason}</i>"
+            )
+        if comp_info.get('complaint_gagal'):
+            lines.append("")
+            lines.append("📣 <b>Format Komplain Gagal ke Seller (Klik untuk Copy):</b>")
+            lines.append(f"<code>{comp_info['complaint_gagal']}</code>")
+
+    cb_sku = sku_clean[:28]
+    kb = []
+
+    # 1. Tombol Aktifkan / Nonaktifkan Produk
+    if prod:
+        if prod.is_active:
+            kb.append([
+                {"text": "🔴 Sembunyikan Produk Ini dari Web (Nonaktifkan)", "callback_data": f"fp_tog:{norm_period}:{cb_sku}"}
+            ])
+        else:
+            kb.append([
+                {"text": "🟢 Tampilkan Kembali Produk Ini (Aktifkan)", "callback_data": f"fp_tog:{norm_period}:{cb_sku}"}
+            ])
+
+    # 2. Tombol Sync Ulang Seller & Kontak dari Digiflazz (berguna setelah ganti seller di Digiflazz)
+    kb.append([
+        {"text": "🔄 Sync Ulang Seller, Harga & Kontak (Digiflazz)", "callback_data": f"fp_sync:{norm_period}:{cb_sku}"}
+    ])
+
+    # 3. Tombol Komplain Langsung ke Seller untuk Transaksi Gagal Terakhir
+    if last_fail:
+        contact_row = []
+        if comp_info.get('tele_url'):
+            contact_row.append({
+                "text": f"✈️ Chat Tele Seller ({comp_info.get('seller_tele')})",
+                "url": comp_info['tele_url']
+            })
+        if comp_info.get('wa_url'):
+            contact_row.append({
+                "text": "💬 WA Seller Manual",
+                "url": comp_info['wa_url']
+            })
+        if contact_row:
+            kb.append(contact_row)
+        kb.append([
+            {"text": "📲 Auto-Kirim WA Komplain Gagal ke Seller", "callback_data": f"fp_wa:{norm_period}:{last_fail.id}"}
+        ])
+
+    # 4. Tombol Hapus Produk dari Katalog (dengan Konfirmasi)
+    if prod:
+        kb.append([
+            {"text": "🗑️ Hapus Produk Ini dari Katalog Database", "callback_data": f"fp_delask:{norm_period}:{cb_sku}"}
+        ])
+
+    # 5. Tombol Kembali ke Laporan Utama
+    kb.append([
+        {"text": "« Kembali ke Laporan Produk Gagal", "callback_data": f"fp_list:{norm_period}:1:all"},
+        {"text": "🏠 Menu Utama", "callback_data": "cmd_menu"}
+    ])
+
+    return "\n".join(lines), {"inline_keyboard": kb}
+
+
+def render_failed_sellers_report(period='30d', page=1, per_page=5):
+    """
+    Menampilkan Laporan Rekapitulasi Per Seller Digiflazz yang paling sering gagal,
+    lengkap dengan rincian produk di bawah seller tersebut & tombol 1-klik nonaktifkan semua produk dari seller bermasalah.
+    """
+    import math
+    analytics = get_failed_products_analytics(period=period, filter_mode='all')
+    norm_period = analytics['period']
+    period_label = analytics['period_label']
+    sellers = analytics['seller_leaderboard']
+
+    total_sellers = len(sellers)
+    total_pages = max(1, math.ceil(total_sellers / per_page))
+    page = max(1, min(int(page or 1), total_pages))
+
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    page_sellers = sellers[start_idx:end_idx]
+
+    lines = [
+        "🏪 <b>RAPOR ANALISA SELLER DIGIFLAZZ SERING GAGAL</b>",
+        "━━━━━━━━━━━━━━━━━━━━━━",
+        f"📅 <b>Periode:</b> {period_label} (Hal {page}/{total_pages})",
+        f"🏢 <b>Total Seller Bermasalah:</b> {total_sellers} Seller",
+        "━━━━━━━━━━━━━━━━━━━━━━"
+    ]
+
+    kb = []
+
+    if not page_sellers:
+        lines.append("✅ <i>Tidak ada seller dengan transaksi gagal pada periode ini.</i>")
+    else:
+        for idx, s in enumerate(page_sellers, start=start_idx + 1):
+            lines.append(
+                f"<b>{idx}. 🏪 {s['seller_name']}</b> (<code>{s['seller_tag']}</code>)\n"
+                f"   • 📊 Total: <b>{s['failed_count']} kali gagal</b> | <b>{s['success_count']} kali sukses</b> (Gagal: <b>{s['fail_rate']}%</b>)\n"
+                f"   • 📦 Produk Terdampak: <b>{len(s['products'])} SKU</b> ({s['active_sku_count']} masih Aktif di Web)"
+            )
+            for p_item in s['products'][:3]:
+                st_dot = "🟢" if p_item['is_active'] else "🔴"
+                lines.append(
+                    f"     {st_dot} <i>{p_item['product_name']}</i> (<code>{p_item['sku_code']}</code>): "
+                    f"<b>{p_item['failed_count']}x gagal, {p_item['success_count']}x sukses</b>"
+                )
+            if len(s['products']) > 3:
+                lines.append(f"     <i>...dan {len(s['products']) - 3} produk lainnya.</i>")
+            lines.append("")
+
+            # Jika seller ini masih punya produk aktif dan rasio gagalnya tinggi, sediakan tombol matikan produk seller ini
+            if s['active_sku_count'] > 0 and s['sample_trx_id']:
+                short_sname = (s['seller_name'][:16] + "..") if len(s['seller_name']) > 18 else s['seller_name']
+                kb.append([
+                    {
+                        "text": f"🛑 Nonaktifkan {s['active_sku_count']} Produk Seller #{idx} ({short_sname})",
+                        "callback_data": f"fp_slroff:{norm_period}:{s['sample_trx_id']}"
+                    }
+                ])
+
+        lines.append("━━━━━━━━━━━━━━━━━━━━━━")
+        lines.append("💡 <i>Jika 1 Seller gagal di banyak produk sekaligus, Anda dapat langsung menonaktifkan seluruh produk dari Seller tersebut dengan tombol di bawah.</i>")
+
+    nav_row = []
+    if page > 1:
+        nav_row.append({"text": "« Hal Sebelumnya", "callback_data": f"fp_sellers:{norm_period}:{page - 1}"})
+    if page < total_pages:
+        nav_row.append({"text": "Hal Berikutnya »", "callback_data": f"fp_sellers:{norm_period}:{page + 1}"})
+    if nav_row:
+        kb.append(nav_row)
+
+    kb.append([
+        {"text": "📦 Kembali ke Daftar Produk Gagal", "callback_data": f"fp_list:{norm_period}:1:all"},
+        {"text": "🏠 Menu Utama", "callback_data": "cmd_menu"}
+    ])
+
+    return "\n".join(lines), {"inline_keyboard": kb}
+
 
 
 def render_tarik_deposit_menu():
@@ -1997,6 +2711,7 @@ def handle_admin_callback(app, callback_query):
 
             markup = {
                 "inline_keyboard": [
+                    [{"text": "🚨 Analisa Produk & Seller Sering Gagal", "callback_data": "cmd_failed_products"}],
                     [{"text": "« Kembali ke Profil Toko", "callback_data": f"store_view_{target_user.id}"}],
                     [{"text": "« Daftar Toko", "callback_data": "cmd_list_stores"}]
                 ]
@@ -2249,6 +2964,301 @@ def handle_admin_callback(app, callback_query):
         elif data == 'cmd_top_users':
             rep_text, rep_kb = render_top_users_report()
             _edit_message(token, chat_id, message_id, rep_text, rep_kb)
+
+        # ==========================================================
+        # FITUR LAPORAN ANALISA PRODUK & SELLER SERING GAGAL
+        # ==========================================================
+        elif data == 'cmd_failed_products':
+            rep_text, rep_kb = render_failed_products_report(
+                period='30d', page=1, per_page=5, filter_mode='all', auto_fallback=True
+            )
+            _edit_message(token, chat_id, message_id, rep_text, rep_kb)
+
+        elif data.startswith('fp_list:'):
+            parts = data.split(':')
+            period = parts[1] if len(parts) > 1 else '30d'
+            page = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 1
+            filter_mode = parts[3] if len(parts) > 3 else 'all'
+            rep_text, rep_kb = render_failed_products_report(
+                period=period, page=page, per_page=5, filter_mode=filter_mode, auto_fallback=False
+            )
+            _edit_message(token, chat_id, message_id, rep_text, rep_kb)
+
+        elif data.startswith('fp_view:'):
+            parts = data.split(':', 2)
+            period = parts[1] if len(parts) > 1 else '30d'
+            raw_sku = parts[2] if len(parts) > 2 else ''
+            det_text, det_kb = render_failed_product_detail(raw_sku, period=period)
+            _edit_message(token, chat_id, message_id, det_text, det_kb)
+
+        elif data.startswith('fp_tog:'):
+            from app.extensions import db, cache
+            parts = data.split(':', 2)
+            period = parts[1] if len(parts) > 1 else '30d'
+            raw_sku = parts[2] if len(parts) > 2 else ''
+            sku_clean = _resolve_fp_sku(raw_sku)
+            prod = Product.query.filter_by(sku_code=sku_clean).first()
+            if not prod:
+                _edit_message(token, chat_id, message_id, f"❌ Produk dengan SKU <code>{sku_clean}</code> tidak ditemukan di katalog database!", get_back_button())
+                return
+            prod.is_active = not bool(prod.is_active)
+            db.session.commit()
+            try:
+                cache.clear()
+            except Exception:
+                pass
+            banner = (
+                f"✅ <b>STATUS PRODUK BERHASIL DIPERBARUI!</b>\n"
+                f"Produk <b>{prod.name}</b> (<code>{prod.sku_code}</code>) kini berstatus: "
+                f"{'🟢 <b>AKTIF (Ditampilkan di Web)</b>' if prod.is_active else '🔴 <b>NONAKTIF (Disembunyikan dari Web)</b>'}\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            )
+            det_text, det_kb = render_failed_product_detail(sku_clean, period=period)
+            _edit_message(token, chat_id, message_id, banner + det_text, det_kb)
+
+        elif data.startswith('fp_sync:'):
+            from app.extensions import db, cache
+            from app.services.digiflazz import get_price_list, check_transaction_status, apply_digiflazz_seller_metadata
+            parts = data.split(':', 2)
+            period = parts[1] if len(parts) > 1 else '30d'
+            raw_sku = parts[2] if len(parts) > 2 else ''
+            sku_clean = _resolve_fp_sku(raw_sku)
+
+            _edit_message(token, chat_id, message_id, f"⏳ <i>Sedang menarik data terbaru Seller, Harga Modal, dan Kontak CS untuk SKU <code>{sku_clean}</code> dari Digiflazz...</i>", None)
+
+            prod = Product.query.filter_by(sku_code=sku_clean).first()
+            sync_notes = []
+
+            ok_pl, pl_items, pl_msg = get_price_list('prepaid', code=sku_clean)
+            matched_pl = None
+            if ok_pl and isinstance(pl_items, list):
+                for item in pl_items:
+                    if str(item.get('buyer_sku_code', '')).strip().upper() == sku_clean.upper():
+                        matched_pl = item
+                        break
+
+            if matched_pl:
+                new_seller = clean_str(matched_pl.get('seller_name'))
+                new_price = float(matched_pl.get('price') or 0.0)
+                b_stat = bool(matched_pl.get('buyer_product_status', True))
+                s_stat = bool(matched_pl.get('seller_product_status', True))
+                if prod:
+                    if new_seller:
+                        prod.seller_name = new_seller
+                    if new_price > 0:
+                        prod.base_price = new_price
+                    prod.is_active = (b_stat and s_stat)
+                    db.session.commit()
+                    try:
+                        cache.clear()
+                    except Exception:
+                        pass
+                sync_notes.append(f"• Seller Digiflazz Terbaru: <b>{new_seller or '-'}</b> (Modal: {format_rupiah(new_price)})")
+
+            # Tarik juga metadata kontak tele/wa dari transaksi gagal terakhir jika ada
+            last_fail = Transaction.query.filter(
+                Transaction.sku_code == sku_clean,
+                Transaction.status.in_(FAILED_STATUS_LIST)
+            ).order_by(Transaction.id.desc()).first()
+
+            if last_fail:
+                try:
+                    ok_st, st_data, _ = check_transaction_status(last_fail.sku_code, last_fail.target_number, last_fail.ref_id)
+                    if isinstance(st_data, dict) and st_data:
+                        apply_digiflazz_seller_metadata(last_fail, st_data, product=prod)
+                        db.session.commit()
+                        if last_fail.seller_tele or last_fail.seller_wa:
+                            sync_notes.append(f"• Kontak CS Seller: ✈️ <code>{last_fail.seller_tele or '-'}</code> | 📱 <code>{last_fail.seller_wa or '-'}</code>")
+                except Exception:
+                    pass
+
+            if not sync_notes:
+                sync_notes.append("• Data lokal telah disinkronkan (API Digiflazz sedang cooldown / tidak ada perubahan baru).")
+
+            banner = (
+                "✅ <b>SINKRONISASI SKU & SELLER SELESAI!</b>\n"
+                + "\n".join(sync_notes)
+                + "\n━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            )
+            det_text, det_kb = render_failed_product_detail(sku_clean, period=period)
+            _edit_message(token, chat_id, message_id, banner + det_text, det_kb)
+
+        elif data.startswith('fp_wa:'):
+            from app.services.digiflazz import build_seller_complaint_info
+            from app.wa_helper import kirim_wa
+            parts = data.split(':')
+            period = parts[1] if len(parts) > 1 else '30d'
+            trx_id = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
+            trx = Transaction.query.get(trx_id)
+            if not trx:
+                _edit_message(token, chat_id, message_id, "❌ Data transaksi gagal tidak ditemukan!", get_back_button())
+                return
+
+            c_info = build_seller_complaint_info(trx, mode='gagal')
+            wa_num = c_info.get('seller_wa_clean')
+            comp_txt = c_info.get('complaint_gagal') or trx.format_digiflazz_complaint('gagal')
+
+            if not wa_num:
+                banner = (
+                    "⚠️ <b>NOMOR WHATSAPP SELLER BELUM TERSEDIA!</b>\n"
+                    f"Seller <b>{c_info.get('seller_name')}</b> belum mencantumkan nomor WA di respon API Digiflazz.\n"
+                    f"Silakan gunakan tombol <b>Chat Tele Seller</b> atau salin format komplain berikut:\n"
+                    f"<code>{comp_txt}</code>\n"
+                    "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                )
+            else:
+                sent = kirim_wa(wa_num, comp_txt)
+                if sent:
+                    banner = (
+                        f"✅ <b>KOMPLAIN GAGAL TERKIRIM KE WA SELLER!</b>\n"
+                        f"• 🏪 Seller: <b>{c_info.get('seller_name')}</b> (<code>{wa_num}</code>)\n"
+                        f"• 💬 Pesan: <code>{comp_txt}</code>\n"
+                        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                    )
+                else:
+                    banner = (
+                        f"⚠️ <b>Bot WA lokal belum terhubung, silakan klik tombol WA Seller Manual di bawah.</b>\n"
+                        f"• Nomor WA Seller: <code>{wa_num}</code>\n"
+                        f"• Format Komplain: <code>{comp_txt}</code>\n"
+                        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                    )
+            det_text, det_kb = render_failed_product_detail(trx.sku_code, period=period)
+            _edit_message(token, chat_id, message_id, banner + det_text, det_kb)
+
+        elif data.startswith('fp_delask:'):
+            parts = data.split(':', 2)
+            period = parts[1] if len(parts) > 1 else '30d'
+            raw_sku = parts[2] if len(parts) > 2 else ''
+            sku_clean = _resolve_fp_sku(raw_sku)
+            prod = Product.query.filter_by(sku_code=sku_clean).first()
+            if not prod:
+                _edit_message(token, chat_id, message_id, f"❌ Produk <code>{sku_clean}</code> sudah tidak ada di katalog.", get_back_button())
+                return
+
+            cb_sku = sku_clean[:28]
+            text = (
+                "⚠️ <b>KONFIRMASI HAPUS PRODUK DARI KATALOG</b>\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"📦 <b>Nama Produk:</b> <b>{prod.name}</b>\n"
+                f"🔖 <b>Kode SKU:</b> <code>{prod.sku_code}</code>\n"
+                f"🏪 <b>Seller:</b> {prod.seller_name or '-'}\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n"
+                "Apakah Anda yakin ingin <b>MENGHAPUS</b> produk ini dari katalog database?\n"
+                "<i>(Riwayat transaksi lama tetap aman tersimpan di laporan analisa, namun produk tidak akan tampil lagi di katalog belanja).</i>"
+            )
+            kb = {
+                "inline_keyboard": [
+                    [
+                        {"text": "🗑️ YA, HAPUS SEKARANG", "callback_data": f"fp_delok:{period}:{cb_sku}"},
+                        {"text": "❌ BATAL", "callback_data": f"fp_view:{period}:{cb_sku}"}
+                    ]
+                ]
+            }
+            _edit_message(token, chat_id, message_id, text, kb)
+
+        elif data.startswith('fp_delok:'):
+            from app.extensions import db, cache
+            parts = data.split(':', 2)
+            period = parts[1] if len(parts) > 1 else '30d'
+            raw_sku = parts[2] if len(parts) > 2 else ''
+            sku_clean = _resolve_fp_sku(raw_sku)
+            prod = Product.query.filter_by(sku_code=sku_clean).first()
+            if prod:
+                del_name = prod.name
+                db.session.delete(prod)
+                db.session.commit()
+                try:
+                    cache.clear()
+                except Exception:
+                    pass
+                banner = (
+                    f"🗑️ <b>PRODUK BERHASIL DIHAPUS DARI KATALOG!</b>\n"
+                    f"Produk <b>{del_name}</b> (<code>{sku_clean}</code>) telah dihapus dari katalog website & kasir POS.\n"
+                    "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                )
+            else:
+                banner = f"ℹ️ Produk <code>{sku_clean}</code> sudah dihapus sebelumnya.\n\n"
+
+            rep_text, rep_kb = render_failed_products_report(period=period, page=1, per_page=5, filter_mode='all')
+            _edit_message(token, chat_id, message_id, banner + rep_text, rep_kb)
+
+        elif data.startswith('fp_offcrit:'):
+            from app.extensions import db, cache
+            parts = data.split(':')
+            period = parts[1] if len(parts) > 1 else '30d'
+            analytics = get_failed_products_analytics(period=period, filter_mode='all')
+            disabled_names = []
+            for item in analytics['items']:
+                if item['severity'] == 'CRITICAL' and item['product_obj'] and item['product_obj'].is_active:
+                    item['product_obj'].is_active = False
+                    disabled_names.append(f"{item['product_name']} ({item['sku_code']})")
+            if disabled_names:
+                db.session.commit()
+                try:
+                    cache.clear()
+                except Exception:
+                    pass
+                banner = (
+                    f"🛑 <b>{len(disabled_names)} PRODUK KRITIS BERHASIL DINONAKTIFKAN!</b>\n"
+                    + "\n".join(f"• 🔴 {n}" for n in disabled_names[:6])
+                    + "\n━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                )
+            else:
+                banner = "ℹ️ <b>Seluruh produk berstatus Kritis sudah dalam keadaan Nonaktif.</b>\n\n"
+
+            rep_text, rep_kb = render_failed_products_report(period=period, page=1, per_page=5, filter_mode='all')
+            _edit_message(token, chat_id, message_id, banner + rep_text, rep_kb)
+
+        elif data.startswith('fp_sellers:'):
+            parts = data.split(':')
+            period = parts[1] if len(parts) > 1 else '30d'
+            page = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 1
+            s_text, s_kb = render_failed_sellers_report(period=period, page=page, per_page=5)
+            _edit_message(token, chat_id, message_id, s_text, s_kb)
+
+        elif data.startswith('fp_slroff:'):
+            from app.extensions import db, cache
+            parts = data.split(':')
+            period = parts[1] if len(parts) > 1 else '30d'
+            sample_trx_id = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
+            sample_trx = Transaction.query.get(sample_trx_id)
+            target_seller = None
+            if sample_trx:
+                target_seller = getattr(sample_trx, 'resolved_seller_name', None) or sample_trx.seller_name
+
+            disabled_count = 0
+            if target_seller:
+                # Nonaktifkan semua produk yang memiliki seller_name ini maupun produk yang gagal di bawah seller ini
+                analytics = get_failed_products_analytics(period=period, filter_mode='all')
+                for item in analytics['items']:
+                    if item['seller_name'].upper() == target_seller.strip().upper():
+                        if item['product_obj'] and item['product_obj'].is_active:
+                            item['product_obj'].is_active = False
+                            disabled_count += 1
+                # Juga cek tabel Product langsung dengan seller_name yang sama
+                direct_prods = Product.query.filter(
+                    db.func.upper(Product.seller_name) == target_seller.strip().upper(),
+                    Product.is_active == True
+                ).all()
+                for dp in direct_prods:
+                    dp.is_active = False
+                    disabled_count += 1
+
+                db.session.commit()
+                try:
+                    cache.clear()
+                except Exception:
+                    pass
+                banner = (
+                    f"🛑 <b>PRODUK DARI SELLER {target_seller.upper()} DINONAKTIFKAN!</b>\n"
+                    f"Berhasil menyembunyikan produk aktif dari seller <b>{target_seller}</b> agar tidak merugikan pelanggan.\n"
+                    "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                )
+            else:
+                banner = "⚠️ <b>Identitas Seller tidak ditemukan.</b>\n\n"
+
+            s_text, s_kb = render_failed_sellers_report(period=period, page=1, per_page=5)
+            _edit_message(token, chat_id, message_id, banner + s_text, s_kb)
 
         elif data == 'cmd_tarik_deposit':
             dep_text, dep_kb = render_tarik_deposit_menu()
@@ -3017,6 +4027,32 @@ def handle_admin_message(app, message):
     if any(text.lower().startswith(cmd) for cmd in ['/topuser', '/topusers', '/toptrx', '/toptransaksi']):
         with app.app_context():
             rep_text, rep_kb = render_top_users_report()
+            _send_message(token, chat_id, rep_text, reply_markup=rep_kb)
+        return
+
+    # Perintah /produkgagal, /analisaproduk, /laporangagal, /failedproducts, /analisaseller
+    if any(text.lower().startswith(cmd) for cmd in ['/produkgagal', '/analisaproduk', '/laporangagal', '/failedproducts', '/analisaseller']):
+        parts = text.split()
+        cmd_lower = parts[0].lower()
+        arg = parts[1].strip() if len(parts) > 1 else ''
+        with app.app_context():
+            if cmd_lower.startswith('/analisaseller'):
+                p_arg = arg if arg.lower() in ['1d', '7d', '30d', 'all', 'hariini', 'semua'] else '30d'
+                rep_text, rep_kb = render_failed_sellers_report(period=p_arg, page=1, per_page=5)
+                _send_message(token, chat_id, rep_text, reply_markup=rep_kb)
+                return
+
+            if arg and arg.lower() not in ['1d', '7d', '30d', 'all', 'hariini', 'semua', 'crit', 'kritis']:
+                # Anggap argumen sebagai kode SKU spesifik yang ingin diinspeksi
+                det_text, det_kb = render_failed_product_detail(arg, period='30d')
+                _send_message(token, chat_id, det_text, reply_markup=det_kb)
+                return
+
+            p_arg = arg.lower() if arg.lower() in ['1d', '7d', '30d', 'all', 'hariini', 'semua'] else '30d'
+            f_mode = 'crit' if arg.lower() in ['crit', 'kritis'] else 'all'
+            rep_text, rep_kb = render_failed_products_report(
+                period=p_arg, page=1, per_page=5, filter_mode=f_mode, auto_fallback=(not bool(arg))
+            )
             _send_message(token, chat_id, rep_text, reply_markup=rep_kb)
         return
 
