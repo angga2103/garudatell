@@ -26,6 +26,9 @@ All notable changes to the GarudaTel platform will be documented in this file.
 - **Anti-Wipeout Soft-Disable**: Proteksi produk lokal dari penghapusan keras (*no hard delete*) dan isolasi gembok admin (`is_admin_disabled`) agar produk nonaktif tidak teraktifkan kembali oleh auto-sync provider.
 
 ### 🖥️ DevOps & Automation
+- **Full Portable Archive Complete Packaging**: Menyempurnakan `BackupEngine.create_full_portable_backup()` dengan menyertakan direktori `deployment/` (konfigurasi Nginx), seluruh file skrip produksi root (`wsgi.py`, `garudatel.service`, `DEPLOYMENT_SOP.md`, `CHANGELOG.md`, `AI_HANDOVER_RULES.md`, `VERSION`), dan script perbaikan WhatsApp `fix_mesin_wa.sh`.
+- **Database Connection Pool Reset on Restore**: Menambahkan `db.engine.dispose()` dan `db.session.remove()` pada fungsi pemulihan database `restore_from_latest_backup()` untuk menjamin koneksi SQLite segera disegarkan tanpa referensi basi.
+- **Installer Disaster Recovery Auto-Key**: Menambahkan pemeriksaan dan auto-generate `CRON_SECRET_KEY` pada skrip `installer_vps_baru.sh` saat instalasi/migrasi VPS baru.
 - **Dedicated Standalone Cron Runner (`tools/cron_sync_products.py`)**: Script CLI mandiri untuk eksekusi sinkronisasi Digiflazz dan pemindaian saldo minim toko mitra langsung dari crontab Linux dengan logging terstruktur ke `storage/logs/cron_sync.log`.
 - **Crontab Manager Script (`tools/setup_auto_sync_cron.sh`)**: Utilitas 1-klik (`enable`, `disable`, `status`, `run`) untuk mempermudah pendaftaran dan monitoring jadwal auto-sync 30 menit di crontab VPS Linux.
 - **Installer Auto-Sync Integration**: Memperbarui `tools/installer_vps_baru.sh` agar otomatis mengaktifkan scheduler auto-sync produk saat pertama kali instalasi VPS baru.

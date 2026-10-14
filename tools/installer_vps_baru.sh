@@ -171,6 +171,13 @@ else
     echo -e "${GREEN}[✔] File .env dari snapshot cadangan dipertahankan.${NC}"
 fi
 
+# Pastikan CRON_SECRET_KEY tersedia di .env
+if [ -f "$TARGET_DIR/.env" ] && ! grep -q "CRON_SECRET_KEY" "$TARGET_DIR/.env" 2>/dev/null; then
+    CRON_KEY=$(python3 -c "import secrets; print(secrets.token_hex(16))")
+    echo "CRON_SECRET_KEY=$CRON_KEY" >> "$TARGET_DIR/.env"
+    echo -e "${GREEN}[✔] Token CRON_SECRET_KEY otomatis digenerate ke .env.${NC}"
+fi
+
 # Pastikan database SQLite bersih dan terindeks
 if [ -f "$TARGET_DIR/app/garudatel.db" ]; then
     echo -e "${GREEN}[✔] Database SQLite dari snapshot backup terverifikasi:${NC} $TARGET_DIR/app/garudatel.db"

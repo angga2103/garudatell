@@ -143,15 +143,26 @@ class BackupEngine:
                     for root, dirs, files in os.walk(wa_dir):
                         dirs[:] = [d for d in dirs if d in ['wa_bot']] or []
                         for file in files:
-                            if file in ['package.json', 'package-lock.json', 'server_bot.js', 'setup_pm2.sh']:
+                            if file in ['package.json', 'package-lock.json', 'server_bot.js', 'setup_pm2.sh', 'fix_mesin_wa.sh']:
                                 full_p = os.path.join(root, file)
                                 rel_p = os.path.relpath(full_p, self.base_dir)
                                 zipf.write(full_p, f"{prefix_in_zip}/{rel_p.replace(os.sep, '/')}")
 
-                # E. Tambahkan file konfigurasi root
+                # E. Tambahkan deployment/ (konfigurasi Nginx, reverse proxy, dll)
+                deploy_dir = os.path.join(self.base_dir, "deployment")
+                if os.path.exists(deploy_dir):
+                    for root, dirs, files in os.walk(deploy_dir):
+                        for file in files:
+                            full_p = os.path.join(root, file)
+                            rel_p = os.path.relpath(full_p, self.base_dir)
+                            zipf.write(full_p, f"{prefix_in_zip}/{rel_p.replace(os.sep, '/')}")
+
+                # F. Tambahkan file konfigurasi root lengkap
                 root_files = [
                     'run.py', 'config.py', 'install.sh', 'requirements.txt',
-                    'garudatell', '.env', '.env.example', 'README.md', '.gitignore'
+                    'garudatell', '.env', '.env.example', 'README.md', '.gitignore',
+                    'wsgi.py', 'garudatel.service', 'DEPLOYMENT_SOP.md', 'CHANGELOG.md',
+                    'AI_HANDOVER_RULES.md', 'VERSION', 'start_production.sh'
                 ]
                 for r_file in root_files:
                     f_path = os.path.join(self.base_dir, r_file)
@@ -269,6 +280,14 @@ class BackupEngine:
                         os.remove(wal_f)
                     except Exception:
                         pass
+
+            # Reset connection pool SQLAlchemy jika aktif
+            try:
+                from app.extensions import db
+                db.session.remove()
+                db.engine.dispose()
+            except Exception:
+                pass
 
             # 5. SQLite Integrity Check
             conn = sqlite3.connect(self.db_path)
