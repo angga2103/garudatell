@@ -485,9 +485,10 @@ def seed_pascabayar_products():
     updated = 0
 
     try:
+        existing_map = {p.sku_code: p for p in Product.query.filter(Product.sku_code.in_(PASCABAYAR_SKUS)).all()}
         for item in PASCABAYAR_CATALOG:
             sku = item['sku_code']
-            prod = Product.query.filter_by(sku_code=sku).first()
+            prod = existing_map.get(sku)
             if not prod:
                 new_p = Product(
                     sku_code=sku,
@@ -500,6 +501,7 @@ def seed_pascabayar_products():
                     is_manual_margin=False
                 )
                 db.session.add(new_p)
+                existing_map[sku] = new_p
                 inserted += 1
             else:
                 # Pastikan produk aktif dan data kategori/brand sesuai

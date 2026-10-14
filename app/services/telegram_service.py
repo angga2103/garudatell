@@ -4367,22 +4367,37 @@ def handle_admin_callback(app, callback_query):
 
         elif data == 'cmd_sync_digi':
             _edit_message(token, chat_id, message_id, "⏳ <i>Sedang menarik data produk dari Digiflazz di background... Anda akan menerima pesan notifikasi saat selesai.</i>", get_back_button())
-            from app.extensions import db
-            try:
-                # Pastikan semua produk yang saat ini berstatus nonaktif terkunci agar tidak tertimpa sync Digiflazz
-                Product.query.filter(Product.is_active == False, Product.is_admin_disabled != True).update({'is_admin_disabled': True})
-                db.session.commit()
-            except Exception:
-                pass
 
             def async_sync_runner():
-                with app.app_context():
-                    ok, msg = sync_products(notify_admin_bot=False)
-                    res_icon = "✅" if ok else "🚨"
-                    text = f"{res_icon} <b>HASIL SINKRONISASI DIGIFLAZZ:</b>\n\n{msg}"
-                    _send_message(token, chat_id, text, reply_markup=get_back_button())
+                try:
+                    with app.app_context():
+                        from app.extensions import db
+                        # Pastikan produk yang saat ini berstatus nonaktif tetap digembok
+                        try:
+                            Product.query.filter(Product.is_active == False, Product.is_admin_disabled != True).update({'is_admin_disabled': True})
+                            db.session.commit()
+                        except Exception:
+                            pass
 
-            threading.Thread(target=async_sync_runner, daemon=True).start()
+                        ok, msg = sync_products(notify_admin_bot=False)
+                        res_icon = "✅" if ok else "🚨"
+                        text = f"{res_icon} <b>HASIL SINKRONISASI DIGIFLAZZ:</b>\n\n{msg}"
+                        _send_message(token, chat_id, text, reply_markup=get_back_button())
+                except Exception as e_sync:
+                    logger.error(f"[Bot 3 Sync] Gagal menjalankan sinkronisasi latar belakang: {e_sync}", exc_info=True)
+                    try:
+                        err_text = f"🚨 <b>GAGAL SINKRONISASI DIGIFLAZZ:</b>\n\nTerjadi kendala teknis: <code>{str(e_sync)}</code>"
+                        _send_message(token, chat_id, err_text, reply_markup=get_back_button())
+                    except Exception:
+                        pass
+                finally:
+                    try:
+                        from app.extensions import db
+                        db.session.remove()
+                    except Exception:
+                        pass
+
+            threading.Thread(target=async_sync_runner, daemon=True, name="DigiflazzSyncThread").start()
 
         elif data == 'cmd_sync_vip':
             _edit_message(token, chat_id, message_id, "⏳ <i>Sedang menarik layanan game dari VIP-Reseller... Harap tunggu sebentar.</i>", None)
@@ -5141,17 +5156,21 @@ def handle_admin_message(app, message):
     if text.startswith('/sync') or text.startswith('/syncdigi'):
         force_flag = 'force' in text.lower()
         _send_message(token, chat_id, "⏳ <i>Sedang melakukan sinkronisasi katalog produk dari Digiflazz...</i>")
-        with app.app_context():
-            from app.extensions import db
-            from app.services.digiflazz import sync_products
-            try:
-                Product.query.filter(Product.is_active == False, Product.is_admin_disabled != True).update({'is_admin_disabled': True})
-                db.session.commit()
-            except Exception:
-                pass
-            ok, msg = sync_products(force=force_flag, notify_admin_bot=False)
-            icon = "✅" if ok else "🚨"
-            _send_message(token, chat_id, f"{icon} <b>HASIL SINKRONISASI DIGIFLAZZ:</b>\n\n{msg}")
+        try:
+            with app.app_context():
+                from app.extensions import db
+                from app.services.digiflazz import sync_products
+                try:
+                    Product.query.filter(Product.is_active == False, Product.is_admin_disabled != True).update({'is_admin_disabled': True})
+                    db.session.commit()
+                except Exception:
+                    pass
+                ok, msg = sync_products(force=force_flag, notify_admin_bot=False)
+                icon = "✅" if ok else "🚨"
+                _send_message(token, chat_id, f"{icon} <b>HASIL SINKRONISASI DIGIFLAZZ:</b>\n\n{msg}")
+        except Exception as e_cmd:
+            logger.error(f"[Bot 3 Sync Command] Error: {e_cmd}", exc_info=True)
+            _send_message(token, chat_id, f"🚨 <b>GAGAL SINKRONISASI DIGIFLAZZ:</b>\n\nTerjadi kendala teknis: <code>{str(e_cmd)}</code>")
         return
 
     # Perintah /batal jika dalam mode pencarian produk nonaktif
@@ -5232,7 +5251,18 @@ def _edit_message(token, chat_id, message_id, text, reply_markup=None):
         }
         if reply_markup:
             payload["reply_markup"] = reply_markup
-        call_telegram_api('post', f"bot{token}/editMessageText", json=payload, timeout=15)
+        res = call_telegram_api('post', f"bot{token}/editMessageText", json=payload, timeout=15)
+        # Fallback jika terjadi error parsing HTML oleh Telegram
+        if res is not None and getattr(res, 'status_code', 200) != 200:
+            try:
+                res_err = res.json()
+            except Exception:
+                res_err = {}
+            if "can't parse entities" in str(res_err.get('description', '')).lower():
+                import re
+                payload.pop('parse_mode', None)
+                payload['text'] = re.sub(r'<[^>]+>', '', text)
+                call_telegram_api('post', f"bot{token}/editMessageText", json=payload, timeout=15)
     except Exception as e:
         logger.error(f"[Bot 3] Gagal edit pesan: {e}")
 
@@ -5247,6 +5277,17 @@ def _send_message(token, chat_id, text, reply_markup=None):
         }
         if reply_markup:
             payload["reply_markup"] = reply_markup
-        call_telegram_api('post', f"bot{token}/sendMessage", json=payload, timeout=15)
+        res = call_telegram_api('post', f"bot{token}/sendMessage", json=payload, timeout=15)
+        # Fallback jika terjadi error parsing HTML oleh Telegram
+        if res is not None and getattr(res, 'status_code', 200) != 200:
+            try:
+                res_err = res.json()
+            except Exception:
+                res_err = {}
+            if "can't parse entities" in str(res_err.get('description', '')).lower():
+                import re
+                payload.pop('parse_mode', None)
+                payload['text'] = re.sub(r'<[^>]+>', '', text)
+                call_telegram_api('post', f"bot{token}/sendMessage", json=payload, timeout=15)
     except Exception as e:
         logger.error(f"[Bot 3] Gagal kirim pesan: {e}")

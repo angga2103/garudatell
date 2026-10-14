@@ -186,8 +186,18 @@ def get_price_list(cmd='prepaid', code=None):
         payload["code"] = str(code).strip()
 
     try:
-        res = requests.post(url, json=payload, headers={'Content-Type': 'application/json'}, timeout=20)
-        res_json = res.json() if res.status_code == 200 else res.json()
+        res = requests.post(url, json=payload, headers={'Content-Type': 'application/json'}, timeout=(15, 60))
+        if res.status_code != 200:
+            try:
+                res_json = res.json()
+            except Exception:
+                return False, [], f"Server Digiflazz mengembalikan HTTP {res.status_code}: {res.text[:150]}"
+        else:
+            try:
+                res_json = res.json()
+            except Exception as e_json:
+                return False, [], f"Gagal membaca format JSON dari Digiflazz: {str(e_json)}"
+
         data = res_json.get('data', [])
         if isinstance(data, list):
             return True, data, f"Berhasil mengambil {len(data)} produk ({cmd})"
@@ -196,6 +206,8 @@ def get_price_list(cmd='prepaid', code=None):
             msg = data.get('message', get_rc_message(rc, 'Gagal mengambil pricelist'))
             return False, [], f"RC {rc}: {msg}" if rc else msg
         return False, [], "Respon tidak valid dari server Digiflazz"
+    except requests.exceptions.Timeout:
+        return False, [], "Batas waktu koneksi ke server Digiflazz habis (Timeout). Server Digiflazz sedang sibuk."
     except Exception as e:
         return False, [], f"Gagal menghubungi server Digiflazz: {str(e)}"
 
@@ -238,6 +250,10 @@ def sync_products(force=False, notify_admin_bot=True, include_pasca=False):
     if include_pasca:
         cmds.append("pasca")
 
+    # Muat seluruh produk lokal ke dalam kamus (memory map) untuk pencarian instan O(1)
+    # Ini MENGELIMINASI ribuan query N+1 dan MENCEGAH autoflush lockup pada SQLite!
+    existing_products = {p.sku_code: p for p in Product.query.all()}
+
     cmd_success_count = 0
     cmd_errors = []
 
@@ -272,7 +288,12 @@ def sync_products(force=False, notify_admin_bot=True, include_pasca=False):
             if not product_active:
                 gangguan_count += 1
 
-            price = item.get('price', item.get('admin', 0))
+            raw_price = item.get('price', item.get('admin', 0))
+            try:
+                price = float(raw_price) if raw_price is not None else 0.0
+            except (ValueError, TypeError):
+                price = 0.0
+
             sell_price_calc = calculate_sell_price(price, tiers)
 
             # Ekstrak deskripsi produk & nama seller dari Digiflazz jika tersedia
@@ -281,7 +302,8 @@ def sync_products(force=False, notify_admin_bot=True, include_pasca=False):
             raw_seller = clean_str(item.get('seller_name'))
             seller_val = raw_seller if raw_seller and raw_seller.strip() != '-' else None
 
-            product = Product.query.filter_by(sku_code=sku).first()
+            # Pencarian instan O(1) di memori RAM tanpa menyentuh disk/SQLite
+            product = existing_products.get(sku)
 
             if not product:
                 new_product = Product(
@@ -298,6 +320,7 @@ def sync_products(force=False, notify_admin_bot=True, include_pasca=False):
                     is_manual_desc=False
                 )
                 db.session.add(new_product)
+                existing_products[sku] = new_product
                 new_count += 1
             else:
                 if product.base_price != price:
@@ -358,21 +381,24 @@ def sync_products(force=False, notify_admin_bot=True, include_pasca=False):
     if len(seen_skus) < min_sku_threshold:
         print(f"[CIRCUIT BREAKER] Hanya mendeteksi {len(seen_skus)} SKU dari Digiflazz (ambang batas: {min_sku_threshold}). Penonaktifan produk usang dibatalkan demi keamanan katalog.")
     else:
-        from app.services.pascabayar_service import PASCABAYAR_BRANDS, PASCABAYAR_SKUS, seed_pascabayar_products
-        # Cari produk lokal yang BUKAN produk VIP-Reseller, BUKAN produk Pascabayar, dan TIDAK ada dalam seen_skus Digiflazz
-        obsolete_products = Product.query.filter(
-            ~Product.brand.like('VIP-%'),
-            ~Product.name.like('[VIP] %'),
-            ~Product.category.ilike('%pasca%'),
-            ~Product.category.ilike('%tagihan%'),
-            ~Product.brand.in_(PASCABAYAR_BRANDS),
-            ~Product.sku_code.in_(seen_skus.union(PASCABAYAR_SKUS))
-        ).all()
+        from app.services.pascabayar_service import PASCABAYAR_BRANDS, PASCABAYAR_SKUS
+        # Gunakan pemfilteran in-memory untuk efisiensi instan dan menghindari batas SQL variables SQLite
+        protected_skus = seen_skus.union(PASCABAYAR_SKUS)
 
-        # KRITIS: HANYA NONAKTIFKAN (SOFT-DISABLE), JANGAN DIHAPUS (NO HARD DELETE)!
-        for ob in obsolete_products:
-            if ob.is_active:
-                ob.is_active = False
+        for prod in existing_products.values():
+            if prod.sku_code in protected_skus:
+                continue
+            b_str = (prod.brand or '').upper()
+            n_str = (prod.name or '').upper()
+            c_str = (prod.category or '').upper()
+            if b_str.startswith('VIP-') or n_str.startswith('[VIP]'):
+                continue
+            if 'PASCA' in c_str or 'TAGIHAN' in c_str or b_str in PASCABAYAR_BRANDS:
+                continue
+
+            # KRITIS: HANYA NONAKTIFKAN (SOFT-DISABLE), JANGAN DIHAPUS (NO HARD DELETE)!
+            if prod.is_active:
+                prod.is_active = False
                 deactivated_count += 1
 
     # Selalu pastikan produk pascabayar nasional (PDAM se-Indonesia, BPJS, PLN Pasca, Telkom) tersedia & aktif
@@ -385,7 +411,7 @@ def sync_products(force=False, notify_admin_bot=True, include_pasca=False):
     db.session.commit()
     set_last_sync_timestamp()
 
-    total_products = Product.query.count()
+    total_products = len(existing_products)
 
     msg_success = f"Sukses! {new_count} produk baru, {update_count} diperbarui, total produk {total_products}, {gangguan_count} terdeteksi gangguan"
     if deactivated_count > 0:
