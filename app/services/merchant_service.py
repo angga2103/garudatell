@@ -415,11 +415,14 @@ def push_credentials_to_pos(merchant):
     if merchant.webhook_url and merchant.webhook_url not in target_urls:
         target_urls.append(merchant.webhook_url)
 
+    resolved_tenant = (prov.tenant_id if prov and prov.tenant_id else None) or (merchant.get_tenant_id() if hasattr(merchant, 'get_tenant_id') else None)
+    m_key = getattr(merchant, 'master_recovery_key', None)
+
     payload = {
         "event": "credentials.synced",
         "status": "APPROVED",
         "request_id": prov.request_id if prov else f"SYNC_{merchant.merchant_id}",
-        "tenant_id": prov.tenant_id if prov else None,
+        "tenant_id": resolved_tenant,
         "store_name": merchant.name,
         "owner_name": user.name if user else merchant.name,
         "phone": norm_phone,
@@ -427,11 +430,15 @@ def push_credentials_to_pos(merchant):
         "api_key": merchant.api_key,
         "secret_key": merchant.secret_key,
         "mode": "LIVE",
+        "master_key": m_key,
+        "recovery_key": m_key,
         "credentials": {
             "merchant_id": merchant.merchant_id,
             "api_key": merchant.api_key,
             "secret_key": merchant.secret_key,
-            "mode": "LIVE"
+            "mode": "LIVE",
+            "master_key": m_key,
+            "recovery_key": m_key
         }
     }
 

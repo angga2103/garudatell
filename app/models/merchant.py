@@ -16,11 +16,31 @@ class MerchantApiKey(db.Model):
     webhook_url = db.Column(db.String(255), nullable=True)
     ip_whitelist = db.Column(db.String(255), nullable=True)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
+    tenant_id = db.Column(db.String(64), nullable=True, index=True)
+    master_recovery_key = db.Column(db.String(32), nullable=True)
     created_at = db.Column(db.DateTime, default=get_wib_datetime, index=True)
     last_used_at = db.Column(db.DateTime, nullable=True)
 
     # Relasi ke User
     user = db.relationship('User', backref=db.backref('merchant_api_keys', lazy=True, cascade='all, delete-orphan'))
+
+    def get_tenant_id(self):
+        """Mendapatkan ID Toko (tenant slug) untuk sinkronisasi POS IPAY"""
+        if getattr(self, 'tenant_id', None) and self.tenant_id:
+            return self.tenant_id.strip()
+        if self.webhook_url and 'tenant_id=' in self.webhook_url:
+            import urllib.parse
+            try:
+                parsed = urllib.parse.urlparse(self.webhook_url)
+                qs = urllib.parse.parse_qs(parsed.query)
+                if 'tenant_id' in qs and qs['tenant_id']:
+                    return qs['tenant_id'][0].strip()
+            except Exception:
+                pass
+        import re
+        clean = re.sub(r'[^a-zA-Z0-9]+', '-', (self.name or '').lower()).strip('-')
+        clean = clean.replace('pos-', '').strip('-')
+        return clean or f"store-{self.id}"
 
     @property
     def formatted_last_used_at(self):

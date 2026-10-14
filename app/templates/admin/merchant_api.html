@@ -504,6 +504,9 @@
                 <div style="font-size: 16px; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                     <i class="fas fa-store" style="color: #0284c7;"></i>
                     {{ m.name }}
+                    <span class="api-badge" style="background: #e0f2fe; color: #0369a1; font-weight: 800; font-family: monospace; border: 1px solid #bae6fd;">
+                        <i class="fas fa-fingerprint"></i> ID TOKO: {{ m.get_tenant_id() }}
+                    </span>
                     {% if m.is_active %}
                     <span class="api-badge badge-active"><i class="fas fa-check-circle"></i> AKTIF</span>
                     {% else %}
@@ -586,7 +589,17 @@
             </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-bottom: 14px;">
+        <!-- BARIS KREDENSIAL: ID TOKO, MERCHANT ID, API KEY, SECRET KEY -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; margin-bottom: 14px;">
+            <div>
+                <div style="font-size: 11px; font-weight: 800; color: #0284c7; margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">
+                    <i class="fas fa-store-alt"></i> ID TOKO (TENANT ID POS)
+                </div>
+                <div class="code-box" style="background: #f0f9ff; border: 1.5px solid #bae6fd;">
+                    <span style="font-weight: 900; color: #0369a1; font-family: monospace;">{{ m.get_tenant_id() }}</span>
+                    <button type="button" class="copy-btn" onclick="copyText('{{ m.get_tenant_id() }}', this)" title="Salin ID Toko"><i class="fas fa-copy"></i> Salin</button>
+                </div>
+            </div>
             <div>
                 <div style="font-size: 11px; font-weight: 800; color: #64748b; margin-bottom: 4px;">MERCHANT ID</div>
                 <div class="code-box">
@@ -609,6 +622,45 @@
                         <button type="button" class="copy-btn" onclick="toggleSecret('{{ m.id }}', '{{ m.secret_key }}', this)" title="Lihat/Sembunyikan"><i class="fas fa-eye"></i></button>
                         <button type="button" class="copy-btn" onclick="copyText('{{ m.secret_key }}', this)"><i class="fas fa-copy"></i> Salin</button>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FITUR MASTER RECOVERY KEY UNTUK PEMULIHAN AKUN POS -->
+        <div style="margin-bottom: 14px; background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border: 1.5px solid #fde68a; border-radius: 12px; padding: 12px 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <div>
+                    <div style="font-size: 12px; font-weight: 900; color: #92400e; display: flex; align-items: center; gap: 6px;">
+                        <i class="fas fa-key" style="color: #d97706;"></i> KODE PEMULIHAN DARURAT (MASTER KEY TOKO POS)
+                        {% if m.master_recovery_key %}
+                        <span class="api-badge" style="background: #dcfce7; color: #15803d; border: 1px solid #86efac; font-size: 10px;">
+                            <i class="fas fa-check-circle"></i> AKTIF & TERSINKRON
+                        </span>
+                        {% else %}
+                        <span class="api-badge" style="background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; font-size: 10px;">
+                            <i class="fas fa-exclamation-circle"></i> BELUM DIGENERATE
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div style="font-size: 11px; color: #78350f; margin-top: 3px;">
+                        Kunci master ini dipakai pemilik toko untuk reset password/PIN di menu <b>"Lupa Password Kasir"</b> pada aplikasi POS.
+                    </div>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    {% if m.master_recovery_key %}
+                    <div class="code-box" style="background: white; border: 1.5px solid #f59e0b; padding: 6px 12px; margin: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                        <span style="font-family: monospace; font-size: 13px; font-weight: 900; color: #b45309; letter-spacing: 0.8px;">{{ m.master_recovery_key }}</span>
+                        <button type="button" class="copy-btn" onclick="copyText('{{ m.master_recovery_key }}', this)" title="Salin Master Key"><i class="fas fa-copy"></i> Salin</button>
+                    </div>
+                    {% endif %}
+
+                    <form method="POST" action="{{ url_for('admin.merchant_api_generate_masterkey', key_id=m.id) }}" style="display: inline;" onsubmit="return confirm('Generate / Reset Master Recovery Key untuk toko {{ m.name }}?\nKunci baru akan otomatis disinkronkan ke server POS.');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 800; font-size: 11.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(217, 119, 6, 0.35);">
+                            <i class="fas fa-key"></i> {% if m.master_recovery_key %}Reset Master Key{% else %}Generate Master Key{% endif %}
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>

@@ -3073,6 +3073,15 @@ def merchant_api_index():
         from app.extensions import db
         MerchantApiKey.__table__.create(db.engine, checkfirst=True)
         ensure_merchant_provision_table()
+        # Auto-migration kolom tenant_id dan master_recovery_key jika belum ada di database
+        with db.engine.connect() as conn:
+            from sqlalchemy import text
+            cols = [row[1] for row in conn.execute(text("PRAGMA table_info(merchant_api_keys);")).fetchall()]
+            if 'tenant_id' not in cols:
+                conn.execute(text("ALTER TABLE merchant_api_keys ADD COLUMN tenant_id VARCHAR(64);"))
+            if 'master_recovery_key' not in cols:
+                conn.execute(text("ALTER TABLE merchant_api_keys ADD COLUMN master_recovery_key VARCHAR(32);"))
+            conn.commit()
     except Exception as e_create:
         current_app.logger.warning(f"[MERCHANT_API] Check/create table warning: {e_create}")
 
@@ -3443,6 +3452,56 @@ def merchant_api_push_credentials(key_id):
     flash(
         f"⚡ Sinkronisasi Kredensial {mch.merchant_id} ({mch.name}): {msg}",
         'success' if ok else 'warning'
+    )
+    return redirect(url_for('admin.merchant_api_index'))
+
+
+@admin_bp.route('/merchant-api/generate-masterkey/<int:key_id>', methods=['POST'])
+@admin_bp.route('/merchant_api/generate-masterkey/<int:key_id>', methods=['POST'])
+def merchant_api_generate_masterkey(key_id):
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin.login'))
+
+    import secrets
+    import hashlib
+    from threading import Thread
+    from app.models.merchant import MerchantApiKey
+    from app.services.merchant_service import _send_webhook_worker
+
+    mch = MerchantApiKey.query.get_or_404(key_id)
+    tenant_id = mch.get_tenant_id() if hasattr(mch, 'get_tenant_id') else f"store-{mch.id}"
+
+    # Format Master Recovery Key: RCV-XXXX-XXXX-XXXX (12 hex digits grouped by 4)
+    raw_hex = secrets.token_hex(6).upper()
+    master_key = f"RCV-{raw_hex[0:4]}-{raw_hex[4:8]}-{raw_hex[8:12]}"
+
+    mch.master_recovery_key = master_key
+    mch.tenant_id = tenant_id
+    db.session.commit()
+
+    # Push langsung update Master Recovery Key ke Webhook POS jika webhook_url terpasang
+    synced_pos = False
+    if mch.webhook_url:
+        try:
+            sign = hashlib.md5(f"{mch.merchant_id}{mch.secret_key}{master_key}".encode()).hexdigest()
+            payload = {
+                "event": "master_key.synced",
+                "merchant_id": mch.merchant_id,
+                "tenant_id": tenant_id,
+                "master_key": master_key,
+                "recovery_key": master_key,
+                "sign": sign,
+                "message": f"Master Recovery Key untuk toko {mch.name} (ID: {tenant_id}) berhasil di-generate dari Admin iPay!"
+            }
+            Thread(target=_send_webhook_worker, args=(mch.webhook_url, payload), daemon=True).start()
+            synced_pos = True
+        except Exception as e:
+            print(f"[MasterKey Webhook Sync Error]: {e}")
+
+    flash(
+        f"🔑 Master Recovery Key untuk '{mch.name}' (ID Toko: {tenant_id}) berhasil dibuat: {master_key}" + 
+        (" dan disinkronkan otomatis ke POS!" if synced_pos else "."),
+        "success"
     )
     return redirect(url_for('admin.merchant_api_index'))
 
