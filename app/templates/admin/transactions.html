@@ -376,7 +376,14 @@
                 </td>
                 <td>
                     {% if t.sn %}
-                        <code style="font-size: 10px; background: #F1F5F9; padding: 2px 5px; border-radius: 4px; word-break: break-all;">{{ t.sn }}</code>
+                        {% set is_t_failed = (t.status in ['FAILED', 'GAGAL', 'CANCELLED']) %}
+                        {% set clean_copy = t.sn | clean_sn_text(is_t_failed) %}
+                        <div style="display: flex; align-items: flex-start; gap: 4px; max-width: 260px;">
+                            <code style="font-size: 10px; background: #F1F5F9; color: #1E293B; padding: 3px 6px; border-radius: 4px; word-break: break-all; white-space: pre-line; display: inline-block; line-height: 1.35; max-height: 80px; overflow-y: auto; flex: 1;">{{ clean_copy }}</code>
+                            <button type="button" onclick="copyAdminSn(this, {{ clean_copy|tojson }})" title="Salin SN Rapi" style="background: white; border: 1px solid #CBD5E1; border-radius: 4px; padding: 3px 6px; font-size: 10.5px; cursor: pointer; color: #475569; flex-shrink: 0; transition: 0.15s;">
+                                <i class="far fa-copy"></i>
+                            </button>
+                        </div>
                     {% else %}
                         <span style="color: #94A3B8; font-size: 11px;">-</span>
                     {% endif %}
@@ -899,6 +906,43 @@
         const fb = document.getElementById('cs_copy_feedback');
         fb.style.display = 'block';
         setTimeout(() => { fb.style.display = 'none'; }, 2500);
+    }
+
+    function copyAdminSn(btn, text) {
+        if (!text) return;
+        const origHtml = btn.innerHTML;
+        const doSuccess = () => {
+            btn.innerHTML = '<i class="fas fa-check" style="color: #10B981;"></i>';
+            btn.style.borderColor = '#10B981';
+            setTimeout(() => {
+                btn.innerHTML = origHtml;
+                btn.style.borderColor = '#CBD5E1';
+            }, 1800);
+        };
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(doSuccess).catch(() => {
+                fallbackCopyAdmin(text, doSuccess);
+            });
+        } else {
+            fallbackCopyAdmin(text, doSuccess);
+        }
+    }
+
+    function fallbackCopyAdmin(text, onSuccess) {
+        try {
+            const ta = document.createElement("textarea");
+            ta.value = text;
+            ta.style.position = "fixed";
+            ta.style.opacity = "0";
+            document.body.appendChild(ta);
+            ta.focus();
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            if (onSuccess) onSuccess();
+        } catch (e) {
+            alert('Gagal menyalin teks');
+        }
     }
 
     function syncSellerContactFromModal() {

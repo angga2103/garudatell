@@ -470,6 +470,63 @@
         gap: 6px;
     }
 
+    /* Meta Chips & Indicators */
+    .sn-meta-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        margin-bottom: 7px;
+    }
+    .sn-meta-chip {
+        background: white;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        padding: 3px 7px;
+        font-size: 10.5px;
+        color: #334155;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        line-height: 1.3;
+    }
+    .sn-chip-success {
+        background: #f0fdf4;
+        border-color: #bbf7d0;
+        color: #166534;
+    }
+    .sn-chip-primary {
+        background: #eff6ff;
+        border-color: #bfdbfe;
+        color: #1e40af;
+    }
+    .sn-chip-warning {
+        background: #fffbeb;
+        border-color: #fde68a;
+        color: #92400e;
+    }
+    .sn-empty-pkg {
+        background: white;
+        border: 1px dashed #cbd5e1;
+        border-radius: 6px;
+        padding: 6px 10px;
+        font-size: 11px;
+        color: #64748b;
+        font-style: italic;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    /* Voucher Box */
+    .sn-voucher-box {
+        background: #faf5ff;
+        border: 1.5px solid #e9d5ff;
+    }
+    .sn-voucher-box .sn-pretty-header {
+        border-bottom-color: #e9d5ff;
+    }
+
     /* Simple Monospace SN */
     .sn-simple-box {
         background: #eff6ff;
@@ -483,9 +540,10 @@
         font-size: 11.5px;
         font-weight: 700;
         color: #1d4ed8;
-        line-height: 1.4;
+        line-height: 1.45;
         overflow-wrap: break-word;
         word-break: break-word;
+        white-space: pre-line;
     }
 
     /* Failed Message Box */
@@ -1052,38 +1110,261 @@ function copyText(text) {
     }
 }
 
+function cleanRawSn(rawSn) {
+    if (!rawSn) return '';
+    return String(rawSn).trim().replace(/^(SN|Keterangan|KET)\s*:\s*/i, '').trim();
+}
+
+function parseSnData(rawSn, isFailed = false) {
+    const s = cleanRawSn(rawSn);
+    if (!s) return { type: 'empty', raw: '' };
+    if (isFailed) return { type: 'failed', raw: s, message: s };
+
+    // 1. PLN Token (20 Digit)
+    const plnMatch = s.match(/(?:^|\D)(\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4})(?:\D|$)/);
+    const digitsToken = plnMatch ? plnMatch[1].replace(/[-\s]/g, '') : '';
+    if (plnMatch && (
+        /kwh|pln|r1|b1|i1|va|stroom/i.test(s) ||
+        digitsToken.length === 20 ||
+        s.split('/').length >= 3
+    )) {
+        const rawToken = digitsToken;
+        const formattedToken = rawToken.match(/.{1,4}/g).join(' - ');
+        const parts = s.split('/').map(p => p.trim()).filter(p => p && p.replace(/[-\s]/g, '') !== rawToken);
+        return {
+            type: 'pln_token',
+            raw: s,
+            rawToken: rawToken,
+            formattedToken: formattedToken,
+            infoParts: parts
+        };
+    }
+
+    // 2. Telkomsel Info / Cek Kuota
+    if (/Masa Aktif Kartu|-Status Registrasi|-Info Paket Aktif|-Status Jaringan/i.test(s)) {
+        const parts = s.split(/\s*-(?=(?:Status|Info|Masa)\b)/i);
+        const fields = {};
+        parts.forEach(p => {
+            const cleanP = p.trim().replace(/^-+/, '').trim();
+            const idx = cleanP.indexOf(':');
+            if (idx !== -1) {
+                const k = cleanP.slice(0, idx).trim().toLowerCase();
+                const v = cleanP.slice(idx + 1).trim();
+                fields[k] = v;
+            }
+        });
+
+        let ma = fields['masa aktif kartu'] || '';
+        if (ma === '-' || ma === '') ma = '';
+
+        const reg = fields['status registrasi'] || '';
+        const net = fields['status jaringan'] || '';
+        let dev = fields['status perangkat'] || '';
+        if (dev === '-' || dev === '') dev = '';
+
+        const infoPkg = fields['info paket aktif'] || '';
+        const pkgs = [];
+        if (infoPkg) {
+            const rawP = infoPkg.split(/#\d+\s*-\s*/);
+            rawP.forEach(rp => {
+                const item = rp.trim();
+                if (!item || item === '-') return;
+                const mExp = item.match(/\s*-\s*(aktif\s+hingga.*?)$/i);
+                if (mExp) {
+                    const pname = item.slice(0, mExp.index).trim();
+                    const pexp = mExp[1].trim();
+                    pkgs.push({ name: pname, expired: pexp });
+                } else {
+                    pkgs.push({ name: item, expired: '' });
+                }
+            });
+        }
+
+        return {
+            type: 'telkomsel_info',
+            raw: s,
+            masaAktif: ma,
+            registrasi: reg,
+            jaringan: net,
+            perangkat: dev,
+            packages: pkgs
+        };
+    }
+
+    // 3. XL / AXIS Info / Cek Kuota
+    if (/dukcapil=/i.test(s) || (/\.expired:/i.test(s) && /data/i.test(s))) {
+        const parts = s.split('/').map(p => p.trim()).filter(Boolean);
+        let dukcapil = '';
+        const pkgs = [];
+        parts.forEach(p => {
+            if (/dukcapil=/i.test(p)) {
+                const val = p.split('=')[1].trim();
+                dukcapil = (val.toLowerCase() === 'registered') ? 'Terdaftar (Dukcapil)' : val + ' (Dukcapil)';
+            } else {
+                const m = p.match(/^(?:\d+\.\s*)?(.*?)\.Expired:([^\s]+(?:\s+[^\s]+)?)\s*(?:DATA\s*(.*?))?$/i);
+                if (m) {
+                    pkgs.push({
+                        name: m[1].trim(),
+                        expired: m[2].trim(),
+                        quota: (m[3] || '').trim()
+                    });
+                } else {
+                    pkgs.push({ name: p, expired: '', quota: '' });
+                }
+            }
+        });
+
+        return {
+            type: 'xl_info',
+            raw: s,
+            dukcapil: dukcapil,
+            packages: pkgs
+        };
+    }
+
+    // 4. Multi-Package Bertanda '*' atau 'sisa kuota'
+    if (s.includes('*') || /sisa kuota/i.test(s)) {
+        const parts = s.split('*').map(p => p.trim()).filter(Boolean);
+        const pkgs = [];
+        let pulsaInfo = '';
+        let cardInfo = '';
+        parts.forEach(p => {
+            if (p.toLowerCase().startsWith('sisa pulsa')) {
+                pulsaInfo = p;
+            } else if (!p.includes('/') && /kartu|perdana|nomor|aktif/i.test(p)) {
+                cardInfo = p;
+            } else {
+                const m = p.match(/^(.*?)\s*\/\s*(Sisa Kuota.*)$/i);
+                if (m) {
+                    const title = m[1].trim();
+                    const details = m[2].trim();
+                    const subItems = details.split(/,\s*(?=\d+|Nelp|Sisa|Kuota|Bonus)/i).map(it => it.trim()).filter(Boolean);
+                    pkgs.push({ title, items: subItems });
+                } else {
+                    pkgs.push({ title: p, items: [] });
+                }
+            }
+        });
+
+        return {
+            type: 'multi_quota',
+            raw: s,
+            cardInfo,
+            pulsaInfo,
+            packages: pkgs
+        };
+    }
+
+    // 5. Voucher
+    if (/KODE VOUCHER|VOUCHER:|KODE:/i.test(s)) {
+        return {
+            type: 'voucher',
+            raw: s,
+            details: s.split('/').map(p => p.trim()).filter(Boolean)
+        };
+    }
+
+    return {
+        type: 'simple',
+        raw: s
+    };
+}
+
+function formatSnForCopy(rawSn, isFailed = false) {
+    const data = parseSnData(rawSn, isFailed);
+    if (data.type === 'empty') return '-';
+    if (data.type === 'failed') return data.message || '';
+
+    if (data.type === 'pln_token') {
+        const lines = ['TOKEN PLN : ' + data.formattedToken];
+        if (data.infoParts && data.infoParts.length > 0) {
+            lines.push('Info      : ' + data.infoParts.join(' / '));
+        }
+        return lines.join('\n');
+    }
+
+    if (data.type === 'telkomsel_info') {
+        const lines = [];
+        if (data.masaAktif) lines.push('Masa Aktif : ' + data.masaAktif);
+        if (data.registrasi) lines.push('Registrasi : ' + data.registrasi);
+        if (data.jaringan) {
+            let net = data.jaringan;
+            if (data.perangkat) net += ' (Perangkat: ' + data.perangkat + ')';
+            lines.push('Jaringan   : ' + net);
+        }
+        if (data.packages && data.packages.length > 0) {
+            lines.push('Paket Aktif:');
+            data.packages.forEach(p => {
+                lines.push('• ' + p.name);
+                if (p.expired) lines.push('  (' + p.expired + ')');
+            });
+        } else {
+            lines.push('Paket Aktif: Tidak ada paket aktif');
+        }
+        return lines.join('\n');
+    }
+
+    if (data.type === 'xl_info') {
+        const lines = [];
+        if (data.dukcapil) lines.push('Registrasi : ' + data.dukcapil);
+        if (data.packages && data.packages.length > 0) {
+            lines.push('Paket Aktif:');
+            data.packages.forEach(p => {
+                lines.push('• ' + p.name);
+                if (p.expired) lines.push('  Masa Aktif : ' + p.expired);
+                if (p.quota) lines.push('  Sisa Kuota : ' + p.quota);
+            });
+        }
+        return lines.join('\n');
+    }
+
+    if (data.type === 'multi_quota') {
+        const lines = [];
+        if (data.cardInfo) lines.push('Kartu : ' + data.cardInfo);
+        if (data.pulsaInfo) lines.push('Pulsa : ' + data.pulsaInfo);
+        if (data.packages && data.packages.length > 0) {
+            lines.push('Paket & Kuota:');
+            data.packages.forEach(p => {
+                lines.push('• ' + p.title);
+                (p.items || []).forEach(it => lines.push('  - ' + it));
+            });
+        }
+        return lines.join('\n');
+    }
+
+    if (data.type === 'voucher') {
+        return (data.details || [data.raw]).join('\n');
+    }
+
+    return data.raw;
+}
+
 function renderSnHtml(rawSn, isFailed = false) {
     if (!rawSn) return '';
-    const cleanSn = rawSn.trim();
-    const safeText = cleanSn.replace(/^SN\s*:\s*/i, '').replace(/^(Keterangan|KET)\s*:\s*/i, '').trim();
+    const data = parseSnData(rawSn, isFailed);
 
     // 1. Pesan Transaksi Gagal / Refund
-    if (isFailed) {
+    if (data.type === 'failed') {
         return `
             <div class="sn-pretty-box sn-failed-box">
                 <div class="sn-pretty-header">
                     <div class="sn-type-tag"><i class="fas fa-exclamation-circle" style="color: #ea580c;"></i> Keterangan Kendala</div>
-                    <button type="button" class="sn-btn-copy" onclick="event.stopPropagation(); copyText('${escapeForAttr(safeText)}')">
+                    <button type="button" class="sn-btn-copy" onclick="event.stopPropagation(); copyText('${escapeForAttr(data.message)}')">
                         <i class="far fa-copy"></i> Salin
                     </button>
                 </div>
-                <div class="sn-failed-msg">${escapeHtml(safeText)}</div>
+                <div class="sn-failed-msg">${escapeHtml(data.message)}</div>
             </div>
         `;
     }
 
     // 2. Token Listrik PLN (20 Digit)
-    const plnMatch = safeText.match(/(?:^|\D)(\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4})(?:\D|$)/);
-    if (plnMatch && (safeText.toLowerCase().includes('kwh') || safeText.toLowerCase().includes('pln') || safeText.split('/').length >= 3 || plnMatch[1].replace(/[-\s]/g, '').length === 20)) {
-        const rawToken = plnMatch[1].replace(/[-\s]/g, '');
-        const formattedToken = rawToken.match(/.{1,4}/g).join(' - ');
-        const parts = safeText.split('/').map(p => p.trim()).filter(p => !p.replace(/[-\s]/g, '').includes(rawToken));
-        
-        let subDetailsHtml = '';
-        if (parts.length > 0) {
-            subDetailsHtml = `
-                <div class="sn-pln-meta-grid">
-                    ${parts.map(p => `<span class="sn-pln-meta-chip">${escapeHtml(p)}</span>`).join('')}
+    if (data.type === 'pln_token') {
+        let metaChipsHtml = '';
+        if (data.infoParts && data.infoParts.length > 0) {
+            metaChipsHtml = `
+                <div class="sn-meta-chips" style="margin-top: 8px;">
+                    ${data.infoParts.map(p => `<span class="sn-meta-chip sn-chip-warning">${escapeHtml(p)}</span>`).join('')}
                 </div>
             `;
         }
@@ -1092,58 +1373,117 @@ function renderSnHtml(rawSn, isFailed = false) {
             <div class="sn-pretty-box sn-pln-box">
                 <div class="sn-pretty-header">
                     <div class="sn-type-tag"><i class="fas fa-bolt" style="color: #d97706;"></i> Token Listrik PLN</div>
-                    <button type="button" class="sn-btn-copy" onclick="event.stopPropagation(); copyText('${rawToken}')" title="Salin 20 Digit Token Saja">
+                    <button type="button" class="sn-btn-copy" onclick="event.stopPropagation(); copyText('${data.rawToken}')" title="Salin 20 Digit Token Saja">
                         <i class="far fa-copy"></i> Salin Token
                     </button>
                 </div>
-                <div class="sn-token-display" onclick="event.stopPropagation(); copyText('${rawToken}')" title="Klik untuk salin token">
-                    <span class="sn-token-number">${formattedToken}</span>
+                <div class="sn-token-display" onclick="event.stopPropagation(); copyText('${data.rawToken}')" title="Klik untuk salin token">
+                    <span class="sn-token-number">${escapeHtml(data.formattedToken)}</span>
                     <i class="far fa-copy sn-token-icon"></i>
                 </div>
-                ${subDetailsHtml}
+                ${metaChipsHtml}
             </div>
         `;
     }
 
-    // 3. Multi-Package / Cek Sisa Kuota (berisi '*' atau kata 'Sisa Kuota')
-    if (safeText.includes('*') || safeText.toLowerCase().includes('sisa kuota')) {
-        const segments = safeText.split('*').map(s => s.trim()).filter(Boolean);
-        let cardInfo = '';
-        let pulsaInfo = '';
-        const packages = [];
+    // 3. Telkomsel Cek Kuota & Status Kartu
+    if (data.type === 'telkomsel_info') {
+        const cleanCopy = formatSnForCopy(rawSn, isFailed);
+        let chipsHtml = '';
+        if (data.masaAktif) {
+            chipsHtml += `<span class="sn-meta-chip"><i class="far fa-calendar-alt" style="color: #2563eb;"></i> <b>Masa Aktif:</b> ${escapeHtml(data.masaAktif)}</span>`;
+        }
+        if (data.registrasi) {
+            chipsHtml += `<span class="sn-meta-chip sn-chip-success"><i class="fas fa-check-circle"></i> <b>Registrasi:</b> ${escapeHtml(data.registrasi)}</span>`;
+        }
+        if (data.jaringan) {
+            let netText = data.jaringan;
+            if (data.perangkat) netText += ' (Perangkat: ' + data.perangkat + ')';
+            chipsHtml += `<span class="sn-meta-chip sn-chip-primary"><i class="fas fa-signal"></i> <b>Jaringan:</b> ${escapeHtml(netText)}</span>`;
+        }
 
-        segments.forEach(seg => {
-            if (seg.toLowerCase().startsWith('sisa pulsa')) {
-                pulsaInfo = seg;
-            } else if (!seg.includes('/') && (seg.toLowerCase().includes('kartu') || seg.toLowerCase().includes('perdana') || seg.toLowerCase().includes('nomor') || seg.toLowerCase().includes('aktif'))) {
-                cardInfo = seg;
-            } else if (seg.match(/\/\s*(Sisa Kuota|Kuota)/i)) {
-                const m = seg.match(/^(.*?)\s*\/\s*(Sisa Kuota.*)$/i);
-                if (m) {
-                    const title = m[1].trim();
-                    const detailsRaw = m[2].trim();
-                    const items = detailsRaw.split(/,\s*(?=\d+|Nelp|Sisa|Kuota|Bonus)/i).map(s => s.trim()).filter(Boolean);
-                    packages.push({ title, items });
-                } else {
-                    packages.push({ title: seg, items: [] });
-                }
-            } else {
-                packages.push({ title: seg, items: [] });
-            }
-        });
+        let pkgsHtml = '';
+        if (data.packages && data.packages.length > 0) {
+            pkgsHtml = data.packages.map(p => `
+                <div class="sn-pkg-card">
+                    <div class="sn-pkg-title"><i class="fas fa-box-open" style="color: #2563eb;"></i> ${escapeHtml(p.name)}</div>
+                    ${p.expired ? `<div class="sn-pkg-subitem"><i class="far fa-clock" style="color: #d97706;"></i> <span>${escapeHtml(p.expired)}</span></div>` : ''}
+                </div>
+            `).join('');
+        } else {
+            pkgsHtml = `<div class="sn-empty-pkg"><i class="fas fa-info-circle"></i> Tidak ada paket kuota aktif terdaftar</div>`;
+        }
 
-        let packagesHtml = packages.map(pkg => {
+        return `
+            <div class="sn-pretty-box sn-quota-box">
+                <div class="sn-pretty-header">
+                    <div class="sn-type-tag"><i class="fas fa-sim-card" style="color: #2563eb;"></i> Status Kartu & Kuota (Telkomsel)</div>
+                    <button type="button" class="sn-btn-copy" onclick="event.stopPropagation(); copyText('${escapeForAttr(cleanCopy)}')">
+                        <i class="far fa-copy"></i> Salin Rapi
+                    </button>
+                </div>
+                ${chipsHtml ? `<div class="sn-meta-chips">${chipsHtml}</div>` : ''}
+                <div class="sn-pkg-list">
+                    ${pkgsHtml}
+                </div>
+            </div>
+        `;
+    }
+
+    // 4. XL / AXIS Cek Kuota & Status Kartu
+    if (data.type === 'xl_info') {
+        const cleanCopy = formatSnForCopy(rawSn, isFailed);
+        let chipsHtml = '';
+        if (data.dukcapil) {
+            chipsHtml += `<span class="sn-meta-chip sn-chip-success"><i class="fas fa-check-circle"></i> <b>Registrasi:</b> ${escapeHtml(data.dukcapil)}</span>`;
+        }
+
+        let pkgsHtml = '';
+        if (data.packages && data.packages.length > 0) {
+            pkgsHtml = data.packages.map(p => `
+                <div class="sn-pkg-card">
+                    <div class="sn-pkg-title"><i class="fas fa-box-open" style="color: #2563eb;"></i> ${escapeHtml(p.name)}</div>
+                    <div class="sn-pkg-items">
+                        ${p.expired ? `<div class="sn-pkg-subitem"><i class="far fa-clock" style="color: #d97706;"></i> <b>Expired:</b> <span>${escapeHtml(p.expired)}</span></div>` : ''}
+                        ${p.quota ? `<div class="sn-pkg-subitem"><i class="fas fa-database" style="color: #0d9488;"></i> <b>Kuota:</b> <span>${escapeHtml(p.quota)}</span></div>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            pkgsHtml = `<div class="sn-empty-pkg"><i class="fas fa-info-circle"></i> Tidak ada paket kuota aktif terdaftar</div>`;
+        }
+
+        return `
+            <div class="sn-pretty-box sn-quota-box">
+                <div class="sn-pretty-header">
+                    <div class="sn-type-tag"><i class="fas fa-sim-card" style="color: #2563eb;"></i> Status Kartu & Kuota (XL/AXIS)</div>
+                    <button type="button" class="sn-btn-copy" onclick="event.stopPropagation(); copyText('${escapeForAttr(cleanCopy)}')">
+                        <i class="far fa-copy"></i> Salin Rapi
+                    </button>
+                </div>
+                ${chipsHtml ? `<div class="sn-meta-chips">${chipsHtml}</div>` : ''}
+                <div class="sn-pkg-list">
+                    ${pkgsHtml}
+                </div>
+            </div>
+        `;
+    }
+
+    // 5. Multi-Package Bertanda '*' atau 'sisa kuota'
+    if (data.type === 'multi_quota') {
+        const cleanCopy = formatSnForCopy(rawSn, isFailed);
+        let cardInfoHtml = data.cardInfo ? `<div class="sn-sim-badge"><i class="fas fa-sim-card"></i> ${escapeHtml(data.cardInfo)}</div>` : '';
+        let pulsaInfoHtml = data.pulsaInfo ? `<div class="sn-pulsa-chip"><i class="fas fa-coins" style="color: #d97706;"></i> <b>${escapeHtml(data.pulsaInfo)}</b></div>` : '';
+
+        let packagesHtml = (data.packages || []).map(pkg => {
             let itemsHtml = '';
             if (pkg.items && pkg.items.length > 0) {
                 itemsHtml = `
                     <div class="sn-pkg-items">
                         ${pkg.items.map(it => {
                             let icon = '<i class="fas fa-check-circle" style="color: #10b981;"></i>';
-                            if (it.toLowerCase().includes('nelp') || it.toLowerCase().includes('menit')) {
-                                icon = '<i class="fas fa-phone-alt" style="color: #3b82f6;"></i>';
-                            } else if (it.toLowerCase().includes('kuota')) {
-                                icon = '<i class="fas fa-database" style="color: #0d9488;"></i>';
-                            }
+                            if (/nelp|menit/i.test(it)) icon = '<i class="fas fa-phone-alt" style="color: #3b82f6;"></i>';
+                            else if (/kuota|gb|mb/i.test(it)) icon = '<i class="fas fa-database" style="color: #0d9488;"></i>';
                             return `<div class="sn-pkg-subitem">${icon} <span>${escapeHtml(it)}</span></div>`;
                         }).join('')}
                     </div>
@@ -1161,96 +1501,62 @@ function renderSnHtml(rawSn, isFailed = false) {
             <div class="sn-pretty-box sn-quota-box">
                 <div class="sn-pretty-header">
                     <div class="sn-type-tag"><i class="fas fa-chart-pie" style="color: #2563eb;"></i> Rincian Paket & Kuota</div>
-                    <button type="button" class="sn-btn-copy" onclick="event.stopPropagation(); copyText('${escapeForAttr(safeText)}')">
-                        <i class="far fa-copy"></i> Salin Semua
+                    <button type="button" class="sn-btn-copy" onclick="event.stopPropagation(); copyText('${escapeForAttr(cleanCopy)}')">
+                        <i class="far fa-copy"></i> Salin Rapi
                     </button>
                 </div>
-                ${cardInfo ? `<div class="sn-sim-badge"><i class="fas fa-sim-card"></i> ${escapeHtml(cardInfo)}</div>` : ''}
+                ${cardInfoHtml}
                 <div class="sn-pkg-list">
                     ${packagesHtml}
                 </div>
-                ${pulsaInfo ? `<div class="sn-pulsa-chip"><i class="fas fa-coins" style="color: #d97706;"></i> <b>${escapeHtml(pulsaInfo)}</b></div>` : ''}
+                ${pulsaInfoHtml}
             </div>
         `;
     }
 
-    // 4. Regular Single SN
+    // 6. Voucher
+    if (data.type === 'voucher') {
+        const cleanCopy = formatSnForCopy(rawSn, isFailed);
+        return `
+            <div class="sn-pretty-box sn-voucher-box">
+                <div class="sn-pretty-header">
+                    <div class="sn-type-tag"><i class="fas fa-ticket-alt" style="color: #7c3aed;"></i> Voucher / Kode Aktivasi</div>
+                    <button type="button" class="sn-btn-copy" onclick="event.stopPropagation(); copyText('${escapeForAttr(cleanCopy)}')">
+                        <i class="far fa-copy"></i> Salin
+                    </button>
+                </div>
+                <div class="sn-simple-val">${escapeHtml(cleanCopy)}</div>
+            </div>
+        `;
+    }
+
+    // 7. Regular Single SN
     return `
         <div class="sn-pretty-box sn-simple-box">
             <div class="sn-pretty-header">
                 <div class="sn-type-tag"><i class="fas fa-key" style="color: #2563eb;"></i> Serial Number (SN)</div>
-                <button type="button" class="sn-btn-copy" onclick="event.stopPropagation(); copyText('${escapeForAttr(safeText)}')">
+                <button type="button" class="sn-btn-copy" onclick="event.stopPropagation(); copyText('${escapeForAttr(data.raw)}')">
                     <i class="far fa-copy"></i> Salin
                 </button>
             </div>
-            <div class="sn-simple-val">${escapeHtml(safeText)}</div>
+            <div class="sn-simple-val">${escapeHtml(data.raw)}</div>
         </div>
     `;
 }
 
 function formatSnForWhatsApp(rawSn) {
     if (!rawSn) return '-';
-    let clean = rawSn.trim().replace(/^SN\s*:\s*/i, '').replace(/^(Keterangan|KET)\s*:\s*/i, '').trim();
-
-    // 1. PLN Token
-    const plnMatch = clean.match(/(?:^|\D)(\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4})(?:\D|$)/);
-    if (plnMatch && (clean.toLowerCase().includes('kwh') || clean.toLowerCase().includes('pln') || clean.split('/').length >= 3 || plnMatch[1].replace(/[-\s]/g, '').length === 20)) {
-        const rawToken = plnMatch[1].replace(/[-\s]/g, '');
-        const formattedToken = rawToken.match(/.{1,4}/g).join(' - ');
-        const parts = clean.split('/').map(p => p.trim()).filter(p => !p.replace(/[-\s]/g, '').includes(rawToken));
-        let out = `\n  ⚡ *TOKEN: ${formattedToken}*`;
-        if (parts.length > 0) {
-            out += `\n  Info: ${parts.join(' / ')}`;
-        }
-        return out;
+    const cleanText = formatSnForCopy(rawSn, false);
+    const lines = cleanText.split('\n');
+    if (lines.length === 1) {
+        return cleanText;
     }
-
-    // 2. Multi-Package / Cek Kuota
-    if (clean.includes('*') || clean.toLowerCase().includes('sisa kuota')) {
-        const parts = clean.split('*').map(p => p.trim()).filter(Boolean);
-        let out = '\n';
-        parts.forEach(p => {
-            const m = p.match(/^(.*?)\s*\/\s*(Sisa Kuota.*)$/i);
-            if (m) {
-                const title = m[1].trim();
-                const details = m[2].trim();
-                out += `  • *${title}*\n`;
-                const subItems = details.split(/,\s*(?=\d+|Nelp|Sisa|Kuota|Bonus)/i).map(s => s.trim()).filter(Boolean);
-                subItems.forEach(it => {
-                    out += `    - ${it}\n`;
-                });
-            } else {
-                out += `  • ${p}\n`;
-            }
-        });
-        return out.trimEnd();
-    }
-
-    return clean;
+    return '\n' + lines.map(line => '  ' + line).join('\n');
 }
 
 function formatSnForThermal(rawSn) {
     if (!rawSn) return '-';
-    let clean = rawSn.trim().replace(/^SN\s*:\s*/i, '').replace(/^(Keterangan|KET)\s*:\s*/i, '').trim();
-
-    const plnMatch = clean.match(/(?:^|\D)(\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4})(?:\D|$)/);
-    if (plnMatch && (clean.toLowerCase().includes('kwh') || clean.toLowerCase().includes('pln') || clean.split('/').length >= 3 || plnMatch[1].replace(/[-\s]/g, '').length === 20)) {
-        const rawToken = plnMatch[1].replace(/[-\s]/g, '');
-        const formattedToken = rawToken.match(/.{1,4}/g).join(' - ');
-        const parts = clean.split('/').map(p => p.trim()).filter(p => !p.replace(/[-\s]/g, '').includes(rawToken));
-        let out = formattedToken;
-        if (parts.length > 0) {
-            out += '\n' + parts.join(' / ');
-        }
-        return out;
-    }
-
-    if (clean.includes('*')) {
-        const parts = clean.split('*').map(p => p.trim()).filter(Boolean);
-        return parts.join('\n- ');
-    }
-
-    return clean;
+    return formatSnForCopy(rawSn, false);
 }
 
 function initSnFormatting() {

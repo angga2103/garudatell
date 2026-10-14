@@ -448,6 +448,11 @@ def create_app(test_config=None):
         from app.services.provider_helper import format_display_sn
         return format_display_sn(sn_val, status)
 
+    @app.template_filter('clean_sn_text')
+    def clean_sn_text(sn_val, is_failed=False):
+        from app.services.provider_helper import format_clean_sn_text
+        return format_clean_sn_text(sn_val, is_failed=is_failed)
+
     # Endpoint Healthcheck untuk Uptime Monitoring
     @app.route('/health', methods=['GET'])
     @app.route('/api/health', methods=['GET'])
