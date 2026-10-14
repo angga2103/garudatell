@@ -260,6 +260,12 @@ else
     echo -e "${GREEN}[✔] Cron job auto-backup 30 menit berhasil didaftarkan.${NC}"
 fi
 
+# Aktivasi Scheduler Auto-Sync Produk Digiflazz (30 Menit)
+if [ -f "$TARGET_DIR/tools/setup_auto_sync_cron.sh" ]; then
+    chmod +x "$TARGET_DIR/tools/setup_auto_sync_cron.sh"
+    bash "$TARGET_DIR/tools/setup_auto_sync_cron.sh" enable || true
+fi
+
 # 9. Konfigurasi Cloudflare Zero Trust (Interaktif Fleksibel)
 echo ""
 echo -e "${YELLOW}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"

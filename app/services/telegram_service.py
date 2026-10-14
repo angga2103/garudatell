@@ -1,6 +1,7 @@
 import os
 import json
 import socket
+import threading
 import urllib.parse
 import requests
 import logging
@@ -1324,9 +1325,10 @@ def get_bot_admin_credentials():
     return token, chat_id
 
 
-def send_sync_report_to_admin_bot(msg, is_cron=True):
+def send_sync_report_to_admin_bot(msg, is_cron=True, is_error=False):
     """
     Mengirimkan laporan hasil sinkronisasi produk otomatis Digiflazz ke Bot 3 : Panel & Fitur Admin.
+    Mendukung mode laporan sukses dan peringatan error/limitasi.
     """
     token, chat_id = get_bot_admin_credentials()
     if not token or not chat_id:
@@ -1334,7 +1336,13 @@ def send_sync_report_to_admin_bot(msg, is_cron=True):
         return False, "Kredensial Bot 3 belum diatur"
 
     wib_now = format_wib(fmt='%d/%m/%Y %H:%M:%S WIB')
-    title = "🔄 <b>AUTO SINKRONISASI DIGIFLAZZ</b>" if is_cron else "🔄 <b>SINKRONISASI PRODUK DIGIFLAZZ</b>"
+    if is_error:
+        title = "🚨 <b>PERINGATAN SINKRONISASI DIGIFLAZZ</b>"
+        footer = "⚠️ <i>Sinkronisasi mengalami kendala. Katalog produk lokal tetap aman & utuh.</i>"
+    else:
+        title = "🔄 <b>AUTO SINKRONISASI DIGIFLAZZ</b>" if is_cron else "🔄 <b>SINKRONISASI PRODUK DIGIFLAZZ</b>"
+        footer = "✅ <i>Katalog produk dan status gangguan operator telah tersinkronisasi otomatis.</i>"
+
     text = (
         f"{title}\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n"
@@ -1342,7 +1350,7 @@ def send_sync_report_to_admin_bot(msg, is_cron=True):
         f"<b>{msg}</b>\n\n"
         f"⏰ <b>Waktu Eksekusi:</b> {wib_now}\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n"
-        "✅ <i>Katalog produk dan status gangguan operator telah tersinkronisasi otomatis.</i>"
+        f"{footer}"
     )
     try:
         payload = {
@@ -4366,28 +4374,29 @@ def handle_admin_callback(app, callback_query):
             _edit_message(token, chat_id, message_id, text, get_back_button())
 
         elif data == 'cmd_sync_digi':
-            _edit_message(token, chat_id, message_id, "⏳ <i>Sedang menarik data produk dari Digiflazz di background... Anda akan menerima pesan notifikasi saat selesai.</i>", get_back_button())
+            _edit_message(token, chat_id, message_id, "⏳ <i>Sedang menarik data produk dari Digiflazz di background... Mohon tunggu sebentar.</i>", get_back_button())
 
             def async_sync_runner():
+                logger.info(f"[Bot 3 Sync] Memulai thread background sync Digiflazz (chat_id: {chat_id})...")
                 try:
                     with app.app_context():
-                        from app.extensions import db
-                        # Pastikan produk yang saat ini berstatus nonaktif tetap digembok
-                        try:
-                            Product.query.filter(Product.is_active == False, Product.is_admin_disabled != True).update({'is_admin_disabled': True})
-                            db.session.commit()
-                        except Exception:
-                            pass
-
+                        from app.services.digiflazz import sync_products
                         ok, msg = sync_products(notify_admin_bot=False)
                         res_icon = "✅" if ok else "🚨"
                         text = f"{res_icon} <b>HASIL SINKRONISASI DIGIFLAZZ:</b>\n\n{msg}"
-                        _send_message(token, chat_id, text, reply_markup=get_back_button())
+                        logger.info(f"[Bot 3 Sync] Selesai: ok={ok}, msg={msg[:100]}")
+                        try:
+                            _edit_message(token, chat_id, message_id, text, get_back_button())
+                        except Exception:
+                            _send_message(token, chat_id, text, reply_markup=get_back_button())
                 except Exception as e_sync:
                     logger.error(f"[Bot 3 Sync] Gagal menjalankan sinkronisasi latar belakang: {e_sync}", exc_info=True)
                     try:
                         err_text = f"🚨 <b>GAGAL SINKRONISASI DIGIFLAZZ:</b>\n\nTerjadi kendala teknis: <code>{str(e_sync)}</code>"
-                        _send_message(token, chat_id, err_text, reply_markup=get_back_button())
+                        try:
+                            _edit_message(token, chat_id, message_id, err_text, get_back_button())
+                        except Exception:
+                            _send_message(token, chat_id, err_text, reply_markup=get_back_button())
                     except Exception:
                         pass
                 finally:
@@ -4397,7 +4406,8 @@ def handle_admin_callback(app, callback_query):
                     except Exception:
                         pass
 
-            threading.Thread(target=async_sync_runner, daemon=True, name="DigiflazzSyncThread").start()
+            t = threading.Thread(target=async_sync_runner, daemon=True, name="DigiflazzSyncThread")
+            t.start()
 
         elif data == 'cmd_sync_vip':
             _edit_message(token, chat_id, message_id, "⏳ <i>Sedang menarik layanan game dari VIP-Reseller... Harap tunggu sebentar.</i>", None)
@@ -5158,13 +5168,7 @@ def handle_admin_message(app, message):
         _send_message(token, chat_id, "⏳ <i>Sedang melakukan sinkronisasi katalog produk dari Digiflazz...</i>")
         try:
             with app.app_context():
-                from app.extensions import db
                 from app.services.digiflazz import sync_products
-                try:
-                    Product.query.filter(Product.is_active == False, Product.is_admin_disabled != True).update({'is_admin_disabled': True})
-                    db.session.commit()
-                except Exception:
-                    pass
                 ok, msg = sync_products(force=force_flag, notify_admin_bot=False)
                 icon = "✅" if ok else "🚨"
                 _send_message(token, chat_id, f"{icon} <b>HASIL SINKRONISASI DIGIFLAZZ:</b>\n\n{msg}")

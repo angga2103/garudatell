@@ -37,6 +37,7 @@ class TestDigiflazzSyncResilience(unittest.TestCase):
         self.client = self.app.test_client()
         self.app_context = self.app.app_context()
         self.app_context.push()
+        os.environ['CRON_SECRET_KEY'] = 'ipay-cron-secret-2026'
 
         # Siapkan produk dummy untuk pengujian
         self.prod_prepaid = Product.query.filter_by(sku_code='TEST_PULSA_10K').first()

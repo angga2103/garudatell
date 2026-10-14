@@ -365,14 +365,23 @@ def sync_products(force=False, notify_admin_bot=True, include_pasca=False):
         print(f"[CIRCUIT BREAKER] Sinkronisasi tidak lengkap. Kategori gagal: {err_detail}. Katalog aman dari penghapusan.")
         db.session.rollback()
         if "83" in err_detail:
-            friendly_err = (
+            err_out = (
                 f"Digiflazz gagal merespon lengkap ({err_detail}).\n\n"
                 "💡 <i>Catatan: Server Digiflazz membatasi pengecekan pricelist per akun (jeda 5-10 menit). "
                 "Harap tunggu beberapa menit sebelum mencoba lagi, atau pastikan server/bot lain tidak sedang mengakses akun Digiflazz yang sama. "
                 "Katalog produk lokal tetap dipertahankan utuh & aman.</i>"
             )
-            return False, friendly_err
-        return False, f"Digiflazz gagal merespon lengkap ({err_detail}). Katalog produk lokal tetap dipertahankan utuh."
+        else:
+            err_out = f"Digiflazz gagal merespon lengkap ({err_detail}). Katalog produk lokal tetap dipertahankan utuh."
+
+        if notify_admin_bot:
+            try:
+                from app.services.telegram_service import send_sync_report_to_admin_bot
+                send_sync_report_to_admin_bot(err_out, is_cron=True, is_error=True)
+            except Exception as e_tele:
+                print(f"[SYNC NOTIF BOT ERROR] Gagal mengirim laporan error ke Bot 3: {e_tele}")
+
+        return False, err_out
 
     # 3. CIRCUIT BREAKER THRESHOLD (Minimal 500 SKU) & SOFT-DISABLE (NO HARD DELETE!)
     deactivated_count = 0

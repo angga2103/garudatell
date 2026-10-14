@@ -139,6 +139,26 @@ Tambahkan baris berikut (dijalankan setiap pukul 02:00 pagi WIB):
 0 2 * * * /bin/bash /var/www/garudatel/tools/backup_database.sh >> /var/www/garudatel/storage/logs/backup.log 2>&1
 ```
 
+### 🔄 5.1. Konfigurasi Auto-Sync Produk Digiflazz (Setiap 30 Menit)
+
+Sinkronisasi katalog produk dari Digiflazz dan pemindaian saldo minim toko mitra dijalankan otomatis setiap 30 menit.
+
+**Cara Praktis (1 Perintah):**
+```bash
+cd /var/www/garudatel
+bash tools/setup_auto_sync_cron.sh enable
+```
+
+**Perintah Manual di Crontab (`crontab -e`):**
+```cron
+*/30 * * * * /var/www/garudatel/venv/bin/python /var/www/garudatel/tools/cron_sync_products.py >> /var/www/garudatel/storage/logs/cron_sync.log 2>&1
+```
+
+**Perintah Diagnosa & Monitoring:**
+- Cek status jadwal: `bash tools/setup_auto_sync_cron.sh status`
+- Tes jalankan langsung: `bash tools/setup_auto_sync_cron.sh run`
+- Pantau live log: `tail -f /var/www/garudatel/storage/logs/cron_sync.log`
+
 ---
 
 ## 📊 6. Monitoring & Pemantauan Sistem
