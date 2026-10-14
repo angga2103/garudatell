@@ -3508,6 +3508,136 @@ def merchant_api_generate_masterkey(key_id):
     return redirect(url_for('admin.merchant_api_index'))
 
 
+@admin_bp.route('/merchant-api/open-pos/<int:key_id>')
+@admin_bp.route('/merchant_api/open-pos/<int:key_id>')
+def merchant_api_open_pos(key_id):
+    """1-Klik Buka dan Masuk Otomatis ke POS Kasir Toko Ini Tanpa Password (SSO Bypass)"""
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin.login'))
+
+    from app.models.merchant import MerchantApiKey
+    from app.services.merchant_service import create_sso_ticket
+    import urllib.parse
+
+    mch = MerchantApiKey.query.get_or_404(key_id)
+    pos_base_url = os.getenv('POS_BASE_URL', 'https://ipaypos.my.id')
+
+    user_phone = mch.user.phone if mch.user else ''
+    user_name = mch.user.name if (mch.user and mch.user.name) else (mch.name or 'Owner Toko')
+
+    sso_code = create_sso_ticket(
+        mch,
+        name=user_name,
+        phone=user_phone,
+        ttl_seconds=300
+    )
+
+    params = {
+        'sso_code': sso_code,
+        'sso_merchant': mch.merchant_id,
+        'sso_base_url': request.host_url.rstrip('/')
+    }
+
+    redirect_url = f"{pos_base_url.rstrip('/')}/?{urllib.parse.urlencode(params)}"
+    return redirect(redirect_url)
+
+
+@admin_bp.route('/merchant-api/reset-password/<int:key_id>', methods=['POST'])
+@admin_bp.route('/merchant_api/reset-password/<int:key_id>', methods=['POST'])
+def merchant_api_reset_password(key_id):
+    """Reset Kata Sandi & PIN Kasir Langsung dari Admin iPay (Dual-Layer: SQLite + Webhook + WA Baileys)"""
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin.login'))
+
+    import sqlite3
+    import requests
+    from threading import Thread
+    from app.models.merchant import MerchantApiKey
+    from app.services.merchant_service import _send_webhook_worker
+
+    mch = MerchantApiKey.query.get_or_404(key_id)
+    tenant_id = mch.get_tenant_id() if hasattr(mch, 'get_tenant_id') else f"store-{mch.id}"
+
+    new_password = (request.form.get('new_password') or 'admin123').strip()
+    new_pin = (request.form.get('new_pin') or '112233').strip()
+    notify_wa = request.form.get('notify_wa') in ['1', 'on', 'true', True]
+
+    if len(new_password) < 6:
+        flash("Kata sandi baru minimal 6 karakter.", "danger")
+        return redirect(url_for('admin.merchant_api_index'))
+    if not new_pin.isdigit() or len(new_pin) != 6:
+        flash("PIN baru harus 6 digit angka.", "danger")
+        return redirect(url_for('admin.merchant_api_index'))
+
+    # 1. Update langsung ke database tenant lokal jika ada di VPS
+    db_paths = [
+        f"/var/www/pos-ipay/data/tenants/{tenant_id}.db",
+        f"/root/pos-ipay/data/tenants/{tenant_id}.db",
+        os.path.abspath(os.path.join(BASE_DIR, '..', 'POS IPAY', 'data', 'tenants', f"{tenant_id}.db")),
+        os.path.abspath(os.path.join(BASE_DIR, '..', 'pos-ipay', 'data', 'tenants', f"{tenant_id}.db")),
+    ]
+    direct_updated = False
+    for p in db_paths:
+        if os.path.exists(p):
+            try:
+                conn = sqlite3.connect(p)
+                cur = conn.cursor()
+                cur.execute("UPDATE users SET password = ?, pin = ? WHERE role = 'owner' OR username = 'owner'", (new_password, new_pin))
+                if cur.rowcount == 0:
+                    cur.execute("UPDATE users SET password = ?, pin = ? WHERE id = (SELECT id FROM users ORDER BY id ASC LIMIT 1)", (new_password, new_pin))
+                conn.commit()
+                conn.close()
+                direct_updated = True
+                break
+            except Exception as e:
+                print(f"[Direct Reset DB Error] {p}: {e}")
+
+    # 2. Push webhook ke POS IPAY lokal (127.0.0.1:3001) agar di-hash dengan scrypt modern
+    payload = {
+        "event": "admin.reset_credentials",
+        "merchant_id": mch.merchant_id,
+        "tenant_id": tenant_id,
+        "new_password": new_password,
+        "new_pin": new_pin,
+        "message": f"Kredensial kasir {mch.name} (ID: {tenant_id}) di-reset oleh Admin iPay."
+    }
+    try:
+        Thread(target=_send_webhook_worker, args=(f"http://127.0.0.1:3001/api/ppob/webhook?tenant_id={tenant_id}", payload), daemon=True).start()
+    except Exception as e:
+        print(f"[Webhook Reset Error]: {e}")
+
+    # 3. Kirim notifikasi WhatsApp via Bot Baileys ke HP Pemilik Toko
+    phone = mch.user.phone if mch.user else ''
+    wa_sent = False
+    if notify_wa and phone:
+        wa_text = (
+            f"🔐 *[RESET KATA SANDI POS KASIR]*\n\n"
+            f"Halo Pemilik Toko *{mch.name}*,\n"
+            f"Kredensial login akun kasir POS Anda (`{tenant_id}`) telah diatur ulang oleh Admin iPay:\n\n"
+            f"• *Kata Sandi*: `{new_password}`\n"
+            f"• *6-Digit PIN*: `{new_pin}`\n\n"
+            f"🔗 *Masuk Kasir*: https://ipaypos.my.id\n"
+            f"_Gunakan nomor WhatsApp Anda untuk masuk cepat._"
+        )
+        try:
+            Thread(target=lambda: requests.post(
+                "http://127.0.0.1:5000/api/v1/whatsapp/send",
+                json={"phone": phone, "message": wa_text},
+                timeout=5
+            ), daemon=True).start()
+            wa_sent = True
+        except Exception as e:
+            print(f"[WA Send Reset Error]: {e}")
+
+    flash(
+        f"✓ Kata Sandi & PIN toko '{mch.name}' (ID: {tenant_id}) BERHASIL DIRESET!\n"
+        f"Sandi Baru: {new_password} | PIN Baru: {new_pin}" +
+        (f" (Notifikasi telah dikirim ke WA {phone})" if (wa_sent and phone) else ""),
+        "success"
+    )
+    return redirect(url_for('admin.merchant_api_index'))
+
+
 @admin_bp.route('/merchant-api/ping-webhook/<int:key_id>', methods=['POST'])
 def merchant_api_ping_webhook(key_id):
     if not session.get('admin_logged_in'):

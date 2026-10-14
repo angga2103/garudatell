@@ -535,6 +535,16 @@
 
             <!-- TOMBOL KONTROL LENGKAP PER TOKO POS -->
             <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                <!-- 0. 1-Klik Buka dan Masuk Otomatis ke POS Kasir -->
+                <a href="{{ url_for('admin.merchant_api_open_pos', key_id=m.id) }}" target="_blank" class="btn-action-icon" style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: white; border: none; font-weight: 800; text-decoration: none; box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);" title="Buka dan Masuk Otomatis ke POS Kasir Toko Ini Tanpa Password (SSO Bypass)">
+                    <i class="fas fa-rocket"></i> Masuk Kasir (1-Klik)
+                </a>
+
+                <!-- 0b. Reset Sandi & PIN Kasir Langsung -->
+                <button type="button" class="btn-action-icon" style="background: #fef2f2; color: #dc2626; border: 1.5px solid #fca5a5; font-weight: 800;" onclick="openResetPasswordModal('{{ m.id }}', '{{ m.name|e }}', '{{ m.get_tenant_id() }}', '{{ (m.user.phone if m.user else '')|e }}')" title="Reset Sandi & PIN Kasir Toko Ini Langsung">
+                    <i class="fas fa-key"></i> Reset Sandi/PIN
+                </button>
+
                 <!-- 1. Topup / Koreksi Saldo Cepat -->
                 <button type="button" class="btn-action-icon" style="background: #dcfce7; color: #15803d; border: 1px solid #86efac;" onclick="openBalanceModal('{{ m.id }}', '{{ m.name|e }}', '{{ "{:,.0f}".format(user_bal).replace(",", ".") }}')" title="Tambah atau Potong Saldo Toko POS">
                     <i class="fas fa-wallet"></i> + Topup / Saldo
@@ -661,6 +671,10 @@
                             <i class="fas fa-key"></i> {% if m.master_recovery_key %}Reset Master Key{% else %}Generate Master Key{% endif %}
                         </button>
                     </form>
+
+                    <button type="button" onclick="openResetPasswordModal('{{ m.id }}', '{{ m.name|e }}', '{{ m.get_tenant_id() }}', '{{ (m.user.phone if m.user else '')|e }}')" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 800; font-size: 11.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(220, 38, 38, 0.35);" title="Reset Password dan PIN Kasir Toko Ini Langsung">
+                        <i class="fas fa-unlock-alt"></i> Reset Password Kasir Langsung
+                    </button>
                 </div>
             </div>
         </div>
@@ -1072,6 +1086,63 @@
     </div>
 </div>
 
+<!-- ========================================================================= -->
+<!-- MODAL 4: RESET KATA SANDI & PIN KASIR LANGSUNG DARI ADMIN                  -->
+<!-- ========================================================================= -->
+<div id="modalResetPasswordPos" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 99999; align-items: center; justify-content: center; padding: 15px;">
+    <div style="background: white; border-radius: 16px; width: 100%; max-width: 480px; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.25);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <div style="font-size: 16px; font-weight: 900; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-key" style="color: #dc2626;"></i> Reset Sandi & PIN Kasir POS
+            </div>
+            <button type="button" onclick="document.getElementById('modalResetPasswordPos').style.display='none'" style="background: none; border: none; font-size: 20px; color: #94a3b8; cursor: pointer;">&times;</button>
+        </div>
+
+        <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; padding: 12px; margin-bottom: 16px; font-size: 12px; color: #991b1b;">
+            Toko: <b id="resetPwStoreName">-</b> &bull; ID Toko: <code id="resetPwTenantId" style="font-weight: 900;">-</code>
+            <br>
+            <span style="font-size: 11px; color: #b91c1c;">Reset ini langsung mengubah kata sandi dan PIN kasir di database toko, tanpa perlu mengetik Master Key.</span>
+        </div>
+
+        <form id="formResetPasswordPos" method="POST" action="">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div style="margin-bottom: 14px;">
+                <label style="display: block; font-size: 12px; font-weight: 800; color: #334155; margin-bottom: 6px;">
+                    Kata Sandi Baru Kasir *
+                </label>
+                <div style="display: flex; gap: 6px;">
+                    <input type="text" name="new_password" id="resetNewPass" value="admin123" required minlength="6" style="flex: 1; padding: 10px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 13px; font-family: monospace; font-weight: bold;">
+                    <button type="button" onclick="document.getElementById('resetNewPass').value='admin' + Math.floor(100 + Math.random() * 900)" style="padding: 0 12px; border: 1px solid #cbd5e1; background: #f8fafc; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer;">Acak</button>
+                </div>
+                <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Minimal 6 karakter. Default: <code>admin123</code></div>
+            </div>
+
+            <div style="margin-bottom: 14px;">
+                <label style="display: block; font-size: 12px; font-weight: 800; color: #334155; margin-bottom: 6px;">
+                    PIN Keamanan Toko (6 Digit) *
+                </label>
+                <input type="text" name="new_pin" id="resetNewPin" value="112233" required maxlength="6" pattern="[0-9]{6}" style="width: 100%; padding: 10px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 14px; font-family: monospace; font-weight: bold; letter-spacing: 2px; box-sizing: border-box;">
+                <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Wajib 6 digit angka. Default: <code>112233</code></div>
+            </div>
+
+            <div style="margin-bottom: 20px; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 10px 14px; border-radius: 8px;">
+                <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: #166534; cursor: pointer;">
+                    <input type="checkbox" name="notify_wa" value="1" checked style="width: 16px; height: 16px; accent-color: #10b981;">
+                    <span>Kirim rincian sandi baru ini ke WhatsApp Pemilik Toko (<span id="resetPwPhone">-</span>)</span>
+                </label>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                <button type="button" onclick="document.getElementById('modalResetPasswordPos').style.display='none'" style="padding: 10px 18px; border: 1px solid #cbd5e1; background: white; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer;">Batal</button>
+                <button type="submit" style="padding: 10px 20px; border: none; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border-radius: 8px; font-weight: 800; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);">
+                    <i class="fas fa-check-circle"></i> Terapkan & Reset Kredensial
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
 function copyText(text, btn) {
     navigator.clipboard.writeText(text).then(() => {
@@ -1117,6 +1188,17 @@ function openBalanceModal(id, name, currentBal) {
     document.getElementById('balModalStoreName').innerText = name || '-';
     document.getElementById('balModalCurrent').innerText = currentBal || '0';
     document.getElementById('modalAdjustBalance').style.display = 'flex';
+}
+
+function openResetPasswordModal(id, name, tenantId, phone) {
+    const form = document.getElementById('formResetPasswordPos');
+    form.action = '/admin/merchant-api/reset-password/' + id;
+    document.getElementById('resetPwStoreName').innerText = name || '-';
+    document.getElementById('resetPwTenantId').innerText = tenantId || '-';
+    document.getElementById('resetPwPhone').innerText = phone || 'Tidak ada no WA';
+    document.getElementById('resetNewPass').value = 'admin123';
+    document.getElementById('resetNewPin').value = '112233';
+    document.getElementById('modalResetPasswordPos').style.display = 'flex';
 }
 </script>
 {% endblock %}
