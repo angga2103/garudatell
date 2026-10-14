@@ -3494,6 +3494,8 @@ def merchant_api_generate_masterkey(key_id):
                 "message": f"Master Recovery Key untuk toko {mch.name} (ID: {tenant_id}) berhasil di-generate dari Admin iPay!"
             }
             Thread(target=_send_webhook_worker, args=(mch.webhook_url, payload), daemon=True).start()
+            # Juga kirim langsung ke port internal POS IPAY (127.0.0.1:3001) untuk menjamin penerimaan seketika
+            Thread(target=_send_webhook_worker, args=(f"http://127.0.0.1:3001/api/ppob/webhook?tenant_id={tenant_id}", payload), daemon=True).start()
             synced_pos = True
         except Exception as e:
             print(f"[MasterKey Webhook Sync Error]: {e}")

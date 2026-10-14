@@ -418,6 +418,11 @@ def push_credentials_to_pos(merchant):
     resolved_tenant = (prov.tenant_id if prov and prov.tenant_id else None) or (merchant.get_tenant_id() if hasattr(merchant, 'get_tenant_id') else None)
     m_key = getattr(merchant, 'master_recovery_key', None)
 
+    # Tambahkan localhost port 3001 untuk memastikan sinyal sampai jika di VPS yang sama
+    local_pos_url = f"http://127.0.0.1:3001/api/ppob/webhook?tenant_id={resolved_tenant}"
+    if local_pos_url not in target_urls:
+        target_urls.append(local_pos_url)
+
     payload = {
         "event": "credentials.synced",
         "status": "APPROVED",
