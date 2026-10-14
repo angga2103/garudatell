@@ -2,7 +2,7 @@
 # ==============================================================================
 # GarudaTel v2 - Automated SQLite Database Backup Script
 # Mendukung SQLite WAL mode (Zero Downtime / Non-blocking)
-# Pasang di crontab: 0 2 * * * /bin/bash /root/garudatel_v2/tools/backup_database.sh
+# Pasang di crontab: 0 2 * * * /bin/bash /var/www/garudatel/tools/backup_database.sh
 # ==============================================================================
 
 set -euo pipefail

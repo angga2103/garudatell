@@ -31,7 +31,7 @@ sudo apt install -y python3-venv python3-pip nginx sqlite3 certbot python3-certb
 ### Langkah 2: Setup Direktori Aplikasi & Virtual Environment
 ```bash
 # Navigasi ke direktori aplikasi
-cd /root/garudatel_v2
+cd /var/www/garudatel
 
 # Buat virtual environment python
 python3 -m venv venv
@@ -85,9 +85,9 @@ After=network.target
 [Service]
 User=root
 Group=root
-WorkingDirectory=/root/garudatel_v2
-Environment="PATH=/root/garudatel_v2/venv/bin"
-ExecStart=/root/garudatel_v2/venv/bin/gunicorn -w 3 -b 127.0.0.1:5000 --access-logfile /root/garudatel_v2/storage/logs/gunicorn_access.log --error-logfile /root/garudatel_v2/storage/logs/gunicorn_error.log wsgi:app
+WorkingDirectory=/var/www/garudatel
+Environment="PATH=/var/www/garudatel/venv/bin"
+ExecStart=/var/www/garudatel/venv/bin/gunicorn -w 3 -b 127.0.0.1:5000 --access-logfile /var/www/garudatel/storage/logs/gunicorn_access.log --error-logfile /var/www/garudatel/storage/logs/gunicorn_error.log wsgi:app
 Restart=always
 RestartSec=5
 
@@ -109,7 +109,7 @@ sudo systemctl status garudatel.service
 
 1. Salin konfigurasi Nginx:
    ```bash
-   sudo cp /root/garudatel_v2/deployment/nginx_garudatel.conf /etc/nginx/sites-available/garudatel
+   sudo cp /var/www/garudatel/deployment/nginx_garudatel.conf /etc/nginx/sites-available/garudatel
    sudo ln -s /etc/nginx/sites-available/garudatel /etc/nginx/sites-enabled/
    ```
 
@@ -136,7 +136,7 @@ sudo crontab -e
 ```
 Tambahkan baris berikut (dijalankan setiap pukul 02:00 pagi WIB):
 ```cron
-0 2 * * * /bin/bash /root/garudatel_v2/tools/backup_database.sh >> /root/garudatel_v2/storage/logs/backup.log 2>&1
+0 2 * * * /bin/bash /var/www/garudatel/tools/backup_database.sh >> /var/www/garudatel/storage/logs/backup.log 2>&1
 ```
 
 ---
@@ -160,7 +160,7 @@ Aplikasi dilengkapi endpoint monitoring kesehatan sistem yang dapat di-ping seti
 ### B. Memantau Log Realtime
 ```bash
 # Log aplikasi transaksi
-tail -f /root/garudatel_v2/storage/logs/garudatel.log
+tail -f /var/www/garudatel/storage/logs/garudatel.log
 
 # Log service Gunicorn
 sudo journalctl -u garudatel.service -f
@@ -185,12 +185,12 @@ Jika database mengalami kendala:
 sudo systemctl stop garudatel.service
 
 # 2. Backup database yang bermasalah terlebih dahulu
-mv /root/garudatel_v2/app/garudatel.db /root/garudatel_v2/app/garudatel.db.corrupted
+mv /var/www/garudatel/app/garudatel.db /var/www/garudatel/app/garudatel.db.corrupted
 
 # 3. Ekstrak backup terakhir
-cd /root/garudatel_v2/storage/backups
+cd /var/www/garudatel/storage/backups
 gunzip -k garudatel_TERAKHIR.db.gz
-cp garudatel_TERAKHIR.db /root/garudatel_v2/app/garudatel.db
+cp garudatel_TERAKHIR.db /var/www/garudatel/app/garudatel.db
 
 # 4. Nyalakan service kembali
 sudo systemctl start garudatel.service

@@ -10,10 +10,10 @@
 | **Nama Proyek** | Garudatel v2 - Platform PPOB (Payment Point Online Bank) |
 | **Teknologi Stack** | Python Flask 3.0.0, SQLite, SQLAlchemy, Flask-Login |
 | **Arsitektur** | Monolithic MVC dengan External API Integration |
-| **Target Deployment** | Linux (Path hardcoded: `/root/garudatel_v2/`) |
-| **Status Proyek** | Development/Staging - BANYAK ITERASI PERBAIKAN |
+| **Target Deployment** | Linux (Ubuntu VPS: `/var/www/garudatel`) |
+| **Status Proyek** | Production & Maintenance - Stabil |
 | **Tanggal Audit Pertama** | 30 Agustus 2026 |
-| **AI Agent Auditor** | kr/claude-sonnet-4.5 |
+| **Terakhir Diperbarui** | 14 Oktober 2026 |
 
 ---
 
@@ -59,7 +59,7 @@ Garudatel v2 adalah aplikasi PPOB (pulsa, paket data, token PLN, voucher game, e
 1. Ikuti pattern existing: Flask Blueprint untuk routing
 2. Gunakan SQLAlchemy ORM, JANGAN raw SQL kecuali untuk query kompleks
 3. Simpan konfigurasi sensitif di `.env`, load dengan `python-dotenv`
-4. Path hardcoded `/root/garudatel_v2/` hanya untuk production - gunakan `os.path` relatif jika memungkinkan
+4. Path production resmi adalah `/var/www/garudatel` - selalu gunakan `os.path` relatif berbasis `BASE_DIR` untuk seluruh operasi internal.
 
 ### E. PRIVASI PROVIDER & USER EXPERIENCE (BRANDING ANONYMIZATION)
 1. **DILARANG menampilkan nama provider server (Digiflazz, VIP-Reseller, Tokovoucher, dll) pada halaman transaksi pengguna akhir (User Web & Kasir POS).**
@@ -68,7 +68,11 @@ Garudatel v2 adalah aplikasi PPOB (pulsa, paket data, token PLN, voucher game, e
 
 ---
 
-## 📊 LOG HISTORY SCAN & PERUBAHAN
+| 2026-10-14 | **Optimasi Performa Sinkronisasi Digiflazz & Pengerasan Bot 3 Admin Background Runner (Anti-Freeze & Anti-Lock)** | 1) Mengimplementasikan In-Memory Dictionary Mapping ($O(1)$) untuk seluruh SKU produk pada `sync_products()` di `app/services/digiflazz.py`, meniadakan perulangan query N+1 dan siklus autoflush lockup SQLite yang sebelumnya memakan waktu belasan menit dan membekukan bot; 2) Benchmark 1.000 produk berhasil dipangkas dari belasan menit menjadi **0,21 detik**; 3) Mengubah pemfilteran produk usang pada *circuit breaker* menjadi evaluasi memori RAM tanpa parameter SQL ribuan variable yang rawan error `too many SQL variables` SQLite; 4) Membungkus worker thread `async_sync_runner` di `telegram_service.py` dengan blok `try ... except ... finally`, menjamin notifikasi status selalu terkirim ke Telegram dan koneksi dibersihkan via `db.session.remove()`; 5) Menerapkan *auto-fallback plain text* pada `_send_message` dan `_edit_message` jika Telegram menolak parsing entitas HTML; 6) Menyesuaikan timeout koneksi Digiflazz menjadi `timeout=(15, 60)` untuk unduhan payload besar; 7) Menstandardisasi path produksi server VPS resmi menjadi `/var/www/garudatel`. | ✅ SELESAI (PERFORMANCE & STABILITAS) |
+| 2026-10-14 | **Peningkatan Tampilan Serial Number (SN) Transaksi Layar Web & Clipboard** | 1) Merapikan pemformatan Serial Number (SN) kuota data, token PLN, voucher game, dan pulsa agar tampil terstruktur, bersih, dan mudah dibaca; 2) Memastikan saat disalin (click-to-copy) ke clipboard pengguna, teks SN menghasilkan format yang rapi dan siap kirim ke pelanggan tanpa karakter anomali. | ✅ SELESAI (UI/UX) |
+| 2026-10-14 | **Fitur Pencarian Nama Produk Nonaktif Per Seller di Bot 3 Admin Telegram** | 1) Menambahkan alur interaktif `/cari nama_produk` dan callback `dis_search_prompt` pada Bot 3 Telegram Admin; 2) Admin dapat mencari produk nonaktif berdasarkan nama, kategori, brand, atau SKU tanpa perlu membuka katalog seller satu per satu; 3) Menyediakan tombol 1-klik untuk mengaktifkan kembali produk nonaktif langsung dari chat Telegram. | ✅ SELESAI (FITUR TELEGRAM ADMIN) |
+| 2026-10-14 | **Master Recovery Key, Proteksi ID Toko & 1-Click POS Reset di `/admin/merchant_api`** | 1) Pembuatan Master Recovery Key otomatis untuk setiap merchant Kasir POS; 2) Reset Password & PIN kasir via notifikasi WhatsApp otomatis; 3) 1-Click SSO Open POS dan sinkronisasi instan kredensial kasir ke Web POS. | ✅ SELESAI (API & SECURITY) |
+| 2026-10-12 | **Pencegahan Data Loss & Hardening Auto-Sync Anti-Wipeout** | 1) Menerapkan *Anti-Wipeout Soft-Disable* (`is_active=False`) pada seluruh sinkronisasi Digiflazz dan meniadakan `db.session.delete`; 2) Menerapkan gembok status admin `is_admin_disabled=True` agar produk nonaktif lokal tidak tertimpa/teraktifkan kembali secara otomatis oleh auto-sync Digiflazz. | ✅ SELESAI (DATA PROTECTION) |
 
 | 2026-09-21 | **Audit Keamanan Menyeluruh & Eksekusi Perbaikan PPOB Production Readiness (SEC-VULN-01 s/d 12)** | 1) Menutup celah Account Takeover pada alur reset password (`/profil` Step 2 & 3) dengan validasi token kriptografis berbatas 5 menit dan pengecekan timing-safe `compare_digest`; 2) Sanitasi kredensial sensitif: menghapus plaintext password di `otp_database.json` & menghentikan mirror JSON di `app/services/otp_service.py`, menghapus hardcoded `SECRET_KEY` di `DEPLOYMENT_SOP.md`; 3) Mengamankan Microservice WhatsApp Bot (`wa_bot/server_bot.js`): mengikat host default ke `127.0.0.1` dan menerapkan middleware autentikasi `X-Internal-Token` (`WA_BOT_SECRET_TOKEN`); 4) Memperketat webhook Digiflazz di `app/routes/transaction.py`: menghapus fallback spoofable User-Agent dan hanya mengizinkan valid HMAC signature atau verifikasi S2S resmi provider; 5) Menghilangkan hardcoded secret fallback pada cron endpoints di `app/routes/admin.py`; 6) Hardening service systemd `garudatel.service` ke user unprivileged `www-data` dan bind loopback `127.0.0.1:5000`; 7) Otorisasi fail-closed bot Telegram di `telegram_service.py`; 8) Menyematkan HTTP Security Headers OWASP (`X-Frame-Options`, `nosniff`, `Referrer-Policy`) secara global di `app/__init__.py`; 9) Menambahkan test suite `tools/test_security_patches.py` (5/5 lulus 100%). | ✅ SELESAI (SECURITY & PRODUCTION) |
 
