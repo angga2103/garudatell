@@ -1516,33 +1516,41 @@ def download_mutasi_pdf():
     """Mengunduh Rekening Koran Bulanan Pengguna dalam format PDF resmi perbankan."""
     from datetime import datetime, timedelta
     from flask import send_file, flash, redirect, url_for
-    from app.services.mutasi_service import get_user_mutations
-    from app.services.pdf_statement_service import generate_monthly_statement_pdf
+    import traceback
 
-    now_wib = datetime.utcnow() + timedelta(hours=7)
     try:
-        req_month = request.args.get('month', default=now_wib.month, type=int)
-        req_year = request.args.get('year', default=now_wib.year, type=int)
-    except Exception:
-        req_month = now_wib.month
-        req_year = now_wib.year
+        from app.services.mutasi_service import get_user_mutations
+        from app.services.pdf_statement_service import generate_monthly_statement_pdf
 
-    if req_month < 1 or req_month > 12:
-        req_month = now_wib.month
-    if req_year < 2020 or req_year > 2035:
-        req_year = now_wib.year
+        now_wib = datetime.utcnow() + timedelta(hours=7)
+        try:
+            req_month = request.args.get('month', default=now_wib.month, type=int)
+            req_year = request.args.get('year', default=now_wib.year, type=int)
+        except Exception:
+            req_month = now_wib.month
+            req_year = now_wib.year
 
-    # Ambil data mutasi spesifik bulan dan tahun yang diminta
-    statement_data = get_user_mutations(current_user.id, month=req_month, year=req_year)
-    pdf_buffer = generate_monthly_statement_pdf(current_user, req_month, req_year, statement_data)
+        if not req_month or req_month < 1 or req_month > 12:
+            req_month = now_wib.month
+        if not req_year or req_year < 2020 or req_year > 2035:
+            req_year = now_wib.year
 
-    filename = f"Rekening_Koran_iPay_{req_year}_{req_month:02d}_{current_user.id}.pdf"
-    return send_file(
-        pdf_buffer,
-        mimetype='application/pdf',
-        as_attachment=True,
-        download_name=filename
-    )
+        # Ambil data mutasi spesifik bulan dan tahun yang diminta
+        statement_data = get_user_mutations(current_user.id, month=req_month, year=req_year)
+        pdf_buffer = generate_monthly_statement_pdf(current_user, req_month, req_year, statement_data)
+
+        filename = f"Rekening_Koran_iPay_{req_year}_{req_month:02d}_{current_user.id}.pdf"
+        return send_file(
+            pdf_buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as err:
+        print(f"[DOWNLOAD MUTASI PDF ERROR]: {err}")
+        traceback.print_exc()
+        flash(f"Gagal mengunduh Rekening Koran: {str(err)}", "error")
+        return redirect(url_for('user.informasi'))
 
 
 
