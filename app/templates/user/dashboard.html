@@ -385,7 +385,6 @@
         <button type="button" class="btn-top-menu" onclick="toggleSidebarDrawer(true)" title="Buka Menu Kiri">
             <i class="fas fa-bars"></i>
         </button>
-        <div class="avatar"><i class="fas fa-user"></i></div>
         <div>
             <p class="greeting" id="teks-sapaan">Selamat Datang 👋</p>
             <h3 class="user-name">{{ (current_user.username or current_user.name) if current_user and current_user.is_authenticated else "Guest" }}</h3>
