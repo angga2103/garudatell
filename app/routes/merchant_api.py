@@ -90,6 +90,133 @@ def exchange_sso_code():
 
 
 # =====================================================================
+# 0B. AUTO-DISCOVERY & PROVISIONING MEMBER IPAY KE WEB POS (POST /api/v1/auth/member-sync-pos)
+# =====================================================================
+@merchant_api_bp.route("/auth/member-sync-pos", methods=["POST"])
+@merchant_api_bp.route("/member/sync-pos", methods=["POST"])
+def member_sync_pos():
+    """
+    Mendeteksi apakah nomor WhatsApp/Username adalah member terdaftar di ipay.my.id.
+    Jika ya, otomatis:
+    1. Mengambil profil & saldo deposit live member.
+    2. Men-generate MerchantApiKey jika belum ada di admin/merchant-api (lengkap dengan tenant_id & master_recovery_key).
+    3. Mengembalikan kredensial agar web POS langsung menginisialisasi database & sinkronkan saldo PPOB.
+    """
+    import re
+    import secrets
+    from app.models.user import User
+    from app.models.merchant import MerchantApiKey, get_wib_datetime
+    from app.services.merchant_service import generate_merchant_credentials, normalize_phone_08
+
+    data = request.get_json(silent=True) or request.form.to_dict() or {}
+    phone = str(data.get("phone") or data.get("username") or "").strip()
+    store_name_input = str(data.get("store_name") or "").strip()
+    password = str(data.get("password") or "").strip()
+
+    if not phone:
+        return jsonify({"status": "failed", "is_member": False, "message": "Nomor WhatsApp atau username wajib diisi"}), 400
+
+    norm_phone = normalize_phone_08(phone)
+
+    # 1. Cari user di database ipay.my.id
+    user = User.query.filter(
+        (User.phone == norm_phone) |
+        (User.phone == phone) |
+        (db.func.lower(User.email) == phone.lower()) |
+        (db.func.lower(User.name) == phone.lower())
+    ).first()
+
+    if not user:
+        return jsonify({
+            "status": "not_found",
+            "is_member": False,
+            "message": f"Nomor WhatsApp {phone} belum terdaftar sebagai member di ipay.my.id"
+        }), 404
+
+    # Validasi kata sandi jika user mencoba login via password
+    password_valid = None
+    if password:
+        password_valid = user.check_password(password)
+
+    # 2. Cek apakah member ini sudah memiliki profil toko di merchant_api_keys
+    mch = MerchantApiKey.query.filter_by(user_id=user.id).order_by(
+        MerchantApiKey.is_active.desc(), MerchantApiKey.id.desc()
+    ).first()
+
+    tenant_id = None
+    if mch:
+        tenant_id = mch.get_tenant_id()
+    else:
+        # Otomatis buatkan profil toko baru di admin/merchant-api untuk member ini!
+        clean_name = store_name_input or user.name or f"Konter {user.phone}"
+        base_slug = re.sub(r'[^a-z0-9]+', '-', clean_name.lower()).strip('-')
+        base_slug = base_slug.replace('pos-', '').strip('-') or f"store-{user.id}"
+
+        # Pastikan slug unik
+        existing_slug = MerchantApiKey.query.filter_by(tenant_id=base_slug).first()
+        if existing_slug:
+            base_slug = f"{base_slug}-{user.id}"
+
+        raw_hex = secrets.token_hex(6).upper()
+        master_key = f"RCV-{raw_hex[0:4]}-{raw_hex[4:8]}-{raw_hex[8:12]}"
+
+        mch, err = generate_merchant_credentials(
+            user_id=user.id,
+            name=clean_name,
+            webhook_url=f"https://ipaypos.my.id/api/ppob/webhook?tenant_id={base_slug}"
+        )
+        if err or not mch:
+            return jsonify({"status": "failed", "message": f"Gagal membuat kredensial merchant: {err}"}), 500
+
+        mch.tenant_id = base_slug
+        mch.master_recovery_key = master_key
+        db.session.commit()
+        tenant_id = base_slug
+
+    # Pastikan master_recovery_key dan tenant_id terisi
+    updated = False
+    if not mch.master_recovery_key:
+        raw_hex = secrets.token_hex(6).upper()
+        mch.master_recovery_key = f"RCV-{raw_hex[0:4]}-{raw_hex[4:8]}-{raw_hex[8:12]}"
+        updated = True
+
+    if not mch.tenant_id:
+        mch.tenant_id = mch.get_tenant_id()
+        updated = True
+
+    if updated:
+        db.session.commit()
+
+    tenant_id = mch.tenant_id
+
+    return jsonify({
+        "status": "success",
+        "is_member": True,
+        "password_valid": password_valid,
+        "user": {
+            "id": user.id,
+            "name": user.name,
+            "phone": user.phone,
+            "email": user.email,
+            "balance": float(user.balance or 0.0),
+            "role": user.role or "reseller",
+            "is_active": user.is_active
+        },
+        "credentials": {
+            "merchant_id": mch.merchant_id,
+            "api_key": mch.api_key,
+            "secret_key": mch.secret_key,
+            "tenant_id": tenant_id,
+            "store_name": mch.name,
+            "master_recovery_key": mch.master_recovery_key,
+            "webhook_url": mch.webhook_url,
+            "is_active": mch.is_active
+        },
+        "message": f"Member ipay.my.id terverifikasi! Toko '{mch.name}' (ID: {tenant_id}) tersinkron dengan saldo Rp {float(user.balance or 0.0):,.0f}."
+    }), 200
+
+
+# =====================================================================
 # 1. CEK SALDO MERCHANT (POST & GET /api/v1/profile/balance)
 # =====================================================================
 @merchant_api_bp.route("/profile/balance", methods=["GET", "POST"])
