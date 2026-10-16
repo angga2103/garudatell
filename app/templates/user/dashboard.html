@@ -168,6 +168,30 @@
     }
     .cuan-icon::after { top: 5px !important; right: 5px !important; font-size: 10px !important; }
     .cuan-icon::before { bottom: 5px !important; left: 5px !important; font-size: 8px !important; }
+    .icon-axis { font-size: 8px !important; bottom: 5px !important; right: 5px !important; font-weight: 800 !important; }
+    .icon-xl { font-size: 16px !important; margin-right: 5px !important; }
+
+    /* NOTIFIKASI CLAMP & AUTO EXPAND */
+    .notif-content-text {
+        font-size: 11px;
+        color: #475569;
+        line-height: 1.45;
+        white-space: pre-wrap;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        cursor: pointer;
+        position: relative;
+        transition: all 0.2s ease;
+    }
+    .notif-content-text.expanded {
+        display: block !important;
+        -webkit-line-clamp: unset !important;
+        overflow: visible !important;
+    }
 
     /* MODAL LAINNYA BOTTOM SHEET */
     .modal-lainnya-overlay {
@@ -458,7 +482,7 @@
         </a>
         <a href="/kategori/emoney" class="action-item" style="text-decoration:none;">
             <div class="menu-icon"><i class="fas fa-wallet"></i></div>
-            <span class="menu-text">Topup E-<br>Wallet</span>
+            <span class="menu-text">Topup<br>E-Wallet</span>
         </a>
         <a href="/kategori/telpsms" class="action-item" style="text-decoration:none;">
             <div class="menu-icon"><i class="fas fa-phone-volume"></i></div>
@@ -503,7 +527,7 @@
         <div class="header-left">
             <div class="icon-circle"><i class="fas fa-th-large"></i></div>
             <div>
-                <h3>Semua Layanan GarudaTel</h3>
+                <h3>Semua Layanan iPay</h3>
                 <p>Pilih kategori transaksi yang Anda butuhkan</p>
             </div>
         </div>
@@ -724,7 +748,7 @@
 
                 <div style="flex: 1;">
                     <div style="font-size: 13px; font-weight: 800; color: #1e293b; margin-bottom: 3px;">{{ n.title }}</div>
-                    <div style="font-size: 11px; color: #475569; line-height: 1.4; white-space: pre-wrap;">{{ n.message }}</div>
+                    <div class="notif-content-text" onclick="this.classList.toggle('expanded')" title="Klik untuk baca lengkap / ciutkan">{{ n.message }}</div>
                     
                     {% if n.link %}
                     <div style="margin-top: 6px;">
@@ -801,5 +825,21 @@
         document.getElementById('modalLainnyaOverlay').classList.remove('show');
         document.getElementById('modalLainnyaSheet').classList.remove('show');
     }
+
+    // Format Pesan Notifikasi (Parse Markdown **bold**, fallback {Name}, dan batas garis)
+    document.addEventListener("DOMContentLoaded", function() {
+        var userFallbackName = "{{ current_user.nama if current_user and current_user.nama else 'Mitra iPay' }}";
+        document.querySelectorAll('.notif-content-text').forEach(function(el) {
+            var raw = el.innerHTML;
+            if (!raw) return;
+            // 1. Ganti {Name} dengan nama user atau Mitra iPay
+            raw = raw.replace(/\{Name\}/gi, userFallbackName);
+            // 2. Ganti **teks** menjadi <strong>teks</strong>
+            raw = raw.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            // 3. Ganti deretan garis unicode yang memicu overflow horizontal menjadi garis pemisah rapi
+            raw = raw.replace(/[━─]{8,}/g, '<hr style="border:none; border-top:1px dashed #cbd5e1; margin:6px 0;">');
+            el.innerHTML = raw;
+        });
+    });
 </script>
 {% endblock %}

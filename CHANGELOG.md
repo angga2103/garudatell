@@ -4,6 +4,19 @@ All notable changes to the GarudaTel platform will be documented in this file.
 
 ---
 
+## [GT-2.0.3] - 2026-10-16
+
+### 🎨 UI, Layout & Responsive Refinements
+- **Branding Consistency**: Menyelaraskan teks judul modal navigasi dari `"Semua Layanan GarudaTel"` menjadi `"Semua Layanan iPay"` dan judul tab halaman notifikasi menjadi `"Pusat Notifikasi - iPay"` sesuai domain produksi `ipay.my.id`.
+- **E-Wallet Label Layout**: Memperbaiki pemenggalan kata gantung `"Topup E-<br>Wallet"` menjadi `"Topup<br>E-Wallet"` agar rapi dan simetris di layar sempit (<360px).
+- **Produk Cuan Operator Icon Tuning**: Mengoptimalkan proporsi dan penempatan lencana teks `.icon-axis` dan `.icon-xl` pada grid 5 kolom Produk Cuan agar tidak saling tumpang tindih (*overlap*) pada layar smartphone compact.
+- **Notification Line-Clamping & Auto-Expand**: Menambahkan pembatas cuplikan teks maksimal 3 baris (`-webkit-line-clamp: 3`) dengan fitur *click-to-expand* interaktif pada Pusat Notifikasi agar pengumuman SOP yang panjang tidak merusak tata letak modal.
+- **Safe Markdown & Name Parsing**: Mengintegrasikan parser client-side otomatis untuk mengubah sintaks `**teks**` menjadi `<strong>teks</strong>`, mengisi placeholder `{Name}` dengan nama pengguna aktif (fallback `"Mitra iPay"`), dan merapikan deretan garis Unicode panjang (`━━━━`) menjadi garis `<hr>` yang tidak memicu *horizontal scrollbar*.
+- **Desktop Bottom Navigation Centering**: Membatasi bentang `.bottom-nav` pada layar lebar (>= 768px) menjadi kapsul terpusat (`max-width: 500px; left: 50%; transform: translateX(-50%)`) agar tidak melar di monitor PC kasir / laptop.
+- **Desktop PWA Banner Suppression**: Menyembunyikan spanduk dan prompt otomatis instalasi PWA khusus smartphone pada browser PC/Laptop melalui CSS media query dan deteksi perangkat mobile.
+
+---
+
 ## [GT-2.0.2] - 2026-10-14
 
 ### ⚡ Performance & Optimization
