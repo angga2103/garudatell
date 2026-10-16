@@ -3,11 +3,12 @@ from app.extensions import db
 from app.models.user import User
 from app.models.transaction import Transaction
 
-def get_user_mutations(user_id, limit=100):
+def get_user_mutations(user_id, days=30, limit=None, month=None, year=None):
     """
     Mengambil dan menyusun riwayat mutasi saldo pengguna secara kronologis,
     menghitung running balance ('Sisa: Rp ...') secara presisi mundur dari saldo aktif,
     serta menghitung ringkasan statistik finansial (Pemasukan, Pengeluaran, Refund).
+    Dapat difilter per 30 hari terakhir (web default) atau per bulan/tahun (download Rekening Koran).
     Semua data dijamin 100% JSON-serializable (tanpa objek datetime).
     """
     user = None
@@ -22,6 +23,8 @@ def get_user_mutations(user_id, limit=100):
             'mutations': [],
             'stats': {
                 'current_balance': 0.0,
+                'starting_balance': 0.0,
+                'ending_balance': 0.0,
                 'total_pemasukan': 0.0,
                 'total_pengeluaran': 0.0,
                 'total_refund': 0.0,
@@ -272,28 +275,132 @@ def get_user_mutations(user_id, limit=100):
             ev['balance_before'] = max(0.0, balance_before)
             curr = balance_before
 
-    # 5. Bersihkan internal `_sort_key` agar data 100% bersih
+    # 5. Filter berdasarkan Bulan & Tahun ATAU 30 Hari Terakhir
+    starting_balance = current_balance
+    ending_balance = current_balance
+
+    if month is not None and year is not None:
+        m_int = int(month)
+        y_int = int(year)
+        month_events = []
+        for ev in events:
+            try:
+                ev_dt = datetime.strptime(ev['date_str'], '%Y-%m-%d %H:%M:%S')
+                if ev_dt.year == y_int and ev_dt.month == m_int:
+                    month_events.append(ev)
+            except Exception:
+                pass
+
+        if month_events:
+            starting_balance = month_events[0]['balance_before']
+            ending_balance = month_events[-1]['balance_after']
+        else:
+            # Cari event terakhir sebelum bulan ini untuk mengetahui saldo
+            target_start = datetime(y_int, m_int, 1)
+            events_before = []
+            for ev in events:
+                try:
+                    ev_dt = datetime.strptime(ev['date_str'], '%Y-%m-%d %H:%M:%S')
+                    if ev_dt < target_start:
+                        events_before.append(ev)
+                except Exception:
+                    pass
+
+            if events_before:
+                starting_balance = events_before[-1]['balance_after']
+                ending_balance = starting_balance
+            elif events:
+                starting_balance = events[0]['balance_before']
+                ending_balance = starting_balance
+            else:
+                starting_balance = current_balance
+                ending_balance = current_balance
+
+        filtered_events = month_events
+    elif days is not None:
+        # Default web view: 30 hari terakhir
+        cutoff_dt = (datetime.utcnow() + timedelta(hours=7)) - timedelta(days=int(days))
+        cutoff_str = cutoff_dt.strftime('%Y-%m-%d %H:%M:%S')
+        filtered_events = [ev for ev in events if ev.get('date_str', '') >= cutoff_str]
+        if filtered_events:
+            starting_balance = filtered_events[0]['balance_before']
+            ending_balance = filtered_events[-1]['balance_after']
+        else:
+            starting_balance = current_balance
+            ending_balance = current_balance
+    else:
+        filtered_events = events
+        if filtered_events:
+            starting_balance = filtered_events[0]['balance_before']
+            ending_balance = filtered_events[-1]['balance_after']
+
+    # 6. Bersihkan internal `_sort_key` agar data 100% aman diserialisasi
     for ev in events:
         ev.pop('_sort_key', None)
 
-    # 6. Hitung Statistik Finansial
-    total_pemasukan = sum(ev['amount'] for ev in events if ev['type'] == 'pemasukan')
-    total_pengeluaran = sum(ev['amount'] for ev in events if ev['type'] == 'pengeluaran')
-    total_refund = sum(ev['amount'] for ev in events if ev['type'] == 'refund')
+    # 7. Hitung Statistik Finansial untuk periode terpilih
+    total_pemasukan = sum(ev['amount'] for ev in filtered_events if ev['type'] == 'pemasukan')
+    total_pengeluaran = sum(ev['amount'] for ev in filtered_events if ev['type'] == 'pengeluaran')
+    total_refund = sum(ev['amount'] for ev in filtered_events if ev['type'] == 'refund')
 
-    # 7. Urutkan untuk tampilan antarmuka (terbaru ke terlama)
-    events.reverse()
+    # 8. Urutkan untuk tampilan antarmuka (terbaru ke terlama)
+    display_events = list(filtered_events)
+    display_events.reverse()
 
-    # Potong sesuai limit
-    mutations = events[:limit]
+    # Potong sesuai limit jika ada
+    if limit is not None:
+        mutations = display_events[:limit]
+    else:
+        mutations = display_events
 
     return {
         'mutations': mutations,
         'stats': {
             'current_balance': current_balance,
+            'starting_balance': starting_balance,
+            'ending_balance': ending_balance,
             'total_pemasukan': total_pemasukan,
             'total_pengeluaran': total_pengeluaran,
             'total_refund': total_refund,
-            'count': len(events)
+            'count': len(filtered_events)
         }
     }
+
+
+def get_user_available_mutation_months(user_id):
+    """
+    Mengambil daftar bulan dan tahun yang tersedia dari transaksi pengguna
+    untuk ditampilkan pada modal dropdown unduh Rekening Koran (PDF).
+    Format hasil: [{'year': 2026, 'month': 10, 'label': 'Oktober 2026', 'is_current': True}, ...]
+    """
+    INDONESIAN_MONTHS = {
+        1: 'Januari', 2: 'Februari', 3: 'Maret', 4: 'April',
+        5: 'Mei', 6: 'Juni', 7: 'Juli', 8: 'Agustus',
+        9: 'September', 10: 'Oktober', 11: 'November', 12: 'Desember'
+    }
+    now_wib = datetime.utcnow() + timedelta(hours=7)
+    months_set = {(now_wib.year, now_wib.month)}
+
+    try:
+        trxs = Transaction.query.filter_by(user_id=user_id).all()
+        for t in trxs:
+            c_time = getattr(t, 'created_at', None)
+            if c_time:
+                if isinstance(c_time, datetime):
+                    t_wib = c_time + timedelta(hours=7)
+                    months_set.add((t_wib.year, t_wib.month))
+    except Exception as e:
+        print(f"[MUTASI_SERVICE] Error get_user_available_mutation_months: {e}")
+
+    # Urutkan secara descending (bulan terbaru di atas)
+    sorted_pairs = sorted(list(months_set), reverse=True)
+    results = []
+    for y, m in sorted_pairs:
+        results.append({
+            'year': y,
+            'month': m,
+            'label': f"{INDONESIAN_MONTHS.get(m, f'Bulan {m}')} {y}",
+            'is_current': (y == now_wib.year and m == now_wib.month)
+        })
+    return results
+

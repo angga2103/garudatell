@@ -388,11 +388,16 @@
                 <form action="{{ url_for('user.kirim_tiket') }}" method="POST" id="ticket-form">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
-                    <!-- 1. Pemilih Transaksi Bermasalah -->
+                    <!-- 1. Pemilih Transaksi Bermasalah (7 Hari Terakhir) -->
                     <div class="form-group-item">
-                        <label class="form-label">
-                            <i class="fas fa-receipt" style="color: #00877a;"></i>
-                            <span>Pilih Transaksi yang Bermasalah</span>
+                        <label class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="display: flex; align-items: center; gap: 6px;">
+                                <i class="fas fa-receipt" style="color: #00877a;"></i>
+                                <span>Pilih Transaksi yang Bermasalah</span>
+                            </span>
+                            <span style="font-size: 10.5px; font-weight: 700; color: #64748b; background: #f1f5f9; padding: 2px 7px; border-radius: 6px;">
+                                7 Hari Terakhir
+                            </span>
                         </label>
                         <select name="transaction_ref" id="select-transaction" class="form-control-custom" onchange="onTransactionChange()">
                             <option value="NONE">-- Tidak Ada / Pertanyaan Umum --</option>
@@ -403,8 +408,10 @@
                                     data-status="{{ t.status }}" 
                                     data-price="{{ '{:,.0f}'.format(t.amount or 0) }}"
                                     data-date="{{ t.created_at.strftime('%d/%m/%Y %H:%M') if t.created_at else '-' }}"
+                                    data-ticket-closed="{{ '1' if t.ticket_closed else '0' }}"
+                                    data-ticket-active="{{ '1' if t.ticket_active else '0' }}"
                                     {% if selected_ref == t.ref_id %}selected{% endif %}>
-                                [{{ t.status }}] {{ t.product_name or 'Produk' }} - {{ t.target_number }} (Ref: {{ t.ref_id }})
+                                {% if t.ticket_closed %}🔒 [TIKET SELESAI/DITUTUP ADMIN] {% elif t.ticket_active %}⏳ [SEDANG DIPROSES CS] {% endif %}[{{ t.status }}] {{ t.product_name or 'Produk' }} - {{ t.target_number }} (Ref: {{ t.ref_id }})
                             </option>
                             {% endfor %}
                         </select>
@@ -419,6 +426,15 @@
                                 <b>Ref ID:</b> <code>{{ selected_trx.ref_id }}</code> | <b>Status:</b> <b style="color: {% if selected_trx.status == 'SUCCESS' %}#16a34a{% elif selected_trx.status == 'FAILED' %}#dc2626{% else %}#d97706{% endif %};">{{ selected_trx.status }}</b><br>
                                 <b>Produk:</b> {{ selected_trx.product_name or '-' }} | <b>Tujuan:</b> {{ selected_trx.target_number }}<br>
                                 <b>Harga:</b> Rp {{ "{:,.0f}".format(selected_trx.amount or 0) }}
+                                {% if selected_trx.ticket_closed %}
+                                <div style="margin-top: 6px; padding: 4px 10px; border-radius: 8px; background: #dcfce7; border: 1px solid #86efac; color: #15803d; font-size: 11px; font-weight: 800; display: inline-flex; align-items: center; gap: 6px;">
+                                    <i class="fas fa-check-circle"></i> Tiket untuk transaksi ini telah SELESAI / DITUTUP oleh Admin
+                                </div>
+                                {% elif selected_trx.ticket_active %}
+                                <div style="margin-top: 6px; padding: 4px 10px; border-radius: 8px; background: #fef3c7; border: 1px solid #fde68a; color: #b45309; font-size: 11px; font-weight: 800; display: inline-flex; align-items: center; gap: 6px;">
+                                    <i class="fas fa-spinner fa-spin"></i> Ada tiket aktif yang sedang diproses oleh Tim CS
+                                </div>
+                                {% endif %}
                                 {% endif %}
                             </div>
                         </div>
@@ -510,12 +526,12 @@
             <div class="ticket-card" id="section-riwayat-tiket">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
                     <h3 style="font-size: 15px; font-weight: 800; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 8px;">
-                        <i class="fas fa-comments" style="color: #00877a;"></i>
-                        <span>Pusat Komplain & Riwayat Tiket</span>
+                        <i class="fas fa-headset" style="color: #00877a;"></i>
+                        <span>Tiket Aktif & Sedang Diproses</span>
                     </h3>
                     {% if user_tickets %}
                     <span style="font-size: 11px; font-weight: 800; background: #e6f7f5; color: #00877a; padding: 4px 10px; border-radius: 12px; border: 1px solid #99f6e4;">
-                        {{ user_tickets|length }} Tiket Anda
+                        {{ user_tickets|length }} Tiket Aktif
                     </span>
                     {% endif %}
                 </div>
@@ -745,9 +761,14 @@
                         {% endfor %}
                     </div>
                     {% else %}
-                    <div style="text-align: center; padding: 25px 15px; color: #94a3b8; font-size: 12.5px;">
-                        <i class="fas fa-comment-dots" style="font-size: 32px; color: #cbd5e1; margin-bottom: 8px; display: block;"></i>
-                        Belum ada tiket keluhan yang diajukan. Jika Anda mengalami kendala transaksi, silakan isi form di samping.
+                    <div style="text-align: center; padding: 32px 18px; background: #f8fafc; border-radius: 16px; border: 1.5px dashed #cbd5e1;">
+                        <div style="width: 48px; height: 48px; background: #ecfdf5; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px auto; color: #10b981; font-size: 24px;">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div style="font-size: 13.5px; font-weight: 800; color: #1e293b; margin-bottom: 4px;">Tidak Ada Tiket Aktif</div>
+                        <div style="font-size: 11.5px; color: #64748b; line-height: 1.5; max-width: 380px; margin: 0 auto;">
+                            Semua tiket keluhan Anda telah selesai atau belum ada keluhan aktif. Tiket yang sudah ditutup/selesai otomatis diarsipkan oleh sistem.
+                        </div>
                     </div>
                     {% endif %}
                 {% else %}
@@ -780,15 +801,33 @@
             const status = opt.getAttribute('data-status');
             const price = opt.getAttribute('data-price');
             const date = opt.getAttribute('data-date');
+            const isClosed = opt.getAttribute('data-ticket-closed') === '1';
+            const isActive = opt.getAttribute('data-ticket-active') === '1';
 
             let color = '#d97706';
             if (status === 'SUCCESS') color = '#16a34a';
             else if (status === 'FAILED') color = '#dc2626';
 
+            let extraBadge = '';
+            if (isClosed) {
+                extraBadge = `
+                    <div style="margin-top: 6px; padding: 4px 10px; border-radius: 8px; background: #dcfce7; border: 1px solid #86efac; color: #15803d; font-size: 11px; font-weight: 800; display: inline-flex; align-items: center; gap: 6px;">
+                        <i class="fas fa-check-circle"></i> Tiket untuk transaksi ini telah SELESAI / DITUTUP oleh Admin
+                    </div>
+                `;
+            } else if (isActive) {
+                extraBadge = `
+                    <div style="margin-top: 6px; padding: 4px 10px; border-radius: 8px; background: #fef3c7; border: 1px solid #fde68a; color: #b45309; font-size: 11px; font-weight: 800; display: inline-flex; align-items: center; gap: 6px;">
+                        <i class="fas fa-spinner fa-spin"></i> Ada tiket aktif yang sedang diproses oleh Tim CS
+                    </div>
+                `;
+            }
+
             detail.innerHTML = `
                 <b>Ref ID:</b> <code>${val}</code> | <b>Status:</b> <b style="color: ${color};">${status}</b><br>
                 <b>Produk:</b> ${prod} | <b>Tujuan:</b> <code>${target}</code><br>
                 <b>Harga:</b> Rp ${price} | <b>Waktu:</b> ${date}
+                ${extraBadge}
             `;
             box.classList.add('show');
         }

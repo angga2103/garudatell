@@ -614,6 +614,29 @@
 </div>
 
 <div style="padding: 0 15px; padding-bottom: 80px;">
+    <!-- BANNER PERIODE TRANSAKSI (DEFAULT 3 HARI) -->
+    {% if is_default_range %}
+    <div style="background: #e6f7f5; border: 1.5px solid #99f6e4; border-radius: 14px; padding: 10px 14px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; box-shadow: 0 2px 8px rgba(0,135,122,0.06);">
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: #005f56; font-weight: 700;">
+            <i class="fas fa-history" style="color: #00877a; font-size: 15px;"></i>
+            <span>Menampilkan riwayat transaksi <b>3 hari terakhir</b>.</span>
+        </div>
+        <button type="button" onclick="document.getElementById('modalFilter').style.display='flex'" style="background: #00877a; color: white; border: none; padding: 5px 12px; border-radius: 8px; font-size: 11px; font-weight: 800; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px;">
+            <i class="fas fa-calendar-alt"></i> <span>Cari Tanggal Lain</span>
+        </button>
+    </div>
+    {% elif request.args.get('start_date') or request.args.get('end_date') %}
+    <div style="background: #f1f5f9; border: 1.5px solid #cbd5e1; border-radius: 14px; padding: 10px 14px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: #334155; font-weight: 700;">
+            <i class="fas fa-filter" style="color: #00877a; font-size: 15px;"></i>
+            <span>Filter Tanggal: <b>{{ request.args.get('start_date') or 'Awal' }}</b> s/d <b>{{ request.args.get('end_date') or 'Sekarang' }}</b></span>
+        </div>
+        <a href="/riwayat" style="background: #e2e8f0; color: #475569; padding: 5px 12px; border-radius: 8px; font-size: 11px; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 5px;">
+            <i class="fas fa-undo"></i> <span>Reset (3 Hari)</span>
+        </a>
+    </div>
+    {% endif %}
+
     <!-- KOTAK STATISTIK -->
     <div class="stats-grid">
         <div class="stat-card sukses" onclick="setFilter('SUKSES', document.getElementById('tab-SUKSES'))">

@@ -601,6 +601,7 @@ def riwayat():
         
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
+        is_default_range = False
         
         if start_date:
             try:
@@ -613,6 +614,13 @@ def riwayat():
                 ed = datetime.strptime(end_date + ' 23:59:59', '%Y-%m-%d %H:%M:%S')
                 query = query.filter(Transaction.created_at <= ed)
             except: pass
+
+        # Default: Jika pengguna tidak memilih filter rentang tanggal, tampilkan 3 hari terakhir saja
+        if not start_date and not end_date:
+            from datetime import timedelta
+            is_default_range = True
+            three_days_ago = (datetime.utcnow() - timedelta(days=3)).replace(hour=0, minute=0, second=0, microsecond=0)
+            query = query.filter(Transaction.created_at >= three_days_ago)
 
         # AUTO-SYNC: Cek status terkini transaksi aktif yang masih PROCESSING ke provider (Digiflazz/VIP)
         try:
@@ -648,6 +656,7 @@ def riwayat():
                                count_antri=count_antri,
                                count_proses=count_proses,
                                count_gagal=count_gagal,
+                               is_default_range=is_default_range,
                                title='Riwayat Transaksi')
     except Exception as e:
         import traceback
@@ -1460,16 +1469,20 @@ def vip_claim_commission():
 @login_required
 def informasi():
     try:
-        from app.services.mutasi_service import get_user_mutations
-        res = get_user_mutations(current_user.id, limit=100)
+        from app.services.mutasi_service import get_user_mutations, get_user_available_mutation_months
+        # Tampilkan mutasi 30 hari terakhir secara default
+        res = get_user_mutations(current_user.id, days=30)
         mutasi_data = res.get('mutations', [])
         stats = res.get('stats', {
             'current_balance': float(getattr(current_user, 'balance', 0.0) or 0.0),
+            'starting_balance': float(getattr(current_user, 'balance', 0.0) or 0.0),
+            'ending_balance': float(getattr(current_user, 'balance', 0.0) or 0.0),
             'total_pemasukan': 0.0,
             'total_pengeluaran': 0.0,
             'total_refund': 0.0,
             'count': 0
         })
+        available_months = get_user_available_mutation_months(current_user.id)
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -1477,20 +1490,59 @@ def informasi():
         mutasi_data = []
         stats = {
             'current_balance': float(getattr(current_user, 'balance', 0.0) or 0.0),
+            'starting_balance': 0.0,
+            'ending_balance': 0.0,
             'total_pemasukan': 0.0,
             'total_pengeluaran': 0.0,
             'total_refund': 0.0,
             'count': 0
         }
+        available_months = []
         
     try:
-        return render_template('user/informasi.html', mutasi_data=mutasi_data, stats=stats)
+        return render_template('user/informasi.html', mutasi_data=mutasi_data, stats=stats, available_months=available_months)
     except Exception as e:
         import traceback
         traceback.print_exc()
         print(f"[MUTASI RENDER ERROR]: {e}")
         # Fallback aman
-        return render_template('user/informasi.html', mutasi_data=[], stats=stats)
+        return render_template('user/informasi.html', mutasi_data=[], stats=stats, available_months=available_months)
+
+
+@user_bp.route('/mutasi/download-pdf')
+@user_bp.route('/mutasi/rekening-koran')
+@login_required
+def download_mutasi_pdf():
+    """Mengunduh Rekening Koran Bulanan Pengguna dalam format PDF resmi perbankan."""
+    from datetime import datetime, timedelta
+    from flask import send_file, flash, redirect, url_for
+    from app.services.mutasi_service import get_user_mutations
+    from app.services.pdf_statement_service import generate_monthly_statement_pdf
+
+    now_wib = datetime.utcnow() + timedelta(hours=7)
+    try:
+        req_month = request.args.get('month', default=now_wib.month, type=int)
+        req_year = request.args.get('year', default=now_wib.year, type=int)
+    except Exception:
+        req_month = now_wib.month
+        req_year = now_wib.year
+
+    if req_month < 1 or req_month > 12:
+        req_month = now_wib.month
+    if req_year < 2020 or req_year > 2035:
+        req_year = now_wib.year
+
+    # Ambil data mutasi spesifik bulan dan tahun yang diminta
+    statement_data = get_user_mutations(current_user.id, month=req_month, year=req_year)
+    pdf_buffer = generate_monthly_statement_pdf(current_user, req_month, req_year, statement_data)
+
+    filename = f"Rekening_Koran_iPay_{req_year}_{req_month:02d}_{current_user.id}.pdf"
+    return send_file(
+        pdf_buffer,
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=filename
+    )
 
 
 
@@ -2324,6 +2376,7 @@ CS_RANDOM_AUTO_REPLIES = [
 def bantuan():
     """Halaman Tiket Bantuan & CS Pengguna"""
     from app.models.support_ticket import SupportTicket
+    from datetime import datetime, timedelta
     selected_ref = request.args.get('ref', '').strip()
     search_ticket = request.args.get('cari_tiket', '').strip()
     recent_trxs = []
@@ -2333,10 +2386,39 @@ def bantuan():
 
     if current_user.is_authenticated:
         from app.models.transaction import Transaction
-        recent_trxs = Transaction.query.filter_by(user_id=current_user.id).order_by(Transaction.created_at.desc()).limit(20).all()
+
+        # 1. Dropdown Transaksi Bermasalah: HANYA 7 HARI TERAKHIR
+        seven_days_ago = datetime.utcnow() - timedelta(days=7)
+        recent_trxs = Transaction.query.filter(
+            Transaction.user_id == current_user.id,
+            Transaction.created_at >= seven_days_ago
+        ).order_by(Transaction.created_at.desc()).all()
+
+        # Deteksi tiket yang telah dibuat untuk transaksi-transaksi ini
+        user_all_tickets = SupportTicket.query.filter_by(user_id=current_user.id).all()
+        trx_ticket_status = {}
+        for st in user_all_tickets:
+            if st.transaction_id:
+                if st.status in ['RESOLVED', 'CLOSED']:
+                    trx_ticket_status[st.transaction_id] = 'CLOSED'
+                elif st.status in ['OPEN', 'PROCESS'] and trx_ticket_status.get(st.transaction_id) != 'CLOSED':
+                    trx_ticket_status[st.transaction_id] = 'ACTIVE'
+
+        for t in recent_trxs:
+            t.ticket_closed = (trx_ticket_status.get(t.id) == 'CLOSED')
+            t.ticket_active = (trx_ticket_status.get(t.id) == 'ACTIVE')
+
         if selected_ref:
             selected_trx = Transaction.query.filter_by(user_id=current_user.id, ref_id=selected_ref).first()
-        user_tickets = SupportTicket.query.filter_by(user_id=current_user.id).order_by(SupportTicket.created_at.desc()).limit(15).all()
+            if selected_trx:
+                selected_trx.ticket_closed = (trx_ticket_status.get(selected_trx.id) == 'CLOSED')
+                selected_trx.ticket_active = (trx_ticket_status.get(selected_trx.id) == 'ACTIVE')
+
+        # 2. Daftar Tiket Aktif Pengguna: HANYA STATUS OPEN & PROCESS (Tiket Selesai / Ditutup Tidak Ditampilkan)
+        user_tickets = SupportTicket.query.filter(
+            SupportTicket.user_id == current_user.id,
+            SupportTicket.status.in_(['OPEN', 'PROCESS'])
+        ).order_by(SupportTicket.created_at.desc()).all()
 
     if search_ticket:
         clean_search = search_ticket.replace('#', '').strip()
@@ -2397,12 +2479,15 @@ def api_get_ticket_detail(ticket_number):
 
 @user_bp.route('/api/tiket/user-tickets')
 def api_user_tickets():
-    """Mengambil daftar status tiket user terbaru untuk live auto-polling."""
+    """Mengambil daftar status tiket user terbaru untuk live auto-polling (hanya status OPEN & PROCESS)."""
     if not current_user.is_authenticated:
         return jsonify({'success': True, 'tickets': []})
 
     from app.models.support_ticket import SupportTicket
-    tickets = SupportTicket.query.filter_by(user_id=current_user.id).order_by(SupportTicket.created_at.desc()).limit(15).all()
+    tickets = SupportTicket.query.filter(
+        SupportTicket.user_id == current_user.id,
+        SupportTicket.status.in_(['OPEN', 'PROCESS'])
+    ).order_by(SupportTicket.created_at.desc()).all()
 
     data = []
     for t in tickets:
@@ -2425,12 +2510,29 @@ def api_user_tickets():
 
 @user_bp.route('/api/user/recent-transactions')
 def api_recent_transactions():
-    """Mengambil riwayat transaksi user untuk pemilih dropdown tiket CS."""
+    """Mengambil riwayat transaksi user untuk pemilih dropdown tiket CS (7 hari terakhir)."""
     if not current_user.is_authenticated:
         return jsonify({'transactions': []})
 
     from app.models.transaction import Transaction
-    trxs = Transaction.query.filter_by(user_id=current_user.id).order_by(Transaction.created_at.desc()).limit(20).all()
+    from app.models.support_ticket import SupportTicket
+    from datetime import datetime, timedelta
+
+    seven_days_ago = datetime.utcnow() - timedelta(days=7)
+    trxs = Transaction.query.filter(
+        Transaction.user_id == current_user.id,
+        Transaction.created_at >= seven_days_ago
+    ).order_by(Transaction.created_at.desc()).all()
+
+    user_all_tickets = SupportTicket.query.filter_by(user_id=current_user.id).all()
+    trx_ticket_status = {}
+    for st in user_all_tickets:
+        if st.transaction_id:
+            if st.status in ['RESOLVED', 'CLOSED']:
+                trx_ticket_status[st.transaction_id] = 'CLOSED'
+            elif st.status in ['OPEN', 'PROCESS'] and trx_ticket_status.get(st.transaction_id) != 'CLOSED':
+                trx_ticket_status[st.transaction_id] = 'ACTIVE'
+
     data = [{
         'id': t.id,
         'ref_id': t.ref_id,
@@ -2438,7 +2540,9 @@ def api_recent_transactions():
         'target_number': t.target_number or '-',
         'status': t.status,
         'amount': t.amount,
-        'date': t.created_at.strftime('%d/%m/%Y %H:%M') if t.created_at else '-'
+        'date': t.created_at.strftime('%d/%m/%Y %H:%M') if t.created_at else '-',
+        'ticket_closed': (trx_ticket_status.get(t.id) == 'CLOSED'),
+        'ticket_active': (trx_ticket_status.get(t.id) == 'ACTIVE')
     } for t in trxs]
 
     return jsonify({'transactions': data})
