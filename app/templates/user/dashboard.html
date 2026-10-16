@@ -334,6 +334,31 @@
     .ic-poin { background: linear-gradient(135deg, #eab308, #ca8a04); }
     .ic-tracker { background: linear-gradient(135deg, #059669, #047857); }
     .ic-riwayat { background: linear-gradient(135deg, #64748b, #475569); }
+    
+    .btn-top-menu {
+        background: rgba(255,255,255,0.18);
+        border: 1px solid rgba(255,255,255,0.3);
+        color: white;
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        margin-right: 8px;
+        font-size: 16px;
+        transition: 0.2s ease;
+        flex-shrink: 0;
+    }
+    .btn-top-menu:hover {
+        background: rgba(255,255,255,0.28);
+    }
+    @media (min-width: 1024px) {
+        .btn-top-menu {
+            display: none !important;
+        }
+    }
 </style>
 
 {% endblock %}
@@ -357,6 +382,9 @@
 
 <div class="top-header">
     <div class="user-profile">
+        <button type="button" class="btn-top-menu" onclick="toggleSidebarDrawer(true)" title="Buka Menu Kiri">
+            <i class="fas fa-bars"></i>
+        </button>
         <div class="avatar"><i class="fas fa-user"></i></div>
         <div>
             <p class="greeting" id="teks-sapaan">Selamat Datang 👋</p>
@@ -404,33 +432,6 @@
     </div>
 </div>
 
-<!-- BANNER INTEGRASI APLIKASI KASIR WEB POS (SSO 1-KLIK) -->
-<div style="margin: 0 15px 20px 15px; background: linear-gradient(135deg, #0284c7 0%, #1e40af 100%); border-radius: 20px; padding: 16px 18px; color: white; box-shadow: 0 8px 25px rgba(2, 132, 199, 0.25); position: relative; overflow: hidden; border: 1px solid rgba(255,255,255,0.2);">
-    <div style="position: absolute; right: -10px; bottom: -10px; font-size: 85px; color: rgba(255,255,255,0.08); pointer-events: none;">
-        <i class="fas fa-cash-register"></i>
-    </div>
-    <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; position: relative; z-index: 2; flex-wrap: wrap;">
-        <div style="display: flex; align-items: center; gap: 12px; min-width: 220px;">
-            <div style="width: 44px; height: 44px; border-radius: 14px; background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); display: flex; align-items: center; justify-content: center; color: #ffffff; font-size: 22px; flex-shrink: 0; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
-                <i class="fas fa-cash-register"></i>
-            </div>
-            <div>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <span style="font-size: 10px; font-weight: 900; background: #38bdf8; color: #0f172a; padding: 2px 6px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px;">FITUR MITRA</span>
-                    <span style="font-size: 10px; font-weight: 700; color: #bae6fd;">Auto-Sync Saldo</span>
-                </div>
-                <div style="font-size: 14px; font-weight: 900; color: #ffffff; line-height: 1.3; margin-top: 3px;">Kasir Web POS & Konter HP</div>
-                <div style="font-size: 11px; color: #e0f2fe; margin-top: 2px;">Penjualan Ritel, Servis HP, Kasbon & Potong Saldo Otomatis</div>
-            </div>
-        </div>
-        <div style="flex-shrink: 0;">
-            <a href="{{ url_for('user.launch_web_pos') }}" target="_blank" style="background: #ffffff; color: #0369a1; text-decoration: none; padding: 9px 18px; border-radius: 12px; font-size: 12px; font-weight: 900; display: inline-flex; align-items: center; gap: 7px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); transition: 0.2s;" title="Buka Mesin Kasir">
-                <i class="fas fa-external-link-alt" style="font-size: 11px;"></i> Buka Kasir Web POS
-            </a>
-        </div>
-    </div>
-</div>
-
 <div class="cuan-wrapper">
     <div class="section-title"><i class="fas fa-fire" style="color:#ff9f43; font-size:22px;"></i> Produk Cuan</div>
     
@@ -455,19 +456,15 @@
             <div class="cuan-icon"><span class="icon-byu" style="color: #3B82F6; font-weight: 900; font-size: 14px;">by.U</span></div>
             <span class="cuan-text">By.U Cuan</span>
         </a>
+    </div>
 </div>
-</div>
 
-
-
-
-
-<!-- 1. Transaksi Utama -->
+<!-- 1. Transaksi Utama & Komunikasi (Grid 4x2 - 8 Menu) -->
 <div class="cuan-wrapper" style="padding: 20px 0 25px 0; margin-bottom: 15px;">
     <div class="section-title" style="font-size: 16px;">
-        <i class="fas fa-bolt" style="color: var(--teal-main);"></i> Transaksi Utama
+        <i class="fas fa-bolt" style="color: var(--teal-main);"></i> Transaksi Utama & Komunikasi
     </div>
-    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px 10px; padding: 0 15px; text-align: center;">
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px 8px; padding: 0 15px; text-align: center;">
         <a href="/kategori/pulsa" class="action-item" style="text-decoration:none;">
             <div class="menu-icon"><i class="fas fa-mobile-alt"></i></div>
             <span class="menu-text">Pulsa<br>Reguler</span>
@@ -488,19 +485,35 @@
             <div class="menu-icon"><i class="fas fa-phone-volume"></i></div>
             <span class="menu-text">Telp &<br>SMS</span>
         </a>
+        <a href="/kategori/masaaktif" class="action-item" style="text-decoration:none;">
+            <div class="menu-icon"><i class="fas fa-calendar-alt"></i></div>
+            <span class="menu-text">Masa<br>Aktif</span>
+        </a>
         <a href="/kategori/pascabayar" class="action-item" style="text-decoration:none;">
             <div class="menu-icon"><i class="fas fa-file-invoice-dollar" style="color: #00877a;"></i></div>
             <span class="menu-text">Tagihan<br>PPOB</span>
         </a>
+        <a href="/kategori/pdam" class="action-item" style="text-decoration:none;">
+            <div class="menu-icon"><i class="fas fa-faucet" style="color: #0284c7;"></i></div>
+            <span class="menu-text">PDAM<br>Air</span>
+        </a>
     </div>
 </div>
 
-<!-- 2. Hiburan & Lainnya -->
+<!-- 2. Hiburan, Pajak & Lainnya (Grid 4x2 - 8 Menu) -->
 <div class="cuan-wrapper" style="padding: 20px 0 25px 0; margin-bottom: 40px;">
     <div class="section-title" style="font-size: 16px;">
-        <i class="fas fa-gamepad" style="color: #ff4757;"></i> Hiburan & Lainnya
+        <i class="fas fa-cubes" style="color: #6366f1;"></i> Hiburan, Pajak & Lainnya
     </div>
-    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px 10px; padding: 0 15px; text-align: center;">
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px 8px; padding: 0 15px; text-align: center;">
+        <a href="/kategori/bpjs" class="action-item" style="text-decoration:none;">
+            <div class="menu-icon"><i class="fas fa-heartbeat" style="color: #10b981;"></i></div>
+            <span class="menu-text">BPJS<br>Kesehatan</span>
+        </a>
+        <a href="/kategori/pbb" class="action-item" style="text-decoration:none;">
+            <div class="menu-icon"><i class="fas fa-building" style="color: #f59e0b;"></i></div>
+            <span class="menu-text">PBB &<br>Pajak</span>
+        </a>
         <a href="/kategori/games" class="action-item" style="text-decoration:none;">
             <div class="menu-icon"><i class="fas fa-headset"></i></div>
             <span class="menu-text">Voucher<br>Game</span>
@@ -510,12 +523,20 @@
             <span class="menu-text">Voucher<br>Digital</span>
         </a>
         <a href="/kategori/tv" class="action-item" style="text-decoration:none;">
-            <div class="menu-icon"><i class="fas fa-tv"></i></div>
+            <div class="menu-icon"><i class="fas fa-tv" style="color: #6366f1;"></i></div>
             <span class="menu-text">TV<br>Berlangganan</span>
         </a>
-        <a href="javascript:void(0)" onclick="bukaModalLainnya()" class="action-item" style="text-decoration:none;" title="Semua Layanan">
+        <a href="/poin" class="action-item" style="text-decoration:none;">
+            <div class="menu-icon"><i class="fas fa-coins" style="color: #eab308;"></i></div>
+            <span class="menu-text">Poin<br>Member</span>
+        </a>
+        <a href="/muslimtrack" class="action-item" style="text-decoration:none;">
+            <div class="menu-icon"><i class="fas fa-calendar-check" style="color: #008779;"></i></div>
+            <span class="menu-text">Daily<br>Tracker</span>
+        </a>
+        <a href="javascript:void(0)" onclick="bukaModalLainnya()" class="action-item" style="text-decoration:none;" title="Semua Layanan Lengkap">
             <div class="menu-icon"><i class="fas fa-th"></i></div>
-            <span class="menu-text">Lainnya</span>
+            <span class="menu-text">Semua<br>Layanan</span>
         </a>
     </div>
 </div>
