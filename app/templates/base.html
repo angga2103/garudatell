@@ -737,19 +737,26 @@
                 <span class="sidebar-label">Daily Tracker</span>
             </a>
 
+            <div class="sidebar-section-title">Bantuan & Layanan</div>
+
+            <a href="/bantuan" class="sidebar-item {% if request.path in ['/bantuan', '/tiket', '/cs'] or request.path.startswith('/tiket') %}active{% endif %}">
+                <i class="fas fa-headset sidebar-icon" style="color: #0284c7;"></i>
+                <span class="sidebar-label">Pusat Bantuan & Tiket CS</span>
+            </a>
+
+            {% if store and store.whatsapp %}
+            <a href="https://wa.me/{{ store.whatsapp }}?text=Halo%20Admin%20iPay,%20mohon%20bantuan" target="_blank" class="sidebar-item">
+                <i class="fab fa-whatsapp sidebar-icon" style="color: #22c55e;"></i>
+                <span class="sidebar-label">Bantuan CS WhatsApp</span>
+            </a>
+            {% endif %}
+
             <div class="sidebar-section-title">Pengaturan Akun</div>
 
             <a href="/profil" class="sidebar-item {% if request.path.startswith('/profil') %}active{% endif %}">
                 <i class="fas fa-user-gear sidebar-icon"></i>
                 <span class="sidebar-label">Profil & Toko</span>
             </a>
-
-            {% if store and store.whatsapp %}
-            <a href="https://wa.me/{{ store.whatsapp }}?text=Halo%20Admin%20iPay,%20mohon%20bantuan" target="_blank" class="sidebar-item">
-                <i class="fab fa-whatsapp sidebar-icon" style="color: #22c55e;"></i>
-                <span class="sidebar-label">Bantuan CS WA</span>
-            </a>
-            {% endif %}
         </div>
 
         <!-- FOOTER PROFIL PENGGUNA -->

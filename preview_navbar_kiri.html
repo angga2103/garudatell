@@ -1,0 +1,2086 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Preview Real GarudaTel / iPay: Navigasi Kiri & Simulasi Semua Halaman Lengkap</title>
+    <!-- Google Fonts Nunito & FontAwesome 6 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --primary: #008779;
+            --primary-dark: #006056;
+            --primary-darker: #00463f;
+            --primary-light: #e6f6f4;
+            --primary-gradient: linear-gradient(135deg, #008779 0%, #005950 100%);
+            --accent-orange: #f59e0b;
+            --accent-blue: #0284c7;
+            --accent-gold: #fbbf24;
+            --bg-body: #f8fafc;
+            --card-bg: #ffffff;
+            --text-dark: #0f172a;
+            --text-muted: #64748b;
+            --sidebar-width-expanded: 260px;
+            --sidebar-width-slim: 76px;
+            --radius-xl: 24px;
+            --radius-lg: 18px;
+            --radius-md: 12px;
+            --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Nunito', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: #0f172a; /* Studio Dark Background */
+            color: var(--text-dark);
+            min-height: 100vh;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ========================================================
+           1. TOP DEMO CONTROL BAR (Toolbar Uji Coba Multi-Halaman)
+           ======================================================== */
+        .preview-toolbar {
+            height: 54px;
+            background: #1e293b;
+            border-bottom: 1px solid #334155;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            position: sticky;
+            top: 0;
+            z-index: 9999;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+        }
+        .toolbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            font-weight: 800;
+        }
+        .pill-tag {
+            background: #0284c7;
+            color: white;
+            font-size: 9.5px;
+            font-weight: 800;
+            padding: 2px 7px;
+            border-radius: 6px;
+            text-transform: uppercase;
+        }
+        .toolbar-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .tool-btn {
+            background: #334155;
+            color: #cbd5e1;
+            border: 1px solid #475569;
+            padding: 5px 12px;
+            border-radius: 8px;
+            font-size: 11.5px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .tool-btn:hover {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        .tool-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            box-shadow: 0 2px 8px rgba(0, 135, 121, 0.4);
+        }
+        .select-page-quick {
+            background: #0f172a;
+            color: #38bdf8;
+            border: 1px solid #475569;
+            padding: 5px 10px;
+            border-radius: 8px;
+            font-size: 11.5px;
+            font-weight: 700;
+            cursor: pointer;
+            outline: none;
+        }
+
+        /* ========================================================
+           2. WORKSPACE AREA (Bisa Mode Desktop Full / Mode HP Real)
+           ======================================================== */
+        .preview-stage {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px 10px 40px 10px;
+            background: #0f172a;
+            transition: var(--transition);
+        }
+
+        /* Frame Simulasi Smartphone Realistis */
+        .device-frame {
+            background: #f8fafc;
+            border-radius: 40px;
+            box-shadow: 0 25px 60px -10px rgba(0, 0, 0, 0.7), 0 0 0 10px #1e293b, 0 0 0 12px #334155;
+            width: 100%;
+            max-width: 420px;
+            min-height: 840px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: var(--transition);
+        }
+
+        /* Jika di-switch ke Mode Layar Desktop */
+        .preview-stage.desktop-mode {
+            padding: 0;
+            background: #f8fafc;
+        }
+        .preview-stage.desktop-mode .device-frame {
+            max-width: 100%;
+            min-height: calc(100vh - 54px);
+            border-radius: 0;
+            box-shadow: none;
+            background: var(--bg-body);
+        }
+
+        /* Speaker & Notch HP (Hanya di mode HP) */
+        .phone-notch {
+            height: 26px;
+            background: #1e293b;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 22px;
+            color: #94a3b8;
+            font-size: 11px;
+            font-weight: 700;
+            z-index: 100;
+            flex-shrink: 0;
+        }
+        .preview-stage.desktop-mode .phone-notch {
+            display: none;
+        }
+
+        /* ========================================================
+           3. SIDEBAR / DRAWER NAVIGASI KIRI
+           ======================================================== */
+        .left-navigation {
+            position: absolute;
+            top: 26px;
+            left: 0;
+            bottom: 0;
+            width: 270px;
+            background: #ffffff;
+            z-index: 1200;
+            box-shadow: 8px 0 30px rgba(0,0,0,0.15);
+            display: flex;
+            flex-direction: column;
+            transform: translateX(-100%);
+            transition: var(--transition);
+        }
+
+        .left-navigation.open {
+            transform: translateX(0);
+        }
+
+        /* Di Mode Desktop: Sidebar selalu muncul di sebelah kiri */
+        .preview-stage.desktop-mode .left-navigation {
+            position: fixed;
+            top: 54px;
+            bottom: 0;
+            left: 0;
+            transform: translateX(0);
+            border-right: 1px solid #e2e8f0;
+            box-shadow: 4px 0 20px rgba(0,0,0,0.03);
+            width: var(--sidebar-width-expanded);
+        }
+        .preview-stage.desktop-mode .left-navigation.slim {
+            width: var(--sidebar-width-slim);
+        }
+
+        /* Header Sidebar */
+        .nav-header {
+            padding: 16px 18px 14px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .brand-logo-wrap {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .brand-icon-box {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            background: var(--primary-gradient);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            box-shadow: 0 4px 12px rgba(0, 135, 121, 0.3);
+            flex-shrink: 0;
+        }
+        .brand-names {
+            display: flex;
+            flex-direction: column;
+        }
+        .brand-names b {
+            font-size: 16.5px;
+            color: var(--primary);
+            line-height: 1.1;
+            letter-spacing: -0.3px;
+        }
+        .brand-names span {
+            font-size: 10.5px;
+            font-weight: 700;
+            color: var(--text-muted);
+        }
+        .preview-stage.desktop-mode .left-navigation.slim .brand-names {
+            display: none;
+        }
+
+        .btn-toggle-side-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            background: #f8fafc;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .btn-toggle-side-icon:hover {
+            background: var(--primary-light);
+            color: var(--primary);
+            border-color: var(--primary);
+        }
+
+        /* Menu Navigasi */
+        .nav-body-menu {
+            flex: 1;
+            overflow-y: auto;
+            padding: 14px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .nav-body-menu::-webkit-scrollbar { width: 4px; }
+        .nav-body-menu::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+        .menu-title-cat {
+            font-size: 10px;
+            font-weight: 800;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            padding: 8px 12px 3px 12px;
+        }
+        .preview-stage.desktop-mode .left-navigation.slim .menu-title-cat {
+            display: none;
+        }
+
+        .menu-btn-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 9.5px 14px;
+            border-radius: var(--radius-md);
+            color: #475569;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 700;
+            transition: var(--transition);
+            position: relative;
+            cursor: pointer;
+        }
+        .menu-btn-item:hover {
+            background: #f8fafc;
+            color: var(--primary);
+        }
+        .menu-btn-item.active {
+            background: var(--primary-light);
+            color: var(--primary);
+            font-weight: 800;
+        }
+        .menu-btn-item.active::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 20%;
+            height: 60%;
+            width: 4px;
+            background: var(--primary);
+            border-radius: 0 4px 4px 0;
+        }
+        .menu-item-icon {
+            font-size: 16.5px;
+            width: 22px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        .preview-stage.desktop-mode .left-navigation.slim .menu-btn-item span:not(.menu-item-icon) {
+            display: none;
+        }
+        .badge-hot {
+            margin-left: auto;
+            background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+            color: white;
+            font-size: 9px;
+            font-weight: 800;
+            padding: 2px 6px;
+            border-radius: 6px;
+        }
+        .badge-count {
+            margin-left: auto;
+            background: #ef4444;
+            color: white;
+            font-size: 9px;
+            font-weight: 800;
+            padding: 1px 6px;
+            border-radius: 10px;
+        }
+
+        /* User Profile di Footer Menu */
+        .nav-footer-user {
+            padding: 12px;
+            border-top: 1px solid #f1f5f9;
+            background: #f8fafc;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+        .user-pic {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #e2e8f0;
+            color: #64748b;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 13px;
+            border: 2px solid white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+            flex-shrink: 0;
+        }
+        .user-details {
+            display: flex;
+            flex-direction: column;
+        }
+        .user-details b {
+            font-size: 12.5px;
+            color: var(--text-dark);
+            line-height: 1.1;
+        }
+        .user-details small {
+            font-size: 10.5px;
+            color: var(--primary);
+            font-weight: 700;
+        }
+        .preview-stage.desktop-mode .left-navigation.slim .user-details {
+            display: none;
+        }
+
+        /* Backdrop Kaca Saat Drawer Muncul di HP */
+        .drawer-overlay {
+            position: absolute;
+            top: 26px; left: 0; right: 0; bottom: 0;
+            background: rgba(15, 23, 42, 0.55);
+            backdrop-filter: blur(4px);
+            z-index: 1100;
+            display: none;
+            opacity: 0;
+            transition: var(--transition);
+        }
+        .drawer-overlay.active {
+            display: block;
+            opacity: 1;
+        }
+        .preview-stage.desktop-mode .drawer-overlay {
+            display: none !important;
+        }
+
+        /* ========================================================
+           4. KONTEN APLIKASI (AREA UTAMA & MULTI-HALAMAN)
+           ======================================================== */
+        .phone-screen {
+            flex: 1;
+            overflow-y: auto;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            background: #f8fafc;
+            padding-bottom: 90px;
+        }
+        .preview-stage.desktop-mode .phone-screen {
+            margin-left: var(--sidebar-width-expanded);
+            padding-bottom: 40px;
+        }
+        .preview-stage.desktop-mode .left-navigation.slim ~ .phone-screen {
+            margin-left: var(--sidebar-width-slim);
+        }
+
+        /* Container Multi-Halaman */
+        .page-view {
+            display: none;
+            width: 100%;
+            animation: fadeInPage 0.25s ease;
+        }
+        .page-view.active-page {
+            display: block;
+        }
+        @keyframes fadeInPage {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Universal Subpage Header */
+        .subpage-topbar {
+            background: var(--primary-gradient);
+            padding: 18px 20px 24px 20px;
+            color: white;
+            border-bottom-left-radius: 28px;
+            border-bottom-right-radius: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 6px 20px rgba(0, 135, 121, 0.2);
+            margin-bottom: 16px;
+        }
+        .btn-back-home {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.25);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 10px;
+            font-size: 11.5px;
+            font-weight: 800;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: var(--transition);
+        }
+        .btn-back-home:hover { background: rgba(255,255,255,0.3); }
+
+        /* ========================================================
+           HALAMAN 1: BERANDA UTAMA (DASHBOARD)
+           ======================================================== */
+        .app-topbar {
+            background: var(--primary-gradient);
+            padding: 20px 20px 65px 20px;
+            border-bottom-left-radius: 35px;
+            border-bottom-right-radius: 35px;
+            color: white;
+            box-shadow: 0 8px 24px rgba(0, 135, 121, 0.25);
+        }
+        .app-topbar-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .btn-hamburger-mobile {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.25);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .btn-hamburger-mobile:hover {
+            background: rgba(255,255,255,0.3);
+            transform: scale(1.05);
+        }
+        .preview-stage.desktop-mode .btn-hamburger-mobile {
+            display: none;
+        }
+        .header-greeting h3 { font-size: 18px; font-weight: 900; line-height: 1.2; }
+        .header-greeting p { font-size: 12px; opacity: 0.9; }
+
+        /* PIL TANGGAL (Real Sesuai Permintaan #4) */
+        .date-pill {
+            background: rgba(255,255,255,0.25);
+            padding: 5px 12px;
+            border-radius: 18px;
+            font-size: 11.5px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .bell-btn {
+            width: 38px;
+            height: 38px;
+            background: rgba(255,255,255,0.25);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 16px;
+            position: relative;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .bell-btn:hover { background: rgba(255,255,255,0.35); }
+        .bell-dot {
+            position: absolute;
+            top: -3px;
+            right: -3px;
+            min-width: 17px;
+            height: 17px;
+            padding: 0 4px;
+            background: #ef4444;
+            color: #ffffff;
+            border-radius: 10px;
+            font-size: 9.5px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid var(--primary);
+        }
+
+        /* KARTU SALDO & POIN MEMBER UTAMA (Real Sesuai Permintaan #1 & #2) */
+        .main-balance-card {
+            background: var(--primary-dark);
+            border-radius: 24px;
+            color: white;
+            margin: -50px 16px 14px 16px;
+            box-shadow: 0 10px 28px rgba(0,0,0,0.08);
+            display: flex;
+            overflow: hidden;
+            position: relative;
+            z-index: 10;
+        }
+        .balance-info-col {
+            flex: 1;
+            padding: 16px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .bal-sec {
+            flex: 1;
+            cursor: pointer;
+        }
+        .bal-divider {
+            width: 1px;
+            background: rgba(255,255,255,0.2);
+            height: 42px;
+            margin: 0 14px;
+        }
+        .bal-label {
+            font-size: 11px;
+            font-weight: 700;
+            opacity: 0.9;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 3px;
+        }
+        .bal-amount {
+            font-size: 20px;
+            font-weight: 900;
+            letter-spacing: -0.3px;
+        }
+        .points-amount {
+            font-size: 20px;
+            font-weight: 900;
+            color: #fde047;
+            display: flex;
+            align-items: baseline;
+            gap: 4px;
+        }
+        .points-amount small { font-size: 11.5px; font-weight: 700; opacity: 0.9; color: white; }
+        .scan-deposit-btn {
+            background: var(--primary-darker);
+            width: 78px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            color: white;
+            transition: background 0.2s;
+            border-left: 1px solid rgba(255,255,255,0.1);
+        }
+        .scan-deposit-btn:hover { background: #003630; }
+        .scan-deposit-btn i { font-size: 22px; }
+        .scan-deposit-btn span { font-size: 10px; font-weight: 800; }
+
+        /* QUICK ACTION PILLS ROW */
+        .quick-action-pills {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            padding: 0 16px;
+            margin-bottom: 16px;
+        }
+        .q-pill-btn {
+            background: white;
+            border-radius: var(--radius-md);
+            padding: 10px 4px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            border: 1px solid #e2e8f0;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+            transition: var(--transition);
+        }
+        .q-pill-btn:hover {
+            transform: translateY(-2px);
+            border-color: var(--primary);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        .q-pill-icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+        .q-pill-label { font-size: 10.5px; font-weight: 800; color: var(--text-dark); }
+
+        /* PRODUK CUAN OPERATOR SCROLL */
+        .cuan-wrapper {
+            background: white;
+            border-radius: var(--radius-xl);
+            padding: 14px 14px 12px 14px;
+            margin: 0 16px 14px 16px;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.02);
+            border: 1px solid #f1f5f9;
+        }
+        .cuan-title {
+            font-size: 13.5px;
+            font-weight: 900;
+            color: var(--text-dark);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .cuan-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 6px;
+        }
+        .cuan-item {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+        }
+        .cuan-icon-box {
+            width: 46px;
+            height: 46px;
+            background: #eef9f8;
+            border-radius: 14px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 16px;
+            font-weight: 900;
+            margin-bottom: 4px;
+            position: relative;
+        }
+        .cuan-name { font-size: 10px; font-weight: 800; color: var(--text-dark); }
+
+        /* GRID SEMUA LAYANAN (Analisis Menu Lainnya Dipindah ke Utama - Permintaan #5) */
+        .services-section-wrapper {
+            padding: 0 16px 10px 16px;
+        }
+        .section-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .sec-title {
+            font-size: 13.5px;
+            font-weight: 900;
+            color: var(--text-dark);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .all-services-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+        .preview-stage.desktop-mode .all-services-grid {
+            grid-template-columns: repeat(8, 1fr);
+        }
+
+        .service-card-item {
+            background: white;
+            border-radius: var(--radius-md);
+            padding: 12px 6px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+            transition: var(--transition);
+        }
+        .service-card-item:hover {
+            transform: translateY(-3px);
+            border-color: var(--primary);
+            box-shadow: 0 6px 14px rgba(0,0,0,0.06);
+        }
+        .s-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        .s-label {
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--text-dark);
+            line-height: 1.25;
+        }
+
+        /* ========================================================
+           HALAMAN: POIN MEMBER (Real Sesuai Permintaan #1)
+           ======================================================== */
+        .poin-container { padding: 0 16px; }
+        .poin-hero-card {
+            background: linear-gradient(135deg, #008779 0%, #004d40 100%);
+            border-radius: 20px;
+            padding: 18px 20px;
+            color: white;
+            margin-bottom: 16px;
+            box-shadow: 0 6px 20px rgba(0, 135, 122, 0.25);
+            position: relative;
+        }
+        .poin-big-val {
+            font-size: 32px;
+            font-weight: 900;
+            color: #fde047;
+            margin: 6px 0;
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+        }
+        .poin-rules-box {
+            background: white;
+            border-radius: var(--radius-lg);
+            padding: 16px;
+            border: 1.5px solid #fef08a;
+            background: #fefce8;
+            margin-bottom: 14px;
+        }
+        .poin-rules-box h4 {
+            font-size: 13.5px;
+            font-weight: 900;
+            color: #854d0e;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+        .poin-rules-box p {
+            font-size: 11.5px;
+            color: #713f12;
+            line-height: 1.5;
+        }
+        .poin-history-card {
+            background: white;
+            border-radius: 14px;
+            padding: 12px 14px;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        /* ========================================================
+           HALAMAN: DEPOSIT / ISI SALDO (Real Sesuai Permintaan #2)
+           ======================================================== */
+        .deposit-container { padding: 0 16px; }
+        .dep-channel-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+        .dep-tab {
+            flex: 1;
+            padding: 10px;
+            border-radius: 12px;
+            background: white;
+            border: 1.5px solid #e2e8f0;
+            font-size: 12px;
+            font-weight: 800;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .dep-tab.active {
+            background: var(--primary-light);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+        .nominal-preset-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+        .nom-pill {
+            background: white;
+            border: 1px solid #e2e8f0;
+            padding: 10px 4px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+        .nom-pill.selected {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        .manual-ewallet-box {
+            background: white;
+            border-radius: 16px;
+            padding: 16px;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 14px;
+        }
+        .ewallet-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px dashed #e2e8f0;
+        }
+        .ewallet-row:last-child { border-bottom: none; }
+
+        /* ========================================================
+           HALAMAN: PUSAT NOTIFIKASI (Real Sesuai Permintaan #3)
+           ======================================================== */
+        .notif-container { padding: 0 16px; }
+        .notif-filter-tabs {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+        .n-tab {
+            padding: 6px 12px;
+            border-radius: 20px;
+            background: white;
+            border: 1px solid #e2e8f0;
+            font-size: 11px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+        .n-tab.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        .notif-card-item {
+            background: white;
+            border-radius: 16px;
+            padding: 14px;
+            margin-bottom: 10px;
+            border: 1.5px solid #f1f5f9;
+            display: flex;
+            gap: 12px;
+            position: relative;
+        }
+        .notif-card-item.unread {
+            border-color: #5eead4;
+            background: #f0fdfa;
+        }
+        .notif-card-item.unread::after {
+            content: '';
+            position: absolute;
+            top: 14px; right: 14px;
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            background: var(--primary);
+        }
+        .notif-icon-circle {
+            width: 38px; height: 38px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px; flex-shrink: 0;
+        }
+        .notif-clamp-text {
+            font-size: 11.5px;
+            color: #475569;
+            line-height: 1.45;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            word-break: break-word;
+            margin-top: 3px;
+            cursor: pointer;
+        }
+        .notif-clamp-text.expanded {
+            display: block !important;
+            -webkit-line-clamp: unset !important;
+        }
+
+        /* ========================================================
+           HALAMAN: KASIR WEB POS (PENJUALAN RITEL & KONTER)
+           ======================================================== */
+        .pos-container { padding: 0 16px; }
+        .pos-search-bar { display: flex; gap: 8px; margin-bottom: 12px; }
+        .pos-input { flex: 1; padding: 10px 14px; border-radius: 12px; border: 1px solid #cbd5e1; font-size: 13px; outline: none; }
+        .btn-scan-barcode { background: #0f172a; color: white; border: none; padding: 0 14px; border-radius: 12px; font-size: 14px; cursor: pointer; }
+        .pos-product-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px; }
+        .preview-stage.desktop-mode .pos-product-grid { grid-template-columns: repeat(4, 1fr); }
+        .pos-card {
+            background: white; border-radius: 14px; padding: 12px; border: 1px solid #e2e8f0;
+            display: flex; flex-direction: column; justify-content: space-between;
+        }
+        .pos-card b { font-size: 13px; color: var(--text-dark); margin-bottom: 4px; display: block; }
+        .pos-card .price { font-size: 13.5px; font-weight: 900; color: var(--primary); margin: 6px 0; }
+        .btn-pos-add {
+            background: var(--primary-light); color: var(--primary); border: 1px solid #b2dfdb;
+            padding: 6px; border-radius: 8px; font-size: 11px; font-weight: 800; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 4px;
+        }
+        .pos-cart-bar {
+            background: #0f172a; color: white; border-radius: 18px; padding: 14px 18px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+
+        /* ========================================================
+           HALAMAN: RIWAYAT TRANSAKSI
+           ======================================================== */
+        .riwayat-container { padding: 0 16px; }
+        .history-card {
+            background: white; border-radius: 16px; padding: 14px 16px; margin-bottom: 12px;
+            border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+        }
+        .history-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #e2e8f0; padding-bottom: 8px; margin-bottom: 8px; }
+        .badge-status-success { background: #dcfce7; color: #15803d; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 8px; }
+        .history-sn-box {
+            background: #f8fafc; border-radius: 8px; padding: 6px 10px; font-size: 11px;
+            font-family: monospace; color: #334155; display: flex; justify-content: space-between; align-items: center; margin: 8px 0; border: 1px solid #f1f5f9;
+        }
+
+        /* ========================================================
+           HALAMAN: MUTASI SALDO
+           ======================================================== */
+        .mutasi-container { padding: 0 16px; }
+        .financial-summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+        .summary-card { background: white; border-radius: 12px; padding: 10px; border: 1px solid #e2e8f0; text-align: center; }
+        .summary-card span { font-size: 10px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; }
+        .summary-card b { font-size: 12.5px; display: block; margin-top: 2px; }
+        .mutasi-item-row {
+            background: white; border-radius: 14px; padding: 12px 14px; border: 1px solid #e2e8f0;
+            margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;
+        }
+
+        /* ========================================================
+           HALAMAN: MOESLIM DAILY TRACKER
+           ======================================================== */
+        .tracker-container { padding: 0 16px; }
+        .tracker-header-box {
+            background: linear-gradient(135deg, #008779 0%, #004d44 100%);
+            border-radius: 20px; padding: 16px; color: white; margin-bottom: 16px;
+        }
+        .prayer-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 12px; text-align: center; }
+        .prayer-item { background: rgba(255,255,255,0.15); border-radius: 10px; padding: 8px 4px; font-size: 10.5px; }
+        .habit-card {
+            background: white; border-radius: 14px; padding: 12px 14px; border: 1px solid #e2e8f0;
+            margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;
+        }
+        .habit-check {
+            width: 22px; height: 22px; border-radius: 6px; border: 2px solid #cbd5e1;
+            display: flex; align-items: center; justify-content: center; cursor: pointer; color: white; transition: var(--transition);
+        }
+        .habit-check.done { background: var(--primary); border-color: var(--primary); }
+
+        /* ========================================================
+           HALAMAN: PROFIL & PENGATURAN TOKO
+           ======================================================== */
+        .profil-container { padding: 0 16px; }
+        .profil-card-hero {
+            background: white; border-radius: 20px; padding: 18px; border: 1px solid #e2e8f0;
+            display: flex; align-items: center; gap: 14px; margin-bottom: 16px;
+        }
+        .profil-big-avatar {
+            width: 58px; height: 58px; border-radius: 50%; background: #e2e8f0; color: #64748b;
+            display: flex; align-items: center; justify-content: center; font-size: 24px; border: 3px solid #b2dfdb;
+        }
+        .profil-menu-item {
+            background: white; border-radius: 12px; padding: 12px 14px; border: 1px solid #e2e8f0;
+            display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 700;
+            cursor: pointer; margin-bottom: 8px; transition: var(--transition);
+        }
+        .profil-menu-item:hover { background: #f8fafc; border-color: var(--primary); }
+
+        /* ========================================================
+           5. MODERN BOTTOM NAVIGATION DOCK (KHUSUS VERSI MOBILE)
+           ======================================================== */
+        .mobile-bottom-dock {
+            position: absolute;
+            bottom: 10px;
+            left: 14px;
+            right: 14px;
+            height: 64px;
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(16px);
+            border-radius: 28px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 0 6px;
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0,0,0,0.04);
+            border: 1.5px solid rgba(226, 232, 240, 0.9);
+            z-index: 1000;
+            transition: var(--transition);
+        }
+
+        .preview-stage.desktop-mode .mobile-bottom-dock {
+            display: none;
+        }
+
+        .dock-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            color: #94a3b8;
+            font-size: 10px;
+            font-weight: 800;
+            text-decoration: none;
+            cursor: pointer;
+            transition: var(--transition);
+            flex: 1;
+            padding: 6px 0;
+            border-radius: 16px;
+        }
+        .dock-item i { font-size: 18px; transition: var(--transition); }
+        .dock-item:hover, .dock-item.active { color: var(--primary); }
+        .dock-item.active i { transform: scale(1.15); }
+
+        .dock-fab {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--primary-gradient);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            box-shadow: 0 6px 18px rgba(0, 135, 121, 0.45);
+            transform: translateY(-16px);
+            cursor: pointer;
+            border: 3px solid white;
+            transition: var(--transition);
+            flex-shrink: 0;
+        }
+        .dock-fab:hover {
+            transform: translateY(-20px) scale(1.08);
+            box-shadow: 0 8px 24px rgba(0, 135, 121, 0.6);
+        }
+        .dock-item.trigger-menu {
+            color: var(--primary);
+            background: var(--primary-light);
+            border-radius: 18px;
+            padding: 6px 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ========================================================
+         TOOLBAR KONTROL PREVIEW
+         ======================================================== -->
+    <header class="preview-toolbar">
+        <div class="toolbar-brand">
+            <span class="pill-tag"><i class="fas fa-check-double"></i> Full Prototype</span>
+            <span>Simulasi Nyata Navigasi & Semua Halaman</span>
+        </div>
+        <div class="toolbar-controls">
+            <!-- Selector Halaman Langsung -->
+            <select class="select-page-quick" id="selectPageQuick" onchange="navigateToPage(this.value)">
+                <option value="beranda">🏠 Halaman: Beranda Utama</option>
+                <option value="poin">🪙 Halaman: Poin Member</option>
+                <option value="deposit">📥 Halaman: Isi Saldo / Deposit</option>
+                <option value="notifikasi">🔔 Halaman: Pusat Notifikasi</option>
+                <option value="pos">🏪 Halaman: Kasir Web POS</option>
+                <option value="riwayat">📜 Halaman: Riwayat Transaksi</option>
+                <option value="mutasi">💳 Halaman: Mutasi Saldo</option>
+                <option value="tracker">📿 Halaman: Daily Tracker</option>
+                <option value="profil">👤 Halaman: Profil & Akun</option>
+            </select>
+
+            <button class="tool-btn active" id="btnViewMobile" onclick="switchView('mobile')">
+                <i class="fas fa-mobile-alt"></i> Layar HP
+            </button>
+            <button class="tool-btn" id="btnViewDesktop" onclick="switchView('desktop')">
+                <i class="fas fa-desktop"></i> Layar PC Kasir
+            </button>
+            <button class="tool-btn" id="btnToggleSlim" onclick="toggleSlimDesktop()">
+                <i class="fas fa-bars-staggered"></i> Mode Ciut
+            </button>
+        </div>
+    </header>
+
+    <!-- ========================================================
+         PANGGUNG SIMULASI (STAGE)
+         ======================================================== -->
+    <div class="preview-stage" id="previewStage">
+        
+        <!-- FRAME CONTAINER UTAMA -->
+        <div class="device-frame" id="deviceFrame">
+            
+            <!-- Notch Speaker Status Bar HP -->
+            <div class="phone-notch">
+                <span>09:41</span>
+                <span style="display: flex; gap: 6px;">
+                    <i class="fas fa-wifi"></i>
+                    <i class="fas fa-signal"></i>
+                    <i class="fas fa-battery-full"></i>
+                </span>
+            </div>
+
+            <!-- OVERLAY GELAP SAAT DRAWER KIRI DIBUKA DI HP -->
+            <div class="drawer-overlay" id="drawerOverlay" onclick="toggleDrawer(false)"></div>
+
+            <!-- ====================================================
+                 SIDEBAR NAVIGASI KIRI LENGKAP
+                 ==================================================== -->
+            <aside class="left-navigation" id="leftNav">
+                <div class="nav-header">
+                    <div class="brand-logo-wrap" onclick="navigateToPage('beranda')">
+                        <div class="brand-icon-box"><i class="fas fa-bolt"></i></div>
+                        <div class="brand-names">
+                            <b>iPay / GarudaTel</b>
+                            <span>Super-App & Web POS</span>
+                        </div>
+                    </div>
+                    <button class="btn-toggle-side-icon" onclick="toggleDrawer(false)" title="Tutup Menu">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                </div>
+
+                <!-- Menu Lengkap Vertikal (Terhubung ke Semua Halaman) -->
+                <nav class="nav-body-menu">
+                    <div class="menu-title-cat">Menu Operasional</div>
+
+                    <div class="menu-btn-item active" id="menu-side-beranda" onclick="navigateToPage('beranda')">
+                        <i class="fas fa-home menu-item-icon"></i>
+                        <span>Beranda Utama</span>
+                    </div>
+
+                    <div class="menu-btn-item" id="menu-side-poin" onclick="navigateToPage('poin')">
+                        <i class="fas fa-coins menu-item-icon" style="color: #fbbf24;"></i>
+                        <span>Poin Member</span>
+                        <span class="badge-hot" style="background: #eab308;">350 Pts</span>
+                    </div>
+
+                    <div class="menu-btn-item" id="menu-side-deposit" onclick="navigateToPage('deposit')">
+                        <i class="fas fa-qrcode menu-item-icon" style="color: #0284c7;"></i>
+                        <span>Isi Saldo / Deposit</span>
+                    </div>
+
+                    <div class="menu-btn-item" id="menu-side-notifikasi" onclick="navigateToPage('notifikasi')">
+                        <i class="fas fa-bell menu-item-icon" style="color: #ef4444;"></i>
+                        <span>Pusat Notifikasi</span>
+                        <span class="badge-count">3</span>
+                    </div>
+
+                    <div class="menu-btn-item" id="menu-side-pos" onclick="navigateToPage('pos')">
+                        <i class="fas fa-cash-register menu-item-icon" style="color: #f59e0b;"></i>
+                        <span>Kasir Web POS</span>
+                        <span class="badge-hot">HOT</span>
+                    </div>
+
+                    <div class="menu-title-cat">Laporan & Catatan</div>
+
+                    <div class="menu-btn-item" id="menu-side-riwayat" onclick="navigateToPage('riwayat')">
+                        <i class="fas fa-clock-rotate-left menu-item-icon"></i>
+                        <span>Riwayat Transaksi</span>
+                    </div>
+
+                    <div class="menu-btn-item" id="menu-side-mutasi" onclick="navigateToPage('mutasi')">
+                        <i class="fas fa-wallet menu-item-icon"></i>
+                        <span>Mutasi Saldo</span>
+                    </div>
+
+                    <div class="menu-btn-item" id="menu-side-tracker" onclick="navigateToPage('tracker')">
+                        <i class="fas fa-calendar-check menu-item-icon" style="color: var(--primary);"></i>
+                        <span>Moeslim Tracker</span>
+                    </div>
+
+                    <div class="menu-title-cat">Bantuan & Layanan</div>
+
+                    <div class="menu-btn-item" onclick="alert('Membuka Pusat Bantuan & Tiket CS (/bantuan)')">
+                        <i class="fas fa-headset menu-item-icon" style="color: #0284c7;"></i>
+                        <span>Pusat Bantuan & Tiket CS</span>
+                    </div>
+
+                    <div class="menu-btn-item" onclick="alert('Membuka WhatsApp Bantuan CS: 081775700114')">
+                        <i class="fab fa-whatsapp menu-item-icon" style="color: #22c55e;"></i>
+                        <span>Bantuan CS WA</span>
+                    </div>
+
+                    <div class="menu-title-cat">Pengaturan Toko</div>
+
+                    <div class="menu-btn-item" id="menu-side-profil" onclick="navigateToPage('profil')">
+                        <i class="fas fa-user-gear menu-item-icon"></i>
+                        <span>Profil & Pengaturan</span>
+                    </div>
+                </nav>
+
+                <!-- Footer Akun Pengguna -->
+                <div class="nav-footer-user" onclick="navigateToPage('profil')">
+                    <div class="user-pic"><i class="fas fa-user"></i></div>
+                    <div class="user-details">
+                        <b>Angga Saputra</b>
+                        <small><i class="fas fa-shield-check"></i> Mitra Prioritas</small>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- ====================================================
+                 LAYAR KONTEN UTAMA APLIKASI (MULTI-PAGE)
+                 ==================================================== -->
+            <main class="phone-screen" id="phoneScreen">
+                
+                <!-- ----------------------------------------------------
+                     PAGE 1: BERANDA UTAMA (DASHBOARD)
+                     ---------------------------------------------------- -->
+                <div class="page-view active-page" id="page-beranda">
+                    <!-- TOPBAR APLIKASI DENGAN TAMPILAN TANGGAL & LONCENG NOTIFIKASI -->
+                    <div class="app-topbar">
+                        <div class="app-topbar-row">
+                            <button class="btn-hamburger-mobile" onclick="toggleDrawer(true)" title="Buka Menu Kiri">
+                                <i class="fas fa-bars"></i>
+                            </button>
+                            <div class="header-greeting">
+                                <p>Selamat Malam 👋</p>
+                                <h3>Angga Saputra</h3>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <!-- TAMPILAN TANGGAL (Permintaan #4) -->
+                                <div class="date-pill">
+                                    <i class="far fa-calendar-alt"></i> Jum'at, 16 Okt
+                                </div>
+                                <!-- LONCENG NOTIFIKASI (Permintaan #3) -->
+                                <div class="bell-btn" onclick="navigateToPage('notifikasi')" title="Pusat Notifikasi">
+                                    <i class="fas fa-bell"></i>
+                                    <div class="bell-dot">3</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- KARTU SALDO & POIN MEMBER (Permintaan #1 & #2: Poin Member & Topup Deposit) -->
+                    <div class="main-balance-card">
+                        <div class="balance-info-col">
+                            <!-- Kolom Saldo Utama -->
+                            <div class="bal-sec" onclick="navigateToPage('mutasi')" title="Klik untuk lihat mutasi saldo">
+                                <div class="bal-label">Saldo Utama <i class="fas fa-eye-slash" style="font-size: 10px;"></i></div>
+                                <div class="bal-amount">Rp 1.450.000</div>
+                            </div>
+                            <div class="bal-divider"></div>
+                            <!-- Kolom Poin Member (Klik ke Halaman Poin) -->
+                            <div class="bal-sec" onclick="navigateToPage('poin')" title="Klik untuk lihat & tukar Poin Member">
+                                <div class="bal-label">Poin Member <i class="fas fa-coins" style="color: #fbbf24;"></i></div>
+                                <div class="points-amount">350 <small>Pts</small></div>
+                            </div>
+                        </div>
+                        <!-- Tombol Samping: Top Up / Deposit (Klik ke Halaman Deposit) -->
+                        <div class="scan-deposit-btn" onclick="navigateToPage('deposit')" title="Isi Saldo / Deposit">
+                            <i class="fas fa-qrcode"></i>
+                            <span>Top Up</span>
+                        </div>
+                    </div>
+
+                    <!-- QUICK ACTION PILLS (PINTASAN CEPAT) -->
+                    <div class="quick-action-pills">
+                        <div class="q-pill-btn" onclick="navigateToPage('deposit')">
+                            <div class="q-pill-icon" style="background: #e0f2fe; color: #0284c7;"><i class="fas fa-plus"></i></div>
+                            <span class="q-pill-label">Isi Saldo</span>
+                        </div>
+                        <div class="q-pill-btn" onclick="navigateToPage('poin')">
+                            <div class="q-pill-icon" style="background: #fef3c7; color: #d97706;"><i class="fas fa-coins"></i></div>
+                            <span class="q-pill-label">Poin Member</span>
+                        </div>
+                        <div class="q-pill-btn" onclick="navigateToPage('pos')">
+                            <div class="q-pill-icon" style="background: #f3e8ff; color: #7c3aed;"><i class="fas fa-cash-register"></i></div>
+                            <span class="q-pill-label">Kasir POS</span>
+                        </div>
+                        <div class="q-pill-btn" onclick="navigateToPage('riwayat')">
+                            <div class="q-pill-icon" style="background: #f0fdf4; color: #16a34a;"><i class="fas fa-receipt"></i></div>
+                            <span class="q-pill-label">Riwayat</span>
+                        </div>
+                    </div>
+
+                    <!-- PRODUK CUAN KHUSUS OPERATOR -->
+                    <div class="cuan-wrapper">
+                        <div class="cuan-title"><i class="fas fa-fire" style="color:#ff9f43;"></i> Produk Cuan Operator</div>
+                        <div class="cuan-grid">
+                            <div class="cuan-item" onclick="alert('Katalog Promo Telkomsel Cuan')">
+                                <div class="cuan-icon-box" style="color: #eb4d4b;">T</div>
+                                <span class="cuan-name">Telkomsel</span>
+                            </div>
+                            <div class="cuan-item" onclick="alert('Katalog Promo XL & Axis')">
+                                <div class="cuan-icon-box" style="color: #009432;">
+                                    <span style="font-style: italic; font-size: 15px;">XL</span>
+                                    <span style="font-size: 8px; position: absolute; bottom: 4px; right: 4px; color: #ab47bc; font-weight: 800;">AXIS</span>
+                                </div>
+                                <span class="cuan-name">XL & Axis</span>
+                            </div>
+                            <div class="cuan-item" onclick="alert('Katalog Promo Indosat Only4U')">
+                                <div class="cuan-icon-box" style="color: #00b894; font-family: monospace;">im3</div>
+                                <span class="cuan-name">Only4U</span>
+                            </div>
+                            <div class="cuan-item" onclick="alert('Katalog Promo Tri Cuan')">
+                                <div class="cuan-icon-box" style="color: #eb4d4b;">3</div>
+                                <span class="cuan-name">Tri Cuan</span>
+                            </div>
+                            <div class="cuan-item" onclick="alert('Katalog Promo by.U Cuan')">
+                                <div class="cuan-icon-box" style="color: #3b82f6; font-size: 13px;">by.U</div>
+                                <span class="cuan-name">by.U Cuan</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- DAFTAR SEMUA PRODUK & LAYANAN (Analisis Menu Lainnya Ditampilkan di Utama - Permintaan #5) -->
+                    <div class="services-section-wrapper">
+                        
+                        <!-- 1. Grup Telekomunikasi & PPOB Harian (8 Menu) -->
+                        <div class="section-header-row">
+                            <div class="sec-title"><i class="fas fa-bolt" style="color: var(--primary);"></i> Transaksi & Komunikasi</div>
+                            <span style="font-size: 11px; color: var(--primary); font-weight: 700; cursor: pointer;" onclick="navigateToPage('katalog')">Semua Layanan →</span>
+                        </div>
+                        <div class="all-services-grid">
+                            <div class="service-card-item" onclick="alert('Buka Form Beli Pulsa Reguler')">
+                                <div class="s-icon" style="background: #e0f2fe; color: #0284c7;"><i class="fas fa-mobile-alt"></i></div>
+                                <span class="s-label">Pulsa<br>Reguler</span>
+                            </div>
+                            <div class="service-card-item" onclick="alert('Buka Form Beli Paket Data')">
+                                <div class="s-icon" style="background: #f0fdf4; color: #16a34a;"><i class="fas fa-wifi"></i></div>
+                                <span class="s-label">Paket<br>Data</span>
+                            </div>
+                            <div class="service-card-item" onclick="alert('Buka Form Beli Token Listrik PLN')">
+                                <div class="s-icon" style="background: #fef3c7; color: #d97706;"><i class="fas fa-lightbulb"></i></div>
+                                <span class="s-label">Token<br>PLN</span>
+                            </div>
+                            <div class="service-card-item" onclick="alert('Buka Form Topup E-Wallet: DANA, OVO, GoPay, ShopeePay')">
+                                <div class="s-icon" style="background: #e6f6f4; color: var(--primary);"><i class="fas fa-wallet"></i></div>
+                                <span class="s-label">Topup<br>E-Wallet</span>
+                            </div>
+                            <!-- MENU TELP & SMS (Diambil dari Menu Lainnya) -->
+                            <div class="service-card-item" onclick="alert('Buka Form Paket Nelpon & SMS')">
+                                <div class="s-icon" style="background: #ecfdf5; color: #059669;"><i class="fas fa-phone-volume"></i></div>
+                                <span class="s-label">Telp &<br>SMS</span>
+                            </div>
+                            <!-- MENU MASA AKTIF (Diambil dari Menu Lainnya) -->
+                            <div class="service-card-item" onclick="alert('Buka Form Perpanjang Masa Aktif Kartu')">
+                                <div class="s-icon" style="background: #ede9fe; color: #7c3aed;"><i class="fas fa-calendar-alt"></i></div>
+                                <span class="s-label">Masa<br>Aktif</span>
+                            </div>
+                            <div class="service-card-item" onclick="alert('Buka Form Tagihan PPOB Bulanan')">
+                                <div class="s-icon" style="background: #fff1f2; color: #e11d48;"><i class="fas fa-file-invoice-dollar"></i></div>
+                                <span class="s-label">Tagihan<br>PPOB</span>
+                            </div>
+                            <!-- MENU PDAM AIR (Diambil dari Menu Lainnya) -->
+                            <div class="service-card-item" onclick="alert('Buka Form Tagihan PDAM Air Seluruh Indonesia')">
+                                <div class="s-icon" style="background: #e0e7ff; color: #4338ca;"><i class="fas fa-faucet-drip"></i></div>
+                                <span class="s-label">PDAM<br>Air</span>
+                            </div>
+                        </div>
+
+                        <!-- 2. Grup Tagihan Bulanan, Hiburan & Gaya Hidup (8 Menu) -->
+                        <div class="section-header-row">
+                            <div class="sec-title"><i class="fas fa-star" style="color: #f59e0b;"></i> Hiburan, Pajak & Gaya Hidup</div>
+                        </div>
+                        <div class="all-services-grid">
+                            <!-- MENU BPJS KESEHATAN (Diambil dari Menu Lainnya) -->
+                            <div class="service-card-item" onclick="alert('Buka Form Iuran BPJS Kesehatan')">
+                                <div class="s-icon" style="background: #ecfdf5; color: #10b981;"><i class="fas fa-heartbeat"></i></div>
+                                <span class="s-label">BPJS<br>Kesehatan</span>
+                            </div>
+                            <!-- MENU PBB & PAJAK (Diambil dari Menu Lainnya) -->
+                            <div class="service-card-item" onclick="alert('Buka Form Pajak Bumi & Bangunan (PBB)')">
+                                <div class="s-icon" style="background: #fef3c7; color: #b45309;"><i class="fas fa-building"></i></div>
+                                <span class="s-label">PBB &<br>Pajak</span>
+                            </div>
+                            <div class="service-card-item" onclick="alert('Buka Voucher Game: ML, FF, PUBG')">
+                                <div class="s-icon" style="background: #fdf2f8; color: #db2777;"><i class="fas fa-headset"></i></div>
+                                <span class="s-label">Voucher<br>Game</span>
+                            </div>
+                            <!-- MENU VOUCHER DIGITAL (Diambil dari Menu Lainnya) -->
+                            <div class="service-card-item" onclick="alert('Buka Voucher Digital: Alfamart, Spotify, Indomaret')">
+                                <div class="s-icon" style="background: #fdf2f8; color: #be185d;"><i class="fas fa-ticket-alt"></i></div>
+                                <span class="s-label">Voucher<br>Digital</span>
+                            </div>
+                            <!-- MENU TV BERLANGGANAN (Diambil dari Menu Lainnya) -->
+                            <div class="service-card-item" onclick="alert('Buka TV Berlangganan: K-Vision, Nex, Matrix')">
+                                <div class="s-icon" style="background: #e0e7ff; color: #4f46e5;"><i class="fas fa-tv"></i></div>
+                                <span class="s-label">TV<br>Berlangganan</span>
+                            </div>
+                            <div class="service-card-item" onclick="navigateToPage('poin')">
+                                <div class="s-icon" style="background: #fef9c3; color: #ca8a04;"><i class="fas fa-coins"></i></div>
+                                <span class="s-label">Poin<br>Member</span>
+                            </div>
+                            <div class="service-card-item" onclick="navigateToPage('tracker')">
+                                <div class="s-icon" style="background: #ccfbf1; color: #0d9488;"><i class="fas fa-calendar-check"></i></div>
+                                <span class="s-label">Daily<br>Tracker</span>
+                            </div>
+                            <div class="service-card-item" onclick="toggleDrawer(true)">
+                                <div class="s-icon" style="background: #f1f5f9; color: #475569;"><i class="fas fa-th-large"></i></div>
+                                <span class="s-label">Direktori<br>Lengkap</span>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- ----------------------------------------------------
+                     PAGE 2: POIN MEMBER & KLAIM REWARD (Permintaan #1)
+                     ---------------------------------------------------- -->
+                <div class="page-view" id="page-poin">
+                    <div class="subpage-topbar">
+                        <button class="btn-back-home" onclick="navigateToPage('beranda')"><i class="fas fa-arrow-left"></i> Beranda</button>
+                        <h4 style="font-size: 15px; font-weight: 800;">Poin Member & Reward</h4>
+                        <span style="font-size: 12px;"><i class="fas fa-coins" style="color: #fde047;"></i></span>
+                    </div>
+
+                    <div class="poin-container">
+                        <div class="poin-hero-card">
+                            <span style="font-size: 11px; text-transform: uppercase; font-weight: 800; opacity: 0.9;">Total Poin Aktif Anda</span>
+                            <div class="poin-big-val">
+                                350 <span style="font-size: 14px; font-weight: 700; color: white;">Pts</span>
+                            </div>
+                            <p style="font-size: 11.5px; opacity: 0.9;">Setara dengan <b>Rp 350 Saldo Kas</b> (1 Poin = Rp 1 Saldo Tambahan).</p>
+                        </div>
+
+                        <!-- ATURAN RESMI KLAIM POIN TAHUNAN -->
+                        <div class="poin-rules-box">
+                            <h4><i class="fas fa-calendar-star"></i> Aturan Klaim Poin Tahunan:</h4>
+                            <p>
+                                1. Poin terkumpul otomatis dari setiap transaksi sukses di iPay.<br>
+                                2. <b>Periode Penukaran Resmi:</b> Hanya dapat diklaim pada tanggal <b>1 - 7 Januari</b> setiap tahun.<br>
+                                3. Jika tidak diklaim pada periode tersebut, poin tidak hangus dan otomatis diakumulasikan ke tahun berikutnya!
+                            </p>
+                            <button style="margin-top: 10px; width: 100%; background: #ca8a04; color: white; border: none; padding: 10px; border-radius: 10px; font-size: 12px; font-weight: 800; cursor: pointer;" onclick="alert('Periode klaim tahunan dibuka pada 1 - 7 Januari. Poin Anda aman tersimpan!')">
+                                <i class="fas fa-lock"></i> Klaim Dibuka 1 - 7 Januari
+                            </button>
+                        </div>
+
+                        <!-- Riwayat Perolehan Poin -->
+                        <div style="font-size: 13px; font-weight: 800; margin-bottom: 8px;">Riwayat Perolehan Poin:</div>
+                        <div class="poin-history-card">
+                            <div>
+                                <b style="font-size: 12.5px;">Reward Transaksi Paket Data 14GB</b>
+                                <p style="font-size: 10.5px; color: #64748b;">16 Okt 2026 • Ref: TRX-9921</p>
+                            </div>
+                            <span style="color: #16a34a; font-weight: 900; font-size: 13px;">+1 Pts</span>
+                        </div>
+
+                        <div class="poin-history-card">
+                            <div>
+                                <b style="font-size: 12.5px;">Reward Transaksi Token PLN 50.000</b>
+                                <p style="font-size: 10.5px; color: #64748b;">15 Okt 2026 • Ref: TRX-8842</p>
+                            </div>
+                            <span style="color: #16a34a; font-weight: 900; font-size: 13px;">+1 Pts</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ----------------------------------------------------
+                     PAGE 3: ISI SALDO / DEPOSIT (Permintaan #2)
+                     ---------------------------------------------------- -->
+                <div class="page-view" id="page-deposit">
+                    <div class="subpage-topbar">
+                        <button class="btn-back-home" onclick="navigateToPage('beranda')"><i class="fas fa-arrow-left"></i> Beranda</button>
+                        <h4 style="font-size: 15px; font-weight: 800;">Isi Saldo / Deposit</h4>
+                        <span style="font-size: 12px;"><i class="fas fa-qrcode"></i></span>
+                    </div>
+
+                    <div class="deposit-container">
+                        <!-- Pilihan Saluran Deposit -->
+                        <div class="dep-channel-tabs">
+                            <div class="dep-tab active" onclick="switchDepChannel('qris', this)"><i class="fas fa-qrcode"></i> QRIS Otomatis (24 Jam)</div>
+                            <div class="dep-tab" onclick="switchDepChannel('manual', this)"><i class="fas fa-wallet"></i> Transfer E-Wallet Manual</div>
+                        </div>
+
+                        <!-- Panel 1: QRIS Otomatis -->
+                        <div id="panel-dep-qris">
+                            <div style="background: white; border-radius: 16px; padding: 16px; border: 1px solid #e2e8f0; margin-bottom: 14px;">
+                                <span style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase;">Pilih Nominal Deposit:</span>
+                                <div class="nominal-preset-grid" style="margin-top: 8px;">
+                                    <div class="nom-pill selected" onclick="selectNom(this, 10000)">Rp 10.000</div>
+                                    <div class="nom-pill" onclick="selectNom(this, 25000)">Rp 25.000</div>
+                                    <div class="nom-pill" onclick="selectNom(this, 50000)">Rp 50.000</div>
+                                    <div class="nom-pill" onclick="selectNom(this, 100000)">Rp 100.000</div>
+                                    <div class="nom-pill" onclick="selectNom(this, 200000)">Rp 200.000</div>
+                                    <div class="nom-pill" onclick="selectNom(this, 500000)">Rp 500.000</div>
+                                </div>
+                                <button style="width: 100%; background: var(--primary); color: white; border: none; padding: 12px; border-radius: 12px; font-weight: 800; font-size: 13px; cursor: pointer;" onclick="alert('Membuat Kode QRIS Instan Pakasir / PaymentKita...')">
+                                    <i class="fas fa-bolt"></i> Generate Barcode QRIS
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Panel 2: Transfer E-Wallet Manual (081775700114) -->
+                        <div id="panel-dep-manual" style="display: none;">
+                            <div class="manual-ewallet-box">
+                                <div style="font-size: 12px; font-weight: 800; color: #1e293b; margin-bottom: 8px;">
+                                    <i class="fas fa-info-circle" style="color: #0284c7;"></i> Transfer Bebas Admin ke Nomor Resmi:
+                                </div>
+                                <div style="background: #f1f5f9; padding: 10px; border-radius: 10px; font-family: monospace; font-size: 15px; font-weight: 800; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                    <span>081775700114</span>
+                                    <span style="color: var(--primary); cursor: pointer; font-size: 12px;" onclick="alert('Nomor 081775700114 Disalin!')"><i class="fas fa-copy"></i> Salin</span>
+                                </div>
+
+                                <div class="ewallet-row">
+                                    <span style="font-weight: 700; font-size: 12.5px;">DANA (a.n. iPay Store)</span>
+                                    <span style="background: #e0f2fe; color: #0284c7; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 6px;">Aktif</span>
+                                </div>
+                                <div class="ewallet-row">
+                                    <span style="font-weight: 700; font-size: 12.5px;">ShopeePay (a.n. iPay Store)</span>
+                                    <span style="background: #fee2e2; color: #ea580c; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 6px;">Aktif</span>
+                                </div>
+                                <div class="ewallet-row">
+                                    <span style="font-weight: 700; font-size: 12.5px;">GoPay (a.n. iPay Store)</span>
+                                    <span style="background: #ecfdf5; color: #059669; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 6px;">Aktif</span>
+                                </div>
+
+                                <button style="margin-top: 14px; width: 100%; background: #22c55e; color: white; border: none; padding: 12px; border-radius: 12px; font-weight: 800; font-size: 12.5px; cursor: pointer;" onclick="alert('Membuka WhatsApp 081775700114 untuk konfirmasi transfer manual...')">
+                                    <i class="fab fa-whatsapp"></i> Konfirmasi Transfer ke WhatsApp
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ----------------------------------------------------
+                     PAGE 4: PUSAT NOTIFIKASI RESMI (Permintaan #3)
+                     ---------------------------------------------------- -->
+                <div class="page-view" id="page-notifikasi">
+                    <div class="subpage-topbar">
+                        <button class="btn-back-home" onclick="navigateToPage('beranda')"><i class="fas fa-arrow-left"></i> Beranda</button>
+                        <h4 style="font-size: 15px; font-weight: 800;">Pusat Notifikasi</h4>
+                        <button class="btn-back-home" onclick="alert('Semua notifikasi ditandai telah dibaca!')"><i class="fas fa-check-double"></i></button>
+                    </div>
+
+                    <div class="notif-container">
+                        <!-- Filter Kategori Notifikasi -->
+                        <div class="notif-filter-tabs">
+                            <div class="n-tab active">Semua</div>
+                            <div class="n-tab">Promo</div>
+                            <div class="n-tab">SOP & Sistem</div>
+                            <div class="n-tab">Peringatan</div>
+                        </div>
+
+                        <!-- Item Notifikasi 1 (SOP dengan Line Clamping & Format Rapi) -->
+                        <div class="notif-card-item unread">
+                            <div class="notif-icon-circle" style="background: #e0f2fe; color: #0284c7;"><i class="fas fa-bullhorn"></i></div>
+                            <div style="flex: 1;">
+                                <b style="font-size: 13px; color: var(--text-dark);">SOP Transaksi Paket Data & Kartu Masa Tenggang</b>
+                                <div class="notif-clamp-text" onclick="this.classList.toggle('expanded')" title="Klik untuk baca lengkap / ciutkan">
+                                    Kepada <b>Angga Saputra</b> yang tersayang ❤️<br>
+                                    Mohon pastikan nomor tujuan selalu dalam masa aktif sebelum melakukan transaksi kuota data internet.<br>
+                                    <hr style="border:none; border-top:1px dashed #cbd5e1; margin:6px 0;">
+                                    📌 <b>Panduan Utama:</b> Jika kartu dalam masa tenggang, paket data akan otomatis gagal dari pihak operator pusat. Lakukan perpanjangan masa aktif terlebih dahulu pada menu Masa Aktif.
+                                </div>
+                                <span style="font-size: 10px; color: #94a3b8; font-weight: 700; margin-top: 6px; display: block;"><i class="far fa-clock"></i> 10 menit yang lalu</span>
+                            </div>
+                        </div>
+
+                        <!-- Item Notifikasi 2 (Promo & Markdown Bold) -->
+                        <div class="notif-card-item unread">
+                            <div class="notif-icon-circle" style="background: #fef3c7; color: #d97706;"><i class="fas fa-gift"></i></div>
+                            <div style="flex: 1;">
+                                <b style="font-size: 13px; color: var(--text-dark);">Buka Banyak Cabang Itu Mudah!</b>
+                                <div class="notif-clamp-text" onclick="this.classList.toggle('expanded')">
+                                    Kelola seluruh cabang konter HP Anda dengan sistem Web POS terintegrasi. <strong>Upgrade ke Akun VIP Segera</strong> untuk menikmati cashback saldo dan komisi transaksi berlipat ganda!
+                                </div>
+                                <span style="font-size: 10px; color: #94a3b8; font-weight: 700; margin-top: 6px; display: block;"><i class="far fa-clock"></i> 2 jam yang lalu</span>
+                            </div>
+                        </div>
+
+                        <!-- Item Notifikasi 3 -->
+                        <div class="notif-card-item">
+                            <div class="notif-icon-circle" style="background: #ede9fe; color: #7c3aed;"><i class="fas fa-tools"></i></div>
+                            <div style="flex: 1;">
+                                <b style="font-size: 13px; color: var(--text-dark);">Pembaruan Engine Transaksi Cepat Sat-Set</b>
+                                <div class="notif-clamp-text" onclick="this.classList.toggle('expanded')">
+                                    Server telah diperbarui dengan in-memory processing. Penarikan data produk dan transaksi kini 195x lebih kencang tanpa kendala antrean.
+                                </div>
+                                <span style="font-size: 10px; color: #94a3b8; font-weight: 700; margin-top: 6px; display: block;"><i class="far fa-clock"></i> Kemarin</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ----------------------------------------------------
+                     PAGE 5: KASIR WEB POS (PENJUALAN RITEL & KONTER)
+                     ---------------------------------------------------- -->
+                <div class="page-view" id="page-pos">
+                    <div class="subpage-topbar">
+                        <button class="btn-back-home" onclick="navigateToPage('beranda')"><i class="fas fa-arrow-left"></i> Beranda</button>
+                        <h4 style="font-size: 15px; font-weight: 800;">Kasir Web POS & Konter HP</h4>
+                        <button class="btn-back-home" onclick="alert('Hubungkan printer Bluetooth thermal 58mm')"><i class="fas fa-print"></i></button>
+                    </div>
+
+                    <div class="pos-container">
+                        <!-- Search & Barcode Scanner -->
+                        <div class="pos-search-bar">
+                            <input type="text" class="pos-input" placeholder="Cari nama barang / ketik barcode..." />
+                            <button class="btn-scan-barcode" onclick="alert('Kamera scan barcode siap aktif')"><i class="fas fa-barcode"></i> Scan</button>
+                        </div>
+
+                        <!-- Grid Produk POS -->
+                        <div class="pos-product-grid">
+                            <div class="pos-card">
+                                <div>
+                                    <b>Kabel Data Type-C Fast</b>
+                                    <span style="font-size: 11px; color: #64748b;">Stok: 18 pcs</span>
+                                    <div class="price">Rp 25.000</div>
+                                </div>
+                                <button class="btn-pos-add" onclick="addPosItem('Kabel Data Type-C', 25000)"><i class="fas fa-plus"></i> Tambah</button>
+                            </div>
+
+                            <div class="pos-card">
+                                <div>
+                                    <b>Charger 20W Original</b>
+                                    <span style="font-size: 11px; color: #64748b;">Stok: 8 pcs</span>
+                                    <div class="price">Rp 45.000</div>
+                                </div>
+                                <button class="btn-pos-add" onclick="addPosItem('Charger 20W', 45000)"><i class="fas fa-plus"></i> Tambah</button>
+                            </div>
+
+                            <div class="pos-card">
+                                <div>
+                                    <b>Jasa Ganti LCD HP</b>
+                                    <span style="font-size: 11px; color: #64748b;">Biaya Servis</span>
+                                    <div class="price">Rp 120.000</div>
+                                </div>
+                                <button class="btn-pos-add" onclick="addPosItem('Jasa Servis LCD', 120000)"><i class="fas fa-plus"></i> Tambah</button>
+                            </div>
+
+                            <div class="pos-card">
+                                <div>
+                                    <b>Voucher Kuota Tsel 10GB</b>
+                                    <span style="font-size: 11px; color: #64748b;">Stok: 24 pcs</span>
+                                    <div class="price">Rp 35.000</div>
+                                </div>
+                                <button class="btn-pos-add" onclick="addPosItem('Voucher Tsel 10GB', 35000)"><i class="fas fa-plus"></i> Tambah</button>
+                            </div>
+                        </div>
+
+                        <!-- Ringkasan Transaksi Kasir -->
+                        <div class="pos-cart-bar">
+                            <div>
+                                <span style="font-size: 11px; opacity: 0.8;">Keranjang Belanja (<span id="cartCount">1</span> item)</span>
+                                <div style="font-size: 18px; font-weight: 900; color: #38bdf8;" id="cartTotal">Rp 25.000</div>
+                            </div>
+                            <button style="background: #22c55e; color: white; border: none; padding: 10px 18px; border-radius: 12px; font-weight: 800; font-size: 12.5px; cursor: pointer;" onclick="alert('Pembayaran Sukses! Struk belanja dicetak otomatis.')">
+                                <i class="fas fa-check-circle"></i> Bayar / Struk
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ----------------------------------------------------
+                     PAGE 6: RIWAYAT TRANSAKSI
+                     ---------------------------------------------------- -->
+                <div class="page-view" id="page-riwayat">
+                    <div class="subpage-topbar">
+                        <button class="btn-back-home" onclick="navigateToPage('beranda')"><i class="fas fa-arrow-left"></i> Beranda</button>
+                        <h4 style="font-size: 15px; font-weight: 800;">Riwayat Transaksi</h4>
+                        <span style="font-size: 12px;"><i class="fas fa-receipt"></i></span>
+                    </div>
+
+                    <div class="riwayat-container">
+                        <!-- Transaksi Item 1 -->
+                        <div class="history-card">
+                            <div class="history-header">
+                                <span style="font-size: 13.5px; font-weight: 800;">Telkomsel Data 14GB 30 Hari</span>
+                                <span class="badge-status-success">SUKSES</span>
+                            </div>
+                            <div style="font-size: 12px; color: #64748b;">Tujuan: <b>081234567890</b></div>
+                            <div class="history-sn-box">
+                                <span>SN: 241016145521992812</span>
+                                <span style="color: var(--primary); cursor: pointer; font-weight: 700;" onclick="alert('SN Telah Disalin!')"><i class="fas fa-copy"></i> Salin</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+                                <span style="font-size: 13.5px; font-weight: 900; color: var(--primary);">Rp 48.000</span>
+                                <button style="background: #25d366; color: white; border: none; padding: 5px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer;" onclick="alert('Membuka format struk via WhatsApp')">
+                                    <i class="fab fa-whatsapp"></i> Struk WA
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Transaksi Item 2 -->
+                        <div class="history-card">
+                            <div class="history-header">
+                                <span style="font-size: 13.5px; font-weight: 800;">Token PLN Prabayar 50.000</span>
+                                <span class="badge-status-success">SUKSES</span>
+                            </div>
+                            <div style="font-size: 12px; color: #64748b;">No Meter: <b>32109847123</b> / Bpk. Sutrisno</div>
+                            <div class="history-sn-box" style="background: #fefce8; border-color: #fef08a;">
+                                <span style="font-weight: 900; color: #854d0e;">TOKEN: 2194-8821-4901-3829-1120</span>
+                                <span style="color: var(--primary); cursor: pointer; font-weight: 700;" onclick="alert('Token PLN Disalin!')"><i class="fas fa-copy"></i> Salin</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+                                <span style="font-size: 13.5px; font-weight: 900; color: var(--primary);">Rp 50.500</span>
+                                <button style="background: #25d366; color: white; border: none; padding: 5px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer;" onclick="alert('Membuka format struk via WhatsApp')">
+                                    <i class="fab fa-whatsapp"></i> Struk WA
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ----------------------------------------------------
+                     PAGE 7: MUTASI SALDO
+                     ---------------------------------------------------- -->
+                <div class="page-view" id="page-mutasi">
+                    <div class="subpage-topbar">
+                        <button class="btn-back-home" onclick="navigateToPage('beranda')"><i class="fas fa-arrow-left"></i> Beranda</button>
+                        <h4 style="font-size: 15px; font-weight: 800;">Mutasi Saldo Dompet</h4>
+                        <span style="font-size: 12px;"><i class="fas fa-wallet"></i></span>
+                    </div>
+
+                    <div class="mutasi-container">
+                        <div class="financial-summary-grid">
+                            <div class="summary-card">
+                                <span>Pemasukan</span>
+                                <b style="color: #16a34a;">+Rp 450.000</b>
+                            </div>
+                            <div class="summary-card">
+                                <span>Pengeluaran</span>
+                                <b style="color: #dc2626;">-Rp 215.000</b>
+                            </div>
+                            <div class="summary-card">
+                                <span>Auto-Refund</span>
+                                <b style="color: #0284c7;">+Rp 15.000</b>
+                            </div>
+                        </div>
+
+                        <div class="mutasi-item-row">
+                            <div>
+                                <b style="font-size: 12.5px;">Pembelian Paket Data Telkomsel</b>
+                                <small style="font-size: 10.5px; color: #64748b;">16 Okt 2026, 14:55 WIB • Ref: TRX-9921</small>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="color: #dc2626; font-weight: 900; font-size: 13.5px;">-Rp 48.000</div>
+                                <span style="font-size: 10px; color: #64748b; font-weight: 700;">Sisa: Rp 1.450.000</span>
+                            </div>
+                        </div>
+
+                        <div class="mutasi-item-row">
+                            <div>
+                                <b style="font-size: 12.5px;">Top Up Saldo via QRIS Instan</b>
+                                <small style="font-size: 10.5px; color: #64748b;">16 Okt 2026, 11:20 WIB • Ref: DEP-8410</small>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="color: #16a34a; font-weight: 900; font-size: 13.5px;">+Rp 200.000</div>
+                                <span style="font-size: 10px; color: #64748b; font-weight: 700;">Sisa: Rp 1.498.000</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ----------------------------------------------------
+                     PAGE 8: MOESLIM DAILY TRACKER
+                     ---------------------------------------------------- -->
+                <div class="page-view" id="page-tracker">
+                    <div class="subpage-topbar">
+                        <button class="btn-back-home" onclick="navigateToPage('beranda')"><i class="fas fa-arrow-left"></i> Beranda</button>
+                        <h4 style="font-size: 15px; font-weight: 800;">Moeslim Daily Tracker</h4>
+                        <span style="font-size: 12px;"><i class="fas fa-calendar-check"></i></span>
+                    </div>
+
+                    <div class="tracker-container">
+                        <div class="tracker-header-box">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <h4 style="font-size: 16px; font-weight: 900;">Jum'at, 16 Oktober 2026</h4>
+                                    <small style="opacity: 0.9;">5 Rabiul Akhir 1448 H • Jakarta & Sekitarnya</small>
+                                </div>
+                                <span style="background: rgba(255,255,255,0.2); padding: 4px 8px; border-radius: 8px; font-size: 11px; font-weight: 800;">75% Selesai</span>
+                            </div>
+
+                            <div class="prayer-row">
+                                <div class="prayer-item"><b>Subuh</b><br>04:18</div>
+                                <div class="prayer-item"><b>Dzuhur</b><br>11:44</div>
+                                <div class="prayer-item"><b>Ashar</b><br>14:52</div>
+                                <div class="prayer-item"><b>Maghrib</b><br>17:51</div>
+                                <div class="prayer-item"><b>Isya</b><br>19:01</div>
+                            </div>
+                        </div>
+
+                        <div class="habit-card">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <div style="width: 34px; height: 34px; border-radius: 10px; background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center;"><i class="fas fa-mosque"></i></div>
+                                <div>
+                                    <b style="font-size: 13px;">Sholat Fardhu Berjamaah</b>
+                                    <p style="font-size: 11px; color: #64748b;">Subuh, Dzuhur, Ashar di Masjid</p>
+                                </div>
+                            </div>
+                            <div class="habit-check done" onclick="this.classList.toggle('done')"><i class="fas fa-check"></i></div>
+                        </div>
+
+                        <div class="habit-card">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <div style="width: 34px; height: 34px; border-radius: 10px; background: #fef3c7; color: #d97706; display: flex; align-items: center; justify-content: center;"><i class="fas fa-sun"></i></div>
+                                <div>
+                                    <b style="font-size: 13px;">Sholat Dhuha</b>
+                                    <p style="font-size: 11px; color: #64748b;">Minimal 2 Rakaat Pagi Hari</p>
+                                </div>
+                            </div>
+                            <div class="habit-check done" onclick="this.classList.toggle('done')"><i class="fas fa-check"></i></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ----------------------------------------------------
+                     PAGE 9: PROFIL & PENGATURAN
+                     ---------------------------------------------------- -->
+                <div class="page-view" id="page-profil">
+                    <div class="subpage-topbar">
+                        <button class="btn-back-home" onclick="navigateToPage('beranda')"><i class="fas fa-arrow-left"></i> Beranda</button>
+                        <h4 style="font-size: 15px; font-weight: 800;">Profil & Pengaturan Akun</h4>
+                        <span></span>
+                    </div>
+
+                    <div class="profil-container">
+                        <div class="profil-card-hero">
+                            <div class="profil-big-avatar"><i class="fas fa-user-tie"></i></div>
+                            <div>
+                                <h3 style="font-size: 17px; font-weight: 900;">Angga Saputra</h3>
+                                <p style="font-size: 11.5px; color: #64748b;">0812-3456-7890 • Toko GarudaTel Cell</p>
+                                <span style="background: #e6f6f4; color: var(--primary); font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 8px; margin-top: 4px; display: inline-block;">
+                                    <i class="fas fa-shield-halved"></i> Member VIP Prioritas
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="profil-menu-item" onclick="alert('Buka pengaturan printer Bluetooth 58mm')">
+                            <span><i class="fas fa-print" style="color: var(--primary); width: 22px;"></i> Pengaturan Printer Thermal</span>
+                            <i class="fas fa-chevron-right" style="color: #cbd5e1; font-size: 12px;"></i>
+                        </div>
+
+                        <div class="profil-menu-item" onclick="alert('Form ganti PIN & Keamanan 6 digit')">
+                            <span><i class="fas fa-lock" style="color: #f59e0b; width: 22px;"></i> Keamanan & Ganti PIN Transaksi</span>
+                            <i class="fas fa-chevron-right" style="color: #cbd5e1; font-size: 12px;"></i>
+                        </div>
+
+                        <div class="profil-menu-item" onclick="alert('Pengaturan Nama Toko & Header Struk')">
+                            <span><i class="fas fa-store" style="color: #0284c7; width: 22px;"></i> Data Toko & Header Struk</span>
+                            <i class="fas fa-chevron-right" style="color: #cbd5e1; font-size: 12px;"></i>
+                        </div>
+                    </div>
+                </div>
+
+            </main>
+
+            <!-- ====================================================
+                 MODERN BOTTOM DOCK (NAVBAR BAWAH UNTUK MOBILE)
+                 ==================================================== -->
+            <nav class="mobile-bottom-dock" id="mobileDock">
+                <a class="dock-item active" id="dock-item-beranda" onclick="navigateToPage('beranda')">
+                    <i class="fas fa-home"></i>
+                    <span>Beranda</span>
+                </a>
+
+                <a class="dock-item" id="dock-item-riwayat" onclick="navigateToPage('riwayat')">
+                    <i class="fas fa-clock-rotate-left"></i>
+                    <span>Riwayat</span>
+                </a>
+
+                <!-- Tombol Hero Tengah: Kasir POS Instan -->
+                <div class="dock-fab" onclick="navigateToPage('pos')" title="Buka Kasir Web POS">
+                    <i class="fas fa-cash-register"></i>
+                </div>
+
+                <a class="dock-item" id="dock-item-mutasi" onclick="navigateToPage('mutasi')">
+                    <i class="fas fa-wallet"></i>
+                    <span>Mutasi</span>
+                </a>
+
+                <!-- Tombol Navigasi Menu Kiri (Membuka Drawer Lengkap) -->
+                <a class="dock-item trigger-menu" onclick="toggleDrawer(true)" title="Buka Menu Samping">
+                    <i class="fas fa-bars-staggered"></i>
+                    <span>Menu</span>
+                </a>
+            </nav>
+
+        </div>
+    </div>
+
+    <!-- SCRIPT LOGIKA SIMULASI REAL -->
+    <script>
+        const previewStage = document.getElementById('previewStage');
+        const leftNav = document.getElementById('leftNav');
+        const drawerOverlay = document.getElementById('drawerOverlay');
+        const btnViewMobile = document.getElementById('btnViewMobile');
+        const btnViewDesktop = document.getElementById('btnViewDesktop');
+        const selectPageQuick = document.getElementById('selectPageQuick');
+
+        // Buka / Tutup Drawer Kiri di Versi Mobile
+        function toggleDrawer(show) {
+            if (show) {
+                leftNav.classList.add('open');
+                drawerOverlay.classList.add('active');
+            } else {
+                leftNav.classList.remove('open');
+                drawerOverlay.classList.remove('active');
+            }
+        }
+
+        // Beralih antara Tampilan HP dan Desktop
+        function switchView(mode) {
+            if (mode === 'desktop') {
+                previewStage.classList.add('desktop-mode');
+                btnViewDesktop.classList.add('active');
+                btnViewMobile.classList.remove('active');
+                leftNav.classList.remove('open');
+                drawerOverlay.classList.remove('active');
+            } else {
+                previewStage.classList.remove('desktop-mode');
+                btnViewMobile.classList.add('active');
+                btnViewDesktop.classList.remove('active');
+            }
+        }
+
+        // Toggle Slim / Expanded Sidebar Desktop
+        function toggleSlimDesktop() {
+            if (!previewStage.classList.contains('desktop-mode')) {
+                switchView('desktop');
+            }
+            leftNav.classList.toggle('slim');
+        }
+
+        // Navigasi Pindah Halaman Nyata (SPA Simulator)
+        function navigateToPage(pageKey) {
+            // 1. Sembunyikan semua page view
+            document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active-page'));
+            
+            // 2. Tampilkan target page
+            const target = document.getElementById('page-' + pageKey);
+            if (target) {
+                target.classList.add('active-page');
+            }
+
+            // 3. Update active state di Sidebar Kiri
+            document.querySelectorAll('.menu-btn-item').forEach(m => m.classList.remove('active'));
+            const sideBtn = document.getElementById('menu-side-' + pageKey);
+            if (sideBtn) sideBtn.classList.add('active');
+
+            // 4. Update active state di Bottom Dock
+            document.querySelectorAll('.dock-item').forEach(d => d.classList.remove('active'));
+            const dockBtn = document.getElementById('dock-item-' + pageKey);
+            if (dockBtn) dockBtn.classList.add('active');
+
+            // 5. Update dropdown selector atas
+            if (selectPageQuick) {
+                selectPageQuick.value = pageKey;
+            }
+
+            // 6. Jika di HP, otomatis tutup drawer saat halaman dipilih
+            if (!previewStage.classList.contains('desktop-mode')) {
+                toggleDrawer(false);
+            }
+
+            // 7. Scroll layar ke paling atas
+            document.getElementById('phoneScreen').scrollTop = 0;
+        }
+
+        // Switch Saluran Deposit
+        function switchDepChannel(channel, tabElem) {
+            document.querySelectorAll('.dep-tab').forEach(t => t.classList.remove('active'));
+            tabElem.classList.add('active');
+            if (channel === 'qris') {
+                document.getElementById('panel-dep-qris').style.display = 'block';
+                document.getElementById('panel-dep-manual').style.display = 'none';
+            } else {
+                document.getElementById('panel-dep-qris').style.display = 'none';
+                document.getElementById('panel-dep-manual').style.display = 'block';
+            }
+        }
+
+        // Pilih Nominal Preset Deposit
+        function selectNom(elem, nominal) {
+            document.querySelectorAll('.nom-pill').forEach(p => p.classList.remove('selected'));
+            elem.classList.add('selected');
+        }
+
+        // Simulasi Tambah Item di Kasir POS
+        let totalBelanja = 25000;
+        let countItem = 1;
+        function addPosItem(nama, harga) {
+            totalBelanja += harga;
+            countItem += 1;
+            document.getElementById('cartCount').innerText = countItem;
+            document.getElementById('cartTotal').innerText = 'Rp ' + totalBelanja.toLocaleString('id-ID');
+            alert(nama + ' (Rp ' + harga.toLocaleString('id-ID') + ') ditambahkan ke keranjang!');
+        }
+    </script>
+</body>
+</html>

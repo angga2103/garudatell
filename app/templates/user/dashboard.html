@@ -43,6 +43,7 @@
         width: 38px; height: 38px; background: rgba(255,255,255,0.25);
         border-radius: 50%; display: flex; justify-content: center; align-items: center;
         font-size: 16px; position: relative; cursor: pointer;
+        color: white; text-decoration: none;
     }
     .bell-dot {
         position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px;
@@ -392,12 +393,12 @@
     </div>
     <div class="top-actions">
         <div class="date-pill" id="teks-tanggal">Hari Ini</div>
-        <div class="bell-btn" onclick="bukaModalNotifikasi()" title="Pusat Notifikasi">
+        <a href="/notifikasi" class="bell-btn" title="Pusat Notifikasi">
             <i class="fas fa-bell"></i>
             <div class="bell-dot" id="header-bell-dot" style="{% if not unread_notif_count or unread_notif_count <= 0 %}display: none;{% endif %}">
                 {{ unread_notif_count if unread_notif_count and unread_notif_count <= 99 else ('99+' if unread_notif_count else '') }}
             </div>
-        </div>
+        </a>
     </div>
 </div>
 
