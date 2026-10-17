@@ -1,27 +1,92 @@
 {% extends 'admin/base_admin.html' %}
 
-{% block title %}GarudaTel - Laporan & Rekapitulasi{% endblock %}
+{% block title %}GarudaTel - Laporan Keuangan & Laba Rugi{% endblock %}
 
-{% block breadcrumb %}Laporan / Rekapitulasi{% endblock %}
+{% block breadcrumb %}Laporan / Rekapitulasi & P&L{% endblock %}
 
-{% block page_title %}Laporan Keuangan & Rekap Transaksi{% endblock %}
+{% block page_title %}Laporan Keuangan & Laba Rugi Eksekutif{% endblock %}
 
 {% block topbar_actions %}
-<a href="{{ url_for('admin.transactions') }}" class="adm-btn adm-btn-secondary">
-    <i class="fas fa-exchange-alt"></i> Pusat Transaksi
-</a>
+<div class="topbar-actions-group">
+    <a href="{{ url_for('admin.transactions') }}" class="adm-btn adm-btn-secondary">
+        <i class="fas fa-exchange-alt"></i> Pusat Transaksi
+    </a>
+    <button type="button" class="adm-btn adm-btn-outline" onclick="toggleExpenseConfig()">
+        <i class="fas fa-sliders-h"></i> Sesuaikan Beban & Pajak
+    </button>
+    <button type="button" class="adm-btn adm-btn-outline" onclick="window.print()">
+        <i class="fas fa-print"></i> Cetak / PDF
+    </button>
+    <button type="button" class="adm-btn adm-btn-primary" onclick="exportIncomeStatementCSV()">
+        <i class="fas fa-file-csv"></i> Unduh CSV
+    </button>
+</div>
 {% endblock %}
 
 {% block page_css %}
 <style>
+    /* TOPBAR ACTIONS GROUP */
+    .topbar-actions-group {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+    .adm-btn-outline {
+        background: #FFFFFF;
+        border: 1px solid #CBD5E1;
+        color: #334155;
+        font-weight: 700;
+        font-size: 12.5px;
+        padding: 7px 14px;
+        border-radius: 9px;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    .adm-btn-outline:hover {
+        background: #F8FAFC;
+        border-color: #94A3B8;
+        color: #0F172A;
+    }
+    .adm-btn-primary {
+        background: #008779;
+        border: 1px solid #008779;
+        color: #FFFFFF;
+        font-weight: 700;
+        font-size: 12.5px;
+        padding: 7px 14px;
+        border-radius: 9px;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    .adm-btn-primary:hover {
+        background: #006e63;
+        border-color: #006e63;
+    }
+
+    /* FILTER SECTION */
+    .report-filters-card {
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-radius: 14px;
+        padding: 18px 20px;
+        margin-bottom: 22px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    }
     .filter-pills { 
         display: flex; 
         gap: 8px; 
-        margin-bottom: 22px; 
+        margin-bottom: 16px; 
         flex-wrap: wrap; 
     }
     .filter-pill { 
-        padding: 7px 16px; 
+        padding: 7px 15px; 
         border-radius: 20px; 
         font-size: 12px; 
         font-weight: 800; 
@@ -39,15 +104,57 @@
         color: #0F172A;
     }
     .filter-pill.active { 
-        background: #3A827F; 
+        background: #008779; 
         color: white; 
-        border-color: #3A827F; 
-        box-shadow: 0 2px 6px rgba(58, 130, 127, 0.25);
+        border-color: #008779; 
+        box-shadow: 0 2px 6px rgba(0, 135, 121, 0.25);
+    }
+    .custom-date-bar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        padding-top: 14px;
+        border-top: 1px solid #F1F5F9;
+    }
+    .date-input-group {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12.5px;
+        font-weight: 700;
+        color: #475569;
+    }
+    .date-input-group input[type="date"] {
+        padding: 6px 10px;
+        border: 1px solid #CBD5E1;
+        border-radius: 8px;
+        font-size: 12.5px;
+        color: #1E293B;
+        background: #FFFFFF;
+        outline: none;
+    }
+    .date-input-group input[type="date"]:focus {
+        border-color: #008779;
+        box-shadow: 0 0 0 2px rgba(0, 135, 121, 0.15);
+    }
+    .active-period-banner {
+        margin-left: auto;
+        font-size: 12px;
+        font-weight: 700;
+        color: #008779;
+        background: #E6F3F2;
+        padding: 6px 14px;
+        border-radius: 20px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
     }
 
+    /* KPI STATS GRID */
     .rep-stats-grid { 
         display: grid; 
-        grid-template-columns: repeat(4, 1fr); 
+        grid-template-columns: repeat(3, 1fr); 
         gap: 16px; 
         margin-bottom: 24px; 
     }
@@ -58,29 +165,38 @@
         border: 1px solid #E2E8F0; 
         box-shadow: 0 1px 3px rgba(0,0,0,0.04); 
         display: flex;
-        align-items: center;
-        gap: 16px;
+        align-items: flex-start;
+        gap: 15px;
         transition: transform 0.15s ease, box-shadow 0.15s ease;
+        position: relative;
+        overflow: hidden;
     }
     .rep-stat-card:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 12px rgba(0,0,0,0.06);
+        box-shadow: 0 6px 14px rgba(0,0,0,0.06);
     }
     .rep-stat-icon {
-        width: 48px;
-        height: 48px;
+        width: 46px;
+        height: 46px;
         border-radius: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 20px;
+        font-size: 19px;
         flex-shrink: 0;
     }
+    .rep-stat-info {
+        flex: 1;
+        min-width: 0;
+    }
     .rep-stat-val { 
-        font-size: 18px; 
+        font-size: 19px; 
         font-weight: 900; 
-        color: #1E293B; 
-        line-height: 1.2;
+        color: #0F172A; 
+        line-height: 1.25;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
     .rep-stat-lbl { 
         font-size: 11px; 
@@ -90,7 +206,226 @@
         letter-spacing: 0.5px;
         margin-top: 4px; 
     }
+    .rep-stat-sub {
+        font-size: 11.5px;
+        color: #475569;
+        font-weight: 600;
+        margin-top: 6px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .badge-status-profit {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 10px;
+        font-weight: 800;
+        padding: 2px 7px;
+        border-radius: 12px;
+        text-transform: uppercase;
+    }
+    .badge-profit-surplus {
+        background: #D1FAE5;
+        color: #065F46;
+    }
+    .badge-profit-deficit {
+        background: #FEE2E2;
+        color: #991B1B;
+    }
 
+    /* EXPENSE SIMULATOR CARD */
+    .expense-config-card {
+        background: #FFFFFF;
+        border: 1px solid #008779;
+        border-radius: 14px;
+        padding: 22px;
+        margin-bottom: 24px;
+        box-shadow: 0 4px 16px rgba(0, 135, 121, 0.08);
+        display: none; /* toggle via button */
+        animation: slideDown 0.25s ease-out;
+    }
+    @keyframes slideDown {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .expense-config-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 18px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid #E2E8F0;
+    }
+    .expense-config-title {
+        font-size: 15px;
+        font-weight: 800;
+        color: #0F172A;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .expense-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+        margin-bottom: 18px;
+    }
+    .expense-form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+    .expense-form-group label {
+        font-size: 11.5px;
+        font-weight: 800;
+        color: #334155;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    .expense-form-group input, 
+    .expense-form-group select {
+        padding: 8px 12px;
+        border: 1px solid #CBD5E1;
+        border-radius: 8px;
+        font-size: 13px;
+        color: #0F172A;
+        font-weight: 600;
+        background: #FFFFFF;
+        outline: none;
+        transition: border-color 0.15s ease;
+    }
+    .expense-form-group input:focus, 
+    .expense-form-group select:focus {
+        border-color: #008779;
+        box-shadow: 0 0 0 2px rgba(0, 135, 121, 0.15);
+    }
+    .expense-form-group .form-help {
+        font-size: 10.5px;
+        color: #64748B;
+        line-height: 1.35;
+    }
+    .expense-actions-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        padding-top: 14px;
+        border-top: 1px solid #F1F5F9;
+    }
+
+    /* INCOME STATEMENT TABLE */
+    .income-statement-card {
+        background: #FFFFFF;
+        border-radius: 14px;
+        border: 1px solid #E2E8F0;
+        padding: 24px;
+        margin-bottom: 25px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    }
+    .is-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 18px;
+        padding-bottom: 14px;
+        border-bottom: 1px solid #F1F5F9;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .is-title-wrap {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .is-title {
+        font-size: 17px;
+        font-weight: 900;
+        color: #0F172A;
+    }
+    .is-subtitle {
+        font-size: 12px;
+        color: #64748B;
+        font-weight: 600;
+        margin-top: 2px;
+    }
+    .is-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+    .is-table th {
+        background: #F8FAFC;
+        color: #475569;
+        padding: 12px 14px;
+        border-bottom: 2px solid #E2E8F0;
+        font-weight: 800;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .is-table td {
+        padding: 12px 14px;
+        border-bottom: 1px solid #F1F5F9;
+        vertical-align: middle;
+    }
+    .is-row-section {
+        background: #F8FAFC;
+        font-weight: 900;
+        color: #1E293B;
+        font-size: 12px;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+    }
+    .is-row-subtotal {
+        background: #F0FDFA;
+        font-weight: 800;
+        color: #0F766E;
+        border-top: 1px solid #CCFBF1;
+        border-bottom: 2px solid #99F6E4;
+    }
+    .is-row-total {
+        background: #ECFDF5;
+        font-weight: 900;
+        font-size: 14.5px;
+        color: #065F46;
+        border-top: 2px solid #10B981;
+        border-bottom: 2px solid #10B981;
+    }
+    .is-row-total-deficit {
+        background: #FEF2F2 !important;
+        color: #991B1B !important;
+        border-top: 2px solid #EF4444 !important;
+        border-bottom: 2px solid #EF4444 !important;
+    }
+    .is-category-badge {
+        font-size: 10.5px;
+        font-weight: 700;
+        padding: 3px 8px;
+        border-radius: 6px;
+        background: #F1F5F9;
+        color: #475569;
+        display: inline-block;
+    }
+    .is-val-positive {
+        color: #059669;
+        font-weight: 800;
+    }
+    .is-val-negative {
+        color: #DC2626;
+        font-weight: 800;
+    }
+    .is-ratio-pill {
+        background: #F1F5F9;
+        color: #475569;
+        padding: 2px 7px;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+    /* CARDS GRID FOR TOP PRODUCTS & PAYMENT METHODS */
     .rep-content-grid { 
         display: grid; 
         grid-template-columns: repeat(2, 1fr); 
@@ -115,7 +450,6 @@
         border-bottom: 1px solid #F1F5F9;
         padding-bottom: 12px;
     }
-
     .rep-table { 
         width: 100%; 
         border-collapse: collapse; 
@@ -141,74 +475,535 @@
         background: #F8FAFC;
     }
 
-    @media (max-width: 991px) {
+    /* PRINT LAYOUT */
+    @media print {
+        body {
+            background: white !important;
+            color: black !important;
+            font-size: 11pt !important;
+        }
+        .adm-sidebar, .adm-topbar, .topbar-actions-group, .report-filters-card, .expense-config-card, .filter-pills, .custom-date-bar {
+            display: none !important;
+        }
+        .adm-main, .adm-content {
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        .income-statement-card {
+            border: 1px solid #94A3B8 !important;
+            box-shadow: none !important;
+            padding: 15px !important;
+        }
+        .is-table th, .is-table td {
+            padding: 8px 10px !important;
+            border-bottom: 1px solid #CBD5E1 !important;
+        }
+        .print-official-header {
+            display: block !important;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #000;
+        }
+        .print-signature-section {
+            display: flex !important;
+            justify-content: space-between;
+            margin-top: 50px;
+            padding-top: 20px;
+        }
+    }
+    .print-official-header {
+        display: none;
+    }
+    .print-signature-section {
+        display: none;
+    }
+
+    /* RESPONSIVE BREAKPOINTS */
+    @media (max-width: 1024px) {
         .rep-stats-grid { grid-template-columns: repeat(2, 1fr); }
+        .expense-grid { grid-template-columns: repeat(2, 1fr); }
         .rep-content-grid { grid-template-columns: 1fr; }
     }
-    @media (max-width: 540px) {
+    @media (max-width: 640px) {
         .rep-stats-grid { grid-template-columns: 1fr; }
+        .expense-grid { grid-template-columns: 1fr; }
+        .custom-date-bar { flex-direction: column; align-items: stretch; }
+        .active-period-banner { margin-left: 0; width: 100%; justify-content: center; }
+        .topbar-actions-group { width: 100%; }
+        .adm-btn-outline, .adm-btn-primary { flex: 1; justify-content: center; }
     }
 </style>
 {% endblock %}
 
 {% block admin_content %}
 
-<!-- FILTER PILLS -->
-<div class="filter-pills">
-    <a href="{{ url_for('admin.reports', range='today') }}" class="filter-pill {% if time_range == 'today' %}active{% endif %}">
-        <i class="fas fa-calendar-day"></i> Hari Ini
-    </a>
-    <a href="{{ url_for('admin.reports', range='7days') }}" class="filter-pill {% if time_range == '7days' %}active{% endif %}">
-        <i class="fas fa-calendar-week"></i> 7 Hari Terakhir
-    </a>
-    <a href="{{ url_for('admin.reports', range='30days') }}" class="filter-pill {% if time_range == '30days' %}active{% endif %}">
-        <i class="fas fa-calendar-alt"></i> 30 Hari Terakhir
-    </a>
-    <a href="{{ url_for('admin.reports', range='this_month') }}" class="filter-pill {% if time_range == 'this_month' %}active{% endif %}">
-        <i class="fas fa-calendar"></i> Bulan Ini
-    </a>
-    <a href="{{ url_for('admin.reports', range='all') }}" class="filter-pill {% if time_range == 'all' %}active{% endif %}">
-        <i class="fas fa-globe"></i> Semua Waktu
-    </a>
+<!-- PRINT OFFICIAL HEADER (Only appears on Print / PDF) -->
+<div class="print-official-header">
+    <div style="font-size: 20px; font-weight: 900; letter-spacing: 0.5px; color: #000;">GARUDATEL DIGITAL INDONESIA</div>
+    <div style="font-size: 13px; font-weight: 700; color: #333; margin-top: 2px;">LAPORAN KEUANGAN & REKAPITULASI LABA RUGI (INCOME STATEMENT)</div>
+    <div style="font-size: 11px; color: #555; margin-top: 4px;">
+        Periode Analisis: <b>{{ range_label }}</b> | Dicetak Pada: {{ now_wib_fmt if now_wib_fmt is defined else '' }}
+    </div>
 </div>
 
-<!-- STATS CARDS -->
-<div class="rep-stats-grid">
-    <div class="rep-stat-card">
-        <div class="rep-stat-icon" style="background: rgba(58,130,127,0.12); color: #3A827F;">
-            <i class="fas fa-wallet"></i>
-        </div>
-        <div>
-            <div class="rep-stat-val" style="color: #059669;">Rp {{ "{:,.0f}".format(total_omset).replace(',', '.') }}</div>
-            <div class="rep-stat-lbl">Omset Sukses</div>
-        </div>
+<!-- FILTER & PERIODE SECTION -->
+<div class="report-filters-card">
+    <div class="filter-pills">
+        <a href="{{ url_for('admin.reports', range='today', server_cost=server_cost, other_cost=other_server_cost, tax_mode=tax_mode, tax_rate=tax_rate) }}" 
+           class="filter-pill {% if time_range == 'today' %}active{% endif %}">
+            <i class="fas fa-calendar-day"></i> Hari Ini
+        </a>
+        <a href="{{ url_for('admin.reports', range='yesterday', server_cost=server_cost, other_cost=other_server_cost, tax_mode=tax_mode, tax_rate=tax_rate) }}" 
+           class="filter-pill {% if time_range == 'yesterday' %}active{% endif %}">
+            <i class="fas fa-history"></i> Kemarin
+        </a>
+        <a href="{{ url_for('admin.reports', range='7days', server_cost=server_cost, other_cost=other_server_cost, tax_mode=tax_mode, tax_rate=tax_rate) }}" 
+           class="filter-pill {% if time_range == '7days' %}active{% endif %}">
+            <i class="fas fa-calendar-week"></i> 7 Hari Terakhir
+        </a>
+        <a href="{{ url_for('admin.reports', range='this_month', server_cost=server_cost, other_cost=other_server_cost, tax_mode=tax_mode, tax_rate=tax_rate) }}" 
+           class="filter-pill {% if time_range == 'this_month' %}active{% endif %}">
+            <i class="fas fa-calendar-alt"></i> Bulan Ini
+        </a>
+        <a href="{{ url_for('admin.reports', range='last_month', server_cost=server_cost, other_cost=other_server_cost, tax_mode=tax_mode, tax_rate=tax_rate) }}" 
+           class="filter-pill {% if time_range == 'last_month' %}active{% endif %}">
+            <i class="fas fa-calendar-check"></i> Bulan Lalu
+        </a>
+        <a href="{{ url_for('admin.reports', range='30days', server_cost=server_cost, other_cost=other_server_cost, tax_mode=tax_mode, tax_rate=tax_rate) }}" 
+           class="filter-pill {% if time_range == '30days' %}active{% endif %}">
+            <i class="fas fa-clock"></i> 30 Hari Terakhir
+        </a>
+        <a href="{{ url_for('admin.reports', range='this_year', server_cost=server_cost, other_cost=other_server_cost, tax_mode=tax_mode, tax_rate=tax_rate) }}" 
+           class="filter-pill {% if time_range == 'this_year' %}active{% endif %}">
+            <i class="fas fa-chart-bar"></i> Tahun Ini
+        </a>
+        <a href="{{ url_for('admin.reports', range='all', server_cost=server_cost, other_cost=other_server_cost, tax_mode=tax_mode, tax_rate=tax_rate) }}" 
+           class="filter-pill {% if time_range == 'all' %}active{% endif %}">
+            <i class="fas fa-globe"></i> Semua Waktu
+        </a>
     </div>
-    <div class="rep-stat-card">
-        <div class="rep-stat-icon" style="background: #E0F2FE; color: #0284C7;">
-            <i class="fas fa-receipt"></i>
+
+    <!-- CUSTOM DATE RANGE FORM -->
+    <form method="GET" action="{{ url_for('admin.reports') }}" class="custom-date-bar">
+        <input type="hidden" name="range" value="custom">
+        <input type="hidden" name="server_cost" value="{{ server_cost }}">
+        <input type="hidden" name="other_cost" value="{{ other_server_cost }}">
+        <input type="hidden" name="other_notes" value="{{ other_server_notes }}">
+        <input type="hidden" name="tax_mode" value="{{ tax_mode }}">
+        <input type="hidden" name="tax_rate" value="{{ tax_rate }}">
+
+        <div class="date-input-group">
+            <i class="fas fa-calendar-alt" style="color: #64748B;"></i>
+            <span>Dari:</span>
+            <input type="date" name="start_date" value="{{ start_date_str }}" required>
         </div>
-        <div>
-            <div class="rep-stat-val">{{ "{:,}".format(total_trx) }}</div>
-            <div class="rep-stat-lbl">Total Transaksi</div>
+
+        <div class="date-input-group">
+            <span>Sampai:</span>
+            <input type="date" name="end_date" value="{{ end_date_str }}" required>
         </div>
-    </div>
-    <div class="rep-stat-card">
-        <div class="rep-stat-icon" style="background: #D1FAE5; color: #10B981;">
+
+        <button type="submit" class="adm-btn adm-btn-secondary" style="padding: 6px 14px; font-size: 12px;">
+            <i class="fas fa-filter"></i> Terapkan Rentang
+        </button>
+
+        <div class="active-period-banner">
             <i class="fas fa-check-circle"></i>
+            <span>Periode: <b>{{ range_label }}</b></span>
         </div>
-        <div>
-            <div class="rep-stat-val" style="color: #059669;">{{ "{:,}".format(success_trx) }}</div>
-            <div class="rep-stat-lbl">Transaksi Berhasil</div>
+    </form>
+</div>
+
+<!-- DYNAMIC EXPENSE & TAX CUSTOMIZER / SIMULATOR (Collapsible) -->
+<div id="expenseConfigCard" class="expense-config-card">
+    <div class="expense-config-header">
+        <div class="expense-config-title">
+            <i class="fas fa-sliders-h" style="color: #008779;"></i>
+            <span>Kalkulator & Pengatur Beban Server & Skema Pajak Dinamis</span>
+        </div>
+        <button type="button" class="btn-close-config" onclick="toggleExpenseConfig()" style="background:none; border:none; color:#64748B; font-size:16px; cursor:pointer;">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+
+    <form id="expenseConfigForm" onsubmit="applyExpenseSimulation(event)">
+        <div class="expense-grid">
+            <!-- 1. BEBAN POKOK SERVER -->
+            <div class="expense-form-group">
+                <label><i class="fas fa-server" style="color:#008779;"></i> Beban Pokok Server (VPS)</label>
+                <div style="position: relative;">
+                    <span style="position: absolute; left: 10px; top: 8px; font-weight: 800; color: #64748B; font-size: 12px;">Rp</span>
+                    <input type="number" id="input_server_cost" name="server_cost" value="{{ '{:.0f}'.format(server_cost) }}" step="1000" style="padding-left: 32px;" required>
+                </div>
+                <span class="form-help">Default Rp 125.000 / bulan. Dinamis bisa disesuaikan dengan paket VPS aktif.</span>
+            </div>
+
+            <!-- 2. BEBAN SERVER & OPERASIONAL LAINNYA -->
+            <div class="expense-form-group">
+                <label><i class="fas fa-microchip" style="color:#0284C7;"></i> Beban Server Lainnya</label>
+                <div style="position: relative;">
+                    <span style="position: absolute; left: 10px; top: 8px; font-weight: 800; color: #64748B; font-size: 12px;">Rp</span>
+                    <input type="number" id="input_other_cost" name="other_server_cost" value="{{ '{:.0f}'.format(other_server_cost) }}" step="1000" style="padding-left: 32px;">
+                </div>
+                <span class="form-help">Biaya domain, gateway notifikasi WA, backup S3, Cloudflare, atau lisensi bot.</span>
+            </div>
+
+            <!-- 3. CATATAN BEBAN LAINNYA -->
+            <div class="expense-form-group">
+                <label><i class="fas fa-sticky-note" style="color:#D97706;"></i> Rincian Biaya Lainnya</label>
+                <input type="text" id="input_other_notes" name="other_server_notes" value="{{ other_server_notes }}" placeholder="Misal: Domain & WA Gateway">
+                <span class="form-help">Nama pos/keterangan yang dicetak pada rincian Laporan Laba Rugi.</span>
+            </div>
+
+            <!-- 4. SKEMA & TARIF PAJAK -->
+            <div class="expense-form-group">
+                <label><i class="fas fa-percentage" style="color:#8B5CF6;"></i> Skema & Tarif Pajak Dinamis</label>
+                <div style="display: flex; gap: 6px;">
+                    <select id="input_tax_mode" name="tax_mode" style="flex: 2;" onchange="updateTaxInputPlaceholder()">
+                        <option value="percent_omset" {% if tax_mode == 'percent_omset' %}selected{% endif %}>% dari Omset (PPh UMKM)</option>
+                        <option value="percent_profit" {% if tax_mode == 'percent_profit' %}selected{% endif %}>% Laba Operasional</option>
+                        <option value="fixed" {% if tax_mode == 'fixed' %}selected{% endif %}>Nominal Tetap (Rp)</option>
+                        <option value="exempt" {% if tax_mode == 'exempt' %}selected{% endif %}>Bebas Pajak (0%)</option>
+                    </select>
+                    <input type="number" id="input_tax_rate" name="tax_rate" value="{{ tax_rate }}" step="0.1" style="flex: 1;" placeholder="0.5">
+                </div>
+                <span class="form-help" id="tax_help_text">Tarif default 0.5% (PPh Final PP 55/2022). Fleksibel disesuaikan.</span>
+            </div>
+        </div>
+
+        <div class="expense-actions-bar">
+            <div style="font-size: 11.5px; color: #64748B; font-weight: 600;">
+                <i class="fas fa-info-circle"></i> Angka dapat disimulasikan live seketika, atau disimpan permanen ke database sebagai nilai standar toko.
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button type="button" class="adm-btn adm-btn-outline" onclick="resetExpenseToDefault()">
+                    <i class="fas fa-undo"></i> Reset Default
+                </button>
+                <button type="submit" class="adm-btn adm-btn-secondary">
+                    <i class="fas fa-calculator"></i> Simulasi Live
+                </button>
+                <button type="button" class="adm-btn adm-btn-primary" onclick="saveExpenseSettingsPermanent()">
+                    <i class="fas fa-save"></i> Simpan Sebagai Default
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- 6 EXECUTIVE KPI STATS CARDS -->
+<div class="rep-stats-grid">
+    <!-- 1. OMSET PENJUALAN -->
+    <div class="rep-stat-card">
+        <div class="rep-stat-icon" style="background: rgba(2, 132, 199, 0.12); color: #0284C7;">
+            <i class="fas fa-cash-register"></i>
+        </div>
+        <div class="rep-stat-info">
+            <div class="rep-stat-val" style="color: #0284C7;">
+                Rp {{ "{:,.0f}".format(total_omset).replace(',', '.') }}
+            </div>
+            <div class="rep-stat-lbl">Omset Penjualan Produk</div>
+            <div class="rep-stat-sub">
+                <i class="fas fa-check-circle" style="color: #10B981;"></i>
+                <span>{{ success_trx }} Transaksi Berhasil ({{ success_rate }}%)</span>
+            </div>
         </div>
     </div>
+
+    <!-- 2. LABA KOTOR (GROSS PROFIT) -->
     <div class="rep-stat-card">
-        <div class="rep-stat-icon" style="background: #FEF3C7; color: #F59E0B;">
-            <i class="fas fa-chart-pie"></i>
+        <div class="rep-stat-icon" style="background: rgba(16, 185, 129, 0.12); color: #059669;">
+            <i class="fas fa-chart-line"></i>
+        </div>
+        <div class="rep-stat-info">
+            <div class="rep-stat-val" style="color: #059669;" id="kpi_gross_profit">
+                Rp {{ "{:,.0f}".format(gross_profit).replace(',', '.') }}
+            </div>
+            <div class="rep-stat-lbl">Laba Kotor (Gross Margin)</div>
+            <div class="rep-stat-sub">
+                <i class="fas fa-tag" style="color: #059669;"></i>
+                <span id="kpi_gross_margin">Margin: {{ gross_margin_percent }}% dari Omset</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. BEBAN KOMISI VIP & UPLINE -->
+    <div class="rep-stat-card">
+        <div class="rep-stat-icon" style="background: rgba(245, 158, 11, 0.12); color: #D97706;">
+            <i class="fas fa-crown"></i>
+        </div>
+        <div class="rep-stat-info">
+            <div class="rep-stat-val" style="color: #D97706;" id="kpi_vip_commission">
+                Rp {{ "{:,.0f}".format(total_vip_commission).replace(',', '.') }}
+            </div>
+            <div class="rep-stat-lbl">Beban Komisi VIP & Upline</div>
+            <div class="rep-stat-sub">
+                <i class="fas fa-users" style="color: #D97706;"></i>
+                <span>{{ vip_commission_count }}x Pembagian Komisi Downline</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. BEBAN POIN MEMBER -->
+    <div class="rep-stat-card">
+        <div class="rep-stat-icon" style="background: rgba(139, 92, 246, 0.12); color: #7C3AED;">
+            <i class="fas fa-gift"></i>
+        </div>
+        <div class="rep-stat-info">
+            <div class="rep-stat-val" style="color: #7C3AED;" id="kpi_point_expense">
+                Rp {{ "{:,.0f}".format(total_point_expense).replace(',', '.') }}
+            </div>
+            <div class="rep-stat-lbl">Beban Klaim Poin Member</div>
+            <div class="rep-stat-sub">
+                <i class="fas fa-coins" style="color: #7C3AED;"></i>
+                <span>{{ points_claimed_count }}x Klaim ke Saldo ({{ points_rewarded_total }} Poin Terbit)</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. BEBAN SERVER & PAJAK -->
+    <div class="rep-stat-card">
+        <div class="rep-stat-icon" style="background: rgba(0, 135, 121, 0.12); color: #008779;">
+            <i class="fas fa-server"></i>
+        </div>
+        <div class="rep-stat-info">
+            <div class="rep-stat-val" style="color: #008779;" id="kpi_server_and_tax">
+                Rp {{ "{:,.0f}".format(total_server_costs + tax_expense).replace(',', '.') }}
+            </div>
+            <div class="rep-stat-lbl">Beban Server & Pajak</div>
+            <div class="rep-stat-sub" id="kpi_server_and_tax_sub">
+                <span>Server Rp {{ "{:,.0f}".format(server_cost).replace(',', '.') }} + Pajak Rp {{ "{:,.0f}".format(tax_expense).replace(',', '.') }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. LABA BERSIH (NET PROFIT) -->
+    <div class="rep-stat-card" style="border-left: 4px solid {% if net_profit >= 0 %}#059669{% else %}#DC2626{% endif %};" id="card_net_profit_wrap">
+        <div class="rep-stat-icon" style="background: {% if net_profit >= 0 %}rgba(16, 185, 129, 0.15){% else %}rgba(239, 68, 68, 0.15){% endif %}; color: {% if net_profit >= 0 %}#059669{% else %}#DC2626{% endif %};" id="icon_net_profit">
+            <i class="fas {% if net_profit >= 0 %}fa-wallet{% else %}fa-exclamation-triangle{% endif %}"></i>
+        </div>
+        <div class="rep-stat-info">
+            <div class="rep-stat-val" style="color: {% if net_profit >= 0 %}#059669{% else %}#DC2626{% endif %}; font-size: 21px;" id="kpi_net_profit">
+                Rp {{ "{:,.0f}".format(net_profit).replace(',', '.') }}
+            </div>
+            <div class="rep-stat-lbl">Laba Bersih Akhir (Net Profit)</div>
+            <div class="rep-stat-sub" style="margin-top: 5px;">
+                <span class="badge-status-profit {% if net_profit >= 0 %}badge-profit-surplus{% else %}badge-profit-deficit{% endif %}" id="badge_net_status">
+                    {% if net_profit >= 0 %}
+                    <i class="fas fa-arrow-up"></i> Surplus (Untung {{ net_margin_percent }}%)
+                    {% else %}
+                    <i class="fas fa-arrow-down"></i> Defisit ({{ net_margin_percent }}%)
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- LAPORAN LABA RUGI KOMPREHENSIF (INCOME STATEMENT) -->
+<div class="income-statement-card">
+    <div class="is-header">
+        <div class="is-title-wrap">
+            <div style="width: 38px; height: 38px; border-radius: 10px; background: #E6F3F2; color: #008779; display: flex; align-items: center; justify-content: center; font-size: 18px;">
+                <i class="fas fa-file-invoice-dollar"></i>
+            </div>
+            <div>
+                <div class="is-title">Laporan Laba Rugi Komprehensif (Income Statement)</div>
+                <div class="is-subtitle">Standar Akuntansi Finansial GarudaTel Digital • Periode: {{ range_label }}</div>
+            </div>
         </div>
         <div>
-            <div class="rep-stat-val" style="color: #D97706;">{{ success_rate }}%</div>
-            <div class="rep-stat-lbl">Tingkat Keberhasilan</div>
+            <span class="is-category-badge" style="background: #E0F2FE; color: #0369A1;">
+                <i class="fas fa-shield-alt"></i> Data Riil Terverifikasi Sistem
+            </span>
         </div>
+    </div>
+
+    <div style="overflow-x: auto;">
+        <table class="is-table" id="incomeStatementTable">
+            <thead>
+                <tr>
+                    <th style="width: 45%;">Pos Keuangan & Rincian Transaksi</th>
+                    <th style="width: 20%;">Klasifikasi Akun</th>
+                    <th style="width: 15%; text-align: center;">Rasio / Omset</th>
+                    <th style="width: 20%; text-align: right;">Nominal Rupiah (IDR)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- I. PENDAPATAN USAHA (REVENUE) -->
+                <tr class="is-row-section">
+                    <td colspan="4">I. PENDAPATAN OPERASIONAL USAHA (REVENUE)</td>
+                </tr>
+                <tr>
+                    <td>
+                        <div style="font-weight: 800; color: #0F172A;">Omset Penjualan Produk Digital</div>
+                        <div style="font-size: 11px; color: #64748B;">Total belanja transaksi sukses (Pulsa, Data, PLN, E-Money, Game, Pascabayar)</div>
+                    </td>
+                    <td><span class="is-category-badge">Pendapatan Utama</span></td>
+                    <td style="text-align: center;"><span class="is-ratio-pill">100.0%</span></td>
+                    <td style="text-align: right; font-weight: 800; color: #0284C7;" id="row_omset">
+                        +Rp {{ "{:,.0f}".format(total_omset).replace(',', '.') }}
+                    </td>
+                </tr>
+
+                <!-- II. HARGA POKOK PENJUALAN (HPP / COGS) -->
+                <tr class="is-row-section">
+                    <td colspan="4">II. HARGA POKOK PENJUALAN (COGS / MODAL PROVIDER)</td>
+                </tr>
+                <tr>
+                    <td>
+                        <div style="font-weight: 800; color: #0F172A;">Modal Provider Produk (HPP)</div>
+                        <div style="font-size: 11px; color: #64748B;">Harga beli modal provider Digiflazz / VIP-Reseller / Biller resmi</div>
+                    </td>
+                    <td><span class="is-category-badge">Beban Pokok</span></td>
+                    <td style="text-align: center;"><span class="is-ratio-pill" id="ratio_cogs">{{ ratios.cogs }}%</span></td>
+                    <td style="text-align: right; font-weight: 800; color: #DC2626;" id="row_cogs">
+                        -Rp {{ "{:,.0f}".format(total_cogs).replace(',', '.') }}
+                    </td>
+                </tr>
+
+                <!-- = LABA KOTOR -->
+                <tr class="is-row-subtotal">
+                    <td>
+                        <div style="font-size: 13.5px; font-weight: 900; color: #065F46;">
+                            <i class="fas fa-equals" style="font-size: 11px; margin-right: 4px;"></i> LABA KOTOR (GROSS PROFIT)
+                        </div>
+                    </td>
+                    <td><span class="is-category-badge" style="background:#CCFBF1; color:#0F766E;">Subtotal Margin</span></td>
+                    <td style="text-align: center;"><span class="is-ratio-pill" style="background:#CCFBF1; color:#0F766E; font-weight:800;" id="ratio_gross">{{ gross_margin_percent }}%</span></td>
+                    <td style="text-align: right; font-size: 14.5px; font-weight: 900; color: #065F46;" id="row_gross_profit">
+                        Rp {{ "{:,.0f}".format(gross_profit).replace(',', '.') }}
+                    </td>
+                </tr>
+
+                <!-- III. BEBAN OPERASIONAL & LOYALITAS (OPEX) -->
+                <tr class="is-row-section">
+                    <td colspan="4">III. BEBAN OPERASIONAL & BIAYA LOYALITAS (OPEX)</td>
+                </tr>
+                <tr>
+                    <td>
+                        <div style="font-weight: 800; color: #0F172A;">Beban Komisi Akun VIP & Upline</div>
+                        <div style="font-size: 11px; color: #64748B;">Hak komisi kemitraan berjenjang yang dibagikan atas transaksi downline ({{ vip_commission_count }} transaksi)</div>
+                    </td>
+                    <td><span class="is-category-badge">Beban Kemitraan</span></td>
+                    <td style="text-align: center;"><span class="is-ratio-pill" id="ratio_vip">{{ ratios.vip_commission }}%</span></td>
+                    <td style="text-align: right; font-weight: 800; color: #DC2626;" id="row_vip_commission">
+                        -Rp {{ "{:,.0f}".format(total_vip_commission).replace(',', '.') }}
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <div style="font-weight: 800; color: #0F172A;">Beban Pencairan Poin Member</div>
+                        <div style="font-size: 11px; color: #64748B;">Realisasi penukaran poin reward loyalitas yang dikonversi menjadi saldo rupiah ({{ points_claimed_count }} klaim)</div>
+                    </td>
+                    <td><span class="is-category-badge">Beban Loyalitas</span></td>
+                    <td style="text-align: center;"><span class="is-ratio-pill" id="ratio_point">{{ ratios.point_expense }}%</span></td>
+                    <td style="text-align: right; font-weight: 800; color: #DC2626;" id="row_point_expense">
+                        -Rp {{ "{:,.0f}".format(total_point_expense).replace(',', '.') }}
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <div style="font-weight: 800; color: #0F172A;">Beban Pokok Sewa Server (VPS)</div>
+                        <div style="font-size: 11px; color: #64748B;">Biaya hosting VPS server aplikasi GarudaTel (Dinamis: Default Rp 125.000 / bulan)</div>
+                    </td>
+                    <td><span class="is-category-badge">Infrastruktur</span></td>
+                    <td style="text-align: center;"><span class="is-ratio-pill" id="ratio_server">{{ ratios.server_cost }}%</span></td>
+                    <td style="text-align: right; font-weight: 800; color: #DC2626;" id="row_server_cost">
+                        -Rp {{ "{:,.0f}".format(server_cost).replace(',', '.') }}
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <div style="font-weight: 800; color: #0F172A;">Beban Server & Operasional Tambahan</div>
+                        <div style="font-size: 11px; color: #64748B;" id="row_other_notes_lbl">{{ other_server_notes }}</div>
+                    </td>
+                    <td><span class="is-category-badge">Operasional Tambahan</span></td>
+                    <td style="text-align: center;"><span class="is-ratio-pill" id="ratio_other">{{ ratios.other_server_cost }}%</span></td>
+                    <td style="text-align: right; font-weight: 800; color: #DC2626;" id="row_other_cost">
+                        -Rp {{ "{:,.0f}".format(other_server_cost).replace(',', '.') }}
+                    </td>
+                </tr>
+                <tr style="background: #FDF4FF; color: #86198F; font-weight: 800;">
+                    <td>
+                        <div style="padding-left: 12px;">↳ Total Beban Operasional (Total OPEX)</div>
+                    </td>
+                    <td><span class="is-category-badge" style="background: #FAE8FF; color: #86198F;">Subtotal Beban</span></td>
+                    <td style="text-align: center;"><span class="is-ratio-pill" style="background:#FAE8FF; color:#86198F;" id="ratio_opex">{{ ratios.total_opex }}%</span></td>
+                    <td style="text-align: right; font-weight: 800; color: #86198F;" id="row_total_opex">
+                        -Rp {{ "{:,.0f}".format(total_opex).replace(',', '.') }}
+                    </td>
+                </tr>
+
+                <!-- = LABA OPERASIONAL SEBELUM PAJAK (EBT) -->
+                <tr class="is-row-subtotal" style="background: #EFF6FF; color: #1E40AF; border-top: 1px solid #DBEAFE; border-bottom: 2px solid #BFDBFE;">
+                    <td>
+                        <div style="font-size: 13.5px; font-weight: 900; color: #1E40AF;">
+                            <i class="fas fa-equals" style="font-size: 11px; margin-right: 4px;"></i> LABA OPERASIONAL SEBELUM PAJAK (EBT)
+                        </div>
+                    </td>
+                    <td><span class="is-category-badge" style="background:#DBEAFE; color:#1E40AF;">Operating Profit</span></td>
+                    <td style="text-align: center;"><span class="is-ratio-pill" style="background:#DBEAFE; color:#1E40AF; font-weight:800;" id="ratio_ebt">{{ ratios.operating_profit }}%</span></td>
+                    <td style="text-align: right; font-size: 14.5px; font-weight: 900; color: #1E40AF;" id="row_operating_profit">
+                        Rp {{ "{:,.0f}".format(operating_profit).replace(',', '.') }}
+                    </td>
+                </tr>
+
+                <!-- IV. BEBAN PAJAK PENGHASILAN (TAX) -->
+                <tr class="is-row-section">
+                    <td colspan="4">IV. ESTIMASI BEBAN PAJAK PENGHASILAN (TAX EXPENSE)</td>
+                </tr>
+                <tr>
+                    <td>
+                        <div style="font-weight: 800; color: #0F172A;" id="row_tax_title">Beban Pajak Dinamis</div>
+                        <div style="font-size: 11px; color: #64748B;" id="row_tax_lbl">{{ tax_label }}</div>
+                    </td>
+                    <td><span class="is-category-badge">Kewajiban Pajak</span></td>
+                    <td style="text-align: center;"><span class="is-ratio-pill" id="ratio_tax">{{ ratios.tax_expense }}%</span></td>
+                    <td style="text-align: right; font-weight: 800; color: #DC2626;" id="row_tax_expense">
+                        -Rp {{ "{:,.0f}".format(tax_expense).replace(',', '.') }}
+                    </td>
+                </tr>
+
+                <!-- V. LABA BERSIH AKHIR (NET PROFIT) -->
+                <tr class="is-row-total {% if net_profit < 0 %}is-row-total-deficit{% endif %}" id="row_net_profit_wrap">
+                    <td>
+                        <div style="font-size: 15px; font-weight: 900; letter-spacing: 0.3px;">
+                            <i class="fas fa-check-double" style="margin-right: 6px;"></i> LABA BERSIH AKHIR BERJALAN (NET PROFIT)
+                        </div>
+                        <div style="font-size: 11px; opacity: 0.85; font-weight: 600; margin-top: 2px;">
+                            Keuntungan bersih riil setelah dikurangi seluruh HPP, komisi VIP, poin member, beban server & pajak.
+                        </div>
+                    </td>
+                    <td>
+                        <span class="is-category-badge" style="background: white; border: 1px solid currentColor;">
+                            Laba Bersih Akhir
+                        </span>
+                    </td>
+                    <td style="text-align: center;">
+                        <span class="is-ratio-pill" style="font-size: 12px; font-weight: 900;" id="ratio_net">{{ net_margin_percent }}%</span>
+                    </td>
+                    <td style="text-align: right; font-size: 18px; font-weight: 900;" id="row_net_profit">
+                        Rp {{ "{:,.0f}".format(net_profit).replace(',', '.') }}
+                    </td>
+                </tr>
+
+                <!-- ARUS KAS TAMBAHAN (NON-P&L INFORMATIONAL) -->
+                <tr class="is-row-section" style="background: #F1F5F9; color: #475569;">
+                    <td colspan="4">V. INFORMASI ARUS KAS MASUK (NON-P&L / CASH FLOW CONTEXT)</td>
+                </tr>
+                <tr>
+                    <td>
+                        <div style="font-weight: 800; color: #334155;">Total Dana Deposit Masuk (Top-Up Saldo)</div>
+                        <div style="font-size: 11px; color: #64748B;">Arus kas masuk dari tiket deposit otomatis & manual transfer member ({{ deposit_count }} transaksi deposit)</div>
+                    </td>
+                    <td><span class="is-category-badge">Arus Kas Masuk</span></td>
+                    <td style="text-align: center;"><span class="is-ratio-pill">Info</span></td>
+                    <td style="text-align: right; font-weight: 800; color: #0F766E;">
+                        Rp {{ "{:,.0f}".format(total_deposit_in).replace(',', '.') }}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
     </div>
 </div>
 
@@ -218,7 +1013,7 @@
     <div class="card-rep">
         <div class="card-title">
             <i class="fas fa-trophy" style="color: #F59E0B;"></i>
-            Top 5 Produk Terlaris
+            Top 5 Produk Terlaris Periode Ini
         </div>
 
         <table class="rep-table">
@@ -236,7 +1031,9 @@
                         <div style="font-weight: 800; color: #1E293B;">{{ p.name }}</div>
                     </td>
                     <td style="text-align: center; font-weight: 800;">
-                        <span style="background: #F1F5F9; padding: 2px 8px; border-radius: 6px;">{{ p.sales }}x</span>
+                        <span style="background: #F1F5F9; padding: 3px 8px; border-radius: 6px; font-size: 11px; color: #0284C7;">
+                            {{ p.sales }}x
+                        </span>
                     </td>
                     <td style="text-align: right; font-weight: 800; color: #059669;">
                         Rp {{ "{:,.0f}".format(p.revenue).replace(',', '.') }}
@@ -244,8 +1041,8 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="3" style="text-align: center; padding: 30px; color: #64748B;">
-                        Belum ada transaksi sukses pada rentang waktu ini.
+                    <td colspan="3" style="text-align: center; padding: 25px; color: #64748B;">
+                        Belum ada transaksi produk sukses pada rentang waktu ini.
                     </td>
                 </tr>
                 {% endfor %}
@@ -257,7 +1054,7 @@
     <div class="card-rep">
         <div class="card-title">
             <i class="fas fa-credit-card" style="color: #0284C7;"></i>
-            Distribusi Metode Pembayaran
+            Distribusi Saluran Pembayaran
         </div>
 
         <table class="rep-table">
@@ -272,7 +1069,7 @@
                 {% for m in payment_methods %}
                 <tr>
                     <td>
-                        <span style="font-weight: 800; text-transform: uppercase; background: #F1F5F9; padding: 3px 8px; border-radius: 6px; font-size: 11px;">
+                        <span style="font-weight: 800; text-transform: uppercase; background: #F1F5F9; padding: 3px 8px; border-radius: 6px; font-size: 11px; color: #334155;">
                             {{ m.method }}
                         </span>
                     </td>
@@ -285,8 +1082,8 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="3" style="text-align: center; padding: 30px; color: #64748B;">
-                        Belum ada data pembayaran.
+                    <td colspan="3" style="text-align: center; padding: 25px; color: #64748B;">
+                        Belum ada data pembayaran pada rentang waktu ini.
                     </td>
                 </tr>
                 {% endfor %}
@@ -295,4 +1092,302 @@
     </div>
 </div>
 
+<!-- PRINT OFFICIAL SIGNATURE SECTION -->
+<div class="print-signature-section">
+    <div style="text-align: center; width: 220px;">
+        <div style="font-size: 12px; font-weight: 700; color: #333;">Disusun Oleh,</div>
+        <div style="margin-top: 55px; font-weight: 800; text-decoration: underline;">Administrator Sistem</div>
+        <div style="font-size: 10px; color: #666;">Divisi Operasional & Finansial</div>
+    </div>
+    <div style="text-align: center; width: 220px;">
+        <div style="font-size: 12px; font-weight: 700; color: #333;">Disetujui Oleh,</div>
+        <div style="margin-top: 55px; font-weight: 800; text-decoration: underline;">Manajemen GarudaTel</div>
+        <div style="font-size: 10px; color: #666;">PT Garuda Komunika Solusindo</div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block script_extra %}
+<script>
+// DATA VARIABEL GLOBAL
+const FIN_DATA = {
+    omset: {{ total_omset|float }},
+    cogs: {{ total_cogs|float }},
+    grossProfit: {{ gross_profit|float }},
+    vipCommission: {{ total_vip_commission|float }},
+    pointExpense: {{ total_point_expense|float }},
+    serverCost: {{ server_cost|float }},
+    otherCost: {{ other_server_cost|float }},
+    otherNotes: "{{ other_server_notes|escape }}",
+    taxMode: "{{ tax_mode }}",
+    taxRate: {{ tax_rate|float }},
+    range: "{{ time_range }}",
+    rangeLabel: "{{ range_label }}",
+    defaultServer: {{ default_fin_settings.server_cost|float }},
+    defaultOther: {{ default_fin_settings.other_server_cost|float }},
+    defaultTaxRate: {{ default_fin_settings.tax_rate|float }}
+};
+
+// FORMAT RUPIAH HELPER
+function formatRp(num) {
+    const isNeg = num < 0;
+    const absVal = Math.round(Math.abs(num));
+    const str = absVal.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    return (isNeg ? "-Rp " : "Rp ") + str;
+}
+
+// TOGGLE EXPENSE CONFIG PANEL
+function toggleExpenseConfig() {
+    const panel = document.getElementById('expenseConfigCard');
+    if (panel.style.display === 'block') {
+        panel.style.display = 'none';
+    } else {
+        panel.style.display = 'block';
+        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+
+// UPDATE TAX INPUT PLACEHOLDER & HELP
+function updateTaxInputPlaceholder() {
+    const mode = document.getElementById('input_tax_mode').value;
+    const rateInput = document.getElementById('input_tax_rate');
+    const help = document.getElementById('tax_help_text');
+
+    if (mode === 'percent_omset') {
+        rateInput.disabled = false;
+        rateInput.placeholder = '0.5';
+        help.innerText = 'Tarif persen dari Omset (PPh Final UMKM PP 55/2022 default 0.5%).';
+    } else if (mode === 'percent_profit') {
+        rateInput.disabled = false;
+        rateInput.placeholder = '11';
+        help.innerText = 'Tarif persen dihitung dari Laba Operasional (EBT jika surplus).';
+    } else if (mode === 'fixed') {
+        rateInput.disabled = false;
+        rateInput.placeholder = '50000';
+        help.innerText = 'Nominal pajak tetap dalam format Rupiah per periode laporan.';
+    } else { // exempt
+        rateInput.value = '0';
+        rateInput.disabled = true;
+        help.innerText = 'Bebas pajak (Tarif 0%). Tidak ada beban pajak dipotong.';
+    }
+}
+
+// RESET TO DEFAULT VALUES
+function resetExpenseToDefault() {
+    document.getElementById('input_server_cost').value = Math.round(FIN_DATA.defaultServer);
+    document.getElementById('input_other_cost').value = Math.round(FIN_DATA.defaultOther);
+    document.getElementById('input_other_notes').value = "Domain, WA Gateway, SSL & Backup";
+    document.getElementById('input_tax_mode').value = "percent_omset";
+    document.getElementById('input_tax_rate').value = FIN_DATA.defaultTaxRate;
+    updateTaxInputPlaceholder();
+    applyExpenseSimulation(new Event('submit'));
+}
+
+// SIMULASI LIVE (CLIENT-SIDE INSTANT CALCULATION)
+function applyExpenseSimulation(e) {
+    if (e) e.preventDefault();
+
+    const serverCost = parseFloat(document.getElementById('input_server_cost').value) || 0;
+    const otherCost = parseFloat(document.getElementById('input_other_cost').value) || 0;
+    const otherNotes = document.getElementById('input_other_notes').value.trim() || 'Layanan Tambahan';
+    const taxMode = document.getElementById('input_tax_mode').value;
+    const taxRate = parseFloat(document.getElementById('input_tax_rate').value) || 0;
+
+    const totalServerCosts = serverCost + otherCost;
+    const totalOpex = FIN_DATA.vipCommission + FIN_DATA.pointExpense + totalServerCosts;
+    const operatingProfit = FIN_DATA.grossProfit - totalOpex;
+
+    let taxExpense = 0;
+    let taxLabel = 'Bebas Pajak (0%)';
+
+    if (taxMode === 'percent_omset') {
+        taxExpense = Math.round(FIN_DATA.omset * (taxRate / 100));
+        taxLabel = `PPh Final UMKM (${taxRate}% dari Omset)`;
+    } else if (taxMode === 'percent_profit') {
+        const taxable = Math.max(0, operatingProfit);
+        taxExpense = Math.round(taxable * (taxRate / 100));
+        taxLabel = `Pajak Penghasilan (${taxRate}% Laba Operasional)`;
+    } else if (taxMode === 'fixed') {
+        taxExpense = Math.round(taxRate);
+        taxLabel = `Pajak Nominal Tetap (${formatRp(taxExpense)})`;
+    } else {
+        taxExpense = 0;
+        taxLabel = 'Bebas Pajak (0%)';
+    }
+
+    const netProfit = operatingProfit - taxExpense;
+    const netMarginPercent = FIN_DATA.omset > 0 ? ((netProfit / FIN_DATA.omset) * 100).toFixed(2) : 0;
+
+    // Helper Rasio
+    const getRatio = (val) => FIN_DATA.omset > 0 ? ((val / FIN_DATA.omset) * 100).toFixed(2) : 0;
+
+    // UPDATE TABEL INCOME STATEMENT
+    document.getElementById('row_server_cost').innerText = "-" + formatRp(serverCost);
+    document.getElementById('ratio_server').innerText = getRatio(serverCost) + "%";
+
+    document.getElementById('row_other_cost').innerText = "-" + formatRp(otherCost);
+    document.getElementById('row_other_notes_lbl').innerText = otherNotes;
+    document.getElementById('ratio_other').innerText = getRatio(otherCost) + "%";
+
+    document.getElementById('row_total_opex').innerText = "-" + formatRp(totalOpex);
+    document.getElementById('ratio_opex').innerText = getRatio(totalOpex) + "%";
+
+    document.getElementById('row_operating_profit').innerText = formatRp(operatingProfit);
+    document.getElementById('ratio_ebt').innerText = getRatio(operatingProfit) + "%";
+
+    document.getElementById('row_tax_lbl').innerText = taxLabel;
+    document.getElementById('row_tax_expense').innerText = "-" + formatRp(taxExpense);
+    document.getElementById('ratio_tax').innerText = getRatio(taxExpense) + "%";
+
+    document.getElementById('row_net_profit').innerText = formatRp(netProfit);
+    document.getElementById('ratio_net').innerText = netMarginPercent + "%";
+
+    // UPDATE KPI CARDS
+    document.getElementById('kpi_server_and_tax').innerText = formatRp(totalServerCosts + taxExpense);
+    document.getElementById('kpi_server_and_tax_sub').innerHTML = `<span>Server ${formatRp(serverCost)} + Pajak ${formatRp(taxExpense)}</span>`;
+
+    const kpiNetEl = document.getElementById('kpi_net_profit');
+    kpiNetEl.innerText = formatRp(netProfit);
+
+    const netStatusBadge = document.getElementById('badge_net_status');
+    const netWrap = document.getElementById('card_net_profit_wrap');
+    const netIcon = document.getElementById('icon_net_profit');
+    const netRowWrap = document.getElementById('row_net_profit_wrap');
+
+    if (netProfit >= 0) {
+        kpiNetEl.style.color = '#059669';
+        netWrap.style.borderLeftColor = '#059669';
+        netIcon.style.background = 'rgba(16, 185, 129, 0.15)';
+        netIcon.style.color = '#059669';
+        netIcon.innerHTML = '<i class="fas fa-wallet"></i>';
+        netStatusBadge.className = 'badge-status-profit badge-profit-surplus';
+        netStatusBadge.innerHTML = `<i class="fas fa-arrow-up"></i> Surplus (Untung ${netMarginPercent}%)`;
+        netRowWrap.className = 'is-row-total';
+    } else {
+        kpiNetEl.style.color = '#DC2626';
+        netWrap.style.borderLeftColor = '#DC2626';
+        netIcon.style.background = 'rgba(239, 68, 68, 0.15)';
+        netIcon.style.color = '#DC2626';
+        netIcon.innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
+        netStatusBadge.className = 'badge-status-profit badge-profit-deficit';
+        netStatusBadge.innerHTML = `<i class="fas fa-arrow-down"></i> Defisit (${netMarginPercent}%)`;
+        netRowWrap.className = 'is-row-total is-row-total-deficit';
+    }
+
+    // Tampilkan notifikasi mini
+    showToast("✅ Simulasi live diterapkan! Angka telah dikalkulasi ulang di layar.");
+}
+
+// SIMPAN PERMANEN KE DATABASE
+function saveExpenseSettingsPermanent() {
+    const serverCost = parseFloat(document.getElementById('input_server_cost').value) || 0;
+    const otherCost = parseFloat(document.getElementById('input_other_cost').value) || 0;
+    const otherNotes = document.getElementById('input_other_notes').value.trim() || 'Domain, WA Gateway, SSL & Backup';
+    const taxMode = document.getElementById('input_tax_mode').value;
+    const taxRate = parseFloat(document.getElementById('input_tax_rate').value) || 0;
+
+    const payload = {
+        server_cost: serverCost,
+        other_server_cost: otherCost,
+        other_server_notes: otherNotes,
+        tax_mode: taxMode,
+        tax_rate: taxRate
+    };
+
+    fetch("{{ url_for('admin.save_reports_settings') }}", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            showToast("🎉 " + data.message);
+            FIN_DATA.defaultServer = serverCost;
+            FIN_DATA.defaultOther = otherCost;
+            FIN_DATA.defaultTaxRate = taxRate;
+        } else {
+            alert("Gagal menyimpan: " + (data.message || 'Terjadi kesalahan sistem'));
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert("Gagal menghubungi server untuk menyimpan pengaturan.");
+    });
+}
+
+// EKSPOR CSV LAPORAN LABA RUGI
+function exportIncomeStatementCSV() {
+    const rows = [
+        ["GARUDATEL DIGITAL INDONESIA - LAPORAN LABA RUGI"],
+        ["Periode", FIN_DATA.rangeLabel],
+        ["Tanggal Ekspor", new Date().toLocaleString('id-ID')],
+        [""],
+        ["Pos Keuangan", "Klasifikasi Akun", "Rasio Omset", "Nominal (IDR)"],
+        ["Omset Penjualan Produk", "Pendapatan Utama", "100.0%", FIN_DATA.omset],
+        ["Modal Provider (HPP)", "Beban Pokok", document.getElementById('ratio_cogs').innerText, -FIN_DATA.cogs],
+        ["LABA KOTOR (GROSS PROFIT)", "Subtotal Margin", document.getElementById('ratio_gross').innerText, FIN_DATA.grossProfit],
+        ["Beban Komisi VIP & Upline", "Beban Kemitraan", document.getElementById('ratio_vip').innerText, -FIN_DATA.vipCommission],
+        ["Beban Klaim Poin Member", "Beban Loyalitas", document.getElementById('ratio_point').innerText, -FIN_DATA.pointExpense],
+        ["Beban Sewa Pokok Server (VPS)", "Infrastruktur", document.getElementById('ratio_server').innerText, -parseFloat(document.getElementById('input_server_cost').value)],
+        ["Beban Server Lainnya (" + document.getElementById('input_other_notes').value + ")", "Operasional", document.getElementById('ratio_other').innerText, -parseFloat(document.getElementById('input_other_cost').value)],
+        ["TOTAL BEBAN OPERASIONAL (OPEX)", "Subtotal OPEX", document.getElementById('ratio_opex').innerText, document.getElementById('row_total_opex').innerText.replace(/[^\d.-]/g, '')],
+        ["LABA OPERASIONAL SEBELUM PAJAK (EBT)", "Operating Profit", document.getElementById('ratio_ebt').innerText, document.getElementById('row_operating_profit').innerText.replace(/[^\d.-]/g, '')],
+        ["Beban Pajak Dinamis", "Kewajiban Pajak", document.getElementById('ratio_tax').innerText, document.getElementById('row_tax_expense').innerText.replace(/[^\d.-]/g, '')],
+        ["LABA BERSIH AKHIR (NET PROFIT)", "Net Profit", document.getElementById('ratio_net').innerText, document.getElementById('row_net_profit').innerText.replace(/[^\d.-]/g, '')]
+    ];
+
+    let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+    rows.forEach(row => {
+        csvContent += row.map(val => `"${val}"`).join(",") + "\r\n";
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    const filename = `Laporan_Keuangan_GarudaTel_${FIN_DATA.range}_${new Date().toISOString().slice(0,10)}.csv`;
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast("📥 File laporan keuangan CSV berhasil diunduh!");
+}
+
+// TOAST NOTIFIKASI RINGKAS
+function showToast(msg) {
+    let toast = document.getElementById('repToastNotification');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'repToastNotification';
+        toast.style.position = 'fixed';
+        toast.style.bottom = '25px';
+        toast.style.right = '25px';
+        toast.style.background = '#0F172A';
+        toast.style.color = '#FFFFFF';
+        toast.style.padding = '12px 20px';
+        toast.style.borderRadius = '10px';
+        toast.style.fontSize = '13px';
+        toast.style.fontWeight = '700';
+        toast.style.boxShadow = '0 6px 20px rgba(0,0,0,0.2)';
+        toast.style.zIndex = '99999';
+        toast.style.transition = 'opacity 0.25s ease';
+        document.body.appendChild(toast);
+    }
+    toast.innerText = msg;
+    toast.style.opacity = '1';
+    toast.style.display = 'block';
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => { toast.style.display = 'none'; }, 250);
+    }, 3500);
+}
+
+// Inisialisasi placeholder saat load
+document.addEventListener('DOMContentLoaded', () => {
+    updateTaxInputPlaceholder();
+});
+</script>
 {% endblock %}

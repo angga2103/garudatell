@@ -345,3 +345,72 @@ def save_pos_settings(form_data):
     return True
 
 
+def get_report_financial_settings():
+    """
+    Mengambil konfigurasi default untuk Laporan Keuangan & Laba Rugi Eksekutif:
+    - server_cost: Beban pokok sewa server VPS (default Rp 125.000)
+    - other_server_cost: Beban server & operasional lainnya (default Rp 0)
+    - other_server_notes: Catatan rincian biaya server lainnya
+    - tax_mode: Skema perhitungan pajak ('percent_omset', 'percent_profit', 'fixed', 'exempt')
+    - tax_rate: Tarif pajak dinamis (default 0.5% PPh Final UMKM)
+    """
+    return {
+        'server_cost': get_setting_float('report_server_cost', 125000.0),
+        'other_server_cost': get_setting_float('report_other_server_cost', 0.0),
+        'other_server_notes': get_setting_value('report_other_server_notes', 'Domain, WA Gateway, SSL & Backup'),
+        'tax_mode': get_setting_value('report_tax_mode', 'percent_omset'),
+        'tax_rate': get_setting_float('report_tax_rate', 0.5)
+    }
+
+
+def save_report_financial_settings(data):
+    """
+    Menyimpan konfigurasi default biaya operasional server & skema pajak dinamis ke database.
+    """
+    try:
+        raw_server = data.get('server_cost')
+        server_cost = float(raw_server) if raw_server not in [None, ''] else 125000.0
+    except (ValueError, TypeError):
+        server_cost = 125000.0
+
+    try:
+        raw_other = data.get('other_server_cost')
+        other_server_cost = float(raw_other) if raw_other not in [None, ''] else 0.0
+    except (ValueError, TypeError):
+        other_server_cost = 0.0
+
+    other_notes = str(data.get('other_server_notes', 'Domain, WA Gateway, SSL & Backup')).strip()
+    tax_mode = str(data.get('tax_mode', 'percent_omset')).strip().lower()
+    if tax_mode not in ['percent_omset', 'percent_profit', 'fixed', 'exempt']:
+        tax_mode = 'percent_omset'
+
+    try:
+        raw_tax = data.get('tax_rate')
+        tax_rate = float(raw_tax) if raw_tax not in [None, ''] else 0.5
+    except (ValueError, TypeError):
+        tax_rate = 0.5
+
+    mapping = {
+        'report_server_cost': (str(server_cost), 'Beban Pokok Sewa Server VPS Bulanan/Periode (Rp)'),
+        'report_other_server_cost': (str(other_server_cost), 'Beban Operasional Server Lainnya (Rp)'),
+        'report_other_server_notes': (other_notes, 'Catatan Pos Beban Server Lainnya'),
+        'report_tax_mode': (tax_mode, 'Skema Perhitungan Pajak Dinamis Laporan (percent_omset/percent_profit/fixed/exempt)'),
+        'report_tax_rate': (str(tax_rate), 'Nilai / Tarif Pajak Dinamis Laporan (% atau Rp)')
+    }
+
+    for k, (val, desc) in mapping.items():
+        s = Setting.query.filter_by(key=k).first()
+        if not s:
+            s = Setting(key=k, value=val, description=desc)
+            db.session.add(s)
+        else:
+            s.value = val
+            if desc:
+                s.description = desc
+
+    db.session.commit()
+    invalidate_setting_cache()
+    return True
+
+
+

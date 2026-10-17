@@ -2737,85 +2737,362 @@ def bersihkan_tiket_deposit():
 
 
 # =====================================================================
-# LAPORAN & REKAPITULASI
+# =====================================================================
+# LAPORAN & REKAPITULASI KEUANGAN (EXECUTIVE P&L / LABA RUGI)
 # =====================================================================
 @admin_bp.route('/reports')
 def reports():
     if not session.get('admin_logged_in'):
         return redirect(url_for('admin.login'))
 
-    time_range = request.args.get('range', '30days')
-    now = datetime.utcnow()
+    from app.models.commission import CommissionLog
+    from app.models.point_log import PointLog
+    from app.services.setting_service import get_report_financial_settings
+
+    time_range = request.args.get('range', '30days').strip().lower()
+    start_date_raw = request.args.get('start_date', '').strip()
+    end_date_raw = request.args.get('end_date', '').strip()
+
+    # Hitung batas tanggal UTC berdasarkan waktu lokal WIB (UTC+7)
+    now_utc = datetime.utcnow()
+    now_wib = now_utc + timedelta(hours=7)
+    today_wib = now_wib.date()
+
+    start_wib_date = None
+    end_wib_date = None
 
     if time_range == 'today':
-        start_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        start_wib_date = today_wib
+        end_wib_date = today_wib
+        range_label = f"Hari Ini ({today_wib.strftime('%d %b %Y')})"
+    elif time_range == 'yesterday':
+        yest_wib = today_wib - timedelta(days=1)
+        start_wib_date = yest_wib
+        end_wib_date = yest_wib
+        range_label = f"Kemarin ({yest_wib.strftime('%d %b %Y')})"
     elif time_range == '7days':
-        start_date = now - timedelta(days=7)
+        start_wib_date = today_wib - timedelta(days=6)
+        end_wib_date = today_wib
+        range_label = f"7 Hari Terakhir ({start_wib_date.strftime('%d %b')} - {end_wib_date.strftime('%d %b %Y')})"
     elif time_range == 'this_month':
-        start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        start_wib_date = today_wib.replace(day=1)
+        end_wib_date = today_wib
+        range_label = f"Bulan Ini ({start_wib_date.strftime('%d %b')} - {end_wib_date.strftime('%d %b %Y')})"
+    elif time_range == 'last_month':
+        first_of_this_month = today_wib.replace(day=1)
+        last_day_prev = first_of_this_month - timedelta(days=1)
+        start_wib_date = last_day_prev.replace(day=1)
+        end_wib_date = last_day_prev
+        range_label = f"Bulan Lalu ({start_wib_date.strftime('%d %b')} - {end_wib_date.strftime('%d %b %Y')})"
+    elif time_range == 'this_year':
+        start_wib_date = today_wib.replace(month=1, day=1)
+        end_wib_date = today_wib
+        range_label = f"Tahun Ini {today_wib.year} (01 Jan - {today_wib.strftime('%d %b %Y')})"
     elif time_range == 'all':
-        start_date = None
-    else:  # default '30days'
-        start_date = now - timedelta(days=30)
+        start_wib_date = None
+        end_wib_date = None
+        range_label = "Semua Waktu (Sepanjang Masa)"
+    elif time_range == 'custom' and (start_date_raw or end_date_raw):
+        try:
+            start_wib_date = datetime.strptime(start_date_raw, '%Y-%m-%d').date() if start_date_raw else None
+        except ValueError:
+            start_wib_date = None
+        try:
+            end_wib_date = datetime.strptime(end_date_raw, '%Y-%m-%d').date() if end_date_raw else today_wib
+        except ValueError:
+            end_wib_date = today_wib
+        
+        s_lbl = start_wib_date.strftime('%d %b %Y') if start_wib_date else 'Awal Transaksi'
+        e_lbl = end_wib_date.strftime('%d %b %Y') if end_wib_date else 'Hari Ini'
+        range_label = f"Periode Kustom: {s_lbl} s/d {e_lbl}"
+    else:  # Default '30days'
+        time_range = '30days'
+        start_wib_date = today_wib - timedelta(days=29)
+        end_wib_date = today_wib
+        range_label = f"30 Hari Terakhir ({start_wib_date.strftime('%d %b')} - {end_wib_date.strftime('%d %b %Y')})"
 
-    query = Transaction.query
-    if start_date:
-        query = query.filter(Transaction.created_at >= start_date)
+    start_utc = None
+    end_utc = None
+    start_wib_dt = None
+    end_wib_dt = None
 
-    total_trx = query.count()
-    success_trx = query.filter(Transaction.status == 'SUCCESS').count()
-    pending_trx = query.filter(Transaction.status == 'PENDING').count()
-    failed_trx = query.filter(Transaction.status == 'FAILED').count()
+    if start_wib_date:
+        start_wib_dt = datetime.combine(start_wib_date, datetime.min.time())
+        start_utc = start_wib_dt - timedelta(hours=7)
+    if end_wib_date:
+        end_wib_dt = datetime.combine(end_wib_date, datetime.max.time().replace(microsecond=999999))
+        end_utc = end_wib_dt - timedelta(hours=7)
 
-    total_omset = db.session.query(db.func.sum(Transaction.amount)).filter(
-        Transaction.status == 'SUCCESS',
-        (Transaction.created_at >= start_date) if start_date else True,
-        Transaction.payment_method != 'admin_manual'
-    ).scalar() or 0.0
+    # 1. TRANSAKSI PRODUK DIGITAL (PENJUALAN OMSET & MODAL HPP)
+    NON_PRODUCT_SKUS = ['DEPOSIT_SALDO', 'DEPOSIT_MANUAL', 'ADMIN_BALANCE', 'MANUAL_DEDUCTION', 'COMMISSION_PAYOUT']
 
+    prod_trx_base = Transaction.query.filter(~Transaction.sku_code.in_(NON_PRODUCT_SKUS))
+    if start_utc:
+        prod_trx_base = prod_trx_base.filter(Transaction.created_at >= start_utc)
+    if end_utc:
+        prod_trx_base = prod_trx_base.filter(Transaction.created_at <= end_utc)
+
+    total_trx = prod_trx_base.count()
+    success_trx = prod_trx_base.filter(Transaction.status == 'SUCCESS').count()
+    pending_trx = prod_trx_base.filter(Transaction.status == 'PENDING').count()
+    failed_trx = prod_trx_base.filter(Transaction.status.in_(['FAILED', 'CANCELLED'])).count()
     success_rate = round((success_trx / total_trx * 100), 1) if total_trx > 0 else 0.0
 
-    # Top 5 Produk
+    # Ambil seluruh transaksi produk sukses untuk agregasi omset & modal provider
+    successful_trxs = prod_trx_base.filter(Transaction.status == 'SUCCESS').all()
+
+    # Pre-fetch katalog produk untuk mapping harga modal (HPP) fallback
+    product_base_map = {p.sku_code: float(p.base_price or 0.0) for p in Product.query.with_entities(Product.sku_code, Product.base_price).all()}
+
+    total_omset = 0.0
+    total_cogs = 0.0
+    for t in successful_trxs:
+        t_amt = float(t.amount or 0.0)
+        t_base = float(t.base_price or 0.0)
+        if t_base <= 0:
+            t_base = product_base_map.get(t.sku_code, 0.0)
+        total_omset += t_amt
+        total_cogs += t_base
+
+    # Laba Kotor (Gross Profit)
+    gross_profit = total_omset - total_cogs
+    gross_margin_percent = round((gross_profit / total_omset * 100), 2) if total_omset > 0 else 0.0
+
+    # 2. DEPOSIT MASUK (ARUS KAS TOP-UP SALDO)
+    depo_query = Transaction.query.filter(
+        Transaction.sku_code.in_(['DEPOSIT_SALDO', 'DEPOSIT_MANUAL']),
+        Transaction.status == 'SUCCESS'
+    )
+    if start_utc:
+        depo_query = depo_query.filter(Transaction.created_at >= start_utc)
+    if end_utc:
+        depo_query = depo_query.filter(Transaction.created_at <= end_utc)
+    total_deposit_in = sum(float(d.amount or 0.0) for d in depo_query.all())
+    deposit_count = depo_query.count()
+
+    # 3. BEBAN KOMISI VIP & UPLINE DOWNLINE
+    comm_query = CommissionLog.query.filter(CommissionLog.status != 'cancelled')
+    if start_wib_dt:
+        comm_query = comm_query.filter(CommissionLog.created_at >= start_wib_dt)
+    if end_wib_dt:
+        comm_query = comm_query.filter(CommissionLog.created_at <= end_wib_dt)
+
+    total_vip_commission = db.session.query(db.func.sum(CommissionLog.commission_amount)).filter(
+        CommissionLog.status != 'cancelled',
+        (CommissionLog.created_at >= start_wib_dt) if start_wib_dt else True,
+        (CommissionLog.created_at <= end_wib_dt) if end_wib_dt else True
+    ).scalar() or 0.0
+    vip_commission_count = comm_query.count()
+
+    # 4. BEBAN POIN MEMBER (PENCAIRAN POIN KE SALDO RUPIAH)
+    point_claim_query = PointLog.query.filter(PointLog.type == 'CLAIM_TO_SALDO')
+    if start_utc:
+        point_claim_query = point_claim_query.filter(PointLog.created_at >= start_utc)
+    if end_utc:
+        point_claim_query = point_claim_query.filter(PointLog.created_at <= end_utc)
+
+    total_point_expense = db.session.query(db.func.sum(PointLog.balance_added)).filter(
+        PointLog.type == 'CLAIM_TO_SALDO',
+        (PointLog.created_at >= start_utc) if start_utc else True,
+        (PointLog.created_at <= end_utc) if end_utc else True
+    ).scalar() or 0.0
+    points_claimed_count = point_claim_query.count()
+
+    # Info poin reward terbit
+    earn_query = PointLog.query.filter(PointLog.type == 'EARN_TRX')
+    if start_utc:
+        earn_query = earn_query.filter(PointLog.created_at >= start_utc)
+    if end_utc:
+        earn_query = earn_query.filter(PointLog.created_at <= end_utc)
+    points_rewarded_total = db.session.query(db.func.sum(PointLog.points)).filter(
+        PointLog.type == 'EARN_TRX',
+        (PointLog.created_at >= start_utc) if start_utc else True,
+        (PointLog.created_at <= end_utc) if end_utc else True
+    ).scalar() or 0
+
+    # 5. BEBAN SERVER POKOK & OPERASIONAL LAINNYA (DINAMIS & CUSTOM)
+    default_fin_settings = get_report_financial_settings()
+
+    # Periksa override parameter dari GET request
+    server_cost_raw = request.args.get('server_cost')
+    if server_cost_raw is not None and server_cost_raw.strip() != '':
+        try:
+            active_server_cost = float(server_cost_raw)
+        except ValueError:
+            active_server_cost = default_fin_settings['server_cost']
+    else:
+        active_server_cost = default_fin_settings['server_cost']
+
+    other_cost_raw = request.args.get('other_cost')
+    if other_cost_raw is not None and other_cost_raw.strip() != '':
+        try:
+            active_other_cost = float(other_cost_raw)
+        except ValueError:
+            active_other_cost = default_fin_settings['other_server_cost']
+    else:
+        active_other_cost = default_fin_settings['other_server_cost']
+
+    active_other_notes = request.args.get('other_notes', default_fin_settings['other_server_notes']).strip() or default_fin_settings['other_server_notes']
+    active_tax_mode = request.args.get('tax_mode', default_fin_settings['tax_mode']).strip().lower()
+    if active_tax_mode not in ['percent_omset', 'percent_profit', 'fixed', 'exempt']:
+        active_tax_mode = default_fin_settings['tax_mode']
+
+    tax_rate_raw = request.args.get('tax_rate')
+    if tax_rate_raw is not None and tax_rate_raw.strip() != '':
+        try:
+            active_tax_rate = float(tax_rate_raw)
+        except ValueError:
+            active_tax_rate = default_fin_settings['tax_rate']
+    else:
+        active_tax_rate = default_fin_settings['tax_rate']
+
+    total_server_costs = active_server_cost + active_other_cost
+    total_opex = total_vip_commission + total_point_expense + total_server_costs
+
+    # Laba Operasional Sebelum Pajak (EBT)
+    operating_profit = gross_profit - total_opex
+
+    # 6. BEBAN PAJAK PENGHASILAN DINAMIS
+    if active_tax_mode == 'percent_omset':
+        tax_expense = round(total_omset * (active_tax_rate / 100.0), 2)
+        tax_label = f"PPh Final UMKM ({active_tax_rate}% dari Omset)"
+    elif active_tax_mode == 'percent_profit':
+        taxable_profit = max(0.0, operating_profit)
+        tax_expense = round(taxable_profit * (active_tax_rate / 100.0), 2)
+        tax_label = f"Pajak Penghasilan ({active_tax_rate}% Laba Operasional)"
+    elif active_tax_mode == 'fixed':
+        tax_expense = round(active_tax_rate, 2)
+        tax_label = f"Pajak Nominal Tetap (Rp {tax_expense:,.0f})"
+    else:  # exempt
+        tax_expense = 0.0
+        tax_label = "Bebas Pajak (0%)"
+
+    # 7. LABA BERSIH AKHIR (NET PROFIT)
+    net_profit = operating_profit - tax_expense
+    net_margin_percent = round((net_profit / total_omset * 100), 2) if total_omset > 0 else 0.0
+
+    # 8. TOP 5 PRODUK TERLARIS
     top_products_raw = db.session.query(
         Transaction.product_name,
         db.func.count(Transaction.id).label('sales_count'),
         db.func.sum(Transaction.amount).label('subtotal')
     ).filter(
         Transaction.status == 'SUCCESS',
-        (Transaction.created_at >= start_date) if start_date else True,
-        Transaction.sku_code != 'ADMIN_BALANCE'
+        ~Transaction.sku_code.in_(NON_PRODUCT_SKUS),
+        (Transaction.created_at >= start_utc) if start_utc else True,
+        (Transaction.created_at <= end_utc) if end_utc else True
     ).group_by(Transaction.product_name).order_by(db.desc('sales_count')).limit(5).all()
 
     top_products = [
-        {'name': p[0], 'sales': p[1], 'revenue': p[2] or 0.0}
+        {'name': p[0], 'sales': p[1], 'revenue': float(p[2] or 0.0)}
         for p in top_products_raw
     ]
 
-    # Metode Pembayaran
+    # 9. METODE PEMBAYARAN
     methods_raw = db.session.query(
         Transaction.payment_method,
         db.func.count(Transaction.id).label('trx_count'),
         db.func.sum(Transaction.amount).label('volume')
     ).filter(
         Transaction.status == 'SUCCESS',
-        (Transaction.created_at >= start_date) if start_date else True
+        ~Transaction.sku_code.in_(NON_PRODUCT_SKUS),
+        (Transaction.created_at >= start_utc) if start_utc else True,
+        (Transaction.created_at <= end_utc) if end_utc else True
     ).group_by(Transaction.payment_method).all()
 
     payment_methods = [
-        {'method': m[0] or 'N/A', 'count': m[1], 'volume': m[2] or 0.0}
+        {'method': m[0] or 'N/A', 'count': m[1], 'volume': float(m[2] or 0.0)}
         for m in methods_raw
     ]
 
+    # Rasio Persentase Pos terhadap Omset untuk Income Statement
+    def get_ratio(nom):
+        if total_omset <= 0: return 0.0
+        return round((nom / total_omset) * 100, 2)
+
+    ratios = {
+        'omset': 100.0 if total_omset > 0 else 0.0,
+        'cogs': get_ratio(total_cogs),
+        'gross_profit': gross_margin_percent,
+        'vip_commission': get_ratio(total_vip_commission),
+        'point_expense': get_ratio(total_point_expense),
+        'server_cost': get_ratio(active_server_cost),
+        'other_server_cost': get_ratio(active_other_cost),
+        'total_opex': get_ratio(total_opex),
+        'operating_profit': get_ratio(operating_profit),
+        'tax_expense': get_ratio(tax_expense),
+        'net_profit': net_margin_percent
+    }
+
     return render_template('admin/reports.html',
                            time_range=time_range,
+                           start_date_str=start_wib_date.strftime('%Y-%m-%d') if start_wib_date else '',
+                           end_date_str=end_wib_date.strftime('%Y-%m-%d') if end_wib_date else '',
+                           range_label=range_label,
                            total_trx=total_trx,
                            success_trx=success_trx,
                            pending_trx=pending_trx,
                            failed_trx=failed_trx,
-                           total_omset=total_omset,
                            success_rate=success_rate,
+                           total_omset=total_omset,
+                           total_cogs=total_cogs,
+                           gross_profit=gross_profit,
+                           gross_margin_percent=gross_margin_percent,
+                           total_deposit_in=total_deposit_in,
+                           deposit_count=deposit_count,
+                           total_vip_commission=total_vip_commission,
+                           vip_commission_count=vip_commission_count,
+                           total_point_expense=total_point_expense,
+                           points_claimed_count=points_claimed_count,
+                           points_rewarded_total=points_rewarded_total,
+                           server_cost=active_server_cost,
+                           other_server_cost=active_other_cost,
+                           other_server_notes=active_other_notes,
+                           total_server_costs=total_server_costs,
+                           tax_mode=active_tax_mode,
+                           tax_rate=active_tax_rate,
+                           tax_expense=tax_expense,
+                           tax_label=tax_label,
+                           total_opex=total_opex,
+                           operating_profit=operating_profit,
+                           net_profit=net_profit,
+                           net_margin_percent=net_margin_percent,
+                           ratios=ratios,
                            top_products=top_products,
-                           payment_methods=payment_methods)
+                           payment_methods=payment_methods,
+                           default_fin_settings=default_fin_settings)
+
+
+@admin_bp.route('/reports/save_settings', methods=['POST'])
+@csrf.exempt
+def save_reports_settings():
+    if not session.get('admin_logged_in'):
+        if request.is_json:
+            return jsonify({'success': False, 'message': 'Sesi telah berakhir, silakan login kembali'}), 401
+        return redirect(url_for('admin.login'))
+
+    from app.services.setting_service import save_report_financial_settings
+
+    if request.is_json:
+        data = request.get_json() or {}
+    else:
+        data = request.form.to_dict()
+
+    try:
+        save_report_financial_settings(data)
+        if request.is_json:
+            return jsonify({
+                'success': True,
+                'message': 'Konfigurasi default beban server dan skema pajak berhasil disimpan!'
+            })
+        flash('✅ Pengaturan default beban server & skema pajak berhasil disimpan permanen!', 'success')
+        return redirect(url_for('admin.reports', range=request.form.get('range', '30days')))
+    except Exception as e:
+        if request.is_json:
+            return jsonify({'success': False, 'message': f'Gagal menyimpan: {str(e)}'}), 500
+        flash(f'Gagal menyimpan pengaturan: {str(e)}', 'danger')
+        return redirect(url_for('admin.reports'))
+
 
 
 # ==========================================
