@@ -2606,6 +2606,25 @@ def cek_saldo_digiflazz():
     is_connected, digi_balance, digi_msg = check_balance()
     if is_connected:
         cache.set('digi_balance_info', (is_connected, digi_balance, digi_msg), timeout=60)
+        
+        # Deteksi otomatis saldo masuk terhadap tiket PENDING
+        pending_tickets = DigiDepositTicket.query.filter_by(status='PENDING').order_by(DigiDepositTicket.id.asc()).all()
+        prev_balance = cache.get('prev_recorded_digi_balance')
+        auto_success_count = 0
+        
+        if prev_balance is not None and digi_balance > prev_balance:
+            balance_diff = digi_balance - prev_balance
+            for pt in pending_tickets:
+                if abs(pt.amount_transfer - balance_diff) <= 500 or (balance_diff >= pt.amount_requested):
+                    pt.status = 'SUCCESS'
+                    auto_success_count += 1
+                    balance_diff -= pt.amount_transfer
+            if auto_success_count > 0:
+                db.session.commit()
+                flash(f"🎉 Terdeteksi saldo bertambah! {auto_success_count} tiket deposit otomatis diubah statusnya menjadi SUKSES.", 'success')
+
+        cache.set('prev_recorded_digi_balance', digi_balance, timeout=86400 * 7)
+
         digi_key = os.getenv('DIGI_KEY', '')
         if digi_key.lower().startswith('dev-'):
             flash(f"⚠️ Saldo Digiflazz saat ini: Rp {digi_balance:,.0f} (Mode DEVELOPMENT / Sandbox). Gunakan Production Key untuk melihat saldo riil.", 'warning')
@@ -2681,6 +2700,39 @@ def batal_tiket_deposit(id):
     ticket.status = 'CANCELLED'
     db.session.commit()
     flash(f"Tiket deposit #{ticket.id} telah dibatalkan.", 'success')
+    return redirect(url_for('admin.saldo'))
+
+@admin_bp.route('/saldo/tiket/sukses/<int:id>', methods=['POST'])
+def sukses_tiket_deposit(id):
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin.login'))
+
+    ticket = DigiDepositTicket.query.get_or_404(id)
+    ticket.status = 'SUCCESS'
+    db.session.commit()
+    flash(f"Tiket deposit #{ticket.id} berhasil ditandai sebagai SUKSES.", 'success')
+    return redirect(url_for('admin.saldo'))
+
+@admin_bp.route('/saldo/tiket/hapus/<int:id>', methods=['POST'])
+def hapus_tiket_deposit(id):
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin.login'))
+
+    ticket = DigiDepositTicket.query.get_or_404(id)
+    t_id = ticket.id
+    db.session.delete(ticket)
+    db.session.commit()
+    flash(f"Riwayat tiket deposit #{t_id} berhasil dihapus permanen.", 'success')
+    return redirect(url_for('admin.saldo'))
+
+@admin_bp.route('/saldo/tiket/bersihkan', methods=['POST'])
+def bersihkan_tiket_deposit():
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin.login'))
+
+    deleted_count = DigiDepositTicket.query.filter(DigiDepositTicket.status.in_(['CANCELLED', 'EXPIRED'])).delete(synchronize_session=False)
+    db.session.commit()
+    flash(f"Berhasil membersihkan {deleted_count} riwayat tiket deposit yang dibatalkan.", 'success')
     return redirect(url_for('admin.saldo'))
 
 

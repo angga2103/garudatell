@@ -273,12 +273,20 @@
                 <i class="far fa-clock"></i> Diajukan: {{ latest_ticket.created_at_wib }}
             </span>
         </div>
-        <form method="POST" action="{{ url_for('admin.batal_tiket_deposit', id=latest_ticket.id) }}" style="margin: 0;" onsubmit="return confirm('Apakah Anda yakin ingin membatalkan tiket deposit ini?');">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-            <button type="submit" style="background: white; border: 1.5px solid #D97706; color: #B45309; padding: 6px 14px; border-radius: 8px; font-size: 11.5px; font-weight: 800; cursor: pointer; transition: 0.15s; display: inline-flex; align-items: center; gap: 6px;">
-                <i class="fas fa-times"></i> Batalkan Tiket
-            </button>
-        </form>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <form method="POST" action="{{ url_for('admin.sukses_tiket_deposit', id=latest_ticket.id) }}" style="margin: 0;" onsubmit="return confirm('Apakah saldo transfer deposit ini sudah masuk ke akun Digiflazz dan ingin ditandai SUKSES?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <button type="submit" style="background: #059669; border: 1.5px solid #047857; color: white; padding: 6px 14px; border-radius: 8px; font-size: 11.5px; font-weight: 800; cursor: pointer; transition: 0.15s; display: inline-flex; align-items: center; gap: 6px;">
+                    <i class="fas fa-check-circle"></i> Tandai Sukses
+                </button>
+            </form>
+            <form method="POST" action="{{ url_for('admin.batal_tiket_deposit', id=latest_ticket.id) }}" style="margin: 0;" onsubmit="return confirm('Apakah Anda yakin ingin membatalkan tiket deposit ini?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <button type="submit" style="background: white; border: 1.5px solid #D97706; color: #B45309; padding: 6px 14px; border-radius: 8px; font-size: 11.5px; font-weight: 800; cursor: pointer; transition: 0.15s; display: inline-flex; align-items: center; gap: 6px;">
+                    <i class="fas fa-times"></i> Batalkan Tiket
+                </button>
+            </form>
+        </div>
     </div>
 
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; background: white; padding: 20px; border-radius: 12px; border: 1px solid #FDE68A;">
@@ -393,9 +401,17 @@
         <span style="font-size: 15px; font-weight: 800; color: #1E293B;">
             <i class="fas fa-history" style="color: #0284C7;"></i> Riwayat Tiket Deposit Digiflazz
         </span>
-        <span style="font-size: 11px; font-weight: 800; background: #F1F5F9; color: #64748B; padding: 4px 10px; border-radius: 20px;">
-            20 Tiket Terakhir
-        </span>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 11px; font-weight: 800; background: #F1F5F9; color: #64748B; padding: 4px 10px; border-radius: 20px;">
+                20 Tiket Terakhir
+            </span>
+            <form method="POST" action="{{ url_for('admin.bersihkan_tiket_deposit') }}" style="margin: 0;" onsubmit="return confirm('Bersihkan semua riwayat tiket yang berstatus BATAL / CANCELLED?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <button type="submit" style="background: #FEF2F2; border: 1px solid #FECACA; color: #DC2626; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; transition: 0.15s;">
+                    <i class="fas fa-broom"></i> Bersihkan Tiket Batal
+                </button>
+            </form>
+        </div>
     </div>
 
     <div style="overflow-x: auto;">
@@ -410,6 +426,7 @@
                     <th>Wajib Transfer</th>
                     <th>Petunjuk / Rekening</th>
                     <th style="width: 120px; text-align: center;">Status</th>
+                    <th style="width: 130px; text-align: center;">Aksi</th>
                 </tr>
             </thead>
             <tbody>
@@ -449,10 +466,34 @@
                             <span class="badge-status badge-cancelled">{{ t.status }}</span>
                         {% endif %}
                     </td>
+                    <td align="center">
+                        <div style="display: inline-flex; align-items: center; gap: 5px; justify-content: center;">
+                            {% if t.status == 'PENDING' %}
+                            <form method="POST" action="{{ url_for('admin.sukses_tiket_deposit', id=t.id) }}" style="margin: 0;" onsubmit="return confirm('Tandai tiket #{{ t.id }} sebagai SUKSES (deposit telah masuk ke saldo)?');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                <button type="submit" title="Tandai Sukses" style="background: #ECFDF5; border: 1px solid #A7F3D0; color: #059669; width: 30px; height: 30px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; transition: 0.15s;">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                            </form>
+                            <form method="POST" action="{{ url_for('admin.batal_tiket_deposit', id=t.id) }}" style="margin: 0;" onsubmit="return confirm('Batalkan tiket deposit #{{ t.id }}?');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                <button type="submit" title="Batalkan Tiket" style="background: #FFFBEB; border: 1px solid #FDE68A; color: #D97706; width: 30px; height: 30px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; transition: 0.15s;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                            <form method="POST" action="{{ url_for('admin.hapus_tiket_deposit', id=t.id) }}" style="margin: 0;" onsubmit="return confirm('Hapus riwayat tiket #{{ t.id }} secara permanen dari tabel?');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                <button type="submit" title="Hapus Riwayat" style="background: #FEF2F2; border: 1px solid #FECACA; color: #EF4444; width: 30px; height: 30px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; transition: 0.15s;">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="8" style="padding: 40px; text-align: center; color: #94A3B8;">
+                    <td colspan="9" style="padding: 40px; text-align: center; color: #94A3B8;">
                         <i class="fas fa-receipt" style="font-size: 36px; margin-bottom: 10px; color: #CBD5E1; display: block;"></i>
                         <div style="font-weight: 800; font-size: 14px; color: #475569;">Belum Ada Riwayat Tiket Deposit</div>
                         <div style="font-size: 12px; color: #94A3B8; margin-top: 4px;">Tiket deposit yang Anda buat akan muncul di tabel ini.</div>
