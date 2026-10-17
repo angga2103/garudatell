@@ -112,19 +112,44 @@ def get_vip_downline_stats(upline_id):
     if not upline:
         return None
 
-    # 1. Daftar Downline
+    # 1. Daftar Downline & Agregasi Kontribusi
     downlines = User.query.filter_by(upline_id=upline_id).order_by(User.id.desc()).all()
     downline_list = []
     downline_map = {}
+
+    downline_stats = {}
+    try:
+        downline_logs_agg = db.session.query(
+            CommissionLog.downline_id,
+            db.func.count(CommissionLog.id).label('trx_count'),
+            db.func.sum(CommissionLog.trx_amount).label('total_amount'),
+            db.func.sum(CommissionLog.commission_amount).label('total_commission')
+        ).filter(
+            CommissionLog.upline_id == upline_id
+        ).group_by(CommissionLog.downline_id).all()
+
+        for row in downline_logs_agg:
+            downline_stats[row.downline_id] = {
+                'trx_count': int(row.trx_count or 0),
+                'total_amount': float(row.total_amount or 0.0),
+                'total_commission': float(row.total_commission or 0.0)
+            }
+    except Exception as e_agg:
+        logger.error(f"[DOWNLINE AGG ERR] {e_agg}")
+
     for d in downlines:
         phone_masked = d.phone[:4] + '****' + d.phone[-3:] if len(d.phone) >= 7 else d.phone
+        d_stat = downline_stats.get(d.id, {'trx_count': 0, 'total_amount': 0.0, 'total_commission': 0.0})
         item = {
             'id': d.id,
             'name': d.name,
             'phone_masked': phone_masked,
             'role': d.get_effective_role() if hasattr(d, 'get_effective_role') else d.role,
             'is_vip': d.is_vip_active(),
-            'created_at': getattr(d, 'created_at', None)
+            'created_at': getattr(d, 'created_at', None),
+            'trx_count': d_stat['trx_count'],
+            'total_amount': d_stat['total_amount'],
+            'total_commission': d_stat['total_commission']
         }
         downline_list.append(item)
         downline_map[d.id] = item
@@ -155,22 +180,31 @@ def get_vip_downline_stats(upline_id):
     recent_logs = CommissionLog.query.filter(
         CommissionLog.upline_id == upline_id,
         CommissionLog.created_at >= cutoff_date
-    ).order_by(CommissionLog.id.desc()).limit(200).all()
+    ).order_by(CommissionLog.id.desc()).limit(300).all()
 
     formatted_logs = []
     for l in recent_logs:
         dn_info = downline_map.get(l.downline_id, {})
+        prod_title = 'Produk Digital'
+        ref_id_str = '-'
+        if l.transaction:
+            prod_title = l.transaction.product_name or prod_title
+            ref_id_str = l.transaction.ref_id or ref_id_str
+
         formatted_logs.append({
             'id': l.id,
             'downline_id': l.downline_id,
             'downline_name': dn_info.get('name', f"User #{l.downline_id}"),
             'downline_phone': dn_info.get('phone_masked', '-'),
             'transaction_id': l.transaction_id,
+            'ref_id': ref_id_str,
+            'product_name': prod_title,
             'trx_amount': float(l.trx_amount or 0.0),
             'commission_amount': float(l.commission_amount or 0.0),
             'status': l.status,
             'status_label': 'Tersedia' if l.status == 'earned' else ('Dicairkan' if l.status == 'paid_out' else l.status),
-            'created_at_str': l.created_at.strftime('%d/%m/%Y %H:%M') if l.created_at else '-'
+            'created_at_str': l.created_at.strftime('%d/%m/%Y %H:%M') if l.created_at else '-',
+            'date_only': l.created_at.strftime('%Y-%m-%d') if l.created_at else ''
         })
 
     # 5. Informasi Pencairan Tanggal 28

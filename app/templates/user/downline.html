@@ -3,6 +3,152 @@
 {% block title %}Manajemen Downline VIP - GarudaTel{% endblock %}
 
 {% block content %}
+<style>
+    /* Styling khusus Halaman Downline VIP */
+    .vip-badge-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 9px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.2px;
+    }
+    .vip-badge-member { background: #f1f5f9; color: #475569; }
+    .vip-badge-reseller { background: #e0e7ff; color: #3730a3; }
+    .vip-badge-vip { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+
+    /* Segmented Tab Filter */
+    .filter-tab-btn {
+        flex: 1;
+        padding: 9px 12px;
+        border: none;
+        background: transparent;
+        color: #64748b;
+        font-size: 12.5px;
+        font-weight: 800;
+        cursor: pointer;
+        border-radius: 10px;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        white-space: nowrap;
+    }
+    .filter-tab-btn:hover {
+        background: rgba(0,0,0,0.03);
+        color: #1e293b;
+    }
+    .filter-tab-btn.active {
+        background: white;
+        color: #0f172a;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    /* Modern Table */
+    .downline-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        font-size: 13px;
+        text-align: left;
+    }
+    .downline-table th {
+        background: #f8fafc;
+        color: #64748b;
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 12px 14px;
+        border-bottom: 2px solid #e2e8f0;
+    }
+    .downline-table th:first-child { border-top-left-radius: 10px; }
+    .downline-table th:last-child { border-top-right-radius: 10px; }
+    .downline-table td {
+        padding: 13px 14px;
+        border-bottom: 1px solid #f1f5f9;
+        vertical-align: middle;
+        color: #334155;
+    }
+    .downline-table tr:hover td {
+        background: #fbfcfe;
+    }
+
+    /* Mobile Card Layout */
+    .mobile-log-card {
+        display: none;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 14px;
+        margin-bottom: 10px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .mobile-log-card:active {
+        transform: scale(0.99);
+    }
+
+    @media (max-width: 768px) {
+        .desktop-table-container {
+            display: none !important;
+        }
+        .mobile-log-card {
+            display: block !important;
+        }
+    }
+
+    /* Avatar Initial */
+    .user-avatar-circle {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 900;
+        font-size: 14px;
+        background: linear-gradient(135deg, #008f89 0%, #0d9488 100%);
+        color: white;
+        flex-shrink: 0;
+    }
+
+    /* Pagination button */
+    .page-nav-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 34px;
+        height: 34px;
+        padding: 0 10px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 800;
+        border: 1px solid #cbd5e1;
+        background: white;
+        color: #334155;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    .page-nav-btn:hover:not(:disabled) {
+        background: #f8fafc;
+        border-color: #94a3b8;
+    }
+    .page-nav-btn.active {
+        background: #008f89;
+        color: white;
+        border-color: #008f89;
+    }
+    .page-nav-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+</style>
+
+<!-- HEADER BANNER -->
 <div style="background: linear-gradient(135deg, #b45309 0%, #78350f 100%); border-bottom-left-radius: 25px; border-bottom-right-radius: 25px; padding: 25px 20px 35px 20px; margin: -15px -15px 20px -15px; text-align: center; color: white; box-shadow: 0 4px 12px rgba(180, 83, 9, 0.2);">
     <div style="display: inline-flex; align-items: center; justify-content: center; width: 50px; height: 50px; border-radius: 50%; background: rgba(255,255,255,0.2); margin-bottom: 10px;">
         <i class="fas fa-crown" style="font-size: 24px; color: #fef08a;"></i>
@@ -11,7 +157,7 @@
     <p style="margin: 6px 0 0 0; font-size: 0.85rem; opacity: 0.9;">Pantau transaksi jaringan dan nikmati komisi pasif Anda.</p>
 </div>
 
-<div style="padding: 0 10px 90px 10px; margin-top: -20px;">
+<div style="padding: 0 10px 90px 10px; margin-top: -20px; max-width: 900px; margin-left: auto; margin-right: auto;">
 
     <!-- KARTU LINK REFERRAL PRIBADI -->
     <div style="background: white; border-radius: 18px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.06); margin-bottom: 20px; border: 1.5px solid #fef08a;">
@@ -118,11 +264,14 @@
         {% endif %}
     </div>
 
-    <!-- DAFTAR DOWNLINE ANDA -->
+    <!-- 1. JARINGAN DOWNLINE ANDA (DESAIN MODERN & RINGKAS) -->
     <div style="background: white; border-radius: 18px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.06); margin-bottom: 22px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-            <div style="font-size: 1rem; font-weight: 900; color: #1e293b; display: flex; align-items: center; gap: 6px;">
-                <i class="fas fa-users" style="color: #008f89;"></i> Jaringan Downline Anda
+            <div>
+                <div style="font-size: 1rem; font-weight: 900; color: #1e293b; display: flex; align-items: center; gap: 6px;">
+                    <i class="fas fa-users" style="color: #008f89;"></i> Jaringan Downline Anda
+                </div>
+                <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Daftar member yang terhubung dengan link referral Anda</div>
             </div>
             <span style="background: #e0f2fe; color: #0284c7; font-weight: 900; font-size: 0.8rem; padding: 4px 10px; border-radius: 12px;">
                 {{ stats.total_downlines }} Pengguna
@@ -130,37 +279,49 @@
         </div>
 
         {% if stats.downlines %}
-        <div style="overflow-x: auto;">
-            <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: left;">
-                <thead>
-                    <tr style="border-bottom: 2px solid #f1f5f9; color: #64748b; font-size: 11px; text-transform: uppercase;">
-                        <th style="padding: 10px 6px;">Nama Downline</th>
-                        <th style="padding: 10px 6px;">WhatsApp</th>
-                        <th style="padding: 10px 6px; text-align: right;">Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for d in stats.downlines %}
-                    <tr style="border-bottom: 1px solid #f8fafc;">
-                        <td style="padding: 12px 6px; font-weight: 800; color: #334155;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px;">
+            {% for d in stats.downlines %}
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div class="user-avatar-circle">
+                        {{ d.name[:1] | upper }}
+                    </div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-weight: 900; color: #1e293b; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                             {{ d.name }}
-                        </td>
-                        <td style="padding: 12px 6px; color: #64748b; font-family: monospace;">
+                        </div>
+                        <div style="font-size: 11px; color: #64748b; font-family: monospace;">
                             {{ d.phone_masked }}
-                        </td>
-                        <td style="padding: 12px 6px; text-align: right;">
-                            {% if d.is_vip %}
-                                <span style="background: #fef3c7; color: #b45309; font-size: 10px; font-weight: 900; padding: 2px 8px; border-radius: 6px;">VIP</span>
-                            {% elif d.role == 'reseller' %}
-                                <span style="background: #e0e7ff; color: #3730a3; font-size: 10px; font-weight: 900; padding: 2px 8px; border-radius: 6px;">RESELLER</span>
-                            {% else %}
-                                <span style="background: #f1f5f9; color: #64748b; font-size: 10px; font-weight: 900; padding: 2px 8px; border-radius: 6px;">MEMBER</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                        </div>
+                    </div>
+                    <div>
+                        {% if d.is_vip %}
+                            <span class="vip-badge-pill vip-badge-vip">👑 VIP</span>
+                        {% elif d.role == 'reseller' %}
+                            <span class="vip-badge-pill vip-badge-reseller">RESELLER</span>
+                        {% else %}
+                            <span class="vip-badge-pill vip-badge-member">MEMBER</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Kontribusi Statistik Member -->
+                <div style="background: white; border-radius: 10px; padding: 8px 10px; border: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; font-size: 11.5px;">
+                    <div>
+                        <span style="color: #64748b; font-weight: 700;">Aktivitas:</span>
+                        <span style="font-weight: 800; color: #334155;">{{ d.trx_count }} Trx</span>
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="color: #64748b; font-weight: 700;">Komisi:</span>
+                        <span style="font-weight: 900; color: #059669;">+Rp {{ "{:,.0f}".format(d.total_commission).replace(',', '.') }}</span>
+                    </div>
+                </div>
+
+                <button type="button" onclick="filterByDownline('{{ d.name }}')" style="width: 100%; border: 1px solid #cbd5e1; background: white; color: #008f89; border-radius: 8px; padding: 7px; font-size: 11.5px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.15s ease;">
+                    <i class="fas fa-search"></i> Lihat Transaksi {{ d.name }}
+                </button>
+            </div>
+            {% endfor %}
         </div>
         {% else %}
         <div style="text-align: center; padding: 30px 10px; color: #94a3b8;">
@@ -171,74 +332,126 @@
         {% endif %}
     </div>
 
-    <!-- RIWAYAT KOMISI 4 BULAN TERAKHIR -->
-    <div style="background: white; border-radius: 18px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.06);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+    <!-- 2. RIWAYAT TRANSAKSI DOWNLINE (REVAMPED: FRESH, BERSIH, PAGINASI, TIDAK MENUMPUK) -->
+    <div id="riwayatTransaksiSection" style="background: white; border-radius: 18px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.06);">
+        <!-- Title & Timeframe Header -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
             <div style="font-size: 1rem; font-weight: 900; color: #1e293b; display: flex; align-items: center; gap: 6px;">
                 <i class="fas fa-history" style="color: #6366f1;"></i> Riwayat Transaksi Downline
             </div>
-            <span style="font-size: 11px; font-weight: 800; color: #64748b; background: #f1f5f9; padding: 3px 8px; border-radius: 6px;">
-                4 Bulan Terakhir
+            <span style="font-size: 11px; font-weight: 800; color: #4338ca; background: #e0e7ff; padding: 3px 10px; border-radius: 20px;">
+                <i class="fas fa-calendar-alt"></i> 4 Bulan Terakhir (120 Hari)
             </span>
         </div>
 
-        <div style="font-size: 11px; color: #64748b; margin-bottom: 15px; line-height: 1.4; background: #f8fafc; padding: 8px 12px; border-radius: 8px; border-left: 3px solid #6366f1;">
-            💡 <em>Data transaksi dan komisi tersimpan selama 4 bulan (120 hari) dan diperbarui secara real-time demi performa sistem yang optimal.</em>
+        <!-- Dynamic Live Summary Strip -->
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; background: #f8fafc; border-radius: 14px; padding: 12px; border: 1px solid #e2e8f0;">
+            <div style="text-align: center;">
+                <div style="font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase;">Transaksi</div>
+                <div id="summaryTrxCount" style="font-size: 15px; font-weight: 900; color: #0f172a; margin-top: 2px;">0</div>
+            </div>
+            <div style="text-align: center; border-left: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0;">
+                <div style="font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase;">Total Belanja</div>
+                <div id="summaryTrxAmount" style="font-size: 14px; font-weight: 900; color: #334155; margin-top: 2px;">Rp 0</div>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase;">Total Komisi</div>
+                <div id="summaryCommAmount" style="font-size: 15px; font-weight: 900; color: #059669; margin-top: 2px;">+Rp 0</div>
+            </div>
         </div>
 
-        {% if stats.recent_logs %}
-        <div style="overflow-x: auto;">
-            <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+        <!-- Filter Segmented Tabs (Semua / Siap Cair / Dicairkan) -->
+        <div style="background: #f1f5f9; padding: 4px; border-radius: 12px; display: flex; gap: 4px; margin-bottom: 14px;">
+            <button type="button" class="filter-tab-btn active" id="tabStatusAll" onclick="setStatusFilter('all')">
+                <i class="fas fa-layer-group"></i> Semua (<span id="countAll">0</span>)
+            </button>
+            <button type="button" class="filter-tab-btn" id="tabStatusEarned" onclick="setStatusFilter('earned')">
+                <i class="fas fa-clock" style="color: #d97706;"></i> Siap Cair (<span id="countEarned">0</span>)
+            </button>
+            <button type="button" class="filter-tab-btn" id="tabStatusPaid" onclick="setStatusFilter('paid_out')">
+                <i class="fas fa-check-circle" style="color: #059669;"></i> Dicairkan (<span id="countPaid">0</span>)
+            </button>
+        </div>
+
+        <!-- Controls Toolbar (Search, Downline Dropdown, Limit) -->
+        <div style="display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;">
+            <!-- Input Cari -->
+            <div style="flex: 2; min-width: 180px; position: relative;">
+                <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 13px;"></i>
+                <input type="text" id="logSearchInput" oninput="handleSearchChange()" placeholder="Cari downline, produk, tanggal..." style="width: 100%; padding: 10px 12px 10px 34px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 12.5px; font-family: inherit; font-weight: 600; color: #1e293b; background: white; outline: none; box-sizing: border-box;">
+            </div>
+
+            <!-- Filter Downline Dropdown -->
+            <div style="flex: 1.5; min-width: 140px;">
+                <select id="logDownlineSelect" onchange="handleDownlineSelectChange()" style="width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 12.5px; font-family: inherit; font-weight: 700; color: #334155; background: white; outline: none; box-sizing: border-box; cursor: pointer;">
+                    <option value="all">Semua Downline</option>
+                    {% for d in stats.downlines %}
+                    <option value="{{ d.name }}">{{ d.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Per Page Selector -->
+            <div style="width: 90px;">
+                <select id="logPerPageSelect" onchange="handlePerPageChange()" style="width: 100%; padding: 10px 8px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 12.5px; font-family: inherit; font-weight: 700; color: #334155; background: white; outline: none; box-sizing: border-box; cursor: pointer;">
+                    <option value="10" selected>10 / hal</option>
+                    <option value="25">25 / hal</option>
+                    <option value="50">50 / hal</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- 1. Tampilan Desktop / Tablet: Tabel Rapi Berpaginasi -->
+        <div class="desktop-table-container" style="overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 14px;">
+            <table class="downline-table">
                 <thead>
-                    <tr style="border-bottom: 2px solid #f1f5f9; color: #64748b; font-size: 11px; text-transform: uppercase;">
-                        <th style="padding: 10px 6px;">Waktu</th>
-                        <th style="padding: 10px 6px;">Downline</th>
-                        <th style="padding: 10px 6px;">Belanja</th>
-                        <th style="padding: 10px 6px; text-align: right;">Komisi</th>
-                        <th style="padding: 10px 6px; text-align: right;">Status</th>
+                    <tr>
+                        <th style="width: 170px;">Waktu & ID</th>
+                        <th>Downline</th>
+                        <th>Produk / Belanja</th>
+                        <th style="text-align: right;">Komisi</th>
+                        <th style="text-align: center; width: 120px;">Status</th>
                     </tr>
                 </thead>
-                <tbody>
-                    {% for log in stats.recent_logs %}
-                    <tr style="border-bottom: 1px solid #f8fafc;">
-                        <td style="padding: 10px 6px; color: #64748b; white-space: nowrap; font-size: 11px;">
-                            {{ log.created_at_str }}
-                        </td>
-                        <td style="padding: 10px 6px; font-weight: 800; color: #334155;">
-                            {{ log.downline_name }}
-                        </td>
-                        <td style="padding: 10px 6px; color: #475569;">
-                            Rp {{ "{:,.0f}".format(log.trx_amount).replace(',', '.') }}
-                        </td>
-                        <td style="padding: 10px 6px; font-weight: 900; color: #059669; text-align: right;">
-                            +Rp {{ "{:,.0f}".format(log.commission_amount).replace(',', '.') }}
-                        </td>
-                        <td style="padding: 10px 6px; text-align: right;">
-                            {% if log.status == 'earned' %}
-                                <span style="background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px;">Tersedia</span>
-                            {% elif log.status == 'paid_out' %}
-                                <span style="background: #ecfdf5; color: #065f46; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px;">Dicairkan</span>
-                            {% else %}
-                                <span style="background: #f1f5f9; color: #64748b; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px;">{{ log.status }}</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
+                <tbody id="desktopTableBody">
+                    <!-- Rendered by JavaScript -->
                 </tbody>
             </table>
         </div>
-        {% else %}
-        <div style="text-align: center; padding: 30px 10px; color: #94a3b8;">
-            <i class="fas fa-file-invoice-dollar" style="font-size: 32px; color: #cbd5e1; margin-bottom: 8px;"></i>
-            <div style="font-size: 13px; font-weight: 700; color: #64748b;">Belum ada riwayat transaksi downline</div>
-            <div style="font-size: 11px; margin-top: 4px;">Komisi akan otomatis tercatat di sini saat downline Anda melakukan transaksi sukses.</div>
+
+        <!-- 2. Tampilan Mobile: Kartu Bersih & Praktis -->
+        <div id="mobileCardsContainer" style="margin-bottom: 14px;">
+            <!-- Rendered by JavaScript -->
         </div>
-        {% endif %}
+
+        <!-- Empty State Container -->
+        <div id="emptyStateContainer" style="display: none; text-align: center; padding: 40px 15px; color: #94a3b8;">
+            <div style="width: 56px; height: 56px; border-radius: 50%; background: #f1f5f9; color: #94a3b8; display: inline-flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 10px;">
+                <i class="fas fa-search-minus"></i>
+            </div>
+            <div style="font-size: 14px; font-weight: 800; color: #475569;">Tidak ada transaksi ditemukan</div>
+            <div style="font-size: 12px; color: #94a3b8; margin-top: 4px;">Coba ubah kata kunci pencarian atau ganti filter status.</div>
+            <button type="button" onclick="resetAllFilters()" style="margin-top: 12px; padding: 6px 14px; border: 1px solid #cbd5e1; background: white; border-radius: 8px; font-size: 12px; font-weight: 800; color: #008f89; cursor: pointer;">
+                <i class="fas fa-undo"></i> Reset Filter
+            </button>
+        </div>
+
+        <!-- Pagination Controls Bar -->
+        <div id="paginationBar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; padding-top: 10px; border-top: 1px solid #f1f5f9;">
+            <div id="paginationInfo" style="font-size: 12px; color: #64748b; font-weight: 700;">
+                Menampilkan 0 dari 0 data
+            </div>
+            <div id="paginationButtons" style="display: flex; gap: 5px; align-items: center;">
+                <!-- Rendered by JavaScript -->
+            </div>
+        </div>
+
     </div>
 
 </div>
 
 <script>
+    // Copy Referral Link
     function copyRefLink() {
         const input = document.getElementById('refLinkInput');
         input.select();
@@ -257,6 +470,7 @@
         });
     }
 
+    // Pencairan Komisi Tgl 28
     function executeClaimCommission() {
         if (!confirm('Apakah Anda yakin ingin mencairkan seluruh saldo komisi ini ke Saldo Utama akun GarudaTel?')) {
             return;
@@ -294,6 +508,315 @@
             if (btn) btn.disabled = false;
         });
     }
+
+    // =========================================================================
+    // MODUL MANAJEMEN RIWAYAT TRANSAKSI (ANTI-MENUMPUK & RESPONSIVE FILTER)
+    // =========================================================================
+    const rawLogs = {{ stats.recent_logs | tojson }};
+
+    let currentStatus = 'all'; // 'all', 'earned', 'paid_out'
+    let currentDownline = 'all';
+    let searchQuery = '';
+    let currentPage = 1;
+    let perPage = 10;
+
+    // Helper format Rupiah
+    function formatRp(num) {
+        return 'Rp ' + Number(num || 0).toLocaleString('id-ID');
+    }
+
+    // Filter langsung dari kartu Downline di atas
+    function filterByDownline(downlineName) {
+        document.getElementById('logDownlineSelect').value = downlineName;
+        currentDownline = downlineName;
+        currentPage = 1;
+        applyFiltersAndRender();
+
+        // Scroll halus ke tabel riwayat
+        const section = document.getElementById('riwayatTransaksiSection');
+        if (section) {
+            section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    function setStatusFilter(status) {
+        currentStatus = status;
+        currentPage = 1;
+
+        document.getElementById('tabStatusAll').classList.toggle('active', status === 'all');
+        document.getElementById('tabStatusEarned').classList.toggle('active', status === 'earned');
+        document.getElementById('tabStatusPaid').classList.toggle('active', status === 'paid_out');
+
+        applyFiltersAndRender();
+    }
+
+    function handleSearchChange() {
+        searchQuery = document.getElementById('logSearchInput').value.trim().toLowerCase();
+        currentPage = 1;
+        applyFiltersAndRender();
+    }
+
+    function handleDownlineSelectChange() {
+        currentDownline = document.getElementById('logDownlineSelect').value;
+        currentPage = 1;
+        applyFiltersAndRender();
+    }
+
+    function handlePerPageChange() {
+        perPage = parseInt(document.getElementById('logPerPageSelect').value) || 10;
+        currentPage = 1;
+        applyFiltersAndRender();
+    }
+
+    function resetAllFilters() {
+        currentStatus = 'all';
+        currentDownline = 'all';
+        searchQuery = '';
+        currentPage = 1;
+
+        document.getElementById('logSearchInput').value = '';
+        document.getElementById('logDownlineSelect').value = 'all';
+        setStatusFilter('all');
+    }
+
+    function applyFiltersAndRender() {
+        // 1. Hitung total per status dari seluruh dataset
+        let countAll = rawLogs.length;
+        let countEarned = 0;
+        let countPaid = 0;
+
+        rawLogs.forEach(item => {
+            if (item.status === 'earned') countEarned++;
+            else if (item.status === 'paid_out') countPaid++;
+        });
+
+        document.getElementById('countAll').innerText = countAll;
+        document.getElementById('countEarned').innerText = countEarned;
+        document.getElementById('countPaid').innerText = countPaid;
+
+        // 2. Filter dataset
+        const filtered = rawLogs.filter(item => {
+            // Filter status
+            if (currentStatus !== 'all' && item.status !== currentStatus) {
+                return false;
+            }
+            // Filter downline
+            if (currentDownline !== 'all' && item.downline_name !== currentDownline) {
+                return false;
+            }
+            // Filter search query
+            if (searchQuery) {
+                const combined = [
+                    item.downline_name,
+                    item.downline_phone,
+                    item.product_name,
+                    item.ref_id,
+                    item.created_at_str,
+                    item.status_label
+                ].join(' ').toLowerCase();
+
+                if (!combined.includes(searchQuery)) {
+                    return false;
+                }
+            }
+            return true;
+        });
+
+        // 3. Update Live Mini KPI Strip
+        const totalTrxCount = filtered.length;
+        const totalBelanja = filtered.reduce((acc, cur) => acc + (cur.trx_amount || 0), 0);
+        const totalKomisi = filtered.reduce((acc, cur) => acc + (cur.commission_amount || 0), 0);
+
+        document.getElementById('summaryTrxCount').innerText = totalTrxCount + ' Trx';
+        document.getElementById('summaryTrxAmount').innerText = formatRp(totalBelanja);
+        document.getElementById('summaryCommAmount').innerText = '+' + formatRp(totalKomisi);
+
+        // 4. Hitung Paginasi
+        const totalPages = Math.ceil(totalTrxCount / perPage) || 1;
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+
+        const startIndex = (currentPage - 1) * perPage;
+        const endIndex = Math.min(startIndex + perPage, totalTrxCount);
+        const pageItems = filtered.slice(startIndex, endIndex);
+
+        // 5. Render Desktop Table & Mobile Cards
+        renderDesktopTable(pageItems);
+        renderMobileCards(pageItems);
+
+        // 6. Tampilkan/Sembunyikan Empty State
+        const isEmpty = totalTrxCount === 0;
+        document.getElementById('emptyStateContainer').style.display = isEmpty ? 'block' : 'none';
+        document.querySelector('.desktop-table-container').style.display = isEmpty ? 'none' : '';
+        document.getElementById('mobileCardsContainer').style.display = isEmpty ? 'none' : '';
+        document.getElementById('paginationBar').style.display = isEmpty ? 'none' : 'flex';
+
+        // 7. Render Paginasi Buttons & Info
+        if (!isEmpty) {
+            document.getElementById('paginationInfo').innerText = 
+                `Menampilkan ${startIndex + 1} - ${endIndex} dari ${totalTrxCount} transaksi`;
+
+            renderPaginationNav(totalPages);
+        }
+    }
+
+    function renderDesktopTable(items) {
+        const tbody = document.getElementById('desktopTableBody');
+        tbody.innerHTML = '';
+
+        items.forEach(log => {
+            const tr = document.createElement('tr');
+
+            // Status Badge
+            let statusBadge = '';
+            if (log.status === 'earned') {
+                statusBadge = `<span style="background: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-size: 11px; font-weight: 800; padding: 3px 9px; border-radius: 20px; display: inline-flex; align-items: center; gap: 4px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #d97706;"></span> Siap Cair</span>`;
+            } else if (log.status === 'paid_out') {
+                statusBadge = `<span style="background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; font-size: 11px; font-weight: 800; padding: 3px 9px; border-radius: 20px; display: inline-flex; align-items: center; gap: 4px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #10b981;"></span> Dicairkan</span>`;
+            } else {
+                statusBadge = `<span style="background: #f1f5f9; color: #475569; font-size: 11px; font-weight: 800; padding: 3px 9px; border-radius: 20px;">${log.status}</span>`;
+            }
+
+            tr.innerHTML = `
+                <td>
+                    <div style="font-weight: 800; color: #1e293b; font-size: 12.5px;">
+                        <i class="far fa-clock" style="color: #94a3b8; font-size: 11px; margin-right: 3px;"></i> ${log.created_at_str}
+                    </div>
+                    <div style="font-size: 10.5px; color: #94a3b8; font-family: monospace; margin-top: 2px;">
+                        ${log.ref_id}
+                    </div>
+                </td>
+                <td>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="width: 28px; height: 28px; border-radius: 50%; background: #f1f5f9; color: #008f89; font-weight: 900; font-size: 12px; display: inline-flex; align-items: center; justify-content: center;">
+                            ${(log.downline_name || 'U')[0].toUpperCase()}
+                        </div>
+                        <div>
+                            <div style="font-weight: 800; color: #1e293b; font-size: 13px;">${log.downline_name}</div>
+                            <div style="font-size: 11px; color: #64748b; font-family: monospace;">${log.downline_phone}</div>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <div style="font-weight: 700; color: #334155; font-size: 12.5px;">${log.product_name}</div>
+                    <div style="font-size: 11.5px; color: #64748b;">Belanja: <b style="color: #0f172a;">${formatRp(log.trx_amount)}</b></div>
+                </td>
+                <td style="text-align: right;">
+                    <div style="font-weight: 900; color: #059669; font-size: 14px;">
+                        +${formatRp(log.commission_amount)}
+                    </div>
+                    <div style="font-size: 10px; color: #94a3b8;">Komisi VIP</div>
+                </td>
+                <td style="text-align: center;">
+                    ${statusBadge}
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function renderMobileCards(items) {
+        const container = document.getElementById('mobileCardsContainer');
+        container.innerHTML = '';
+
+        items.forEach(log => {
+            const card = document.createElement('div');
+            card.className = 'mobile-log-card';
+
+            let statusBadge = '';
+            if (log.status === 'earned') {
+                statusBadge = `<span style="background: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-size: 10.5px; font-weight: 800; padding: 2px 8px; border-radius: 20px;">● Siap Cair</span>`;
+            } else if (log.status === 'paid_out') {
+                statusBadge = `<span style="background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; font-size: 10.5px; font-weight: 800; padding: 2px 8px; border-radius: 20px;">✓ Dicairkan</span>`;
+            } else {
+                statusBadge = `<span style="background: #f1f5f9; color: #475569; font-size: 10.5px; font-weight: 800; padding: 2px 8px; border-radius: 20px;">${log.status}</span>`;
+            }
+
+            card.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div style="font-size: 11.5px; font-weight: 800; color: #64748b;">
+                        <i class="far fa-clock"></i> ${log.created_at_str}
+                    </div>
+                    ${statusBadge}
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                    <div>
+                        <div style="font-size: 13.5px; font-weight: 900; color: #1e293b;">${log.downline_name}</div>
+                        <div style="font-size: 11px; color: #64748b; font-family: monospace;">${log.downline_phone}</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 14px; font-weight: 900; color: #059669;">+${formatRp(log.commission_amount)}</div>
+                        <div style="font-size: 10px; color: #94a3b8;">Komisi</div>
+                    </div>
+                </div>
+
+                <div style="background: #f8fafc; border-radius: 8px; padding: 8px 10px; border: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; font-size: 11.5px;">
+                    <div style="color: #475569; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 65%;">
+                        ${log.product_name}
+                    </div>
+                    <div style="color: #64748b; white-space: nowrap;">
+                        Belanja: <b style="color: #1e293b;">${formatRp(log.trx_amount)}</b>
+                    </div>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    function renderPaginationNav(totalPages) {
+        const container = document.getElementById('paginationButtons');
+        container.innerHTML = '';
+
+        // Tombol Sebelumnya
+        const prevBtn = document.createElement('button');
+        prevBtn.className = 'page-nav-btn';
+        prevBtn.disabled = (currentPage === 1);
+        prevBtn.innerHTML = '<i class="fas fa-chevron-left"></i>';
+        prevBtn.onclick = () => {
+            if (currentPage > 1) {
+                currentPage--;
+                applyFiltersAndRender();
+            }
+        };
+        container.appendChild(prevBtn);
+
+        // Logika Page Numbers (Maksimal 5 tombol angka di layar)
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, startPage + 4);
+        if (endPage - startPage < 4) {
+            startPage = Math.max(1, endPage - 4);
+        }
+
+        for (let p = startPage; p <= endPage; p++) {
+            const pageBtn = document.createElement('button');
+            pageBtn.className = 'page-nav-btn' + (p === currentPage ? ' active' : '');
+            pageBtn.innerText = p;
+            pageBtn.onclick = () => {
+                currentPage = p;
+                applyFiltersAndRender();
+            };
+            container.appendChild(pageBtn);
+        }
+
+        // Tombol Berikutnya
+        const nextBtn = document.createElement('button');
+        nextBtn.className = 'page-nav-btn';
+        nextBtn.disabled = (currentPage === totalPages);
+        nextBtn.innerHTML = '<i class="fas fa-chevron-right"></i>';
+        nextBtn.onclick = () => {
+            if (currentPage < totalPages) {
+                currentPage++;
+                applyFiltersAndRender();
+            }
+        };
+        container.appendChild(nextBtn);
+    }
+
+    // Inisialisasi awal saat halaman selesai dimuat
+    document.addEventListener('DOMContentLoaded', () => {
+        applyFiltersAndRender();
+    });
 </script>
 
 {% endblock %}
