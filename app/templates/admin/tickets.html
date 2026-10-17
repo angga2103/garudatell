@@ -1323,13 +1323,14 @@
 
 {% endblock %}
 
-{% block page_js %}
+{% block script_extra %}
 <script>
 // =========================================================================
 // JAVASCRIPT LOGIC PUSAT TIKET CS GARUDATEL (SEAMLESS AJAX + REALTIME UI)
 // =========================================================================
 
 const CURRENT_FILTER = "{{ current_filter }}";
+const CSRF_TOKEN = "{{ csrf_token() }}";
 
 // 1. Salin Nomor Tiket
 function copyTicketNumber(ticketNo) {
@@ -1386,15 +1387,19 @@ async function handleStatusChange(selectElem, ticketNo, ticketId) {
 
     try {
         const form = selectElem.closest('form');
-        const formData = new FormData(form);
-        formData.set('status', newStatus);
+        const targetUrl = form ? form.action : `/admin/tickets/${ticketId}/status`;
 
-        const response = await fetch(form.action, {
+        const response = await fetch(targetUrl, {
             method: 'POST',
-            body: formData,
             headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': CSRF_TOKEN,
                 'X-Requested-With': 'XMLHttpRequest'
-            }
+            },
+            body: JSON.stringify({
+                status: newStatus,
+                csrf_token: CSRF_TOKEN
+            })
         });
 
         const data = await response.json();
@@ -1629,12 +1634,19 @@ async function handleModalFormSubmit(event) {
     const oldStatus = currentModalData.status;
 
     try {
-        const response = await fetch(form.action, {
+        const targetUrl = form.action || `/admin/tickets/${ticketId}/status`;
+        const response = await fetch(targetUrl, {
             method: 'POST',
-            body: formData,
             headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': CSRF_TOKEN,
                 'X-Requested-With': 'XMLHttpRequest'
-            }
+            },
+            body: JSON.stringify({
+                status: newStatus,
+                admin_reply: adminReply,
+                csrf_token: CSRF_TOKEN
+            })
         });
 
         const data = await response.json();

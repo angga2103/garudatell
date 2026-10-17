@@ -2974,14 +2974,20 @@ def update_ticket_status(id):
     ticket = SupportTicket.query.get_or_404(id)
 
     # Support form data or JSON
-    new_status = request.form.get('status')
-    if not new_status and request.is_json:
-        new_status = request.json.get('status')
-    new_status = (new_status or 'RESOLVED').strip().upper()
+    new_status = None
+    admin_reply_text = None
 
-    admin_reply_text = request.form.get('admin_reply')
-    if not admin_reply_text and request.is_json:
-        admin_reply_text = request.json.get('admin_reply')
+    if request.is_json:
+        json_data = request.get_json(silent=True) or {}
+        new_status = json_data.get('status')
+        admin_reply_text = json_data.get('admin_reply')
+
+    if not new_status:
+        new_status = request.form.get('status')
+    if not admin_reply_text:
+        admin_reply_text = request.form.get('admin_reply')
+
+    new_status = (new_status or 'RESOLVED').strip().upper()
     admin_reply_text = (admin_reply_text or '').strip()
 
     is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json
