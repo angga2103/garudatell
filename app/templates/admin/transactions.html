@@ -23,6 +23,16 @@
         gap: 16px; 
         margin-bottom: 24px; 
     }
+    @media (max-width: 1100px) {
+        .trx-stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    @media (max-width: 640px) {
+        .trx-stats-grid {
+            grid-template-columns: 1fr;
+        }
+    }
     .trx-stat-card { 
         background: white; 
         padding: 18px 20px; 
@@ -154,11 +164,13 @@
         overflow: hidden; 
     }
     .table-responsive-wrapper {
+        width: 100%;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
     }
     .admin-table { 
         width: 100%; 
+        min-width: 1100px;
         border-collapse: collapse; 
         font-size: 12.5px; 
         text-align: left; 
@@ -580,15 +592,13 @@
         <table class="admin-table">
             <thead>
                 <tr>
-                    <th>Ref ID & Waktu</th>
-                    <th>Tujuan / Pengguna</th>
+                    <th style="width: 170px;">Ref ID & Waktu</th>
+                    <th style="width: 160px;">Tujuan & Pengguna</th>
                     <th>Produk & Seller</th>
-                    <th>Nominal</th>
-                    <th>Metode</th>
-                    <th>Pembayaran</th>
-                    <th>Status</th>
-                    <th>SN / Serial</th>
-                    <th style="text-align: right;">Aksi</th>
+                    <th style="width: 130px;">Nominal & Modal</th>
+                    <th style="width: 150px;">Status & Bayar</th>
+                    <th style="width: 220px;">SN / Serial Pengisian</th>
+                    <th style="width: 130px; text-align: right;">Aksi</th>
                 </tr>
             </thead>
             <tbody>
@@ -596,95 +606,103 @@
                 {% set t_seller = t.resolved_seller_name %}
                 <tr>
                     <td>
-                        <div style="font-weight: 800; color: #1E293B;">{{ t.ref_id }}</div>
-                        <div style="font-size: 10.5px; color: #64748B; margin-top: 2px;">{{ t.created_at_wib }}</div>
+                        <div style="font-weight: 800; color: #1E293B; font-family: monospace; font-size: 12.5px;">{{ t.ref_id }}</div>
+                        <div style="font-size: 11px; color: #64748B; margin-top: 3px;">
+                            <i class="far fa-clock"></i> {{ t.created_at_wib }}
+                        </div>
                     </td>
                     <td>
-                        <div style="font-weight: 800; color: #0F172A;">{{ t.target_number }}</div>
-                        <div style="font-size: 10.5px; color: #64748B; margin-top: 1px;">
-                            {% if t.user %}User #{{ t.user.id }} ({{ t.user.name }}){% else %}Guest{% endif %}
+                        <div style="font-weight: 800; color: #0F172A; font-size: 13px;">{{ t.target_number }}</div>
+                        <div style="font-size: 11px; color: #64748B; margin-top: 2px;">
+                            {% if t.user %}
+                                <span style="color: #0284C7; font-weight: 700;">#{{ t.user.id }}</span> {{ t.user.name }}
+                            {% else %}
+                                <span style="color: #94A3B8;">Guest</span>
+                            {% endif %}
                         </div>
                         {% if t.device_name or t.device_id %}
-                        <div style="margin-top: 4px;">
-                            <span style="background: #e0f2fe; color: #0284c7; padding: 2px 7px; border-radius: 5px; font-size: 10px; font-weight: 800; display: inline-flex; align-items: center; gap: 4px; border: 1px solid #bae6fd;">
+                        <div style="margin-top: 5px;">
+                            <span style="background: #E0F2FE; color: #0284C7; padding: 2px 7px; border-radius: 5px; font-size: 10px; font-weight: 800; display: inline-flex; align-items: center; gap: 4px; border: 1px solid #BAE6FD;">
                                 <i class="fas fa-store-alt"></i> {{ t.device_name or ('Cabang #' ~ t.device_id) }}
                             </span>
-                            <div style="font-size: 9.5px; color: #0369a1; font-weight: 800; margin-top: 2px;">
-                                <i class="fas fa-shield-alt"></i> Potong Saldo Cabang
-                            </div>
                         </div>
                         {% endif %}
                     </td>
                     <td>
                         {% if t.sku_code == 'DEPOSIT_MANUAL' %}
-                            <div style="font-weight: 800; color: #15803d; display: flex; align-items: center; gap: 4px;">
+                            <div style="font-weight: 800; color: #15803D; display: flex; align-items: center; gap: 4px;">
                                 <i class="fas fa-plus-circle"></i> {{ t.product_name }}
                             </div>
-                            <span style="background: #dcfce7; color: #166534; padding: 2px 7px; border-radius: 5px; font-size: 9.5px; font-weight: 800;">TOPUP SALDO MANUAL</span>
+                            <span style="background: #DCFCE7; color: #166534; padding: 2px 7px; border-radius: 5px; font-size: 10px; font-weight: 800;">TOPUP SALDO MANUAL</span>
                         {% elif t.sku_code == 'MANUAL_DEDUCTION' %}
-                            <div style="font-weight: 800; color: #b91c1c; display: flex; align-items: center; gap: 4px;">
+                            <div style="font-weight: 800; color: #B91C1C; display: flex; align-items: center; gap: 4px;">
                                 <i class="fas fa-minus-circle"></i> {{ t.product_name }}
                             </div>
-                            <span style="background: #fee2e2; color: #991b1b; padding: 2px 7px; border-radius: 5px; font-size: 9.5px; font-weight: 800;">PENYESUAIAN SALDO</span>
+                            <span style="background: #FEE2E2; color: #991B1B; padding: 2px 7px; border-radius: 5px; font-size: 10px; font-weight: 800;">PENYESUAIAN SALDO</span>
                         {% else %}
-                            <div style="font-weight: 800; color: #1E293B;">{{ t.product_name }}</div>
-                            <div style="font-size: 10.5px; color: #64748B; display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 3px;">
-                                <span>SKU: <b>{{ t.sku_code }}</b></span>
+                            <div style="font-weight: 800; color: #1E293B; font-size: 13px;">{{ t.product_name }}</div>
+                            <div style="font-size: 11px; color: #64748B; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px;">
+                                <span style="font-family: monospace; background: #F1F5F9; padding: 1px 5px; border-radius: 4px; font-size: 10.5px;">SKU: {{ t.sku_code }}</span>
                                 {% if t_seller %}
-                                <a href="{{ url_for('admin.transactions', seller=t_seller) }}" title="Filter transaksi dari Seller {{ t_seller }}" style="background: #ede9fe; color: #5b21b6; padding: 2px 8px; border-radius: 99px; font-size: 10px; font-weight: 800; text-decoration: none; border: 1px solid #ddd6fe; display: inline-flex; align-items: center; gap: 3px;">
+                                <a href="{{ url_for('admin.transactions', seller=t_seller) }}" title="Filter transaksi dari Seller {{ t_seller }}" style="background: #EDE9FE; color: #5B21B6; padding: 2px 8px; border-radius: 99px; font-size: 10.5px; font-weight: 800; text-decoration: none; border: 1px solid #DDD6FE; display: inline-flex; align-items: center; gap: 3px;">
                                     <i class="fas fa-store"></i> {{ t_seller }}
                                 </a>
                                 {% endif %}
                             </div>
                             {% if t.seller_tele or t.seller_wa %}
-                            <div style="font-size: 10px; color: #475569; margin-top: 3px; display: flex; gap: 6px; flex-wrap: wrap;">
-                                {% if t.seller_tele %}<span style="background:#e0f2fe; color:#0369a1; padding:2px 6px; border-radius:5px; font-weight:700;"><i class="fab fa-telegram-plane"></i> {{ t.seller_tele }}</span>{% endif %}
-                                {% if t.seller_wa %}<span style="background:#dcfce7; color:#15803d; padding:2px 6px; border-radius:5px; font-weight:700;"><i class="fab fa-whatsapp"></i> {{ t.seller_wa }}</span>{% endif %}
+                            <div style="font-size: 10.5px; color: #475569; margin-top: 4px; display: flex; gap: 6px; flex-wrap: wrap;">
+                                {% if t.seller_tele %}<span style="background:#E0F2FE; color:#0369A1; padding:2px 6px; border-radius:5px; font-weight:700;"><i class="fab fa-telegram-plane"></i> {{ t.seller_tele }}</span>{% endif %}
+                                {% if t.seller_wa %}<span style="background:#DCFCE7; color:#15803D; padding:2px 6px; border-radius:5px; font-weight:700;"><i class="fab fa-whatsapp"></i> {{ t.seller_wa }}</span>{% endif %}
                             </div>
                             {% endif %}
                         {% endif %}
                     </td>
                     <td>
-                        <div style="font-weight: 800; color: {% if t.sku_code == 'DEPOSIT_MANUAL' %}#16a34a{% elif t.sku_code == 'MANUAL_DEDUCTION' %}#dc2626{% else %}#059669{% endif %}; font-size: 13px;">
+                        <div style="font-weight: 900; color: {% if t.sku_code == 'DEPOSIT_MANUAL' %}#16A34A{% elif t.sku_code == 'MANUAL_DEDUCTION' %}#DC2626{% else %}#059669{% endif %}; font-size: 13.5px;">
                             {% if t.sku_code == 'DEPOSIT_MANUAL' %}+ {% elif t.sku_code == 'MANUAL_DEDUCTION' %}- {% endif %}Rp {{ "{:,.0f}".format(t.amount).replace(',', '.') }}
                         </div>
                         {% if t.base_price and t.base_price > 0 %}
-                        <div style="font-size: 10px; color: #64748B; font-weight: 700; margin-top: 2px;">
+                        <div style="font-size: 10.5px; color: #64748B; font-weight: 700; margin-top: 2px;">
                             Modal: Rp {{ "{:,.0f}".format(t.base_price).replace(',', '.') }}
                         </div>
                         {% endif %}
                     </td>
                     <td>
-                        <span style="font-size: 11px; font-weight: 800; color: #475569; background: #F1F5F9; padding: 3px 8px; border-radius: 6px;">{{ t.payment_method|upper }}</span>
-                    </td>
-                    <td>
-                        {% if t.payment_status == 'PAID' %}
-                            <span class="badge-status badge-paid"><i class="fas fa-check"></i> LUNAS</span>
-                        {% else %}
-                            <span class="badge-status badge-unpaid"><i class="fas fa-clock"></i> BELUM</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if t.status == 'SUCCESS' %}
-                            <span class="badge-status badge-success"><i class="fas fa-check-circle"></i> SUKSES</span>
-                        {% elif t.status == 'FAILED' %}
-                            <span class="badge-status badge-failed"><i class="fas fa-times-circle"></i> GAGAL</span>
-                        {% else %}
-                            <span class="badge-status badge-pending"><i class="fas fa-spinner fa-spin"></i> PROSES</span>
-                        {% endif %}
+                        <div>
+                            {% if t.status == 'SUCCESS' %}
+                                <span class="badge-status badge-success"><i class="fas fa-check-circle"></i> SUKSES</span>
+                            {% elif t.status == 'FAILED' %}
+                                <span class="badge-status badge-failed"><i class="fas fa-times-circle"></i> GAGAL</span>
+                            {% else %}
+                                <span class="badge-status badge-pending"><i class="fas fa-spinner fa-spin"></i> PROSES</span>
+                            {% endif %}
+                        </div>
+                        <div style="margin-top: 5px; font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                            {% if t.payment_status == 'PAID' %}
+                                <span style="color: #0284C7; font-weight: 800; display: inline-flex; align-items: center; gap: 3px;">
+                                    <i class="fas fa-check" style="font-size: 9px;"></i> Lunas
+                                </span>
+                            {% else %}
+                                <span style="color: #DC2626; font-weight: 800; display: inline-flex; align-items: center; gap: 3px;">
+                                    <i class="fas fa-clock" style="font-size: 9px;"></i> Belum
+                                </span>
+                            {% endif %}
+                            <span style="color: #94A3B8;">&bull;</span>
+                            <span style="color: #64748B; font-weight: 700; text-transform: uppercase;">{{ t.payment_method }}</span>
+                        </div>
                     </td>
                     <td>
                         {% if t.sn %}
                             {% set is_t_failed = (t.status in ['FAILED', 'GAGAL', 'CANCELLED']) %}
                             {% set clean_copy = t.sn | clean_sn_text(is_t_failed) %}
-                            <div style="display: flex; align-items: flex-start; gap: 4px; max-width: 260px;">
-                                <code style="font-size: 10.5px; background: #F1F5F9; color: #1E293B; padding: 4px 7px; border-radius: 5px; word-break: break-all; white-space: pre-line; display: inline-block; line-height: 1.35; max-height: 80px; overflow-y: auto; flex: 1; border: 1px solid #E2E8F0;">{{ clean_copy }}</code>
-                                <button type="button" onclick="copyAdminSn(this, {{ clean_copy|tojson }})" title="Salin SN Rapi" style="background: white; border: 1px solid #CBD5E1; border-radius: 5px; padding: 4px 7px; font-size: 11px; cursor: pointer; color: #475569; flex-shrink: 0; transition: 0.15s;">
+                            <div style="display: flex; align-items: center; gap: 6px; min-width: 190px; max-width: 320px;">
+                                <code style="font-size: 11px; background: #F8FAFC; color: #0F172A; padding: 6px 9px; border-radius: 6px; word-break: break-all; white-space: normal; display: block; line-height: 1.4; border: 1px solid #E2E8F0; font-family: monospace; font-weight: 700; flex: 1;">{{ clean_copy }}</code>
+                                <button type="button" onclick="copyAdminSn(this, {{ clean_copy|tojson }})" title="Salin SN" style="background: white; border: 1px solid #CBD5E1; border-radius: 6px; padding: 6px 9px; font-size: 12px; cursor: pointer; color: #475569; flex-shrink: 0; transition: 0.15s ease;">
                                     <i class="far fa-copy"></i>
                                 </button>
                             </div>
                         {% else %}
-                            <span style="color: #94A3B8; font-size: 11px;">-</span>
+                            <span style="color: #94A3B8; font-size: 11.5px; font-style: italic;">Belum ada SN</span>
                         {% endif %}
                     </td>
                     <td style="white-space: nowrap; text-align: right;">
@@ -693,7 +711,7 @@
                             <button type="button" 
                                     onclick="syncSingleTrx({{ t.id }}, this)" 
                                     title="Tarik Status, Seller & SN Langsung dari Provider" 
-                                    style="background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; padding: 6px 10px; border-radius: 7px; font-weight: 800; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; transition: 0.2s;">
+                                    style="background: #E0F2FE; color: #0284C7; border: 1px solid #BAE6FD; padding: 6px 10px; border-radius: 7px; font-weight: 800; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; transition: 0.2s;">
                                 <i class="fas fa-sync-alt"></i> Cek Provider
                             </button>
                             {% endif %}
@@ -712,8 +730,8 @@
                                     data-comp-sukses="{{ t.format_digiflazz_complaint('sukses_belum_masuk') }}"
                                     data-comp-gagal="{{ t.format_digiflazz_complaint('gagal') }}"
                                     onclick="openComplainSellerModal(this)"
-                                    title="Komplain ke Seller Digiflazz (Format Standar Digiflazz via Tele / WA)"
-                                    style="background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; padding: 6px 10px; border-radius: 7px; font-weight: 800; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; transition: 0.2s;">
+                                    title="Komplain ke Seller Digiflazz"
+                                    style="background: #F5F3FF; color: #6D28D9; border: 1px solid #DDD6FE; padding: 6px 10px; border-radius: 7px; font-weight: 800; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; transition: 0.2s;">
                                 <i class="fas fa-bullhorn"></i> Komplain
                             </button>
                             {% endif %}
@@ -739,7 +757,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="9" style="text-align: center; padding: 40px; color: #64748B;">
+                    <td colspan="7" style="text-align: center; padding: 40px; color: #64748B;">
                         <i class="fas fa-inbox" style="font-size: 32px; margin-bottom: 10px; color: #CBD5E1; display: block;"></i>
                         Belum ada data transaksi yang sesuai dengan filter.
                     </td>
