@@ -1889,6 +1889,21 @@ def claim_poin_action():
         db.session.add(log)
         db.session.commit()
 
+        # Kirim notifikasi asinkron ke Admin / Bot Notifikasi Telegram
+        try:
+            from app.services.telegram_service import async_send_point_claim_notification
+            async_send_point_claim_notification(
+                user_name=user.name,
+                user_phone=user.phone,
+                user_id=user.id,
+                points_redeemed=current_pts,
+                saldo_added=saldo_didapat,
+                new_balance=float(user.balance or 0.0),
+                point_rate=point_rate
+            )
+        except Exception as e_notif:
+            print(f"[POINT NOTIF ERR] Gagal trigger notifikasi klaim poin: {e_notif}")
+
         return jsonify({
             'status': 'success',
             'message': f'Selamat! {current_pts:,} Poin berhasil diklaim dan saldo Anda bertambah Rp {saldo_didapat:,.0f}.'

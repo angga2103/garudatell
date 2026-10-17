@@ -261,6 +261,23 @@ def claim_monthly_commission(user):
 
     db.session.commit()
     logger.info(f"[COMMISSION] User {user_locked.id} berhasil mencairkan komisi Rp {claim_amount:,.0f} ke saldo utama.")
+
+    # Kirim notifikasi asinkron ke Admin / Bot Notifikasi Telegram
+    try:
+        from app.services.telegram_service import async_send_vip_commission_claim_notification
+        downline_count = User.query.filter_by(upline_id=user_locked.id).count()
+        async_send_vip_commission_claim_notification(
+            user_name=user_locked.name,
+            user_phone=user_locked.phone,
+            user_id=user_locked.id,
+            claim_amount=claim_amount,
+            ref_id=ref_id,
+            new_balance=float(user_locked.balance or 0.0),
+            downline_count=downline_count
+        )
+    except Exception as e_notif:
+        logger.error(f"[COMMISSION NOTIF ERR] Gagal trigger notifikasi pencairan komisi: {e_notif}")
+
     return True, f"Selamat! Saldo komisi sebesar Rp {claim_amount:,.0f} telah berhasil dicairkan ke Saldo Utama Anda.", claim_amount
 
 def prune_commission_history():

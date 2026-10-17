@@ -1145,6 +1145,124 @@ def async_send_trx_notification(trx, title="TRANSAKSI MASUK"):
         return False
 
 
+def send_vip_commission_claim_notification(user_name, user_phone, user_id, claim_amount, ref_id, new_balance, downline_count=0):
+    """
+    Mengirimkan notifikasi pencairan komisi VIP downline ke Bot Notifikasi / Bot Admin di Telegram.
+    """
+    token, chat_id = get_bot_notif_credentials()
+    if not token or not chat_id:
+        token, chat_id = get_bot_admin_credentials()
+    if not token or not chat_id:
+        return False, "Kredensial BOT belum diatur di .env"
+
+    wib_now = format_wib(fmt='%d/%m/%Y %H:%M WIB')
+    lines = [
+        "👑 <b>PENCAIRAN KOMISI VIP (DOWNLINE)</b>",
+        "━━━━━━━━━━━━━━━━━━━━━━",
+        f"📋 <b>Ref ID:</b> <code>{ref_id}</code>",
+        f"👤 <b>Member VIP:</b> <b>{user_name}</b> (<code>#{user_id}</code>)",
+        f"📱 <b>WhatsApp:</b> <code>{user_phone}</code>",
+        f"👥 <b>Total Downline:</b> {downline_count} member",
+        f"💰 <b>Komisi Dicairkan:</b> <b>Rp {float(claim_amount or 0):,.0f}</b>",
+        f"💳 <b>Saldo Utama Sekarang:</b> Rp {float(new_balance or 0):,.0f}",
+        f"📊 <b>Status:</b> <b>BERHASIL DICAIRKAN (Tgl 28)</b>",
+        f"⏰ <b>Waktu:</b> {wib_now}",
+        "━━━━━━━━━━━━━━━━━━━━━━",
+        "ℹ️ <i>Saldo komisi telah dipindahkan ke Saldo Utama member dan siap digunakan untuk bertransaksi.</i>"
+    ]
+    full_text = "\n".join(lines)
+
+    try:
+        payload = {
+            "chat_id": chat_id,
+            "text": full_text,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True
+        }
+        r = call_telegram_api('post', f"bot{token}/sendMessage", json=payload, timeout=(15, 30))
+        return r.status_code == 200, r.text
+    except Exception as e:
+        logger.error(f"[Bot Notif] Gagal kirim notifikasi komisi VIP: {e}")
+        return False, str(e)
+
+
+def async_send_vip_commission_claim_notification(user_name, user_phone, user_id, claim_amount, ref_id, new_balance, downline_count=0):
+    """
+    Mengirimkan notifikasi pencairan komisi VIP secara asinkron di background thread.
+    """
+    import threading
+    try:
+        thread = threading.Thread(
+            target=send_vip_commission_claim_notification,
+            args=(user_name, user_phone, user_id, claim_amount, ref_id, new_balance, downline_count),
+            daemon=True
+        )
+        thread.start()
+        return True
+    except Exception as e:
+        logger.error(f"[Bot Async] Error starting VIP commission notif thread: {e}")
+        return False
+
+
+def send_point_claim_notification(user_name, user_phone, user_id, points_redeemed, saldo_added, new_balance, point_rate=1.0):
+    """
+    Mengirimkan notifikasi penukaran poin member menjadi saldo ke Bot Notifikasi / Bot Admin di Telegram.
+    """
+    token, chat_id = get_bot_notif_credentials()
+    if not token or not chat_id:
+        token, chat_id = get_bot_admin_credentials()
+    if not token or not chat_id:
+        return False, "Kredensial BOT belum diatur di .env"
+
+    wib_now = format_wib(fmt='%d/%m/%Y %H:%M WIB')
+    rate_str = f"Rp {point_rate:,.0f}" if float(point_rate).is_integer() else f"Rp {point_rate}"
+    lines = [
+        "🎁 <b>PENUKARAN POIN MEMBER KE SALDO</b>",
+        "━━━━━━━━━━━━━━━━━━━━━━",
+        f"👤 <b>Member:</b> <b>{user_name}</b> (<code>#{user_id}</code>)",
+        f"📱 <b>WhatsApp:</b> <code>{user_phone}</code>",
+        f"⭐ <b>Poin Ditukarkan:</b> <b>{int(points_redeemed):,} Pts</b>",
+        f"💵 <b>Saldo Ditambahkan:</b> <b>Rp {float(saldo_added or 0):,.0f}</b> (Kurs: {rate_str}/pt)",
+        f"💳 <b>Saldo Utama Sekarang:</b> Rp {float(new_balance or 0):,.0f}",
+        f"📊 <b>Status:</b> <b>BERHASIL DIKLAIM KE SALDO</b>",
+        f"⏰ <b>Waktu:</b> {wib_now}",
+        "━━━━━━━━━━━━━━━━━━━━━━",
+        "ℹ️ <i>Poin reward member telah dikonversikan menjadi Saldo Utama aktif GarudaTel.</i>"
+    ]
+    full_text = "\n".join(lines)
+
+    try:
+        payload = {
+            "chat_id": chat_id,
+            "text": full_text,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True
+        }
+        r = call_telegram_api('post', f"bot{token}/sendMessage", json=payload, timeout=(15, 30))
+        return r.status_code == 200, r.text
+    except Exception as e:
+        logger.error(f"[Bot Notif] Gagal kirim notifikasi tukar poin: {e}")
+        return False, str(e)
+
+
+def async_send_point_claim_notification(user_name, user_phone, user_id, points_redeemed, saldo_added, new_balance, point_rate=1.0):
+    """
+    Mengirimkan notifikasi klaim poin secara asinkron di background thread.
+    """
+    import threading
+    try:
+        thread = threading.Thread(
+            target=send_point_claim_notification,
+            args=(user_name, user_phone, user_id, points_redeemed, saldo_added, new_balance, point_rate),
+            daemon=True
+        )
+        thread.start()
+        return True
+    except Exception as e:
+        logger.error(f"[Bot Async] Error starting point claim notif thread: {e}")
+        return False
+
+
 def send_backup_notification(backup_file_path=None, status="SUKSES", details="", display_filename=None):
     """
     Mengirimkan laporan auto-backup ke Bot 2 (Notifikasi & Backup) di Telegram,
