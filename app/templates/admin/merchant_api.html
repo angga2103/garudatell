@@ -9,7 +9,7 @@
 {% block topbar_actions %}
 <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
     <button type="button" onclick="document.getElementById('modalBroadcastPos').style.display='flex'" class="adm-btn adm-btn-secondary" style="background: #e0f2fe; color: #0284c7; border-color: #bae6fd;">
-        <i class="fas fa-bullhorn"></i> Broadcast Layar Kasir
+        <i class="fas fa-bullhorn"></i> Broadcast Kasir
     </button>
     <button type="button" onclick="document.getElementById('modalCreateApiKey').style.display='flex'" class="adm-btn adm-btn-primary">
         <i class="fas fa-plus-circle"></i> Buat API Key Manual
@@ -19,31 +19,239 @@
 
 {% block page_css %}
 <style>
-    .api-card {
+    /* STATS KPI CARDS */
+    .pos-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+        gap: 14px;
+        margin-bottom: 22px;
+    }
+    .pos-stat-card {
+        background: white;
+        border-radius: 12px;
+        padding: 16px 18px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        color: inherit;
+    }
+    .pos-stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.07);
+        border-color: #cbd5e1;
+    }
+    .pos-stat-icon-wrapper {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        flex-shrink: 0;
+    }
+    .pos-stat-info {
+        flex: 1;
+        min-width: 0;
+    }
+    .pos-stat-value {
+        font-size: 24px;
+        font-weight: 900;
+        line-height: 1.1;
+        color: #0f172a;
+    }
+    .pos-stat-label {
+        font-size: 11px;
+        font-weight: 800;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-top: 4px;
+    }
+
+    /* MODERN TABS NAVIGATION */
+    .pos-tabs-nav {
+        display: flex;
+        gap: 6px;
+        overflow-x: auto;
+        padding-bottom: 2px;
+        margin-bottom: 20px;
+        border-bottom: 2px solid #e2e8f0;
+        scrollbar-width: thin;
+    }
+    .pos-tab-btn {
+        background: transparent;
+        border: none;
+        padding: 10px 18px;
+        border-radius: 8px 8px 0 0;
+        font-size: 13px;
+        font-weight: 800;
+        color: #64748b;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        white-space: nowrap;
+        transition: all 0.2s ease;
+        border-bottom: 3px solid transparent;
+        margin-bottom: -2px;
+    }
+    .pos-tab-btn:hover {
+        color: #0f172a;
+        background: #f8fafc;
+    }
+    .pos-tab-btn.active {
+        color: #0284c7;
+        background: white;
+        border-bottom: 3px solid #0284c7;
+    }
+    .pos-tab-badge {
+        padding: 2px 7px;
+        border-radius: 20px;
+        font-size: 10.5px;
+        font-weight: 800;
+    }
+
+    /* CARD CONTAINER */
+    .pos-card {
         background: white;
         border-radius: 14px;
         padding: 20px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.04);
         margin-bottom: 24px;
         border: 1px solid #e2e8f0;
     }
+    .pos-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 16px;
+        padding-bottom: 14px;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    /* TOOLBAR SEARCH & FILTER */
+    .pos-toolbar {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+        background: #f8fafc;
+        padding: 12px 14px;
+        border-radius: 10px;
+        border: 1px solid #e2e8f0;
+        margin-bottom: 16px;
+    }
+    .pos-search-input {
+        flex: 1;
+        min-width: 220px;
+        padding: 9px 12px 9px 34px;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 8px;
+        font-size: 13px;
+        background: white;
+        box-sizing: border-box;
+        outline: none;
+        transition: border-color 0.2s;
+    }
+    .pos-search-input:focus {
+        border-color: #0284c7;
+    }
+    .pos-filter-select {
+        padding: 9px 12px;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 8px;
+        font-size: 12.5px;
+        font-weight: 700;
+        background: white;
+        outline: none;
+        cursor: pointer;
+    }
+
+    /* COMPACT DATA TABLE */
+    .pos-table-wrapper {
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        overflow-x: auto;
+        background: white;
+    }
+    .pos-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12.5px;
+        text-align: left;
+    }
+    .pos-table th {
+        background: #f8fafc;
+        border-bottom: 1.5px solid #e2e8f0;
+        color: #64748b;
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 11px 14px;
+        white-space: nowrap;
+    }
+    .pos-table td {
+        padding: 11px 14px;
+        border-bottom: 1px solid #f1f5f9;
+        vertical-align: middle;
+    }
+    .pos-table tbody tr:hover {
+        background: #f8fafc;
+    }
+
+    /* BADGES */
     .api-badge {
         font-size: 11px;
         font-weight: 800;
-        padding: 4px 10px;
+        padding: 3px 9px;
         border-radius: 20px;
         display: inline-flex;
         align-items: center;
         gap: 5px;
+        white-space: nowrap;
     }
     .badge-active { background: #dcfce7; color: #15803d; }
     .badge-inactive { background: #fee2e2; color: #b91c1c; }
     .badge-warning { background: #fef3c7; color: #b45309; }
     .badge-info { background: #e0f2fe; color: #0369a1; }
+    .badge-purple { background: #f3e8ff; color: #7e22ce; }
+
+    /* ACTION BUTTONS */
+    .btn-action-icon {
+        height: 32px;
+        padding: 0 10px;
+        border-radius: 7px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        border: none;
+        cursor: pointer;
+        font-size: 11px;
+        font-weight: 800;
+        transition: 0.15s;
+        white-space: nowrap;
+        text-decoration: none;
+    }
+    .btn-action-icon:hover {
+        opacity: 0.9;
+        transform: translateY(-1px);
+    }
+
+    /* CODE BOX FOR CREDENTIALS */
     .code-box {
         background: #0f172a;
         color: #38bdf8;
-        padding: 10px 14px;
+        padding: 8px 12px;
         border-radius: 8px;
         font-family: 'Consolas', 'Courier New', monospace;
         font-size: 12px;
@@ -58,29 +266,42 @@
         background: #1e293b;
         color: white;
         border: none;
-        padding: 4px 10px;
-        border-radius: 6px;
+        padding: 3px 8px;
+        border-radius: 5px;
         font-size: 11px;
         cursor: pointer;
         transition: 0.2s;
         flex-shrink: 0;
     }
     .copy-btn:hover { background: #334155; }
-    .btn-action-icon {
-        height: 32px;
-        padding: 0 10px;
-        border-radius: 8px;
-        display: inline-flex;
+
+    /* MODAL BASE */
+    .pos-modal-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.6);
+        backdrop-filter: blur(4px);
+        z-index: 99999;
         align-items: center;
         justify-content: center;
-        gap: 5px;
-        border: none;
-        cursor: pointer;
-        font-size: 11px;
-        font-weight: 800;
-        transition: 0.2s;
-        white-space: nowrap;
+        padding: 16px;
     }
+    .pos-modal-box {
+        background: white;
+        border-radius: 16px;
+        width: 100%;
+        max-width: 600px;
+        max-height: 90vh;
+        overflow-y: auto;
+        padding: 24px;
+        box-shadow: 0 20px 45px rgba(0,0,0,0.25);
+    }
+    .pos-modal-box-large {
+        max-width: 820px;
+    }
+
+    /* SWITCH TOGGLE */
     .switch-wrapper {
         display: flex;
         align-items: center;
@@ -93,11 +314,7 @@
         height: 28px;
         flex-shrink: 0;
     }
-    .pos-toggle-switch input {
-        opacity: 0;
-        width: 0;
-        height: 0;
-    }
+    .pos-toggle-switch input { opacity: 0; width: 0; height: 0; }
     .pos-slider {
         position: absolute;
         cursor: pointer;
@@ -124,506 +341,820 @@
     .pos-toggle-switch input:checked + .pos-slider:before {
         transform: translateX(26px);
     }
-    .cmd-nav-pills {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-        margin-bottom: 20px;
-    }
-    .cmd-pill {
-        background: white;
-        border: 1px solid #cbd5e1;
-        color: #334155;
-        padding: 8px 14px;
-        border-radius: 10px;
-        font-size: 12px;
-        font-weight: 800;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        transition: 0.2s;
-    }
-    .cmd-pill:hover {
-        border-color: #10b981;
-        color: #059669;
-        background: #f0fdf4;
-    }
 </style>
 {% endblock %}
 
 {% block admin_content %}
-<!-- QUICK JUMP NAVIGATION -->
-<div class="cmd-nav-pills">
-    <a href="#sec-provisioning" class="cmd-pill">
-        <i class="fas fa-bolt" style="color: #f59e0b;"></i> Antrean Aktivasi 1-Klik
+<!-- ========================================================================= -->
+<!-- 1. KPI STATS CARDS (INTERACTIVE QUICK FILTERS)                            -->
+<!-- ========================================================================= -->
+<div class="pos-stats-grid">
+    <div class="pos-stat-card" onclick="switchPosTab('tab-merchants')">
+        <div class="pos-stat-icon-wrapper" style="background: #dcfce7; color: #15803d;">
+            <i class="fas fa-cash-register"></i>
+        </div>
+        <div class="pos-stat-info">
+            <div class="pos-stat-value">{{ merchants|selectattr('is_active')|list|length }} <span style="font-size: 15px; color: #64748b; font-weight: 600;">/ {{ merchants|length }}</span></div>
+            <div class="pos-stat-label">Kasir POS Aktif</div>
+        </div>
+    </div>
+
+    <div class="pos-stat-card" style="{% if pending_provisions_count > 0 %}border: 1.5px solid #60a5fa; background: #f0f9ff;{% endif %}" onclick="switchPosTab('tab-provisions')">
+        <div class="pos-stat-icon-wrapper" style="background: {% if pending_provisions_count > 0 %}#dbeafe; color: #1d4ed8;{% else %}#f1f5f9; color: #0284c7;{% endif %}">
+            <i class="fas fa-user-check"></i>
+        </div>
+        <div class="pos-stat-info">
+            <div class="pos-stat-value" style="color: {% if pending_provisions_count > 0 %}#1d4ed8;{% else %}#0f172a;{% endif %}">
+                {{ pending_provisions_count or 0 }}
+            </div>
+            <div class="pos-stat-label">Pengajuan POS Baru</div>
+        </div>
+    </div>
+
+    <div class="pos-stat-card" style="{% if pending_deposits_count > 0 %}border: 1.5px solid #f59e0b; background: #fffbeb;{% endif %}" onclick="switchPosTab('tab-deposits')">
+        <div class="pos-stat-icon-wrapper" style="background: {% if pending_deposits_count > 0 %}#fef3c7; color: #b45309;{% else %}#f1f5f9; color: #10b981;{% endif %}">
+            <i class="fas fa-money-bill-wave"></i>
+        </div>
+        <div class="pos-stat-info">
+            <div class="pos-stat-value" style="color: {% if pending_deposits_count > 0 %}#b45309;{% else %}#0f172a;{% endif %}">
+                {{ pending_deposits_count or 0 }}
+            </div>
+            <div class="pos-stat-label">Deposit POS Pending</div>
+        </div>
+    </div>
+
+    <div class="pos-stat-card" style="{% if low_balance_merchants_count > 0 %}border: 1.5px solid #fca5a5; background: #fef2f2;{% endif %}" onclick="filterLowBalanceShortcut()">
+        <div class="pos-stat-icon-wrapper" style="background: {% if low_balance_merchants_count > 0 %}#fee2e2; color: #dc2626;{% else %}#f1f5f9; color: #64748b;{% endif %}">
+            <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <div class="pos-stat-info">
+            <div class="pos-stat-value" style="color: {% if low_balance_merchants_count > 0 %}#dc2626;{% else %}#0f172a;{% endif %}">
+                {{ low_balance_merchants_count or 0 }}
+            </div>
+            <div class="pos-stat-label">Toko Saldo Tipis (&lt;50rb)</div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- 2. MODERN TAB NAVIGATION (ZERO-SCROLL COMMAND CENTER)                     -->
+<!-- ========================================================================= -->
+<div class="pos-tabs-nav">
+    <button type="button" class="pos-tab-btn active" data-tab="tab-merchants" onclick="switchPosTab('tab-merchants')">
+        <i class="fas fa-store" style="color: #10b981;"></i> Daftar Kasir POS
+        <span class="pos-tab-badge" style="background: #e2e8f0; color: #334155;">{{ merchants|length }}</span>
+    </button>
+    <button type="button" class="pos-tab-btn" data-tab="tab-provisions" onclick="switchPosTab('tab-provisions')">
+        <i class="fas fa-bolt" style="color: #f59e0b;"></i> Antrean Pengajuan (1-Klik)
         {% if pending_provisions_count > 0 %}
-        <span style="background: #ef4444; color: white; padding: 1px 7px; border-radius: 99px; font-size: 10px;">{{ pending_provisions_count }}</span>
+        <span class="pos-tab-badge" style="background: #ef4444; color: white;">{{ pending_provisions_count }}</span>
+        {% else %}
+        <span class="pos-tab-badge" style="background: #f1f5f9; color: #64748b;">{{ provision_requests|length }}</span>
         {% endif %}
-    </a>
-    <a href="#sec-broadcast" class="cmd-pill">
-        <i class="fas fa-bullhorn" style="color: #0284c7;"></i> Broadcast Layar Kasir ({{ pos_broadcasts|selectattr('is_active')|list|length }})
-    </a>
-    <a href="#sec-pos-trx" class="cmd-pill">
-        <i class="fas fa-exchange-alt" style="color: #8b5cf6;"></i> Monitor Trx POS & Push SN
-    </a>
-    <a href="#sec-merchants" class="cmd-pill">
-        <i class="fas fa-store" style="color: #10b981;"></i> Daftar Toko POS & Saldo ({{ merchants|length }})
-    </a>
-    <a href="#sec-master-config" class="cmd-pill">
+    </button>
+    <button type="button" class="pos-tab-btn" data-tab="tab-deposits" onclick="switchPosTab('tab-deposits')">
+        <i class="fas fa-hand-holding-usd" style="color: #0284c7;"></i> Tiket Deposit Kasir
+        {% if pending_deposits_count > 0 %}
+        <span class="pos-tab-badge" style="background: #f59e0b; color: white;">{{ pending_deposits_count }}</span>
+        {% else %}
+        <span class="pos-tab-badge" style="background: #f1f5f9; color: #64748b;">{{ all_deposit_requests|length }}</span>
+        {% endif %}
+    </button>
+    <button type="button" class="pos-tab-btn" data-tab="tab-transactions" onclick="switchPosTab('tab-transactions')">
+        <i class="fas fa-exchange-alt" style="color: #8b5cf6;"></i> Monitor Trx Kasir POS
+        <span class="pos-tab-badge" style="background: #f1f5f9; color: #64748b;">{{ pos_transactions|length }}</span>
+    </button>
+    <button type="button" class="pos-tab-btn" data-tab="tab-broadcasts" onclick="switchPosTab('tab-broadcasts')">
+        <i class="fas fa-bullhorn" style="color: #0369a1;"></i> Broadcast Kasir
+        <span class="pos-tab-badge" style="background: #f1f5f9; color: #64748b;">{{ pos_broadcasts|length }}</span>
+    </button>
+    <button type="button" class="pos-tab-btn" data-tab="tab-config" onclick="switchPosTab('tab-config')">
         <i class="fas fa-cog" style="color: #64748b;"></i> Pengaturan Master POS
-    </a>
+    </button>
 </div>
 
-<!-- STATS -->
-<div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); margin-bottom: 24px;">
-    <div class="stat-card">
-        <i class="fas fa-cash-register stat-icon" style="color: #10b981;"></i>
-        <div class="stat-value">{{ merchants|selectattr('is_active')|list|length }} / {{ merchants|length }}</div>
-        <div class="stat-label">KASIR POS AKTIF</div>
-    </div>
-    <div class="stat-card" style="{% if pending_provisions_count > 0 %}border: 1.5px solid #3b82f6; background: #eff6ff;{% endif %}">
-        <i class="fas fa-user-check stat-icon" style="color: {% if pending_provisions_count > 0 %}#2563eb{% else %}#0284c7{% endif %};"></i>
-        <div class="stat-value" style="color: {% if pending_provisions_count > 0 %}#1d4ed8{% else %}#0f172a{% endif %};">
-            {{ pending_provisions_count or 0 }}
-        </div>
-        <div class="stat-label">PENGAJUAN POS BARU</div>
-    </div>
-    <div class="stat-card" style="{% if pending_deposits_count > 0 %}border: 1.5px solid #f59e0b; background: #fffbeb;{% endif %}">
-        <i class="fas fa-money-bill-wave stat-icon" style="color: {% if pending_deposits_count > 0 %}#d97706{% else %}#10b981{% endif %};"></i>
-        <div class="stat-value" style="color: {% if pending_deposits_count > 0 %}#b45309{% else %}#0f172a{% endif %};">
-            {{ pending_deposits_count or 0 }}
-        </div>
-        <div class="stat-label">DEPOSIT POS PENDING</div>
-    </div>
-    <div class="stat-card" style="{% if low_balance_merchants_count > 0 %}border: 1.5px solid #ef4444; background: #fef2f2;{% endif %}">
-        <i class="fas fa-exclamation-triangle stat-icon" style="color: {% if low_balance_merchants_count > 0 %}#dc2626{% else %}#64748b{% endif %};"></i>
-        <div class="stat-value" style="color: {% if low_balance_merchants_count > 0 %}#b91c1c{% else %}#0f172a{% endif %};">
-            {{ low_balance_merchants_count or 0 }}
-        </div>
-        <div class="stat-label">TOKO SALDO TIPIS (&lt;50RB)</div>
-    </div>
-</div>
 
 <!-- ========================================================================= -->
-<!-- 1. ANTREAN PENGAJUAN AKTIVASI 1-KLIK MITRA POS BARU (ZERO-TOUCH)          -->
+<!-- TAB 1: DAFTAR KASIR POS (SCALABLE DATA GRID)                             -->
 <!-- ========================================================================= -->
-<div id="sec-provisioning" class="api-card" style="border: 1.5px solid {% if pending_provisions_count > 0 %}#60a5fa{% else %}#e2e8f0{% endif %};">
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px;">
-        <div>
-            <div style="font-size: 15px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px;">
-                <i class="fas fa-bolt" style="color: #f59e0b;"></i>
-                Antrean Pengajuan Aktivasi 1-Klik dari Web POS (ipaypos.my.id)
-                {% if pending_provisions_count > 0 %}
-                <span class="api-badge badge-warning"><i class="fas fa-clock"></i> {{ pending_provisions_count }} Menunggu Persetujuan</span>
-                {% else %}
-                <span class="api-badge badge-active"><i class="fas fa-check-circle"></i> Semua Terproses</span>
-                {% endif %}
-            </div>
-            <div style="font-size: 12px; color: #64748b; margin-top: 2px;">
-                Saat pemilik warung klik <b>"Daftar & Hubungkan Otomatis"</b> di POS, permohonan masuk ke Telegram Admin dan tabel ini. Klik <b>Terima</b> untuk otomatis membuatkan akun + API Key dan menyambungkannya ke POS mereka.
-            </div>
-        </div>
-    </div>
-
-    {% if provision_requests %}
-    <div style="border: 1px solid #e2e8f0; border-radius: 10px; overflow-x: auto;">
-        <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
-            <thead>
-                <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 10.5px; text-transform: uppercase;">
-                    <th style="padding: 10px 12px;">Waktu</th>
-                    <th style="padding: 10px 12px;">ID Request / Tenant</th>
-                    <th style="padding: 10px 12px;">Nama Toko & Pemilik</th>
-                    <th style="padding: 10px 12px;">WhatsApp</th>
-                    <th style="padding: 10px 12px;">Merchant ID</th>
-                    <th style="padding: 10px 12px; text-align: center;">Status</th>
-                    <th style="padding: 10px 12px; text-align: center;">Aksi Cepat</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for pr in provision_requests %}
-                <tr style="border-bottom: 1px solid #f1f5f9; {% if pr.status == 'PENDING' %}background: #fffbeb;{% endif %}">
-                    <td style="padding: 10px 12px; font-family: monospace; font-size: 11px; color: #64748b; white-space: nowrap;">
-                        {{ pr.formatted_created_at }}
-                    </td>
-                    <td style="padding: 10px 12px; font-family: monospace;">
-                        <div style="font-weight: 800; color: #0f172a;">{{ pr.request_id }}</div>
-                        {% if pr.tenant_id %}
-                        <div style="font-size: 10.5px; color: #64748b;">Tenant: <code>{{ pr.tenant_id }}</code></div>
-                        {% endif %}
-                    </td>
-                    <td style="padding: 10px 12px;">
-                        <div style="font-weight: 800; color: #1e293b;">{{ pr.store_name }}</div>
-                        <div style="font-size: 11px; color: #64748b;"><i class="fas fa-user"></i> {{ pr.owner_name }}</div>
-                    </td>
-                    <td style="padding: 10px 12px; white-space: nowrap;">
-                        {% set wa_clean = ('62' ~ pr.phone[1:]) if pr.phone and pr.phone.startswith('0') else pr.phone %}
-                        <a href="https://wa.me/{{ wa_clean }}" target="_blank" style="color: #15803d; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; background: #dcfce7; padding: 3px 8px; border-radius: 6px;">
-                            <i class="fab fa-whatsapp"></i> {{ pr.phone }}
-                        </a>
-                    </td>
-                    <td style="padding: 10px 12px; font-family: monospace; font-weight: 700; color: #0369a1;">
-                        {{ pr.merchant_id or '-' }}
-                    </td>
-                    <td style="padding: 10px 12px; text-align: center; white-space: nowrap;">
-                        {% if pr.status == 'APPROVED' %}
-                        <span class="api-badge badge-active"><i class="fas fa-check-circle"></i> Disetujui</span>
-                        {% elif pr.status == 'PENDING' %}
-                        <span class="api-badge badge-warning"><i class="fas fa-clock"></i> Menunggu</span>
-                        {% else %}
-                        <span class="api-badge badge-inactive" title="{{ pr.rejection_reason or '' }}"><i class="fas fa-times-circle"></i> Ditolak</span>
-                        {% endif %}
-                    </td>
-                    <td style="padding: 10px 12px; text-align: center; white-space: nowrap;">
-                        {% if pr.status == 'PENDING' %}
-                        <div style="display: flex; gap: 6px; justify-content: center;">
-                            <form method="POST" action="{{ url_for('admin.merchant_api_approve_provision', prov_id=pr.id) }}" style="display: inline;" onsubmit="return confirm('Setujui toko {{ pr.store_name }}? Akun & API Key akan langsung dibuat dan disambungkan otomatis ke POS mereka.');">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" style="background: #10b981; color: white; border: none; padding: 5px 12px; border-radius: 6px; font-weight: 800; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
-                                    <i class="fas fa-check"></i> Terima & Sambungkan
-                                </button>
-                            </form>
-                            <form method="POST" action="{{ url_for('admin.merchant_api_reject_provision', prov_id=pr.id) }}" style="display: inline;" onsubmit="var r = prompt('Alasan penolakan toko {{ pr.store_name }}:', 'Data toko belum lengkap'); if(!r) return false; this.reason.value = r; return true;">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <input type="hidden" name="reason" value="">
-                                <button type="submit" style="background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; padding: 5px 10px; border-radius: 6px; font-weight: 700; font-size: 11px; cursor: pointer;">
-                                    <i class="fas fa-times"></i> Tolak
-                                </button>
-                            </form>
-                        </div>
-                        {% else %}
-                        <span style="font-size: 11px; color: #94a3b8;">Selesai</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% else %}
-    <div style="background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 10px; padding: 16px; text-align: center; color: #94a3b8; font-size: 12px;">
-        <i class="fas fa-check-circle" style="margin-right: 4px; color: #10b981;"></i> Belum ada antrean permohonan aktivasi 1-klik dari aplikasi Web POS.
-    </div>
-    {% endif %}
-</div>
-
-<!-- ========================================================================= -->
-<!-- 2. PUSAT BROADCAST LAYAR KASIR POS (RUNNING TEXT / BANNER KASIR)          -->
-<!-- ========================================================================= -->
-<div id="sec-broadcast" class="api-card" style="border-left: 4px solid #0284c7;">
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px;">
-        <div>
-            <div style="font-size: 15px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px;">
-                <i class="fas fa-bullhorn" style="color: #0284c7;"></i>
-                Broadcast Pengumuman ke Layar Kasir POS
-            </div>
-            <div style="font-size: 12px; color: #64748b; margin-top: 2px;">
-                Kirim pesan informasi gangguan provider, cut-off PLN, atau promo harga modal langsung ke layar kasir semua toko atau toko tertentu.
-            </div>
-        </div>
-        <button type="button" onclick="document.getElementById('modalBroadcastPos').style.display='flex'" style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 6px 14px; border-radius: 8px; font-weight: 800; font-size: 12px; cursor: pointer;">
-            <i class="fas fa-plus"></i> Tulis Broadcast Kasir Baru
-        </button>
-    </div>
-
-    {% if pos_broadcasts %}
-    <div style="border: 1px solid #e2e8f0; border-radius: 10px; overflow-x: auto;">
-        <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
-            <thead>
-                <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 10.5px; text-transform: uppercase;">
-                    <th style="padding: 10px 12px;">Waktu</th>
-                    <th style="padding: 10px 12px;">Tipe</th>
-                    <th style="padding: 10px 12px;">Target Kasir</th>
-                    <th style="padding: 10px 12px;">Judul & Isi Pesan</th>
-                    <th style="padding: 10px 12px; text-align: center;">Status</th>
-                    <th style="padding: 10px 12px; text-align: center;">Aksi</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for b in pos_broadcasts %}
-                <tr style="border-bottom: 1px solid #f1f5f9;">
-                    <td style="padding: 10px 12px; font-family: monospace; font-size: 11px; color: #64748b; white-space: nowrap;">
-                        {{ b.formatted_created_at }}
-                    </td>
-                    <td style="padding: 10px 12px; white-space: nowrap;">
-                        {% if b.level == 'urgent' %}
-                        <span class="api-badge badge-inactive"><i class="fas fa-exclamation-circle"></i> DARURAT</span>
-                        {% elif b.level == 'warning' %}
-                        <span class="api-badge badge-warning"><i class="fas fa-exclamation-triangle"></i> GANGGUAN</span>
-                        {% elif b.level == 'promo' %}
-                        <span class="api-badge badge-active"><i class="fas fa-gift"></i> PROMO</span>
-                        {% else %}
-                        <span class="api-badge badge-info"><i class="fas fa-info-circle"></i> INFO</span>
-                        {% endif %}
-                    </td>
-                    <td style="padding: 10px 12px; font-family: monospace; font-weight: 700;">
-                        {% if not b.target_merchant_id or b.target_merchant_id == 'ALL' %}
-                        <span style="color: #0284c7;">SEMUA KASIR POS</span>
-                        {% else %}
-                        <span style="color: #0f172a;">{{ b.target_merchant_id }}</span>
-                        {% endif %}
-                    </td>
-                    <td style="padding: 10px 12px;">
-                        <div style="font-weight: 800; color: #0f172a;">{{ b.title }}</div>
-                        <div style="font-size: 11.5px; color: #475569; margin-top: 2px;">{{ b.message }}</div>
-                    </td>
-                    <td style="padding: 10px 12px; text-align: center;">
-                        {% if b.is_active %}
-                        <span class="api-badge badge-active">Tayang</span>
-                        {% else %}
-                        <span class="api-badge" style="background: #f1f5f9; color: #64748b;">Nonaktif</span>
-                        {% endif %}
-                    </td>
-                    <td style="padding: 10px 12px; text-align: center; white-space: nowrap;">
-                        <div style="display: flex; gap: 6px; justify-content: center;">
-                            <form method="POST" action="{{ url_for('admin.merchant_api_broadcast_toggle', b_id=b.id) }}" style="display: inline;">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" class="btn-action-icon" style="background: #f1f5f9; color: #334155;" title="Aktifkan/Matikan">
-                                    <i class="fas {% if b.is_active %}fa-eye-slash{% else %}fa-eye{% endif %}"></i>
-                                </button>
-                            </form>
-                            <form method="POST" action="{{ url_for('admin.merchant_api_broadcast_delete', b_id=b.id) }}" style="display: inline;" onsubmit="return confirm('Hapus pesan broadcast ini?');">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" class="btn-action-icon" style="background: #fee2e2; color: #b91c1c;" title="Hapus">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </form>
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% else %}
-    <div style="background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 10px; padding: 14px; text-align: center; color: #94a3b8; font-size: 12px;">
-        Belum ada broadcast aktif ke layar kasir POS. Klik <b>"Tulis Broadcast Kasir Baru"</b> untuk mengirim pengumuman.
-    </div>
-    {% endif %}
-</div>
-
-<!-- ========================================================================= -->
-<!-- 3. MONITOR TRANSAKSI JALUR POS & 1-KLIK PUSH ULANG WEBHOOK SN             -->
-<!-- ========================================================================= -->
-<div id="sec-pos-trx" class="api-card" style="border-left: 4px solid #8b5cf6;">
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px;">
-        <div>
-            <div style="font-size: 15px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px;">
-                <i class="fas fa-exchange-alt" style="color: #8b5cf6;"></i>
-                Monitor Transaksi Jalur Kasir POS (30 Transaksi Terakhir)
-            </div>
-            <div style="font-size: 12px; color: #64748b; margin-top: 2px;">
-                Jika kasir warung melapor <i>"Di POS masih Pending / SN Token PLN belum muncul"</i>, klik tombol <b>Push Ulang SN ke POS</b> di bawah untuk menembak ulang status & SN secara instan.
-            </div>
-        </div>
-    </div>
-
-    {% if pos_transactions %}
-    <div style="border: 1px solid #e2e8f0; border-radius: 10px; overflow-x: auto;">
-        <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
-            <thead>
-                <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 10.5px; text-transform: uppercase;">
-                    <th style="padding: 10px 12px;">Waktu (WIB)</th>
-                    <th style="padding: 10px 12px;">Ref ID POS</th>
-                    <th style="padding: 10px 12px;">Toko Kasir</th>
-                    <th style="padding: 10px 12px;">Produk & Tujuan</th>
-                    <th style="padding: 10px 12px;">Harga Modal</th>
-                    <th style="padding: 10px 12px;">SN / Keterangan Provider</th>
-                    <th style="padding: 10px 12px; text-align: center;">Status</th>
-                    <th style="padding: 10px 12px; text-align: center;">Aksi Admin</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for t in pos_transactions %}
-                <tr style="border-bottom: 1px solid #f1f5f9;">
-                    <td style="padding: 10px 12px; font-family: monospace; font-size: 11px; color: #64748b; white-space: nowrap;">
-                        {{ t.created_at_wib }}
-                    </td>
-                    <td style="padding: 10px 12px; font-family: monospace; font-weight: 800; color: #0369a1; white-space: nowrap;">
-                        {{ t.ref_id }}
-                    </td>
-                    <td style="padding: 10px 12px;">
-                        <div style="font-weight: 800; color: #1e293b;">{{ t.merchant_name }}</div>
-                        <div style="font-size: 10.5px; font-family: monospace; color: #64748b;">{{ t.merchant_code }}</div>
-                    </td>
-                    <td style="padding: 10px 12px;">
-                        <div style="font-weight: 800; color: #0f172a;">{{ t.product_name }} <span style="color: #64748b; font-weight: 600;">({{ t.sku_code }})</span></div>
-                        <div style="font-family: monospace; font-size: 11.5px; color: #0284c7; font-weight: 700;">Tujuan: {{ t.target_number }}</div>
-                    </td>
-                    <td style="padding: 10px 12px; font-family: monospace; font-weight: 800; color: #0f172a; white-space: nowrap;">
-                        Rp {{ "{:,.0f}".format(t.amount or 0).replace(',', '.') }}
-                    </td>
-                    <td style="padding: 10px 12px; font-family: monospace; font-size: 11px; color: #334155; max-width: 220px; word-break: break-all;">
-                        {{ t.sn or '-' }}
-                    </td>
-                    <td style="padding: 10px 12px; text-align: center; white-space: nowrap;">
-                        {% if t.status == 'SUCCESS' %}
-                        <span class="api-badge badge-active"><i class="fas fa-check-circle"></i> SUCCESS</span>
-                        {% elif t.status in ['PENDING', 'PROCESSING', 'PROSES'] %}
-                        <span class="api-badge badge-warning"><i class="fas fa-spinner fa-spin"></i> {{ t.status }}</span>
-                        {% else %}
-                        <span class="api-badge badge-inactive"><i class="fas fa-times-circle"></i> {{ t.status }}</span>
-                        {% endif %}
-                    </td>
-                    <td style="padding: 10px 12px; text-align: center; white-space: nowrap;">
-                        <form method="POST" action="{{ url_for('admin.merchant_api_resend_trx_webhook', trx_id=t.id) }}" style="display: inline;">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="btn-action-icon" style="background: #ede9fe; color: #6d28d9; border: 1px solid #ddd6fe;" title="Cek provider & tembak ulang status/SN ke Webhook POS">
-                                <i class="fas fa-paper-plane"></i> Push Ulang SN ke POS
-                            </button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% else %}
-    <div style="background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 10px; padding: 16px; text-align: center; color: #94a3b8; font-size: 12px;">
-        Belum ada riwayat transaksi PPOB dari jalur kasir POS (<code>API_GATEWAY</code>).
-    </div>
-    {% endif %}
-</div>
-
-<!-- ========================================================================= -->
-<!-- 4. DAFTAR TOKO / KREDENSIAL API MERCHANT POS                              -->
-<!-- ========================================================================= -->
-<div id="sec-merchants" class="section-header" style="margin-top: 10px;">
-    <i class="fas fa-store" style="color: #10b981;"></i> Daftar Toko & Kredensial API Merchant POS ({{ merchants|length }})
-</div>
-
-{% if merchants %}
-    {% for m in merchants %}
-    {% set user_bal = (m.user.balance or 0) if m.user else 0 %}
-    {% set user_role = (m.user.get_effective_role() if m.user and m.user.get_effective_role is defined else (m.user.role if m.user else 'user')) %}
-    <div class="api-card" style="{% if m.is_active and user_bal < 50000 %}border: 1.5px solid #fca5a5;{% endif %}">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; border-bottom: 1px solid #f1f5f9; padding-bottom: 14px;">
+<div id="tab-merchants" class="pos-tab-content">
+    <div class="pos-card">
+        <div class="pos-card-header">
             <div>
-                <div style="font-size: 16px; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                    <i class="fas fa-store" style="color: #0284c7;"></i>
-                    {{ m.name }}
+                <div style="font-size: 16px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-store" style="color: #10b981;"></i> Daftar Kasir Toko POS & Saldo
+                    <span class="api-badge badge-info">Siap Skala Ratusan Kasir</span>
+                </div>
+                <div style="font-size: 12px; color: #64748b; margin-top: 2px;">
+                    Kelola seluruh warung & kasir digital mitra. Klik <b>Kelola Kunci</b> untuk melihat kredensial API & Master Key lengkap.
+                </div>
+            </div>
+            <button type="button" onclick="document.getElementById('modalCreateApiKey').style.display='flex'" class="btn-action-icon" style="background: #10b981; color: white; padding: 8px 16px; font-size: 12px;">
+                <i class="fas fa-plus"></i> Tambah Kasir Baru
+            </button>
+        </div>
+
+        <!-- LIVE SEARCH & FILTER TOOLBAR -->
+        <div class="pos-toolbar">
+            <div style="position: relative; flex: 1; min-width: 240px;">
+                <i class="fas fa-search" style="position: absolute; left: 12px; top: 12px; color: #94a3b8; font-size: 12px;"></i>
+                <input type="text" id="searchMerchantInput" class="pos-search-input" placeholder="Cari nama toko, ID tenant, nama pemilik, atau nomor WA..." onkeyup="filterMerchants()">
+            </div>
+            <select id="filterStatusSelect" class="pos-filter-select" onchange="filterMerchants()">
+                <option value="all">Semua Status</option>
+                <option value="active">Aktif Saja</option>
+                <option value="inactive">Nonaktif Saja</option>
+                <option value="low_balance">Saldo Kritis (&lt; Rp 50.000)</option>
+            </select>
+            <select id="filterTierSelect" class="pos-filter-select" onchange="filterMerchants()">
+                <option value="all">Semua Tier Harga</option>
+                <option value="user">USER (Reguler)</option>
+                <option value="reseller">RESELLER (Agen)</option>
+                <option value="vip">VIP (Grosir)</option>
+            </select>
+            <div style="font-size: 11.5px; color: #64748b; font-weight: 700; white-space: nowrap;">
+                Menampilkan <span id="mchVisibleCount" style="color: #0f172a; font-weight: 900;">{{ merchants|length }}</span> dari {{ merchants|length }} Toko
+            </div>
+        </div>
+
+        {% if merchants %}
+        <div class="pos-table-wrapper">
+            <table class="pos-table">
+                <thead>
+                    <tr>
+                        <th style="width: 240px;">Toko & ID Tenant</th>
+                        <th>Pemilik & WhatsApp</th>
+                        <th>Saldo Kasir</th>
+                        <th>Tier Harga</th>
+                        <th>Status & Webhook</th>
+                        <th style="text-align: center; width: 220px;">Aksi Cepat</th>
+                    </tr>
+                </thead>
+                <tbody id="merchantTableBody">
+                    {% for m in merchants %}
+                    {% set user_bal = (m.user.balance or 0) if m.user else 0 %}
+                    {% set user_role = (m.user.get_effective_role() if m.user and m.user.get_effective_role is defined else (m.user.role if m.user else 'user')) %}
+                    <tr class="mch-row" 
+                        data-search="{{ (m.name ~ ' ' ~ m.get_tenant_id() ~ ' ' ~ m.merchant_id ~ ' ' ~ (m.user.name if m.user else '') ~ ' ' ~ (m.user.phone if m.user else ''))|lower }}"
+                        data-status="{% if m.is_active %}active{% else %}inactive{% endif %}"
+                        data-tier="{{ user_role|lower }}"
+                        data-low-bal="{% if m.is_active and user_bal < 50000 %}true{% else %}false{% endif %}">
+                        
+                        <!-- 1. TOKO & ID TENANT -->
+                        <td>
+                            <div style="font-weight: 800; font-size: 13.5px; color: #0f172a; display: flex; align-items: center; gap: 6px;">
+                                <i class="fas fa-store" style="color: #0284c7;"></i> {{ m.name }}
+                            </div>
+                            <div style="margin-top: 3px; display: flex; align-items: center; gap: 5px;">
+                                <span style="font-family: monospace; font-size: 11px; background: #f0f9ff; color: #0369a1; padding: 2px 6px; border-radius: 4px; border: 1px solid #bae6fd; font-weight: 800;">
+                                    {{ m.get_tenant_id() }}
+                                </span>
+                                <button type="button" class="copy-btn" onclick="copyText('{{ m.get_tenant_id() }}', this)" title="Salin ID Toko" style="padding: 1px 5px; font-size: 9.5px;">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                            <div style="font-size: 10.5px; color: #94a3b8; margin-top: 2px;">
+                                Aktif: {{ m.formatted_last_used_at }}
+                            </div>
+                        </td>
+
+                        <!-- 2. PEMILIK & WHATSAPP -->
+                        <td>
+                            <div style="font-weight: 700; color: #1e293b;">
+                                {{ (m.user.name or 'User #' ~ m.user_id) if m.user else 'User #' ~ m.user_id }}
+                            </div>
+                            {% if m.user %}
+                            {% set m_wa = ('62' ~ m.user.phone[1:]) if m.user.phone and m.user.phone.startswith('0') else m.user.phone %}
+                            <div style="margin-top: 3px;">
+                                <a href="https://wa.me/{{ m_wa }}" target="_blank" style="color: #15803d; font-weight: 800; font-size: 11px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; background: #dcfce7; padding: 2px 7px; border-radius: 5px;">
+                                    <i class="fab fa-whatsapp"></i> {{ m.user.phone }}
+                                </a>
+                            </div>
+                            {% else %}
+                            <span style="font-size: 11px; color: #ef4444; font-weight: 700;">(User Terhapus)</span>
+                            {% endif %}
+                        </td>
+
+                        <!-- 3. SALDO KASIR -->
+                        <td>
+                            <div style="font-size: 14px; font-weight: 900; color: {% if user_bal < 50000 %}#dc2626{% else %}#15803d{% endif %}; font-family: monospace;">
+                                Rp {{ "{:,.0f}".format(user_bal).replace(',', '.') }}
+                            </div>
+                            {% if m.is_active and user_bal < 50000 %}
+                            <div style="margin-top: 3px;">
+                                <span class="api-badge badge-inactive" style="font-size: 10px; padding: 1px 6px;">
+                                    <i class="fas fa-exclamation-triangle"></i> Saldo Tipis
+                                </span>
+                            </div>
+                            {% endif %}
+                        </td>
+
+                        <!-- 4. TIER HARGA -->
+                        <td>
+                            <span class="api-badge {% if user_role == 'vip' %}badge-purple{% elif user_role == 'reseller' %}badge-info{% else %}badge-active{% endif %}" style="text-transform: uppercase;">
+                                <i class="fas fa-crown"></i> {{ user_role }}
+                            </span>
+                        </td>
+
+                        <!-- 5. STATUS & WEBHOOK -->
+                        <td>
+                            <div style="display: flex; flex-direction: column; gap: 4px;">
+                                <div>
+                                    {% if m.is_active %}
+                                    <span class="api-badge badge-active"><i class="fas fa-check-circle"></i> AKTIF</span>
+                                    {% else %}
+                                    <span class="api-badge badge-inactive"><i class="fas fa-times-circle"></i> NONAKTIF</span>
+                                    {% endif %}
+                                </div>
+                                <div style="font-size: 10.5px; color: {% if m.webhook_url %}#0284c7{% else %}#94a3b8{% endif %}; font-weight: 700;">
+                                    <i class="fas fa-globe"></i> {% if m.webhook_url %}Webhook OK{% else %}No Webhook{% endif %}
+                                </div>
+                            </div>
+                        </td>
+
+                        <!-- 6. AKSI CEPAT -->
+                        <td align="center">
+                            <div style="display: inline-flex; align-items: center; gap: 5px; flex-wrap: wrap; justify-content: center;">
+                                <!-- 1-Klik Masuk Kasir (SSO) -->
+                                <a href="{{ url_for('admin.merchant_api_open_pos', key_id=m.id) }}" target="_blank" class="btn-action-icon" style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: white;" title="Masuk Otomatis ke POS Kasir Toko Ini (SSO Bypass)">
+                                    <i class="fas fa-rocket"></i> Kasir
+                                </a>
+
+                                <!-- Topup Saldo -->
+                                <button type="button" class="btn-action-icon" style="background: #dcfce7; color: #15803d; border: 1px solid #86efac;" onclick="openBalanceModal('{{ m.id }}', '{{ m.name|e }}', '{{ "{:,.0f}".format(user_bal).replace(",", ".") }}')" title="Topup / Koreksi Saldo Kasir">
+                                    <i class="fas fa-wallet"></i> Saldo
+                                </button>
+
+                                <!-- Buka Modal Detail & Kredensial Lengkap -->
+                                <button type="button" class="btn-action-icon" style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1;" onclick="document.getElementById('modalDetail_{{ m.id }}').style.display='flex'" title="Lihat Kunci API, Master Key, & Kontrol Toko">
+                                    <i class="fas fa-sliders-h"></i> Kelola
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div id="mchEmptySearchNotice" style="display: none; padding: 30px; text-align: center; color: #94a3b8; font-size: 13px;">
+            <i class="fas fa-search" style="font-size: 28px; margin-bottom: 8px; color: #cbd5e1; display: block;"></i>
+            Tidak ada toko POS yang cocok dengan kriteria pencarian / filter Anda.
+        </div>
+        {% else %}
+        <div style="padding: 40px; text-align: center; color: #94a3b8; background: #f8fafc; border-radius: 10px; border: 1px dashed #cbd5e1;">
+            <i class="fas fa-cash-register" style="font-size: 36px; margin-bottom: 10px; color: #cbd5e1; display: block;"></i>
+            <div style="font-weight: 800; font-size: 14px; color: #475569;">Belum Ada Toko POS Terdaftar</div>
+            <div style="font-size: 12px; margin-top: 4px;">Klik "Buat API Key Manual" atau terima pendaftaran 1-klik dari aplikasi kasir.</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+
+<!-- ========================================================================= -->
+<!-- TAB 2: ANTREAN PENGAJUAN AKTIVASI 1-KLIK                                  -->
+<!-- ========================================================================= -->
+<div id="tab-provisions" class="pos-tab-content" style="display: none;">
+    <div class="pos-card" style="border-left: 4px solid #f59e0b;">
+        <div class="pos-card-header">
+            <div>
+                <div style="font-size: 16px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-bolt" style="color: #f59e0b;"></i> Antrean Pengajuan Aktivasi 1-Klik dari Web POS (ipaypos.my.id)
+                    {% if pending_provisions_count > 0 %}
+                    <span class="api-badge badge-warning"><i class="fas fa-clock"></i> {{ pending_provisions_count }} Menunggu Persetujuan</span>
+                    {% else %}
+                    <span class="api-badge badge-active"><i class="fas fa-check-circle"></i> Semua Terproses</span>
+                    {% endif %}
+                </div>
+                <div style="font-size: 12px; color: #64748b; margin-top: 2px;">
+                    Saat pemilik warung klik <b>"Daftar & Hubungkan Otomatis"</b> di POS, permohonan masuk ke tabel ini. Klik <b>Terima</b> untuk langsung membuatkan akun + API Key.
+                </div>
+            </div>
+        </div>
+
+        {% if provision_requests %}
+        <div class="pos-table-wrapper">
+            <table class="pos-table">
+                <thead>
+                    <tr>
+                        <th>Waktu</th>
+                        <th>ID Request / Tenant</th>
+                        <th>Nama Toko & Pemilik</th>
+                        <th>WhatsApp</th>
+                        <th>Merchant ID</th>
+                        <th style="text-align: center;">Status</th>
+                        <th style="text-align: center; width: 170px;">Aksi Admin</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pr in provision_requests %}
+                    <tr style="{% if pr.status == 'PENDING' %}background: #fffbeb; font-weight: 600;{% endif %}">
+                        <td style="font-family: monospace; font-size: 11px; color: #64748b; white-space: nowrap;">
+                            {{ pr.formatted_created_at }}
+                        </td>
+                        <td style="font-family: monospace;">
+                            <div style="font-weight: 800; color: #0f172a;">{{ pr.request_id }}</div>
+                            {% if pr.tenant_id %}
+                            <div style="font-size: 10.5px; color: #64748b;">Tenant: <code>{{ pr.tenant_id }}</code></div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div style="font-weight: 800; color: #1e293b;">{{ pr.store_name }}</div>
+                            <div style="font-size: 11px; color: #64748b;"><i class="fas fa-user"></i> {{ pr.owner_name }}</div>
+                        </td>
+                        <td style="white-space: nowrap;">
+                            {% set wa_clean = ('62' ~ pr.phone[1:]) if pr.phone and pr.phone.startswith('0') else pr.phone %}
+                            <a href="https://wa.me/{{ wa_clean }}" target="_blank" style="color: #15803d; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; background: #dcfce7; padding: 2px 7px; border-radius: 5px;">
+                                <i class="fab fa-whatsapp"></i> {{ pr.phone }}
+                            </a>
+                        </td>
+                        <td style="font-family: monospace; font-weight: 700; color: #0369a1;">
+                            {{ pr.merchant_id or '-' }}
+                        </td>
+                        <td align="center">
+                            {% if pr.status == 'APPROVED' %}
+                            <span class="api-badge badge-active"><i class="fas fa-check-circle"></i> Disetujui</span>
+                            {% elif pr.status == 'PENDING' %}
+                            <span class="api-badge badge-warning"><i class="fas fa-clock"></i> Menunggu</span>
+                            {% else %}
+                            <span class="api-badge badge-inactive" title="{{ pr.rejection_reason or '' }}"><i class="fas fa-times-circle"></i> Ditolak</span>
+                            {% endif %}
+                        </td>
+                        <td align="center">
+                            {% if pr.status == 'PENDING' %}
+                            <div style="display: inline-flex; gap: 5px;">
+                                <form method="POST" action="{{ url_for('admin.merchant_api_approve_provision', prov_id=pr.id) }}" style="display: inline;" onsubmit="return confirm('Setujui toko {{ pr.store_name }}? Akun & API Key akan langsung dibuat dan disambungkan otomatis ke POS mereka.');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn-action-icon" style="background: #10b981; color: white;">
+                                        <i class="fas fa-check"></i> Terima
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ url_for('admin.merchant_api_reject_provision', prov_id=pr.id) }}" style="display: inline;" onsubmit="var r = prompt('Alasan penolakan toko {{ pr.store_name }}:', 'Data toko belum lengkap'); if(!r) return false; this.reason.value = r; return true;">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="reason" value="">
+                                    <button type="submit" class="btn-action-icon" style="background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca;">
+                                        <i class="fas fa-times"></i> Tolak
+                                    </button>
+                                </form>
+                            </div>
+                            {% else %}
+                            <span style="font-size: 11px; color: #94a3b8; font-weight: 700;">Selesai</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div style="padding: 30px; text-align: center; color: #94a3b8; background: #f8fafc; border-radius: 10px; border: 1px dashed #cbd5e1;">
+            <i class="fas fa-check-circle" style="font-size: 32px; color: #10b981; margin-bottom: 8px; display: block;"></i>
+            Belum ada permohonan aktivasi 1-klik baru dari aplikasi Web POS.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+
+<!-- ========================================================================= -->
+<!-- TAB 3: TIKET DEPOSIT KASIR TERPUSAT                                       -->
+<!-- ========================================================================= -->
+<div id="tab-deposits" class="pos-tab-content" style="display: none;">
+    <div class="pos-card" style="border-left: 4px solid #0284c7;">
+        <div class="pos-card-header">
+            <div>
+                <div style="font-size: 16px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-hand-holding-usd" style="color: #0284c7;"></i> Pusat Tiket Deposit Saldo Kasir POS
+                    {% if pending_deposits_count > 0 %}
+                    <span class="api-badge badge-warning"><i class="fas fa-exclamation-circle"></i> {{ pending_deposits_count }} Menunggu Verifikasi</span>
+                    {% else %}
+                    <span class="api-badge badge-active"><i class="fas fa-check-circle"></i> Semua Terverifikasi</span>
+                    {% endif %}
+                </div>
+                <div style="font-size: 12px; color: #64748b; margin-top: 2px;">
+                    Semua permintaan isi saldo deposit yang dikirim dari mesin kasir warung terkumpul di sini. Klik <b>Setujui</b> untuk menambah saldo otomatis.
+                </div>
+            </div>
+        </div>
+
+        {% if all_deposit_requests %}
+        <div class="pos-table-wrapper">
+            <table class="pos-table">
+                <thead>
+                    <tr>
+                        <th>Waktu (WIB)</th>
+                        <th>No. Ref Tiket</th>
+                        <th>Toko Kasir</th>
+                        <th>Metode & Rincian Kode Unik</th>
+                        <th>Nominal Transfer</th>
+                        <th style="text-align: center;">Status</th>
+                        <th style="text-align: center; width: 170px;">Aksi Admin</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for dep in all_deposit_requests %}
+                    <tr style="{% if dep.status == 'PENDING' %}background: #fffbeb; font-weight: 600;{% endif %}">
+                        <td style="font-family: monospace; font-size: 11px; color: #64748b; white-space: nowrap;">
+                            {{ dep.created_at_wib }}
+                        </td>
+                        <td style="font-family: monospace; font-weight: 800; color: #0369a1; white-space: nowrap;">
+                            {{ dep.ref_id }}
+                        </td>
+                        <td>
+                            <div style="font-weight: 800; color: #1e293b;">{{ dep.merchant_name }}</div>
+                            <div style="font-size: 10.5px; font-family: monospace; color: #64748b;">
+                                Tenant: {{ dep.merchant_tenant_id or dep.merchant_code }}
+                            </div>
+                        </td>
+                        <td>
+                            <div style="font-weight: 700; color: #334155;">{{ dep.payment_method }}</div>
+                            {% if dep.sn and 'KODE_UNIK:' in dep.sn %}
+                            <div style="font-size: 10.5px; color: #0284c7; margin-top: 2px;">
+                                Kode Unik: <b style="color: #b45309;">+{{ dep.sn.split('KODE_UNIK:')[1].split('|')[0] }}</b>
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div style="font-weight: 900; font-family: monospace; font-size: 13.5px; color: #0f172a;">
+                                Rp {{ "{:,.0f}".format(dep.amount or 0).replace(',', '.') }}
+                            </div>
+                        </td>
+                        <td align="center">
+                            {% if dep.status == 'SUCCESS' %}
+                            <span class="api-badge badge-active"><i class="fas fa-check-circle"></i> Disetujui</span>
+                            {% elif dep.status == 'PENDING' %}
+                            <span class="api-badge badge-warning"><i class="fas fa-clock"></i> Menunggu</span>
+                            {% else %}
+                            <span class="api-badge badge-inactive"><i class="fas fa-times-circle"></i> {{ dep.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td align="center">
+                            {% if dep.status == 'PENDING' %}
+                            <div style="display: inline-flex; gap: 5px;">
+                                <form method="POST" action="{{ url_for('admin.merchant_api_approve_deposit', trx_id=dep.id) }}" style="display: inline;" onsubmit="return confirm('Setujui tiket deposit {{ dep.ref_id }} sebesar Rp {{ "{:,.0f}".format(dep.amount or 0) }}? Saldo akun kasir akan langsung bertambah.');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn-action-icon" style="background: #10b981; color: white;">
+                                        <i class="fas fa-check"></i> Setujui
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ url_for('admin.merchant_api_reject_deposit', trx_id=dep.id) }}" style="display: inline;" onsubmit="var r = prompt('Masukkan alasan penolakan tiket {{ dep.ref_id }}:', 'Mutasi transfer belum masuk'); if(!r) return false; this.reason.value = r; return true;">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="reason" value="">
+                                    <button type="submit" class="btn-action-icon" style="background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca;">
+                                        <i class="fas fa-times"></i> Tolak
+                                    </button>
+                                </form>
+                            </div>
+                            {% else %}
+                            <span style="font-size: 11px; color: #94a3b8; font-weight: 700;">Selesai</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div style="padding: 30px; text-align: center; color: #94a3b8; background: #f8fafc; border-radius: 10px; border: 1px dashed #cbd5e1;">
+            <i class="fas fa-check-circle" style="font-size: 32px; color: #10b981; margin-bottom: 8px; display: block;"></i>
+            Belum ada permohonan tiket deposit saldo dari mesin kasir POS.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+
+<!-- ========================================================================= -->
+<!-- TAB 4: MONITOR TRANSAKSI JALUR POS                                        -->
+<!-- ========================================================================= -->
+<div id="tab-transactions" class="pos-tab-content" style="display: none;">
+    <div class="pos-card" style="border-left: 4px solid #8b5cf6;">
+        <div class="pos-card-header">
+            <div>
+                <div style="font-size: 16px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-exchange-alt" style="color: #8b5cf6;"></i> Monitor Transaksi Kasir POS (30 Transaksi Terakhir)
+                </div>
+                <div style="font-size: 12px; color: #64748b; margin-top: 2px;">
+                    Jika kasir melapor transaksi pending atau SN belum muncul di struk kasir, klik <b>Push Ulang SN ke POS</b> untuk menembak ulang Webhook secara instan.
+                </div>
+            </div>
+        </div>
+
+        {% if pos_transactions %}
+        <div class="pos-table-wrapper">
+            <table class="pos-table">
+                <thead>
+                    <tr>
+                        <th>Waktu (WIB)</th>
+                        <th>Ref ID POS</th>
+                        <th>Toko Kasir</th>
+                        <th>Produk & Tujuan</th>
+                        <th>Harga Modal</th>
+                        <th>SN / Provider</th>
+                        <th style="text-align: center;">Status</th>
+                        <th style="text-align: center; width: 140px;">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in pos_transactions %}
+                    <tr>
+                        <td style="font-family: monospace; font-size: 11px; color: #64748b; white-space: nowrap;">
+                            {{ t.created_at_wib }}
+                        </td>
+                        <td style="font-family: monospace; font-weight: 800; color: #0369a1; white-space: nowrap;">
+                            {{ t.ref_id }}
+                        </td>
+                        <td>
+                            <div style="font-weight: 800; color: #1e293b;">{{ t.merchant_name }}</div>
+                            <div style="font-size: 10.5px; font-family: monospace; color: #64748b;">{{ t.merchant_code }}</div>
+                        </td>
+                        <td>
+                            <div style="font-weight: 800; color: #0f172a;">{{ t.product_name }} <span style="color: #64748b; font-weight: 600;">({{ t.sku_code }})</span></div>
+                            <div style="font-family: monospace; font-size: 11px; color: #0284c7; font-weight: 700;">Tujuan: {{ t.target_number }}</div>
+                        </td>
+                        <td style="font-family: monospace; font-weight: 800; color: #0f172a; white-space: nowrap;">
+                            Rp {{ "{:,.0f}".format(t.amount or 0).replace(',', '.') }}
+                        </td>
+                        <td style="font-family: monospace; font-size: 11px; color: #334155; max-width: 220px; word-break: break-all;">
+                            {{ t.sn or '-' }}
+                        </td>
+                        <td align="center">
+                            {% if t.status == 'SUCCESS' %}
+                            <span class="api-badge badge-active"><i class="fas fa-check-circle"></i> SUCCESS</span>
+                            {% elif t.status in ['PENDING', 'PROCESSING', 'PROSES'] %}
+                            <span class="api-badge badge-warning"><i class="fas fa-spinner fa-spin"></i> {{ t.status }}</span>
+                            {% else %}
+                            <span class="api-badge badge-inactive"><i class="fas fa-times-circle"></i> {{ t.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td align="center">
+                            <form method="POST" action="{{ url_for('admin.merchant_api_resend_trx_webhook', trx_id=t.id) }}" style="display: inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn-action-icon" style="background: #ede9fe; color: #6d28d9; border: 1px solid #ddd6fe;" title="Tembak ulang status dan SN token ke Webhook POS">
+                                    <i class="fas fa-paper-plane"></i> Push SN
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div style="padding: 30px; text-align: center; color: #94a3b8; background: #f8fafc; border-radius: 10px; border: 1px dashed #cbd5e1;">
+            Belum ada riwayat transaksi PPOB dari kasir POS (<code>API_GATEWAY</code>).
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+
+<!-- ========================================================================= -->
+<!-- TAB 5: BROADCAST LAYAR KASIR POS                                          -->
+<!-- ========================================================================= -->
+<div id="tab-broadcasts" class="pos-tab-content" style="display: none;">
+    <div class="pos-card" style="border-left: 4px solid #0284c7;">
+        <div class="pos-card-header">
+            <div>
+                <div style="font-size: 16px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-bullhorn" style="color: #0284c7;"></i> Broadcast Pengumuman ke Layar Kasir POS
+                </div>
+                <div style="font-size: 12px; color: #64748b; margin-top: 2px;">
+                    Kirim pesan info gangguan provider, cut-off PLN, atau promo harga modal langsung ke running banner mesin kasir POS.
+                </div>
+            </div>
+            <button type="button" onclick="document.getElementById('modalBroadcastPos').style.display='flex'" class="btn-action-icon" style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 8px 14px; font-size: 12px;">
+                <i class="fas fa-plus"></i> Tulis Broadcast Baru
+            </button>
+        </div>
+
+        {% if pos_broadcasts %}
+        <div class="pos-table-wrapper">
+            <table class="pos-table">
+                <thead>
+                    <tr>
+                        <th>Waktu</th>
+                        <th>Kategori</th>
+                        <th>Target Kasir</th>
+                        <th>Judul & Isi Pesan</th>
+                        <th style="text-align: center;">Status</th>
+                        <th style="text-align: center; width: 110px;">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for b in pos_broadcasts %}
+                    <tr>
+                        <td style="font-family: monospace; font-size: 11px; color: #64748b; white-space: nowrap;">
+                            {{ b.formatted_created_at }}
+                        </td>
+                        <td style="white-space: nowrap;">
+                            {% if b.level == 'urgent' %}
+                            <span class="api-badge badge-inactive"><i class="fas fa-exclamation-circle"></i> DARURAT</span>
+                            {% elif b.level == 'warning' %}
+                            <span class="api-badge badge-warning"><i class="fas fa-exclamation-triangle"></i> GANGGUAN</span>
+                            {% elif b.level == 'promo' %}
+                            <span class="api-badge badge-active"><i class="fas fa-gift"></i> PROMO</span>
+                            {% else %}
+                            <span class="api-badge badge-info"><i class="fas fa-info-circle"></i> INFO</span>
+                            {% endif %}
+                        </td>
+                        <td style="font-family: monospace; font-weight: 700;">
+                            {% if not b.target_merchant_id or b.target_merchant_id == 'ALL' %}
+                            <span style="color: #0284c7;">SEMUA KASIR</span>
+                            {% else %}
+                            <span style="color: #0f172a;">{{ b.target_merchant_id }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div style="font-weight: 800; color: #0f172a;">{{ b.title }}</div>
+                            <div style="font-size: 11.5px; color: #475569; margin-top: 2px;">{{ b.message }}</div>
+                        </td>
+                        <td align="center">
+                            {% if b.is_active %}
+                            <span class="api-badge badge-active">Tayang</span>
+                            {% else %}
+                            <span class="api-badge" style="background: #f1f5f9; color: #64748b;">Nonaktif</span>
+                            {% endif %}
+                        </td>
+                        <td align="center">
+                            <div style="display: inline-flex; gap: 5px;">
+                                <form method="POST" action="{{ url_for('admin.merchant_api_broadcast_toggle', b_id=b.id) }}" style="display: inline;">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn-action-icon" style="background: #f1f5f9; color: #334155;" title="Aktifkan / Matikan Tayang">
+                                        <i class="fas {% if b.is_active %}fa-eye-slash{% else %}fa-eye{% endif %}"></i>
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ url_for('admin.merchant_api_broadcast_delete', b_id=b.id) }}" style="display: inline;" onsubmit="return confirm('Hapus pesan broadcast ini?');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn-action-icon" style="background: #fee2e2; color: #b91c1c;" title="Hapus">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div style="padding: 30px; text-align: center; color: #94a3b8; background: #f8fafc; border-radius: 10px; border: 1px dashed #cbd5e1;">
+            Belum ada broadcast aktif ke layar kasir POS. Klik <b>"Tulis Broadcast Baru"</b> untuk mengirim pesan.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+
+<!-- ========================================================================= -->
+<!-- TAB 6: PENGATURAN MASTER FITUR WEB POS                                    -->
+<!-- ========================================================================= -->
+<div id="tab-config" class="pos-tab-content" style="display: none;">
+    <div class="pos-card" style="border: 1.5px solid {% if pos_settings.enabled == '1' %}#86efac{% else %}#fde047{% endif %}; background: {% if pos_settings.enabled == '1' %}linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%){% else %}linear-gradient(180deg, #fefce8 0%, #ffffff 100%){% endif %};">
+        <div class="pos-card-header">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 44px; height: 44px; border-radius: 12px; background: {% if pos_settings.enabled == '1' %}#dcfce7; color: #15803d;{% else %}#fef3c7; color: #b45309;{% endif %} display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                    <i class="fas {% if pos_settings.enabled == '1' %}fa-store-alt{% else %}fa-tools{% endif %}"></i>
+                </div>
+                <div>
+                    <div style="font-size: 16px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+                        Kontrol Master Status Fitur Kasir Web POS
+                        {% if pos_settings.enabled == '1' %}
+                        <span class="api-badge badge-active"><i class="fas fa-check-circle"></i> AKTIF UNTUK MEMBER</span>
+                        {% else %}
+                        <span class="api-badge badge-warning"><i class="fas fa-clock"></i> MODE PENGEMBANGAN (PREVIEW)</span>
+                        {% endif %}
+                    </div>
+                    <div style="font-size: 12px; color: #64748b; margin-top: 2px;">
+                        Kelola status on/off akses aplikasi kasir ritel untuk seluruh member dan arahkan domain server produksi.
+                    </div>
+                </div>
+            </div>
+            <a href="{{ url_for('user.pos_announcement') }}" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: #0284c7; background: #e0f2fe; padding: 6px 14px; border-radius: 8px; text-decoration: none;">
+                <i class="fas fa-external-link-alt"></i> Pratinjau Halaman Pengumuman
+            </a>
+        </div>
+
+        <form method="POST" action="{{ url_for('admin.merchant_api_save_settings') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin-bottom: 16px;">
+                <div class="switch-wrapper" style="margin-bottom: 16px;">
+                    <label class="pos-toggle-switch">
+                        <input type="checkbox" name="pos_feature_enabled" value="1" id="togglePosFeature" {% if pos_settings.enabled == '1' %}checked{% endif %}>
+                        <span class="pos-slider"></span>
+                    </label>
+                    <div>
+                        <label for="togglePosFeature" style="font-size: 14px; font-weight: 800; color: #1e293b; cursor: pointer; display: block;">
+                            Status Fitur Web POS di Aplikasi Member
+                        </label>
+                        <span style="font-size: 12px; color: #64748b;">
+                            {% if pos_settings.enabled == '1' %}
+                            <b style="color: #16a34a;">AKTIF:</b> Member yang klik "Buka Kasir Web POS" akan langsung dialihkan via SSO ke URL Produksi di bawah.
+                            {% else %}
+                            <b style="color: #d97706;">NONAKTIF / TAHAP PENGEMBANGAN:</b> Member yang klik "Buka Kasir Web POS" dialihkan ke Halaman Pengumuman Elegan.
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px;">
+                    <div>
+                        <label style="font-size: 12px; font-weight: 700; color: #334155; display: block; margin-bottom: 6px;">
+                            <i class="fas fa-globe" style="color: #0284c7;"></i> Domain / URL Web POS Produksi:
+                        </label>
+                        <input type="text" name="pos_web_url" value="{{ pos_settings.web_url }}" placeholder="https://ipaypos.my.id" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1.5px solid #cbd5e1; font-size: 13px; font-family: monospace; box-sizing: border-box;">
+                    </div>
+
+                    <div>
+                        <label style="font-size: 12px; font-weight: 700; color: #334155; display: block; margin-bottom: 6px;">
+                            <i class="fas fa-bullhorn" style="color: #f59e0b;"></i> Judul Pengumuman Preview:
+                        </label>
+                        <input type="text" name="pos_announcement_title" value="{{ pos_settings.announcement_title }}" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1.5px solid #cbd5e1; font-size: 13px; box-sizing: border-box;">
+                    </div>
+                </div>
+
+                <div style="margin-top: 14px;">
+                    <label style="font-size: 12px; font-weight: 700; color: #334155; display: block; margin-bottom: 6px;">
+                        <i class="fas fa-comment-alt" style="color: #64748b;"></i> Ringkasan Pesan Pengumuman:
+                    </label>
+                    <input type="text" name="pos_announcement_message" value="{{ pos_settings.announcement_message }}" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1.5px solid #cbd5e1; font-size: 13px; box-sizing: border-box;">
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end;">
+                <button type="submit" class="btn-action-icon" style="background: linear-gradient(135deg, #0f766e 0%, #115e59 100%); color: white; padding: 10px 22px; font-size: 13px;">
+                    <i class="fas fa-save"></i> Simpan Konfigurasi Web POS
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- ========================================================================= -->
+<!-- MODAL DETAIL TOKO & KREDENSIAL LENGKAP PER MERCHANT                        -->
+<!-- ========================================================================= -->
+{% for m in merchants %}
+{% set user_bal = (m.user.balance or 0) if m.user else 0 %}
+{% set user_role = (m.user.get_effective_role() if m.user and m.user.get_effective_role is defined else (m.user.role if m.user else 'user')) %}
+<div id="modalDetail_{{ m.id }}" class="pos-modal-backdrop">
+    <div class="pos-modal-box pos-modal-box-large">
+        <!-- MODAL HEADER -->
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px;">
+            <div>
+                <div style="font-size: 17px; font-weight: 900; color: #0f172a; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <i class="fas fa-store" style="color: #0284c7;"></i> {{ m.name }}
                     <span class="api-badge" style="background: #e0f2fe; color: #0369a1; font-weight: 800; font-family: monospace; border: 1px solid #bae6fd;">
-                        <i class="fas fa-fingerprint"></i> ID TOKO: {{ m.get_tenant_id() }}
+                        ID: {{ m.get_tenant_id() }}
                     </span>
                     {% if m.is_active %}
                     <span class="api-badge badge-active"><i class="fas fa-check-circle"></i> AKTIF</span>
                     {% else %}
                     <span class="api-badge badge-inactive"><i class="fas fa-times-circle"></i> NONAKTIF</span>
                     {% endif %}
-                    <span class="api-badge badge-info" style="text-transform: uppercase;"><i class="fas fa-crown"></i> TIER: {{ user_role }}</span>
-                    {% if m.is_active and user_bal < 50000 %}
-                    <span class="api-badge badge-inactive"><i class="fas fa-exclamation-triangle"></i> SALDO TIPIS (&lt; Rp 50.000)</span>
-                    {% endif %}
+                    <span class="api-badge badge-info" style="text-transform: uppercase;"><i class="fas fa-crown"></i> {{ user_role }}</span>
                 </div>
-                <div style="font-size: 12px; color: #64748b; margin-top: 6px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                    <span>Pemilik Akun: <b>{{ (m.user.name or 'User #' ~ m.user_id) if m.user else 'User #' ~ m.user_id }}</b></span>
+                <div style="font-size: 12px; color: #64748b; margin-top: 4px;">
+                    Pemilik: <b>{{ (m.user.name or 'User #' ~ m.user_id) if m.user else 'User #' ~ m.user_id }}</b> 
+                    &bull; Saldo: <b style="color: {% if user_bal < 50000 %}#dc2626{% else %}#15803d{% endif %};">Rp {{ "{:,.0f}".format(user_bal).replace(',', '.') }}</b>
                     {% if m.user %}
-                    {% set m_wa = ('62' ~ m.user.phone[1:]) if m.user.phone and m.user.phone.startswith('0') else m.user.phone %}
-                    &bull;
-                    <a href="https://wa.me/{{ m_wa }}" target="_blank" style="color: #15803d; font-weight: 800; text-decoration: none;">
-                        <i class="fab fa-whatsapp"></i> {{ m.user.phone }}
-                    </a>
-                    &bull;
-                    <span>Saldo Deposit: <b style="font-size: 13px; color: {% if user_bal < 50000 %}#dc2626{% else %}#15803d{% endif %};">Rp {{ "{:,.0f}".format(user_bal).replace(',', '.') }}</b></span>
-                    {% else %}
-                    &bull; <span style="color: #ef4444; font-weight: bold;">(Akun User Terhapus/Tidak Ditemukan)</span>
+                    &bull; WA: <b style="color: #15803d;">{{ m.user.phone }}</b>
                     {% endif %}
                 </div>
             </div>
-
-            <!-- TOMBOL KONTROL LENGKAP PER TOKO POS -->
-            <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
-                <!-- 0. 1-Klik Buka dan Masuk Otomatis ke POS Kasir -->
-                <a href="{{ url_for('admin.merchant_api_open_pos', key_id=m.id) }}" target="_blank" class="btn-action-icon" style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: white; border: none; font-weight: 800; text-decoration: none; box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);" title="Buka dan Masuk Otomatis ke POS Kasir Toko Ini Tanpa Password (SSO Bypass)">
-                    <i class="fas fa-rocket"></i> Masuk Kasir (1-Klik)
-                </a>
-
-                <!-- 0b. Reset Sandi & PIN Kasir Langsung -->
-                <button type="button" class="btn-action-icon" style="background: #fef2f2; color: #dc2626; border: 1.5px solid #fca5a5; font-weight: 800;" onclick="openResetPasswordModal('{{ m.id }}', '{{ m.name|e }}', '{{ m.get_tenant_id() }}', '{{ (m.user.phone if m.user else '')|e }}')" title="Reset Sandi & PIN Kasir Toko Ini Langsung">
-                    <i class="fas fa-key"></i> Reset Sandi/PIN
-                </button>
-
-                <!-- 1. Topup / Koreksi Saldo Cepat -->
-                <button type="button" class="btn-action-icon" style="background: #dcfce7; color: #15803d; border: 1px solid #86efac;" onclick="openBalanceModal('{{ m.id }}', '{{ m.name|e }}', '{{ "{:,.0f}".format(user_bal).replace(",", ".") }}')" title="Tambah atau Potong Saldo Toko POS">
-                    <i class="fas fa-wallet"></i> + Topup / Saldo
-                </button>
-
-                <!-- 2. Edit Nama / Webhook / Tier Harga -->
-                <button type="button" class="btn-action-icon" style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;" onclick="openEditMerchantModal('{{ m.id }}', '{{ m.name|e }}', '{{ (m.webhook_url or '')|e }}', '{{ (m.ip_whitelist or '')|e }}', '{{ user_role }}')" title="Edit Konfigurasi & Level Harga (User/Reseller/VIP)">
-                    <i class="fas fa-edit"></i> Edit & Tier
-                </button>
-
-                <!-- 3. Sync / Inject Ulang Kredensial ke POS -->
-                <form method="POST" action="{{ url_for('admin.merchant_api_push_credentials', key_id=m.id) }}" style="display: inline;">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn-action-icon" style="background: #ede9fe; color: #6d28d9; border: 1px solid #ddd6fe;" title="Kirim / Inject ulang API Key & Secret Key ke server POS">
-                        <i class="fas fa-bolt"></i> Sync ke POS
-                    </button>
-                </form>
-
-                <!-- 4. Tes Ping Webhook -->
-                {% if m.webhook_url %}
-                <form method="POST" action="{{ url_for('admin.merchant_api_ping_webhook', key_id=m.id) }}" style="display: inline;">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn-action-icon" style="background: #f1f5f9; color: #0f766e; border: 1px solid #cbd5e1;" title="Tes Ping Koneksi ke Server Webhook POS">
-                        <i class="fas fa-heartbeat"></i> Ping POS
-                    </button>
-                </form>
-                {% endif %}
-
-                <!-- 5. Toggle Aktif/Nonaktif -->
-                <form method="POST" action="{{ url_for('admin.merchant_api_toggle', key_id=m.id) }}" style="display: inline;">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn-action-icon" style="background: {% if m.is_active %}#fef3c7; color: #b45309;{% else %}#dcfce7; color: #15803d;{% endif %}" title="{% if m.is_active %}Nonaktifkan Kunci{% else %}Aktifkan Kunci{% endif %}">
-                        <i class="fas {% if m.is_active %}fa-pause{% else %}fa-play{% endif %}"></i>
-                    </button>
-                </form>
-
-                <!-- 6. Reset Secret Key (Auto-Sync ke POS) -->
-                <form method="POST" action="{{ url_for('admin.merchant_api_regenerate', key_id=m.id) }}" style="display: inline;" onsubmit="return confirm('Reset Secret Key untuk {{ m.name }}? Kunci baru juga akan otomatis di-push ke server POS.');">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn-action-icon" style="background: #f1f5f9; color: #475569;" title="Buat Ulang Secret Key & Auto-Sync ke POS">
-                        <i class="fas fa-sync-alt"></i>
-                    </button>
-                </form>
-
-                <!-- 7. Hapus Permanen -->
-                <form method="POST" action="{{ url_for('admin.merchant_api_delete', key_id=m.id) }}" style="display: inline;" onsubmit="return confirm('Hapus permanen API Key ini? Kasir yang menggunakan kunci ini tidak akan bisa bertransaksi!');">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn-action-icon" style="background: #fee2e2; color: #b91c1c;" title="Hapus Kredensial">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </form>
-            </div>
+            <button type="button" onclick="document.getElementById('modalDetail_{{ m.id }}').style.display='none'" style="background: none; border: none; font-size: 22px; color: #94a3b8; cursor: pointer; line-height: 1;">&times;</button>
         </div>
 
-        <!-- BARIS KREDENSIAL: ID TOKO, MERCHANT ID, API KEY, SECRET KEY -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; margin-bottom: 14px;">
+        <!-- 4 KOTAK KREDENSIAL API -->
+        <div style="font-size: 12px; font-weight: 800; color: #475569; margin-bottom: 8px; text-transform: uppercase;">
+            <i class="fas fa-key" style="color: #0284c7;"></i> Kredensial API Toko POS
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-bottom: 14px;">
             <div>
-                <div style="font-size: 11px; font-weight: 800; color: #0284c7; margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">
-                    <i class="fas fa-store-alt"></i> ID TOKO (TENANT ID POS)
-                </div>
+                <div style="font-size: 10.5px; font-weight: 800; color: #0284c7; margin-bottom: 3px;">ID TOKO (TENANT ID POS)</div>
                 <div class="code-box" style="background: #f0f9ff; border: 1.5px solid #bae6fd;">
                     <span style="font-weight: 900; color: #0369a1; font-family: monospace;">{{ m.get_tenant_id() }}</span>
-                    <button type="button" class="copy-btn" onclick="copyText('{{ m.get_tenant_id() }}', this)" title="Salin ID Toko"><i class="fas fa-copy"></i> Salin</button>
+                    <button type="button" class="copy-btn" onclick="copyText('{{ m.get_tenant_id() }}', this)"><i class="fas fa-copy"></i> Salin</button>
                 </div>
             </div>
             <div>
-                <div style="font-size: 11px; font-weight: 800; color: #64748b; margin-bottom: 4px;">MERCHANT ID</div>
+                <div style="font-size: 10.5px; font-weight: 800; color: #64748b; margin-bottom: 3px;">MERCHANT ID</div>
                 <div class="code-box">
                     <span>{{ m.merchant_id }}</span>
                     <button type="button" class="copy-btn" onclick="copyText('{{ m.merchant_id }}', this)"><i class="fas fa-copy"></i> Salin</button>
                 </div>
             </div>
             <div>
-                <div style="font-size: 11px; font-weight: 800; color: #64748b; margin-bottom: 4px;">API KEY (HEADER X-API-KEY)</div>
+                <div style="font-size: 10.5px; font-weight: 800; color: #64748b; margin-bottom: 3px;">API KEY (HEADER X-API-KEY)</div>
                 <div class="code-box">
                     <span>{{ m.api_key }}</span>
                     <button type="button" class="copy-btn" onclick="copyText('{{ m.api_key }}', this)"><i class="fas fa-copy"></i> Salin</button>
                 </div>
             </div>
             <div>
-                <div style="font-size: 11px; font-weight: 800; color: #64748b; margin-bottom: 4px;">SECRET KEY (MD5 SIGNATURE)</div>
+                <div style="font-size: 10.5px; font-weight: 800; color: #64748b; margin-bottom: 3px;">SECRET KEY (SIGNATURE)</div>
                 <div class="code-box">
                     <span id="sec_{{ m.id }}">{{ m.secret_key[:8] }}••••••••••••••••</span>
                     <div style="display: flex; gap: 4px;">
@@ -634,266 +1165,131 @@
             </div>
         </div>
 
-        <!-- FITUR MASTER RECOVERY KEY UNTUK PEMULIHAN AKUN POS -->
-        <div style="margin-bottom: 14px; background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border: 1.5px solid #fde68a; border-radius: 12px; padding: 12px 16px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <!-- MASTER RECOVERY KEY UNTUK LUPA PASSWORD -->
+        <div style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border: 1.5px solid #fde68a; border-radius: 12px; padding: 12px 14px; margin-bottom: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                 <div>
                     <div style="font-size: 12px; font-weight: 900; color: #92400e; display: flex; align-items: center; gap: 6px;">
-                        <i class="fas fa-key" style="color: #d97706;"></i> KODE PEMULIHAN DARURAT (MASTER KEY TOKO POS)
+                        <i class="fas fa-key" style="color: #d97706;"></i> MASTER RECOVERY KEY KASIR POS
                         {% if m.master_recovery_key %}
-                        <span class="api-badge" style="background: #dcfce7; color: #15803d; border: 1px solid #86efac; font-size: 10px;">
-                            <i class="fas fa-check-circle"></i> AKTIF & TERSINKRON
+                        <span class="api-badge" style="background: #dcfce7; color: #15803d; border: 1px solid #86efac; font-size: 9.5px;">
+                            <i class="fas fa-check-circle"></i> TERSINKRON
                         </span>
                         {% else %}
-                        <span class="api-badge" style="background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; font-size: 10px;">
-                            <i class="fas fa-exclamation-circle"></i> BELUM DIGENERATE
+                        <span class="api-badge" style="background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; font-size: 9.5px;">
+                            <i class="fas fa-exclamation-circle"></i> BELUM ADA
                         </span>
                         {% endif %}
                     </div>
-                    <div style="font-size: 11px; color: #78350f; margin-top: 3px;">
-                        Kunci master ini dipakai pemilik toko untuk reset password/PIN di menu <b>"Lupa Password Kasir"</b> pada aplikasi POS.
+                    <div style="font-size: 11px; color: #78350f; margin-top: 2px;">
+                        Dipakai pemilik toko untuk reset password di menu "Lupa Password Kasir" pada POS.
                     </div>
                 </div>
 
-                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                     {% if m.master_recovery_key %}
-                    <div class="code-box" style="background: white; border: 1.5px solid #f59e0b; padding: 6px 12px; margin: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                        <span style="font-family: monospace; font-size: 13px; font-weight: 900; color: #b45309; letter-spacing: 0.8px;">{{ m.master_recovery_key }}</span>
+                    <div class="code-box" style="background: white; border: 1.5px solid #f59e0b; padding: 4px 10px; margin: 0;">
+                        <span style="font-family: monospace; font-size: 12px; font-weight: 900; color: #b45309;">{{ m.master_recovery_key }}</span>
                         <button type="button" class="copy-btn" onclick="copyText('{{ m.master_recovery_key }}', this)" title="Salin Master Key"><i class="fas fa-copy"></i> Salin</button>
                     </div>
                     {% endif %}
 
-                    <form method="POST" action="{{ url_for('admin.merchant_api_generate_masterkey', key_id=m.id) }}" style="display: inline;" onsubmit="return confirm('Generate / Reset Master Recovery Key untuk toko {{ m.name }}?\nKunci baru akan otomatis disinkronkan ke server POS.');">
+                    <form method="POST" action="{{ url_for('admin.merchant_api_generate_masterkey', key_id=m.id) }}" style="display: inline;" onsubmit="return confirm('Generate / Reset Master Key untuk toko {{ m.name }}?');">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 800; font-size: 11.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(217, 119, 6, 0.35);">
-                            <i class="fas fa-key"></i> {% if m.master_recovery_key %}Reset Master Key{% else %}Generate Master Key{% endif %}
+                        <button type="submit" class="btn-action-icon" style="background: #d97706; color: white;">
+                            <i class="fas fa-sync-alt"></i> {% if m.master_recovery_key %}Reset Key{% else %}Generate Key{% endif %}
                         </button>
                     </form>
-
-                    <button type="button" onclick="openResetPasswordModal('{{ m.id }}', '{{ m.name|e }}', '{{ m.get_tenant_id() }}', '{{ (m.user.phone if m.user else '')|e }}')" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 800; font-size: 11.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(220, 38, 38, 0.35);" title="Reset Password dan PIN Kasir Toko Ini Langsung">
-                        <i class="fas fa-unlock-alt"></i> Reset Password Kasir Langsung
-                    </button>
                 </div>
             </div>
         </div>
 
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; font-size: 11px; color: #64748b; background: #f8fafc; padding: 10px 14px; border-radius: 8px;">
-            <div>
-                <i class="fas fa-globe" style="color: #0284c7;"></i> Webhook POS: <code>{{ m.webhook_url or 'Belum diatur (Klik Edit & Tier untuk mengatur)' }}</code>
-                {% if m.ip_whitelist %}
-                &bull; <i class="fas fa-shield-alt"></i> IP Whitelist: <code>{{ m.ip_whitelist }}</code>
-                {% endif %}
-            </div>
-            <div>
-                <i class="fas fa-clock"></i> Terakhir Aktif: <b>{{ m.formatted_last_used_at if m.formatted_last_used_at is defined else (m.last_used_at if m.last_used_at else 'Belum pernah digunakan') }}</b>
-            </div>
-        </div>
-
-        <!-- SECTION: PERMINTAAN DEPOSIT SALDO DARI KASIR -->
-        <div style="margin-top: 18px; border-top: 1px dashed #cbd5e1; padding-top: 16px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
-                <div style="font-size: 13px; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 6px;">
-                    <i class="fas fa-hand-holding-usd" style="color: #0284c7;"></i>
-                    Tiket Deposit Saldo dari Kasir ({{ m.merchant_id }})
-                    {% set m_pending = m.deposit_requests|selectattr('status', 'equalto', 'PENDING')|list %}
-                    {% if m_pending|length > 0 %}
-                    <span class="api-badge badge-warning">
-                        <i class="fas fa-exclamation-circle"></i> {{ m_pending|length }} Menunggu Verifikasi
-                    </span>
-                    {% endif %}
-                </div>
-                <div style="font-size: 11px; color: #64748b;">
-                    Total Riwayat: <b>{{ m.deposit_requests|length }} Tiket</b>
-                </div>
-            </div>
-
-            {% if m.deposit_requests %}
-            <div style="border: 1px solid #e2e8f0; border-radius: 10px; overflow-x: auto; background: white;">
-                <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
-                    <thead>
-                        <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.5px;">
-                            <th style="padding: 10px 12px;">Waktu (WIB)</th>
-                            <th style="padding: 10px 12px;">No. Ref Tiket</th>
-                            <th style="padding: 10px 12px;">Metode Transfer</th>
-                            <th style="padding: 10px 12px;">Rincian Transfer (Kode Unik)</th>
-                            <th style="padding: 10px 12px; text-align: center;">Status</th>
-                            <th style="padding: 10px 12px; text-align: center;">Aksi Admin</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for dep in m.deposit_requests %}
-                        <tr style="border-bottom: 1px solid #f1f5f9;">
-                            <td style="padding: 10px 12px; font-family: monospace; font-size: 11px; color: #64748b; white-space: nowrap;">
-                                {{ dep.created_at_wib }}
-                            </td>
-                            <td style="padding: 10px 12px; font-family: monospace; font-weight: 700; color: #0369a1; white-space: nowrap;">
-                                {{ dep.ref_id }}
-                            </td>
-                            <td style="padding: 10px 12px; font-weight: 700; color: #334155;">
-                                <span style="background: #f1f5f9; padding: 3px 8px; border-radius: 6px; font-size: 11px;">
-                                    {{ dep.payment_method }}
-                                </span>
-                            </td>
-                            <td style="padding: 10px 12px;">
-                                <div style="font-weight: 900; font-family: monospace; font-size: 13px; color: #0f172a;">
-                                    Rp {{ "{:,.0f}".format(dep.amount or 0).replace(',', '.') }}
-                                </div>
-                                {% if dep.sn and 'KODE_UNIK:' in dep.sn %}
-                                <div style="font-size: 10.5px; color: #0284c7; margin-top: 2px;">
-                                    <i class="fas fa-tag"></i> 
-                                    Kode Unik: <b style="color: #b45309;">+{{ dep.sn.split('KODE_UNIK:')[1].split('|')[0] }}</b>
-                                    {% if 'POKOK:' in dep.sn %}
-                                    &bull; Pokok: Rp {{ "{:,.0f}".format(dep.sn.split('POKOK:')[1].split('|')[0]|float).replace(',', '.') }}
-                                    {% endif %}
-                                </div>
-                                {% endif %}
-                            </td>
-                            <td style="padding: 10px 12px; text-align: center; white-space: nowrap;">
-                                {% if dep.status == 'SUCCESS' %}
-                                <span class="api-badge badge-active"><i class="fas fa-check-circle"></i> Disetujui</span>
-                                {% elif dep.status == 'PENDING' %}
-                                <span class="api-badge badge-warning"><i class="fas fa-clock"></i> Menunggu Verifikasi</span>
-                                {% else %}
-                                <span class="api-badge badge-inactive"><i class="fas fa-times-circle"></i> {{ dep.status }}</span>
-                                {% endif %}
-                            </td>
-                            <td style="padding: 10px 12px; text-align: center; white-space: nowrap;">
-                                {% if dep.status == 'PENDING' %}
-                                <div style="display: flex; gap: 6px; justify-content: center; align-items: center;">
-                                    <form method="POST" action="{{ url_for('admin.merchant_api_approve_deposit', trx_id=dep.id) }}" style="display: inline;" onsubmit="return confirm('Setujui tiket deposit {{ dep.ref_id }}? Saldo akun kasir akan otomatis bertambah.');">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" style="background: #10b981; color: white; border: none; padding: 5px 12px; border-radius: 6px; font-weight: 800; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
-                                            <i class="fas fa-check"></i> Setujui
-                                        </button>
-                                    </form>
-                                    <form method="POST" action="{{ url_for('admin.merchant_api_reject_deposit', trx_id=dep.id) }}" style="display: inline;" onsubmit="var r = prompt('Masukkan alasan penolakan tiket {{ dep.ref_id }}:', 'Mutasi transfer belum masuk'); if(!r) return false; this.reason.value = r; return true;">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <input type="hidden" name="reason" value="">
-                                        <button type="submit" style="background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; padding: 5px 10px; border-radius: 6px; font-weight: 700; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
-                                            <i class="fas fa-times"></i> Tolak
-                                        </button>
-                                    </form>
-                                </div>
-                                {% else %}
-                                <span style="font-size: 11px; color: #94a3b8;">Selesai</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% else %}
-            <div style="background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 10px; padding: 12px; text-align: center; color: #94a3b8; font-size: 12px;">
-                <i class="fas fa-inbox" style="margin-right: 4px;"></i> Belum ada permintaan deposit saldo dari kasir ini.
-            </div>
+        <!-- WEBHOOK & IP WHITELIST INFO -->
+        <div style="font-size: 11px; color: #64748b; background: #f8fafc; padding: 8px 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #e2e8f0;">
+            <i class="fas fa-globe" style="color: #0284c7;"></i> Webhook POS: <code>{{ m.webhook_url or 'Belum diatur' }}</code>
+            {% if m.ip_whitelist %}
+            &bull; <i class="fas fa-shield-alt"></i> IP Whitelist: <code>{{ m.ip_whitelist }}</code>
             {% endif %}
         </div>
-    </div>
-    {% endfor %}
-{% else %}
-    <div class="api-card" style="text-align: center; padding: 40px 20px;">
-        <i class="fas fa-key" style="font-size: 48px; color: #cbd5e1; margin-bottom: 14px;"></i>
-        <div style="font-weight: 800; font-size: 16px; color: #475569;">Belum Ada Kredensial API Merchant</div>
-        <div style="font-size: 13px; color: #94a3b8; margin-top: 6px; max-width: 480px; margin-left: auto; margin-right: auto;">
-            Klik tombol <b>"Buat API Key Manual"</b> di atas atau gunakan fitur <b>1-Klik Daftar</b> langsung dari aplikasi Web POS.
+
+        <!-- TOMBOL KONTROL LENGKAP -->
+        <div style="font-size: 12px; font-weight: 800; color: #475569; margin-bottom: 8px; text-transform: uppercase;">
+            <i class="fas fa-cogs" style="color: #0284c7;"></i> Tindakan Kontrol Kasir
         </div>
-    </div>
-{% endif %}
+        <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px;">
+            <!-- Reset Password Kasir Langsung -->
+            <button type="button" class="btn-action-icon" style="background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5;" onclick="openResetPasswordModal('{{ m.id }}', '{{ m.name|e }}', '{{ m.get_tenant_id() }}', '{{ (m.user.phone if m.user else '')|e }}')">
+                <i class="fas fa-key"></i> Reset Sandi / PIN
+            </button>
 
-<!-- ========================================================================= -->
-<!-- 5. KONTROL MASTER ON / OFF FITUR WEB POS                                  -->
-<!-- ========================================================================= -->
-<div id="sec-master-config" class="api-card" style="border: 1.5px solid {% if pos_settings.enabled == '1' %}#86efac{% else %}#fde047{% endif %}; background: {% if pos_settings.enabled == '1' %}linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%){% else %}linear-gradient(180deg, #fefce8 0%, #ffffff 100%){% endif %}; position: relative; overflow: hidden;">
-    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
-        <div style="display: flex; align-items: center; gap: 12px;">
-            <div style="width: 44px; height: 44px; border-radius: 12px; background: {% if pos_settings.enabled == '1' %}#dcfce7; color: #15803d;{% else %}#fef3c7; color: #b45309;{% endif %} display: flex; align-items: center; justify-content: center; font-size: 20px;">
-                <i class="fas {% if pos_settings.enabled == '1' %}fa-store-alt{% else %}fa-tools{% endif %}"></i>
-            </div>
-            <div>
-                <div style="font-size: 16px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px;">
-                    Kontrol Master Status Fitur Kasir Web POS
-                    {% if pos_settings.enabled == '1' %}
-                    <span class="api-badge badge-active"><i class="fas fa-check-circle"></i> AKTIF UNTUK MEMBER</span>
-                    {% else %}
-                    <span class="api-badge badge-warning"><i class="fas fa-clock"></i> MODE PENGEMBANGAN (PREVIEW)</span>
-                    {% endif %}
-                </div>
-                <div style="font-size: 12px; color: #64748b; margin-top: 2px;">
-                    Kelola status on/off akses aplikasi kasir ritel untuk seluruh member dan arahkan domain server produksi.
-                </div>
-            </div>
-        </div>
-        <a href="{{ url_for('user.pos_announcement') }}" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: #0284c7; background: #e0f2fe; padding: 6px 14px; border-radius: 8px; text-decoration: none;">
-            <i class="fas fa-external-link-alt"></i> Pratinjau Halaman Pengumuman Member
-        </a>
-    </div>
+            <!-- Edit Nama, Webhook, Tier -->
+            <button type="button" class="btn-action-icon" style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;" onclick="openEditMerchantModal('{{ m.id }}', '{{ m.name|e }}', '{{ (m.webhook_url or '')|e }}', '{{ (m.ip_whitelist or '')|e }}', '{{ user_role }}')">
+                <i class="fas fa-edit"></i> Edit & Tier Harga
+            </button>
 
-    <form method="POST" action="{{ url_for('admin.merchant_api_save_settings') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <!-- Sync Kredensial ke Server POS -->
+            <form method="POST" action="{{ url_for('admin.merchant_api_push_credentials', key_id=m.id) }}" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn-action-icon" style="background: #ede9fe; color: #6d28d9; border: 1px solid #ddd6fe;" title="Inject kredensial ulang ke server POS">
+                    <i class="fas fa-bolt"></i> Sync ke POS
+                </button>
+            </form>
 
-        <div style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin-bottom: 16px;">
-            <div class="switch-wrapper" style="margin-bottom: 16px;">
-                <label class="pos-toggle-switch">
-                    <input type="checkbox" name="pos_feature_enabled" value="1" id="togglePosFeature" {% if pos_settings.enabled == '1' %}checked{% endif %}>
-                    <span class="pos-slider"></span>
-                </label>
-                <div>
-                    <label for="togglePosFeature" style="font-size: 14px; font-weight: 800; color: #1e293b; cursor: pointer; display: block;">
-                        Status Fitur Web POS di Aplikasi Member
-                    </label>
-                    <span style="font-size: 12px; color: #64748b;">
-                        {% if pos_settings.enabled == '1' %}
-                        <b style="color: #16a34a;">AKTIF:</b> Member yang klik tombol "Buka Kasir Web POS" akan langsung dialihkan via SSO ke URL Produksi di bawah.
-                        {% else %}
-                        <b style="color: #d97706;">NONAKTIF / TAHAP PENGEMBANGAN:</b> Member yang klik "Buka Kasir Web POS" dialihkan ke Halaman Pengumuman Elegan.
-                        {% endif %}
-                    </span>
-                </div>
-            </div>
+            <!-- Ping Webhook -->
+            {% if m.webhook_url %}
+            <form method="POST" action="{{ url_for('admin.merchant_api_ping_webhook', key_id=m.id) }}" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn-action-icon" style="background: #f1f5f9; color: #0f766e; border: 1px solid #cbd5e1;">
+                    <i class="fas fa-heartbeat"></i> Ping Webhook
+                </button>
+            </form>
+            {% endif %}
 
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px;">
-                <div>
-                    <label style="font-size: 12px; font-weight: 700; color: #334155; display: block; margin-bottom: 6px;">
-                        <i class="fas fa-globe" style="color: #0284c7;"></i> Domain / URL Web POS Produksi:
-                    </label>
-                    <input type="text" name="pos_web_url" value="{{ pos_settings.web_url }}" placeholder="https://ipaypos.my.id" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1.5px solid #cbd5e1; font-size: 13px; font-family: monospace; box-sizing: border-box;">
-                </div>
+            <!-- Toggle Aktif/Nonaktif -->
+            <form method="POST" action="{{ url_for('admin.merchant_api_toggle', key_id=m.id) }}" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn-action-icon" style="background: {% if m.is_active %}#fffbeb; color: #b45309; border: 1px solid #fde68a;{% else %}#dcfce7; color: #15803d; border: 1px solid #86efac;{% endif %}">
+                    <i class="fas {% if m.is_active %}fa-pause{% else %}fa-play{% endif %}"></i> {% if m.is_active %}Nonaktifkan{% else %}Aktifkan{% endif %}
+                </button>
+            </form>
 
-                <div>
-                    <label style="font-size: 12px; font-weight: 700; color: #334155; display: block; margin-bottom: 6px;">
-                        <i class="fas fa-bullhorn" style="color: #f59e0b;"></i> Judul Pengumuman Preview:
-                    </label>
-                    <input type="text" name="pos_announcement_title" value="{{ pos_settings.announcement_title }}" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1.5px solid #cbd5e1; font-size: 13px; box-sizing: border-box;">
-                </div>
-            </div>
+            <!-- Reset Secret Key -->
+            <form method="POST" action="{{ url_for('admin.merchant_api_regenerate', key_id=m.id) }}" style="display: inline;" onsubmit="return confirm('Reset Secret Key untuk {{ m.name }}? Kunci baru akan otomatis disinkronkan ke server POS.');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn-action-icon" style="background: #f8fafc; color: #475569; border: 1px solid #cbd5e1;" title="Buat Ulang Secret Key">
+                    <i class="fas fa-sync-alt"></i> Reset Secret Key
+                </button>
+            </form>
 
-            <div style="margin-top: 14px;">
-                <label style="font-size: 12px; font-weight: 700; color: #334155; display: block; margin-bottom: 6px;">
-                    <i class="fas fa-comment-alt" style="color: #64748b;"></i> Ringkasan Pesan Pengumuman:
-                </label>
-                <input type="text" name="pos_announcement_message" value="{{ pos_settings.announcement_message }}" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1.5px solid #cbd5e1; font-size: 13px; box-sizing: border-box;">
-            </div>
+            <!-- Hapus Permanen -->
+            <form method="POST" action="{{ url_for('admin.merchant_api_delete', key_id=m.id) }}" style="display: inline;" onsubmit="return confirm('PERINGATAN: Hapus permanen API Key ini? Kasir ini tidak akan bisa bertransaksi lagi!');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn-action-icon" style="background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5;">
+                    <i class="fas fa-trash"></i> Hapus Toko
+                </button>
+            </form>
         </div>
 
-        <div style="display: flex; justify-content: flex-end; gap: 10px;">
-            <button type="submit" style="background: linear-gradient(135deg, #0f766e 0%, #115e59 100%); color: white; border: none; padding: 10px 20px; border-radius: 10px; font-weight: 800; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
-                <i class="fas fa-save"></i> Simpan Konfigurasi Web POS
+        <div style="display: flex; justify-content: flex-end; border-top: 1px solid #f1f5f9; padding-top: 14px;">
+            <button type="button" onclick="document.getElementById('modalDetail_{{ m.id }}').style.display='none'" class="btn-action-icon" style="background: #f1f5f9; color: #334155; padding: 8px 18px; font-size: 12px;">
+                Tutup
             </button>
         </div>
-    </form>
+    </div>
 </div>
+{% endfor %}
+
 
 <!-- ========================================================================= -->
-<!-- MODAL 1: BUAT API KEY BARU                                                -->
+<!-- MODAL: BUAT API KEY MANUAL                                                -->
 <!-- ========================================================================= -->
-<div id="modalCreateApiKey" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 99999; align-items: center; justify-content: center; padding: 15px;">
-    <div style="background: white; border-radius: 16px; width: 100%; max-width: 500px; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.2);">
+<div id="modalCreateApiKey" class="pos-modal-backdrop">
+    <div class="pos-modal-box">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
             <div style="font-size: 16px; font-weight: 900; color: #0f172a; display: flex; align-items: center; gap: 8px;">
-                <i class="fas fa-key" style="color: #10b981;"></i> Buat Kredensial API Baru
+                <i class="fas fa-key" style="color: #10b981;"></i> Buat Kredensial API Kasir Baru
             </div>
-            <button type="button" onclick="document.getElementById('modalCreateApiKey').style.display='none'" style="background: none; border: none; font-size: 18px; color: #94a3b8; cursor: pointer;">&times;</button>
+            <button type="button" onclick="document.getElementById('modalCreateApiKey').style.display='none'" style="background: none; border: none; font-size: 20px; color: #94a3b8; cursor: pointer;">&times;</button>
         </div>
 
         <form method="POST" action="{{ url_for('admin.merchant_api_create') }}">
@@ -901,7 +1297,7 @@
 
             <div style="margin-bottom: 14px;">
                 <label style="display: block; font-size: 12px; font-weight: 800; color: #334155; margin-bottom: 6px;">Pilih Akun Pemilik API Key *</label>
-                <select name="user_id" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px;">
+                <select name="user_id" required style="width: 100%; padding: 10px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 13px;">
                     <option value="">-- Pilih Akun User / Agen --</option>
                     {% for u in users %}
                     <option value="{{ u.id }}">
@@ -912,91 +1308,97 @@
             </div>
 
             <div style="margin-bottom: 14px;">
-                <label style="display: block; font-size: 12px; font-weight: 800; color: #334155; margin-bottom: 6px;">Nama / Label Kasir</label>
-                <input type="text" name="name" placeholder="Contoh: Kasir Minimarket Cabang 1" value="Kasir Utama" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; box-sizing: border-box;">
+                <label style="display: block; font-size: 12px; font-weight: 800; color: #334155; margin-bottom: 6px;">Nama Toko / Label Kasir *</label>
+                <input type="text" name="name" placeholder="Contoh: Toko Barokah Jaya" value="Kasir Utama" required style="width: 100%; padding: 10px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 13px; box-sizing: border-box;">
             </div>
 
             <div style="margin-bottom: 14px;">
                 <label style="display: block; font-size: 12px; font-weight: 800; color: #334155; margin-bottom: 6px;">URL Webhook Callback POS (Opsional)</label>
-                <input type="url" name="webhook_url" placeholder="Contoh: https://ipaypos.my.id/api/ppob/webhook" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; box-sizing: border-box;">
+                <input type="url" name="webhook_url" placeholder="Contoh: https://ipaypos.my.id/api/ppob/webhook" style="width: 100%; padding: 10px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 13px; box-sizing: border-box;">
             </div>
 
             <div style="margin-bottom: 20px;">
                 <label style="display: block; font-size: 12px; font-weight: 800; color: #334155; margin-bottom: 6px;">IP Whitelist (Opsional)</label>
-                <input type="text" name="ip_whitelist" placeholder="Kosongkan jika IP Kasir dinamis" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; box-sizing: border-box;">
+                <input type="text" name="ip_whitelist" placeholder="Kosongkan jika IP Kasir dinamis" style="width: 100%; padding: 10px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 13px; box-sizing: border-box;">
             </div>
 
             <div style="display: flex; justify-content: flex-end; gap: 8px;">
-                <button type="button" onclick="document.getElementById('modalCreateApiKey').style.display='none'" style="padding: 10px 18px; border: 1px solid #cbd5e1; background: white; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer;">Batal</button>
-                <button type="submit" style="padding: 10px 20px; border: none; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border-radius: 8px; font-weight: 800; font-size: 13px; cursor: pointer;">Generate Kunci API</button>
+                <button type="button" onclick="document.getElementById('modalCreateApiKey').style.display='none'" class="btn-action-icon" style="padding: 10px 18px; background: white; border: 1px solid #cbd5e1; color: #334155;">Batal</button>
+                <button type="submit" class="btn-action-icon" style="padding: 10px 20px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;">
+                    <i class="fas fa-check"></i> Generate Kunci API
+                </button>
             </div>
         </form>
     </div>
 </div>
 
+
 <!-- ========================================================================= -->
-<!-- MODAL 2: EDIT KONFIGURASI TOKO & UBAH TIER HARGA (USER / RESELLER / VIP)  -->
+<!-- MODAL: EDIT KONFIGURASI TOKO & TIER HARGA                                 -->
 <!-- ========================================================================= -->
-<div id="modalEditMerchant" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 99999; align-items: center; justify-content: center; padding: 15px;">
-    <div style="background: white; border-radius: 16px; width: 100%; max-width: 500px; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.2);">
+<div id="modalEditMerchant" class="pos-modal-backdrop">
+    <div class="pos-modal-box">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
             <div style="font-size: 16px; font-weight: 900; color: #0f172a; display: flex; align-items: center; gap: 8px;">
                 <i class="fas fa-edit" style="color: #0284c7;"></i> Edit Toko POS & Tier Harga Modal
             </div>
-            <button type="button" onclick="document.getElementById('modalEditMerchant').style.display='none'" style="background: none; border: none; font-size: 18px; color: #94a3b8; cursor: pointer;">&times;</button>
+            <button type="button" onclick="document.getElementById('modalEditMerchant').style.display='none'" style="background: none; border: none; font-size: 20px; color: #94a3b8; cursor: pointer;">&times;</button>
         </div>
 
         <form id="formEditMerchant" method="POST" action="">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
             <div style="margin-bottom: 14px;">
-                <label style="display: block; font-size: 12px; font-weight: 800; color: #334155; margin-bottom: 6px;">Nama Toko / Kasir POS</label>
-                <input type="text" name="name" id="editMchName" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; box-sizing: border-box;">
+                <label style="display: block; font-size: 12px; font-weight: 800; color: #334155; margin-bottom: 6px;">Nama Toko / Kasir POS *</label>
+                <input type="text" name="name" id="editMchName" required style="width: 100%; padding: 10px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 13px; box-sizing: border-box;">
             </div>
 
             <div style="margin-bottom: 14px;">
-                <label style="display: block; font-size: 12px; font-weight: 800; color: #334155; margin-bottom: 6px;">Level / Tier Harga Modal PPOB</label>
-                <select name="user_role" id="editMchRole" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px;">
+                <label style="display: block; font-size: 12px; font-weight: 800; color: #334155; margin-bottom: 6px;">Level / Tier Harga Modal PPOB *</label>
+                <select name="user_role" id="editMchRole" style="width: 100%; padding: 10px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 13px; font-weight: 700;">
                     <option value="user">USER (Harga Member Reguler)</option>
                     <option value="reseller">RESELLER (Harga Agen / Mitra Konter)</option>
                     <option value="vip">VIP (Harga Termurah / Partai Besar)</option>
                 </select>
-                <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Saat diubah, katalog produk yang ditarik oleh kasir POS otomatis menyesuaikan harga tier ini.</div>
+                <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Katalog produk yang ditarik oleh kasir POS otomatis mengikuti harga tier ini.</div>
             </div>
 
             <div style="margin-bottom: 14px;">
                 <label style="display: block; font-size: 12px; font-weight: 800; color: #334155; margin-bottom: 6px;">URL Webhook Callback POS</label>
-                <input type="url" name="webhook_url" id="editMchWebhook" placeholder="https://ipaypos.my.id/api/ppob/webhook" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; box-sizing: border-box;">
+                <input type="url" name="webhook_url" id="editMchWebhook" placeholder="https://ipaypos.my.id/api/ppob/webhook" style="width: 100%; padding: 10px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 13px; box-sizing: border-box;">
             </div>
 
             <div style="margin-bottom: 20px;">
                 <label style="display: block; font-size: 12px; font-weight: 800; color: #334155; margin-bottom: 6px;">IP Whitelist (Opsional)</label>
-                <input type="text" name="ip_whitelist" id="editMchIp" placeholder="Kosongkan jika dinamis" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; box-sizing: border-box;">
+                <input type="text" name="ip_whitelist" id="editMchIp" placeholder="Kosongkan jika dinamis" style="width: 100%; padding: 10px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 13px; box-sizing: border-box;">
             </div>
 
             <div style="display: flex; justify-content: flex-end; gap: 8px;">
-                <button type="button" onclick="document.getElementById('modalEditMerchant').style.display='none'" style="padding: 10px 18px; border: 1px solid #cbd5e1; background: white; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer;">Batal</button>
-                <button type="submit" style="padding: 10px 20px; border: none; background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color: white; border-radius: 8px; font-weight: 800; font-size: 13px; cursor: pointer;">Simpan Perubahan</button>
+                <button type="button" onclick="document.getElementById('modalEditMerchant').style.display='none'" class="btn-action-icon" style="padding: 10px 18px; background: white; border: 1px solid #cbd5e1; color: #334155;">Batal</button>
+                <button type="submit" class="btn-action-icon" style="padding: 10px 20px; background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color: white;">
+                    <i class="fas fa-save"></i> Simpan Perubahan
+                </button>
             </div>
         </form>
     </div>
 </div>
 
+
 <!-- ========================================================================= -->
-<!-- MODAL 3: TOP-UP / KOREKSI SALDO CEPAT TOKO POS                            -->
+<!-- MODAL: KELOLA SALDO KASIR POS (TOPUP / POTONG)                            -->
 <!-- ========================================================================= -->
-<div id="modalAdjustBalance" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 99999; align-items: center; justify-content: center; padding: 15px;">
-    <div style="background: white; border-radius: 16px; width: 100%; max-width: 460px; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.2);">
+<div id="modalAdjustBalance" class="pos-modal-backdrop">
+    <div class="pos-modal-box" style="max-width: 480px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
             <div style="font-size: 16px; font-weight: 900; color: #0f172a; display: flex; align-items: center; gap: 8px;">
                 <i class="fas fa-wallet" style="color: #10b981;"></i> Kelola Saldo Kasir POS
             </div>
-            <button type="button" onclick="document.getElementById('modalAdjustBalance').style.display='none'" style="background: none; border: none; font-size: 18px; color: #94a3b8; cursor: pointer;">&times;</button>
+            <button type="button" onclick="document.getElementById('modalAdjustBalance').style.display='none'" style="background: none; border: none; font-size: 20px; color: #94a3b8; cursor: pointer;">&times;</button>
         </div>
 
-        <div style="background: #f8fafc; padding: 12px; border-radius: 10px; margin-bottom: 14px; font-size: 12px;">
+        <div style="background: #f8fafc; padding: 12px; border-radius: 10px; margin-bottom: 14px; font-size: 12.5px; border: 1px solid #e2e8f0;">
             Toko POS: <b id="balModalStoreName" style="color: #0f172a;">-</b><br>
-            Saldo Saat Ini: <b style="color: #15803d;">Rp <span id="balModalCurrent">0</span></b>
+            Saldo Saat Ini: <b style="color: #15803d; font-family: monospace;">Rp <span id="balModalCurrent">0</span></b>
         </div>
 
         <form id="formAdjustBalance" method="POST" action="">
@@ -1004,7 +1406,7 @@
 
             <div style="margin-bottom: 14px;">
                 <label style="display: block; font-size: 12px; font-weight: 800; color: #334155; margin-bottom: 6px;">Jenis Tindakan</label>
-                <select name="action_type" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; font-weight: 700;">
+                <select name="action_type" style="width: 100%; padding: 10px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 13px; font-weight: 700;">
                     <option value="add">➕ TAMBAH SALDO (Top-Up Manual / Talangan)</option>
                     <option value="sub">➖ POTONG SALDO (Koreksi / Tarik Saldo)</option>
                 </select>
@@ -1012,32 +1414,35 @@
 
             <div style="margin-bottom: 14px;">
                 <label style="display: block; font-size: 12px; font-weight: 800; color: #334155; margin-bottom: 6px;">Nominal (Rp) *</label>
-                <input type="number" name="amount" min="100" step="any" placeholder="Contoh: 100000" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; font-weight: 800; box-sizing: border-box;">
+                <input type="number" name="amount" min="100" step="any" placeholder="Contoh: 100000" required style="width: 100%; padding: 10px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 14px; font-weight: 800; box-sizing: border-box;">
             </div>
 
             <div style="margin-bottom: 20px;">
                 <label style="display: block; font-size: 12px; font-weight: 800; color: #334155; margin-bottom: 6px;">Catatan Mutasi</label>
-                <input type="text" name="notes" value="Top-Up Saldo Kasir POS oleh Admin" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; box-sizing: border-box;">
+                <input type="text" name="notes" value="Top-Up Saldo Kasir POS oleh Admin" required style="width: 100%; padding: 10px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 13px; box-sizing: border-box;">
             </div>
 
             <div style="display: flex; justify-content: flex-end; gap: 8px;">
-                <button type="button" onclick="document.getElementById('modalAdjustBalance').style.display='none'" style="padding: 10px 18px; border: 1px solid #cbd5e1; background: white; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer;">Batal</button>
-                <button type="submit" style="padding: 10px 20px; border: none; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border-radius: 8px; font-weight: 800; font-size: 13px; cursor: pointer;">Proses Saldo</button>
+                <button type="button" onclick="document.getElementById('modalAdjustBalance').style.display='none'" class="btn-action-icon" style="padding: 10px 18px; background: white; border: 1px solid #cbd5e1; color: #334155;">Batal</button>
+                <button type="submit" class="btn-action-icon" style="padding: 10px 20px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;">
+                    <i class="fas fa-check"></i> Proses Saldo
+                </button>
             </div>
         </form>
     </div>
 </div>
 
+
 <!-- ========================================================================= -->
-<!-- MODAL 4: BROADCAST PENGUMUMAN KE LAYAR KASIR POS                          -->
+<!-- MODAL: BROADCAST PENGUMUMAN LAYAR KASIR                                   -->
 <!-- ========================================================================= -->
-<div id="modalBroadcastPos" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 99999; align-items: center; justify-content: center; padding: 15px;">
-    <div style="background: white; border-radius: 16px; width: 100%; max-width: 520px; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.2);">
+<div id="modalBroadcastPos" class="pos-modal-backdrop">
+    <div class="pos-modal-box" style="max-width: 520px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
             <div style="font-size: 16px; font-weight: 900; color: #0f172a; display: flex; align-items: center; gap: 8px;">
                 <i class="fas fa-bullhorn" style="color: #0284c7;"></i> Kirim Broadcast ke Layar Kasir POS
             </div>
-            <button type="button" onclick="document.getElementById('modalBroadcastPos').style.display='none'" style="background: none; border: none; font-size: 18px; color: #94a3b8; cursor: pointer;">&times;</button>
+            <button type="button" onclick="document.getElementById('modalBroadcastPos').style.display='none'" style="background: none; border: none; font-size: 20px; color: #94a3b8; cursor: pointer;">&times;</button>
         </div>
 
         <form method="POST" action="{{ url_for('admin.merchant_api_broadcast_create') }}">
@@ -1046,7 +1451,7 @@
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
                 <div>
                     <label style="display: block; font-size: 12px; font-weight: 800; color: #334155; margin-bottom: 6px;">Target Kasir POS</label>
-                    <select name="target_merchant_id" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 12.5px; font-weight: 700;">
+                    <select name="target_merchant_id" style="width: 100%; padding: 10px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 12.5px; font-weight: 700;">
                         <option value="ALL">🌐 Semua Kasir POS Aktif</option>
                         {% for m in merchants %}
                         <option value="{{ m.merchant_id }}">🏪 {{ m.name }} ({{ m.merchant_id }})</option>
@@ -1054,8 +1459,8 @@
                     </select>
                 </div>
                 <div>
-                    <label style="display: block; font-size: 12px; font-weight: 800; color: #334155; margin-bottom: 6px;">Kategori / Warna Banner</label>
-                    <select name="level" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 12.5px; font-weight: 700;">
+                    <label style="display: block; font-size: 12px; font-weight: 800; color: #334155; margin-bottom: 6px;">Kategori Banner</label>
+                    <select name="level" style="width: 100%; padding: 10px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 12.5px; font-weight: 700;">
                         <option value="info">📢 Info Operasional (Biru)</option>
                         <option value="warning">⚠️ Gangguan / Cut-Off (Kuning)</option>
                         <option value="promo">🎉 Promo Harga Modal (Hijau)</option>
@@ -1066,29 +1471,30 @@
 
             <div style="margin-bottom: 14px;">
                 <label style="display: block; font-size: 12px; font-weight: 800; color: #334155; margin-bottom: 6px;">Judul Pengumuman *</label>
-                <input type="text" name="title" placeholder="Contoh: Info Cut-Off PLN Pukul 23:30 - 00:30 WIB" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; box-sizing: border-box;">
+                <input type="text" name="title" placeholder="Contoh: Info Cut-Off PLN Pukul 23:30 - 00:30 WIB" required style="width: 100%; padding: 10px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 13px; box-sizing: border-box;">
             </div>
 
             <div style="margin-bottom: 20px;">
                 <label style="display: block; font-size: 12px; font-weight: 800; color: #334155; margin-bottom: 6px;">Isi Pesan ke Kasir *</label>
-                <textarea name="message" rows="3" placeholder="Tuliskan pesan singkat yang akan tampil di banner atas / notifikasi layar kasir POS..." required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; box-sizing: border-box; font-family: inherit;"></textarea>
+                <textarea name="message" rows="3" placeholder="Tuliskan pesan yang akan tampil di banner atas layar kasir..." required style="width: 100%; padding: 10px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 13px; box-sizing: border-box; font-family: inherit;"></textarea>
             </div>
 
             <div style="display: flex; justify-content: flex-end; gap: 8px;">
-                <button type="button" onclick="document.getElementById('modalBroadcastPos').style.display='none'" style="padding: 10px 18px; border: 1px solid #cbd5e1; background: white; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer;">Batal</button>
-                <button type="submit" style="padding: 10px 20px; border: none; background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color: white; border-radius: 8px; font-weight: 800; font-size: 13px; cursor: pointer;">
-                    <i class="fas fa-paper-plane"></i> Publikasikan ke Kasir
+                <button type="button" onclick="document.getElementById('modalBroadcastPos').style.display='none'" class="btn-action-icon" style="padding: 10px 18px; background: white; border: 1px solid #cbd5e1; color: #334155;">Batal</button>
+                <button type="submit" class="btn-action-icon" style="padding: 10px 20px; background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color: white;">
+                    <i class="fas fa-paper-plane"></i> Publikasikan
                 </button>
             </div>
         </form>
     </div>
 </div>
 
+
 <!-- ========================================================================= -->
-<!-- MODAL 4: RESET KATA SANDI & PIN KASIR LANGSUNG DARI ADMIN                  -->
+<!-- MODAL: RESET KATA SANDI & PIN KASIR LANGSUNG                              -->
 <!-- ========================================================================= -->
-<div id="modalResetPasswordPos" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 99999; align-items: center; justify-content: center; padding: 15px;">
-    <div style="background: white; border-radius: 16px; width: 100%; max-width: 480px; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.25);">
+<div id="modalResetPasswordPos" class="pos-modal-backdrop">
+    <div class="pos-modal-box" style="max-width: 480px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
             <div style="font-size: 16px; font-weight: 900; color: #0f172a; display: flex; align-items: center; gap: 8px;">
                 <i class="fas fa-key" style="color: #dc2626;"></i> Reset Sandi & PIN Kasir POS
@@ -1099,7 +1505,7 @@
         <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; padding: 12px; margin-bottom: 16px; font-size: 12px; color: #991b1b;">
             Toko: <b id="resetPwStoreName">-</b> &bull; ID Toko: <code id="resetPwTenantId" style="font-weight: 900;">-</code>
             <br>
-            <span style="font-size: 11px; color: #b91c1c;">Reset ini langsung mengubah kata sandi dan PIN kasir di database toko, tanpa perlu mengetik Master Key.</span>
+            <span style="font-size: 11px; color: #b91c1c;">Reset ini langsung mengubah kata sandi dan PIN kasir di database toko secara instan.</span>
         </div>
 
         <form id="formResetPasswordPos" method="POST" action="">
@@ -1118,7 +1524,7 @@
 
             <div style="margin-bottom: 14px;">
                 <label style="display: block; font-size: 12px; font-weight: 800; color: #334155; margin-bottom: 6px;">
-                    PIN Keamanan Toko (6 Digit) *
+                    PIN Keamanan Kasir (6 Digit) *
                 </label>
                 <input type="text" name="new_pin" id="resetNewPin" value="112233" required maxlength="6" pattern="[0-9]{6}" style="width: 100%; padding: 10px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 14px; font-family: monospace; font-weight: bold; letter-spacing: 2px; box-sizing: border-box;">
                 <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Wajib 6 digit angka. Default: <code>112233</code></div>
@@ -1132,30 +1538,115 @@
             </div>
 
             <div style="display: flex; justify-content: flex-end; gap: 8px;">
-                <button type="button" onclick="document.getElementById('modalResetPasswordPos').style.display='none'" style="padding: 10px 18px; border: 1px solid #cbd5e1; background: white; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer;">Batal</button>
-                <button type="submit" style="padding: 10px 20px; border: none; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border-radius: 8px; font-weight: 800; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);">
-                    <i class="fas fa-check-circle"></i> Terapkan & Reset Kredensial
+                <button type="button" onclick="document.getElementById('modalResetPasswordPos').style.display='none'" class="btn-action-icon" style="padding: 10px 18px; background: white; border: 1px solid #cbd5e1; color: #334155;">Batal</button>
+                <button type="submit" class="btn-action-icon" style="padding: 10px 20px; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white;">
+                    <i class="fas fa-check-circle"></i> Terapkan Sandi Baru
                 </button>
             </div>
         </form>
     </div>
 </div>
 
+
+<!-- ========================================================================= -->
+<!-- JAVASCRIPT CONTROLLERS                                                    -->
+<!-- ========================================================================= -->
 <script>
+// TAB SWITCHING & URL PERSISTENCE
+function switchPosTab(tabId) {
+    document.querySelectorAll('.pos-tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
+    });
+    document.querySelectorAll('.pos-tab-content').forEach(pane => {
+        pane.style.display = (pane.id === tabId) ? 'block' : 'none';
+    });
+    localStorage.setItem('active_pos_tab', tabId);
+    window.location.hash = tabId;
+}
+
+// SHORTCUT UNTUK FILTER TOKO SALDO TIPIS DARI KPI CARD
+function filterLowBalanceShortcut() {
+    switchPosTab('tab-merchants');
+    const select = document.getElementById('filterStatusSelect');
+    if (select) {
+        select.value = 'low_balance';
+        filterMerchants();
+    }
+}
+
+// LIVE SEARCH & FILTER UNTUK DAFTAR TOKO (SCALABLE UNTUK RATUSAN KASIR)
+function filterMerchants() {
+    const q = (document.getElementById('searchMerchantInput').value || '').toLowerCase().trim();
+    const status = document.getElementById('filterStatusSelect').value;
+    const tier = document.getElementById('filterTierSelect').value;
+    const rows = document.querySelectorAll('.mch-row');
+    let visible = 0;
+
+    rows.forEach(row => {
+        const text = row.getAttribute('data-search') || '';
+        const rowStatus = row.getAttribute('data-status') || '';
+        const rowTier = row.getAttribute('data-tier') || '';
+        const rowLowBal = (row.getAttribute('data-low-bal') === 'true');
+
+        let matchesSearch = !q || text.includes(q);
+        let matchesStatus = true;
+        if (status === 'active') matchesStatus = (rowStatus === 'active');
+        else if (status === 'inactive') matchesStatus = (rowStatus === 'inactive');
+        else if (status === 'low_balance') matchesStatus = rowLowBal;
+
+        let matchesTier = (tier === 'all') || (rowTier === tier);
+
+        if (matchesSearch && matchesStatus && matchesTier) {
+            row.style.display = '';
+            visible++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+
+    const countEl = document.getElementById('mchVisibleCount');
+    if (countEl) countEl.innerText = visible;
+    const emptyNotice = document.getElementById('mchEmptySearchNotice');
+    if (emptyNotice) {
+        emptyNotice.style.display = (visible === 0) ? 'block' : 'none';
+    }
+}
+
+// SALIN TEKS KE CLIPBOARD
 function copyText(text, btn) {
+    if (!navigator.clipboard) {
+        const temp = document.createElement('textarea');
+        temp.value = text;
+        document.body.appendChild(temp);
+        temp.select();
+        document.execCommand('copy');
+        document.body.removeChild(temp);
+        showCopiedEffect(btn);
+        return;
+    }
     navigator.clipboard.writeText(text).then(() => {
-        const orig = btn.innerHTML;
-        btn.innerHTML = '<i class="fas fa-check"></i> Tersalin!';
-        btn.style.background = '#059669';
-        setTimeout(() => {
-            btn.innerHTML = orig;
-            btn.style.background = '';
-        }, 2000);
+        showCopiedEffect(btn);
+    }).catch(err => {
+        alert('Gagal menyalin: ' + err);
     });
 }
 
+function showCopiedEffect(btn) {
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-check"></i> Tersalin!';
+    btn.style.background = '#059669';
+    btn.style.color = 'white';
+    setTimeout(() => {
+        btn.innerHTML = orig;
+        btn.style.background = '';
+        btn.style.color = '';
+    }, 1800);
+}
+
+// TOGGLE TAMPILKAN / SEMBUNYIKAN SECRET KEY
 function toggleSecret(id, rawVal, btn) {
     const el = document.getElementById('sec_' + id);
+    if (!el) return;
     if (el.getAttribute('data-shown') === 'true') {
         el.innerText = rawVal.substring(0, 8) + '••••••••••••••••';
         el.setAttribute('data-shown', 'false');
@@ -1167,6 +1658,7 @@ function toggleSecret(id, rawVal, btn) {
     }
 }
 
+// BUKA MODAL EDIT TOKO & TIER
 function openEditMerchantModal(id, name, webhook, ip, role) {
     const form = document.getElementById('formEditMerchant');
     form.action = '/admin/merchant_api/update/' + id;
@@ -1180,6 +1672,7 @@ function openEditMerchantModal(id, name, webhook, ip, role) {
     document.getElementById('modalEditMerchant').style.display = 'flex';
 }
 
+// BUKA MODAL TOPUP / SALDO
 function openBalanceModal(id, name, currentBal) {
     const form = document.getElementById('formAdjustBalance');
     form.action = '/admin/merchant-api/adjust-balance/' + id;
@@ -1188,6 +1681,7 @@ function openBalanceModal(id, name, currentBal) {
     document.getElementById('modalAdjustBalance').style.display = 'flex';
 }
 
+// BUKA MODAL RESET SANDI / PIN KASIR
 function openResetPasswordModal(id, name, tenantId, phone) {
     const form = document.getElementById('formResetPasswordPos');
     form.action = '/admin/merchant-api/reset-password/' + id;
@@ -1198,5 +1692,26 @@ function openResetPasswordModal(id, name, tenantId, phone) {
     document.getElementById('resetNewPin').value = '112233';
     document.getElementById('modalResetPasswordPos').style.display = 'flex';
 }
+
+// CLOSE MODAL ON BACKDROP CLICK
+window.addEventListener('click', function(e) {
+    if (e.target.classList.contains('pos-modal-backdrop')) {
+        e.target.style.display = 'none';
+    }
+});
+
+// INITIALIZE TAB ON LOAD
+document.addEventListener('DOMContentLoaded', function() {
+    let activeTab = 'tab-merchants';
+    const hash = window.location.hash.replace('#', '');
+    const saved = localStorage.getItem('active_pos_tab');
+
+    if (hash && document.getElementById(hash)) {
+        activeTab = hash;
+    } else if (saved && document.getElementById(saved)) {
+        activeTab = saved;
+    }
+    switchPosTab(activeTab);
+});
 </script>
 {% endblock %}

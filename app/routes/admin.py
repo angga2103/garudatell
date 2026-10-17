@@ -3173,20 +3173,43 @@ def merchant_api_index():
             'announcement_message': 'Fitur kasir digital terintegrasi saldo GarudaTel sedang dalam tahap penyempurnaan akhir sebelum rilis publik.'
         }
 
-    # Query tiket deposit per merchant (Defensive)
+    # Query tiket deposit per merchant & terpusat (Defensive & Single-Query)
+    all_deposit_requests = []
+    pending_deposits_count = 0
     try:
-        for m in merchants:
-            m.deposit_requests = Transaction.query.filter(
-                (Transaction.provider_ref == m.merchant_id) & (Transaction.sku_code == 'DEPOSIT_SALDO') |
-                ((Transaction.user_id == m.user_id) & (Transaction.sku_code == 'DEPOSIT_SALDO'))
-            ).order_by(Transaction.id.desc()).limit(15).all()
+        from sqlalchemy import or_
+        mch_map_by_id = {m.merchant_id: m for m in merchants}
+        mch_map_by_user = {m.user_id: m for m in merchants if m.user_id}
+        mch_user_ids = list(mch_map_by_user.keys())
+        mch_ids = list(mch_map_by_id.keys())
 
-        pending_deposits_count = Transaction.query.filter(
-            Transaction.sku_code == 'DEPOSIT_SALDO',
-            Transaction.status == 'PENDING'
-        ).count()
+        conds = [Transaction.payment_method == 'API_GATEWAY']
+        if mch_user_ids:
+            conds.append(Transaction.user_id.in_(mch_user_ids))
+        if mch_ids:
+            conds.append(Transaction.provider_ref.in_(mch_ids))
+
+        all_deposit_requests = Transaction.query.filter(
+            Transaction.sku_code.in_(['DEPOSIT_SALDO', 'DEPOSIT_MANUAL']),
+            or_(*conds)
+        ).order_by(Transaction.id.desc()).limit(100).all()
+
+        for dep in all_deposit_requests:
+            m_obj = mch_map_by_id.get(dep.provider_ref) or mch_map_by_user.get(dep.user_id)
+            dep.merchant_name = m_obj.name if m_obj else (dep.user.name if dep.user else f"User #{dep.user_id}")
+            dep.merchant_code = m_obj.merchant_id if m_obj else (dep.provider_ref or "-")
+            dep.merchant_tenant_id = m_obj.get_tenant_id() if m_obj and hasattr(m_obj, 'get_tenant_id') else "-"
+
+        # Urutkan: PENDING paling atas, lalu ID desc
+        all_deposit_requests.sort(key=lambda x: (0 if x.status == 'PENDING' else 1, -x.id))
+        pending_deposits_count = sum(1 for d in all_deposit_requests if d.status == 'PENDING')
+
+        for m in merchants:
+            m.deposit_requests = [d for d in all_deposit_requests if d.provider_ref == m.merchant_id or d.user_id == m.user_id][:15]
+
     except Exception as e_dep:
         current_app.logger.warning(f"[MERCHANT_API] Gagal query deposit requests: {e_dep}")
+        all_deposit_requests = []
         for m in merchants:
             if not hasattr(m, 'deposit_requests'):
                 m.deposit_requests = []
@@ -3237,6 +3260,7 @@ def merchant_api_index():
         merchants=merchants,
         users=users,
         pos_settings=pos_settings,
+        all_deposit_requests=all_deposit_requests,
         pending_deposits_count=pending_deposits_count,
         provision_requests=provision_requests,
         pending_provisions_count=pending_provisions_count,
