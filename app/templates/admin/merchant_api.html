@@ -1,8 +1,21 @@
-{% extends 'admin/layout.html' %}
+{% extends 'admin/base_admin.html' %}
 
 {% block title %}GarudaTel - POS Command Center & Open API Gateway{% endblock %}
 
-{% set page_title = "POS Command Center & API" %}
+{% block breadcrumb %}Integrasi / POS Command Center{% endblock %}
+
+{% block page_title %}POS Command Center & Open API Gateway (ipaypos.my.id){% endblock %}
+
+{% block topbar_actions %}
+<div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+    <button type="button" onclick="document.getElementById('modalBroadcastPos').style.display='flex'" class="adm-btn adm-btn-secondary" style="background: #e0f2fe; color: #0284c7; border-color: #bae6fd;">
+        <i class="fas fa-bullhorn"></i> Broadcast Layar Kasir
+    </button>
+    <button type="button" onclick="document.getElementById('modalCreateApiKey').style.display='flex'" class="adm-btn adm-btn-primary">
+        <i class="fas fa-plus-circle"></i> Buat API Key Manual
+    </button>
+</div>
+{% endblock %}
 
 {% block page_css %}
 <style>
@@ -140,21 +153,6 @@
 {% endblock %}
 
 {% block admin_content %}
-<div class="section-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-    <div>
-        <i class="fas fa-satellite-dish" style="color: #10b981;"></i>
-        POS Command Center & Open API Gateway (ipaypos.my.id)
-    </div>
-    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-        <button type="button" onclick="document.getElementById('modalBroadcastPos').style.display='flex'" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color: white; border: none; padding: 8px 16px; border-radius: 10px; font-weight: 800; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);">
-            <i class="fas fa-bullhorn"></i> Broadcast ke Layar Kasir POS
-        </button>
-        <button type="button" onclick="document.getElementById('modalCreateApiKey').style.display='flex'" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; padding: 8px 16px; border-radius: 10px; font-weight: 800; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);">
-            <i class="fas fa-plus-circle"></i> Buat API Key Manual
-        </button>
-    </div>
-</div>
-
 <!-- QUICK JUMP NAVIGATION -->
 <div class="cmd-nav-pills">
     <a href="#sec-provisioning" class="cmd-pill">

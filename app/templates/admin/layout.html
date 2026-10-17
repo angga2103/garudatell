@@ -1,64 +1,38 @@
-{% extends "base.html" %}
+{% extends "admin/base_admin.html" %}
 
 {% block title %}
-{{ title or "Garudatel Admin" }}
+{{ title or page_title or "Panel Admin" }} - {{ store.name }}
 {% endblock %}
 
-{% block head %}
+{% block breadcrumb %}
+{{ breadcrumb or page_title or "Operasional" }}
+{% endblock %}
+
+{% block page_title %}
+{{ page_title or "Panel Manajemen Admin" }}
+{% endblock %}
+
+{% block head_extra %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/garudatel-admin.css') }}">
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<style>
+    /* Hilangkan batasan sempit 800px lama agar fluid dan responsif penuh mengikuti layout modern */
+    .admin-container {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    .admin-header {
+        display: none !important; /* Sudah digantikan oleh Topbar Modern di base_admin.html */
+    }
+    .fab-home {
+        display: none !important; /* Sudah digantikan oleh Sidebar Persisten di base_admin.html */
+    }
+</style>
 {% block page_css %}{% endblock %}
 {% endblock %}
 
-{% block content %}
-
-<div class="admin-container">
-
-    <div class="admin-header">
-        <div class="admin-header-title">
-            <i class="fas fa-cogs"></i>
-            {{ page_title or "Panel Admin" }}
-            <span class="badge-super-admin">SUPER ADMIN</span>
-        </div>
-
-        <div style="display: flex; align-items: center; gap: 12px;">
-            <a href="{{ url_for('admin.store_settings') }}" title="Pengaturan Toko & Logo Struk" style="color:white; font-size:16px; text-decoration: none;">
-                <i class="fas fa-store"></i>
-            </a>
-            <a href="{{ url_for('admin.merchant_api_index') }}" title="API Merchant & Kasir POS" style="color:white; font-size:16px; text-decoration: none;">
-                <i class="fas fa-cash-register"></i>
-            </a>
-            <a href="{{ url_for('admin.otp_manual') }}" title="Pusat Bantuan OTP Manual" style="color:white; font-size:16px; position:relative; text-decoration: none;">
-                <i class="fas fa-shield-alt"></i>
-                {% if pending_otp_count and pending_otp_count > 0 %}
-                <span style="position:absolute; top:-6px; right:-8px; background:#ef4444; color:white; border-radius:50%; font-size:9px; padding:1px 4px; font-weight:900;">{{ pending_otp_count }}</span>
-                {% endif %}
-            </a>
-            <a href="{{ url_for('admin.dashboard') }}" style="color:white;font-size:18px;">
-                <i class="fas fa-home"></i>
-            </a>
-        </div>
-    </div>
-
-    {% with messages=get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-    {% for category,message in messages %}
-    <div class="alert alert-{{ category }}">
-        <i class="fas fa-check-circle"></i>
-        {{ message }}
-    </div>
-    {% endfor %}
-    {% endif %}
-    {% endwith %}
-
-    {% block admin_content %}
-    {% endblock %}
-
-    <a href="{{ url_for('admin.dashboard') }}" class="fab-home">
-        <i class="fas fa-home"></i>
-    </a>
-
-</div>
-
+{% block admin_content %}
+{% block admin_body %}{% endblock %}
 {% endblock %}

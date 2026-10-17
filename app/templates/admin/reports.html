@@ -1,32 +1,152 @@
-{% extends 'admin/layout.html' %}
+{% extends 'admin/base_admin.html' %}
 
 {% block title %}GarudaTel - Laporan & Rekapitulasi{% endblock %}
 
-{% set page_title = "Laporan & Rekapitulasi" %}
+{% block breadcrumb %}Laporan / Rekapitulasi{% endblock %}
+
+{% block page_title %}Laporan Keuangan & Rekap Transaksi{% endblock %}
+
+{% block topbar_actions %}
+<a href="{{ url_for('admin.transactions') }}" class="adm-btn adm-btn-secondary">
+    <i class="fas fa-exchange-alt"></i> Pusat Transaksi
+</a>
+{% endblock %}
 
 {% block page_css %}
 <style>
-    .filter-pills { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
-    .filter-pill { padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 800; text-decoration: none; border: 1px solid #CBD5E1; color: #475569; background: white; transition: 0.2s; }
-    .filter-pill:hover { background: #F1F5F9; }
-    .filter-pill.active { background: #3A827F; color: white; border-color: #3A827F; }
+    .filter-pills { 
+        display: flex; 
+        gap: 8px; 
+        margin-bottom: 22px; 
+        flex-wrap: wrap; 
+    }
+    .filter-pill { 
+        padding: 7px 16px; 
+        border-radius: 20px; 
+        font-size: 12px; 
+        font-weight: 800; 
+        text-decoration: none; 
+        border: 1px solid #CBD5E1; 
+        color: #475569; 
+        background: white; 
+        transition: 0.15s ease; 
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .filter-pill:hover { 
+        background: #F1F5F9; 
+        color: #0F172A;
+    }
+    .filter-pill.active { 
+        background: #3A827F; 
+        color: white; 
+        border-color: #3A827F; 
+        box-shadow: 0 2px 6px rgba(58, 130, 127, 0.25);
+    }
 
-    .rep-stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
-    .rep-stat-card { background: white; padding: 18px; border-radius: 12px; border: 1px solid #E2E8F0; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
-    .rep-stat-val { font-size: 20px; font-weight: 900; color: #1E293B; margin-top: 5px; }
-    .rep-stat-lbl { font-size: 11px; font-weight: 800; color: #64748B; text-transform: uppercase; }
+    .rep-stats-grid { 
+        display: grid; 
+        grid-template-columns: repeat(4, 1fr); 
+        gap: 16px; 
+        margin-bottom: 24px; 
+    }
+    .rep-stat-card { 
+        background: white; 
+        padding: 18px 20px; 
+        border-radius: 14px; 
+        border: 1px solid #E2E8F0; 
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04); 
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .rep-stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.06);
+    }
+    .rep-stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        flex-shrink: 0;
+    }
+    .rep-stat-val { 
+        font-size: 18px; 
+        font-weight: 900; 
+        color: #1E293B; 
+        line-height: 1.2;
+    }
+    .rep-stat-lbl { 
+        font-size: 11px; 
+        font-weight: 800; 
+        color: #64748B; 
+        text-transform: uppercase; 
+        letter-spacing: 0.5px;
+        margin-top: 4px; 
+    }
 
-    .rep-content-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 25px; }
-    .card-rep { background: white; border-radius: 12px; border: 1px solid #E2E8F0; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
-    .card-title { font-size: 15px; font-weight: 800; color: #1E293B; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+    .rep-content-grid { 
+        display: grid; 
+        grid-template-columns: repeat(2, 1fr); 
+        gap: 20px; 
+        margin-bottom: 25px; 
+    }
+    .card-rep { 
+        background: white; 
+        border-radius: 14px; 
+        border: 1px solid #E2E8F0; 
+        padding: 22px; 
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04); 
+    }
+    .card-title { 
+        font-size: 15px; 
+        font-weight: 800; 
+        color: #1E293B; 
+        margin-bottom: 16px; 
+        display: flex; 
+        align-items: center; 
+        gap: 8px; 
+        border-bottom: 1px solid #F1F5F9;
+        padding-bottom: 12px;
+    }
 
-    .rep-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    .rep-table th { background: #F8FAFC; color: #334155; padding: 10px; border-bottom: 2px solid #E2E8F0; text-align: left; font-weight: 800; }
-    .rep-table td { padding: 10px; border-bottom: 1px solid #F1F5F9; vertical-align: middle; }
+    .rep-table { 
+        width: 100%; 
+        border-collapse: collapse; 
+        font-size: 12.5px; 
+    }
+    .rep-table th { 
+        background: #F8FAFC; 
+        color: #475569; 
+        padding: 12px 10px; 
+        border-bottom: 2px solid #E2E8F0; 
+        text-align: left; 
+        font-weight: 800; 
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .rep-table td { 
+        padding: 12px 10px; 
+        border-bottom: 1px solid #F1F5F9; 
+        vertical-align: middle; 
+    }
+    .rep-table tbody tr:hover {
+        background: #F8FAFC;
+    }
 
-    @media (max-width: 768px) {
+    @media (max-width: 991px) {
         .rep-stats-grid { grid-template-columns: repeat(2, 1fr); }
         .rep-content-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 540px) {
+        .rep-stats-grid { grid-template-columns: 1fr; }
     }
 </style>
 {% endblock %}
@@ -55,24 +175,40 @@
 <!-- STATS CARDS -->
 <div class="rep-stats-grid">
     <div class="rep-stat-card">
-        <i class="fas fa-wallet" style="font-size: 20px; color: #3A827F;"></i>
-        <div class="rep-stat-val">Rp {{ "{:,.0f}".format(total_omset) }}</div>
-        <div class="rep-stat-lbl">Total Omset Sukses</div>
+        <div class="rep-stat-icon" style="background: rgba(58,130,127,0.12); color: #3A827F;">
+            <i class="fas fa-wallet"></i>
+        </div>
+        <div>
+            <div class="rep-stat-val" style="color: #059669;">Rp {{ "{:,.0f}".format(total_omset).replace(',', '.') }}</div>
+            <div class="rep-stat-lbl">Omset Sukses</div>
+        </div>
     </div>
     <div class="rep-stat-card">
-        <i class="fas fa-receipt" style="font-size: 20px; color: #0284C7;"></i>
-        <div class="rep-stat-val">{{ total_trx }}</div>
-        <div class="rep-stat-lbl">Total Transaksi</div>
+        <div class="rep-stat-icon" style="background: #E0F2FE; color: #0284C7;">
+            <i class="fas fa-receipt"></i>
+        </div>
+        <div>
+            <div class="rep-stat-val">{{ "{:,}".format(total_trx) }}</div>
+            <div class="rep-stat-lbl">Total Transaksi</div>
+        </div>
     </div>
     <div class="rep-stat-card">
-        <i class="fas fa-check-circle" style="font-size: 20px; color: #10B981;"></i>
-        <div class="rep-stat-val">{{ success_trx }}</div>
-        <div class="rep-stat-lbl">Transaksi Berhasil</div>
+        <div class="rep-stat-icon" style="background: #D1FAE5; color: #10B981;">
+            <i class="fas fa-check-circle"></i>
+        </div>
+        <div>
+            <div class="rep-stat-val" style="color: #059669;">{{ "{:,}".format(success_trx) }}</div>
+            <div class="rep-stat-lbl">Transaksi Berhasil</div>
+        </div>
     </div>
     <div class="rep-stat-card">
-        <i class="fas fa-chart-pie" style="font-size: 20px; color: #F59E0B;"></i>
-        <div class="rep-stat-val">{{ success_rate }}%</div>
-        <div class="rep-stat-lbl">Tingkat Keberhasilan</div>
+        <div class="rep-stat-icon" style="background: #FEF3C7; color: #F59E0B;">
+            <i class="fas fa-chart-pie"></i>
+        </div>
+        <div>
+            <div class="rep-stat-val" style="color: #D97706;">{{ success_rate }}%</div>
+            <div class="rep-stat-lbl">Tingkat Keberhasilan</div>
+        </div>
     </div>
 </div>
 
@@ -100,15 +236,15 @@
                         <div style="font-weight: 800; color: #1E293B;">{{ p.name }}</div>
                     </td>
                     <td style="text-align: center; font-weight: 800;">
-                        {{ p.sales }}x
+                        <span style="background: #F1F5F9; padding: 2px 8px; border-radius: 6px;">{{ p.sales }}x</span>
                     </td>
                     <td style="text-align: right; font-weight: 800; color: #059669;">
-                        Rp {{ "{:,.0f}".format(p.revenue) }}
+                        Rp {{ "{:,.0f}".format(p.revenue).replace(',', '.') }}
                     </td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="3" style="text-align: center; padding: 20px; color: #64748B;">
+                    <td colspan="3" style="text-align: center; padding: 30px; color: #64748B;">
                         Belum ada transaksi sukses pada rentang waktu ini.
                     </td>
                 </tr>
@@ -136,18 +272,20 @@
                 {% for m in payment_methods %}
                 <tr>
                     <td>
-                        <span style="font-weight: 800; text-transform: uppercase;">{{ m.method }}</span>
+                        <span style="font-weight: 800; text-transform: uppercase; background: #F1F5F9; padding: 3px 8px; border-radius: 6px; font-size: 11px;">
+                            {{ m.method }}
+                        </span>
                     </td>
                     <td style="text-align: center; font-weight: 800;">
                         {{ m.count }} Trx
                     </td>
                     <td style="text-align: right; font-weight: 800; color: #059669;">
-                        Rp {{ "{:,.0f}".format(m.volume) }}
+                        Rp {{ "{:,.0f}".format(m.volume).replace(',', '.') }}
                     </td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="3" style="text-align: center; padding: 20px; color: #64748B;">
+                    <td colspan="3" style="text-align: center; padding: 30px; color: #64748B;">
                         Belum ada data pembayaran.
                     </td>
                 </tr>

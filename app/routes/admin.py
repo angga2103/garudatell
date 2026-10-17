@@ -45,6 +45,12 @@ def login():
         flash('Username atau Password salah!', 'danger')
     return render_template('admin/login.html')
 
+@admin_bp.route('/logout')
+def logout():
+    session.pop('admin_logged_in', None)
+    flash('Anda telah berhasil keluar dari panel admin.', 'info')
+    return redirect(url_for('admin.login'))
+
 @admin_bp.route('/')
 @admin_bp.route('/dashboard')
 def dashboard():

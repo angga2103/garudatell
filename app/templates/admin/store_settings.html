@@ -1,4 +1,10 @@
-{% extends "admin/layout.html" %}
+{% extends "admin/base_admin.html" %}
+
+{% block title %}GarudaTel - {{ page_title or "Pengaturan Toko & Logo Struk" }}{% endblock %}
+
+{% block breadcrumb %}Konfigurasi / Identitas Toko{% endblock %}
+
+{% block page_title %}Profil Toko & Logo Struk Thermal{% endblock %}
 
 {% block page_css %}
 <style>
@@ -133,15 +139,6 @@
 {% endblock %}
 
 {% block admin_content %}
-<div style="margin-bottom: 15px;">
-    <h2 style="font-size: 18px; font-weight: 900; color: #1e293b; margin: 0 0 6px 0;">
-        <i class="fas fa-store" style="color: #00877a;"></i> Profil Toko & Logo Struk Thermal
-    </h2>
-    <p style="font-size: 12px; color: #64748b; margin: 0;">
-        Sesuaikan nama toko, identitas brand, link grup WhatsApp, serta logo yang akan dicetak pada struk thermal Bluetooth.
-    </p>
-</div>
-
 <div class="store-grid">
     <!-- KOLOM KIRI: FORM PENGATURAN -->
     <div class="card-box">

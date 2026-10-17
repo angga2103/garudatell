@@ -1,0 +1,2697 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Preview Realtime: Prototype Panel Admin Modern GarudaTel / iPay</title>
+    <!-- Google Fonts & FontAwesome 6 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <style>
+        :root {
+            /* Brand Theme Colors */
+            --teal-primary: #008779;
+            --teal-dark: #006056;
+            --teal-darker: #00463f;
+            --teal-light: #e6f6f4;
+            --teal-gradient: linear-gradient(135deg, #008779 0%, #005950 100%);
+            
+            /* Admin Dark Accent */
+            --admin-nav-bg: #0f172a;
+            --admin-nav-surface: #1e293b;
+            --admin-nav-border: #334155;
+            
+            /* Status Accents */
+            --accent-emerald: #10b981;
+            --accent-amber: #f59e0b;
+            --accent-rose: #ef4444;
+            --accent-blue: #0284c7;
+            --accent-purple: #8b5cf6;
+            
+            /* Surface & Typography */
+            --bg-body: #f8fafc;
+            --card-bg: #ffffff;
+            --text-dark: #0f172a;
+            --text-slate: #334155;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            
+            /* Sizing & Radius */
+            --sidebar-expanded: 265px;
+            --sidebar-slim: 75px;
+            --topbar-height: 64px;
+            --radius-xl: 20px;
+            --radius-lg: 14px;
+            --radius-md: 10px;
+            --radius-sm: 6px;
+            --shadow-card: 0 4px 18px rgba(0, 0, 0, 0.04);
+            --shadow-hover: 0 8px 25px rgba(0, 0, 0, 0.08);
+            --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Nunito', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: #0b1120;
+            color: var(--text-dark);
+            min-height: 100vh;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ========================================================
+           1. TOP DEMO CONTROL BAR (Pengendali Simulasi Layar)
+           ======================================================== */
+        .preview-toolbar {
+            height: 52px;
+            background: #0f172a;
+            border-bottom: 1px solid #1e293b;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            position: sticky;
+            top: 0;
+            z-index: 99999;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        }
+        .toolbar-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .toolbar-brand {
+            font-size: 13px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #f8fafc;
+        }
+        .toolbar-brand i {
+            color: var(--teal-primary);
+            font-size: 16px;
+        }
+        .tag-pill {
+            background: rgba(0, 135, 121, 0.25);
+            color: #2dd4bf;
+            border: 1px solid rgba(45, 212, 191, 0.3);
+            font-size: 10px;
+            font-weight: 800;
+            padding: 2px 8px;
+            border-radius: 6px;
+            letter-spacing: 0.5px;
+        }
+        .toolbar-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .tool-btn {
+            background: #1e293b;
+            color: #cbd5e1;
+            border: 1px solid #334155;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .tool-btn:hover {
+            background: var(--teal-primary);
+            color: white;
+            border-color: var(--teal-primary);
+        }
+        .tool-btn.active {
+            background: var(--teal-primary);
+            color: white;
+            border-color: var(--teal-primary);
+            box-shadow: 0 2px 8px rgba(0, 135, 121, 0.4);
+        }
+        .select-screen-quick {
+            background: #1e293b;
+            color: #38bdf8;
+            border: 1px solid #334155;
+            padding: 6px 10px;
+            border-radius: 8px;
+            font-size: 11.5px;
+            font-weight: 700;
+            cursor: pointer;
+            outline: none;
+        }
+
+        /* ========================================================
+           2. WORKSPACE AREA & RESPONSIVE DEVICE FRAMING
+           ======================================================== */
+        .preview-stage {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: stretch;
+            background: #0b1120;
+            transition: var(--transition);
+            padding: 0;
+            width: 100%;
+        }
+
+        .device-container {
+            width: 100%;
+            height: calc(100vh - 52px);
+            background: var(--bg-body);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            transition: var(--transition);
+        }
+
+        /* Viewport Presets */
+        .viewport-desktop .device-container {
+            max-width: 100%;
+            border-radius: 0;
+            box-shadow: none;
+        }
+        .viewport-laptop .device-container {
+            max-width: 1280px;
+            margin: 16px auto;
+            height: calc(100vh - 84px);
+            border-radius: 16px;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.6), 0 0 0 1px #334155;
+        }
+        .viewport-tablet .device-container {
+            max-width: 768px;
+            margin: 16px auto;
+            height: calc(100vh - 84px);
+            border-radius: 20px;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.6), 0 0 0 8px #1e293b;
+        }
+        .viewport-mobile .device-container {
+            max-width: 414px;
+            margin: 16px auto;
+            height: calc(100vh - 84px);
+            border-radius: 36px;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.7), 0 0 0 10px #1e293b;
+        }
+
+        /* ========================================================
+           3. UNIFIED ADMIN SIDEBAR
+           ======================================================== */
+        .admin-sidebar {
+            width: var(--sidebar-expanded);
+            background: var(--admin-nav-bg);
+            border-right: 1px solid var(--admin-nav-border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            height: 100%;
+            transition: var(--transition);
+            z-index: 1000;
+            position: relative;
+        }
+
+        /* Sidebar Slim Mode */
+        .admin-sidebar.slim {
+            width: var(--sidebar-slim);
+        }
+        .admin-sidebar.slim .hide-on-slim {
+            display: none !important;
+        }
+        .admin-sidebar.slim .nav-item {
+            justify-content: center;
+            padding: 10px 0;
+        }
+        .admin-sidebar.slim .nav-item i {
+            margin: 0;
+            font-size: 18px;
+        }
+        .admin-sidebar.slim .sidebar-brand {
+            justify-content: center;
+            padding: 18px 0;
+        }
+        .admin-sidebar.slim .sidebar-profile-card {
+            padding: 8px 0;
+            justify-content: center;
+            background: transparent;
+            border: none;
+        }
+
+        /* Mobile Drawer State */
+        .viewport-tablet .admin-sidebar,
+        .viewport-mobile .admin-sidebar {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            transform: translateX(-100%);
+            box-shadow: 10px 0 35px rgba(0,0,0,0.4);
+            z-index: 2000;
+        }
+        .viewport-tablet .admin-sidebar.open-drawer,
+        .viewport-mobile .admin-sidebar.open-drawer {
+            transform: translateX(0);
+        }
+
+        .sidebar-backdrop {
+            display: none;
+            position: absolute;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 1999;
+        }
+        .open-drawer + .sidebar-backdrop,
+        .sidebar-backdrop.active {
+            display: block;
+        }
+
+        /* Sidebar Header */
+        .sidebar-brand {
+            padding: 18px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid var(--admin-nav-border);
+            text-decoration: none;
+        }
+        .brand-logo-box {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            background: var(--teal-gradient);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 17px;
+            box-shadow: 0 4px 14px rgba(0, 135, 121, 0.4);
+            flex-shrink: 0;
+        }
+        .brand-text {
+            display: flex;
+            flex-direction: column;
+        }
+        .brand-name {
+            color: #ffffff;
+            font-size: 14.5px;
+            font-weight: 900;
+            line-height: 1.1;
+            letter-spacing: -0.3px;
+        }
+        .brand-sub {
+            color: #94a3b8;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-top: 2px;
+        }
+
+        /* Profile Card in Sidebar */
+        .sidebar-profile-card {
+            margin: 14px 14px 6px 14px;
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid rgba(51, 65, 85, 0.6);
+            border-radius: var(--radius-md);
+            padding: 10px 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .profile-avatar-wrap {
+            position: relative;
+            flex-shrink: 0;
+        }
+        .profile-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: #0284c7;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 14px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--accent-emerald);
+            border: 2px solid var(--admin-nav-bg);
+            position: absolute;
+            bottom: -2px;
+            right: -2px;
+        }
+        .profile-info {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+        .profile-name {
+            color: #f8fafc;
+            font-size: 12px;
+            font-weight: 800;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .profile-role {
+            color: #38bdf8;
+            font-size: 9.5px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        /* Nav Links Menu */
+        .sidebar-menu {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        .sidebar-menu::-webkit-scrollbar {
+            width: 4px;
+        }
+        .sidebar-menu::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        .menu-category-title {
+            color: #64748b;
+            font-size: 9px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            padding: 12px 10px 4px 10px;
+        }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 9px 12px;
+            border-radius: var(--radius-md);
+            color: #cbd5e1;
+            font-size: 12.5px;
+            font-weight: 700;
+            text-decoration: none;
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+        }
+        .nav-item:hover {
+            background: rgba(30, 41, 59, 0.8);
+            color: #ffffff;
+        }
+        .nav-item.active {
+            background: var(--teal-gradient);
+            color: #ffffff;
+            font-weight: 800;
+            box-shadow: 0 4px 12px rgba(0, 135, 121, 0.35);
+        }
+        .nav-item i {
+            font-size: 15px;
+            width: 20px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        .nav-label {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .nav-badge {
+            font-size: 9px;
+            font-weight: 900;
+            padding: 2px 7px;
+            border-radius: 10px;
+            margin-left: auto;
+        }
+        .badge-red { background: #ef4444; color: white; }
+        .badge-amber { background: #f59e0b; color: white; }
+        .badge-teal { background: #008779; color: white; }
+        .badge-blue { background: #0284c7; color: white; }
+
+        /* Sidebar Footer */
+        .sidebar-footer {
+            padding: 12px;
+            border-top: 1px solid var(--admin-nav-border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-sidebar-quick {
+            flex: 1;
+            padding: 8px 10px;
+            background: #1e293b;
+            color: #cbd5e1;
+            border: 1px solid #334155;
+            border-radius: var(--radius-md);
+            font-size: 11px;
+            font-weight: 800;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .btn-sidebar-quick:hover {
+            background: #334155;
+            color: white;
+        }
+
+        /* ========================================================
+           4. MAIN CONTENT AREA & TOPBAR
+           ======================================================== */
+        .admin-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: var(--bg-body);
+            position: relative;
+        }
+
+        /* Modern Topbar */
+        .admin-topbar {
+            height: var(--topbar-height);
+            background: #ffffff;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            flex-shrink: 0;
+            z-index: 100;
+        }
+        .topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .btn-collapse-sidebar {
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-md);
+            background: #f1f5f9;
+            border: 1px solid var(--border-color);
+            color: #475569;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .btn-collapse-sidebar:hover {
+            background: #e2e8f0;
+            color: #0f172a;
+        }
+        .page-header-info {
+            display: flex;
+            flex-direction: column;
+        }
+        .page-breadcrumbs {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .page-breadcrumbs span {
+            color: var(--teal-primary);
+        }
+        .page-title {
+            font-size: 16px;
+            font-weight: 900;
+            color: var(--text-dark);
+            line-height: 1.2;
+        }
+
+        .topbar-center {
+            flex: 1;
+            max-width: 380px;
+            margin: 0 20px;
+        }
+        .topbar-search {
+            position: relative;
+            width: 100%;
+        }
+        .topbar-search i {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #94a3b8;
+            font-size: 13px;
+        }
+        .topbar-search input {
+            width: 100%;
+            padding: 8px 12px 8px 34px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            font-size: 12px;
+            background: #f8fafc;
+            outline: none;
+            transition: var(--transition);
+        }
+        .topbar-search input:focus {
+            border-color: var(--teal-primary);
+            background: #ffffff;
+            box-shadow: 0 0 0 3px rgba(0, 135, 121, 0.1);
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .gateway-status-pill {
+            background: #ecfdf5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+            font-size: 11px;
+            font-weight: 800;
+            padding: 5px 10px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .pulse-circle {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #10b981;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25);
+        }
+        .topbar-btn-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-md);
+            background: #f8fafc;
+            border: 1px solid var(--border-color);
+            color: #475569;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            position: relative;
+            transition: var(--transition);
+        }
+        .topbar-btn-icon:hover {
+            background: #f1f5f9;
+            color: var(--teal-primary);
+        }
+        .badge-bell {
+            position: absolute;
+            top: -3px;
+            right: -3px;
+            background: #ef4444;
+            color: white;
+            font-size: 9px;
+            font-weight: 900;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid white;
+        }
+        .btn-topbar-action {
+            background: var(--teal-gradient);
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: var(--radius-md);
+            font-size: 12px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            box-shadow: 0 3px 10px rgba(0, 135, 121, 0.25);
+            transition: var(--transition);
+        }
+        .btn-topbar-action:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 5px 15px rgba(0, 135, 121, 0.35);
+        }
+
+        /* Mobile Adjustments for Topbar */
+        @media (max-width: 768px) {
+            .topbar-center, .gateway-status-pill, .btn-topbar-action span {
+                display: none !important;
+            }
+        }
+
+        /* Content Scrollable Body */
+        .content-scrollable {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px 20px 60px 20px;
+        }
+        .content-scrollable::-webkit-scrollbar {
+            width: 6px;
+        }
+        .content-scrollable::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 6px;
+        }
+
+        /* ========================================================
+           5. SHARED UI COMPONENTS (Cards, Stats, Tables, Modals)
+           ======================================================== */
+        .screen-view {
+            display: none;
+            animation: fadeIn 0.2s ease-out;
+        }
+        .screen-view.active-screen {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* STATS GRID */
+        .stats-grid-4 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+            gap: 16px;
+            margin-bottom: 22px;
+        }
+        .stat-card-modern {
+            background: var(--card-bg);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-color);
+            padding: 18px 20px;
+            box-shadow: var(--shadow-card);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            transition: var(--transition);
+        }
+        .stat-card-modern:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-hover);
+        }
+        .stat-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .stat-title {
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .stat-icon-wrap {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        .stat-val-row {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+        }
+        .stat-val {
+            font-size: 24px;
+            font-weight: 900;
+            color: var(--text-dark);
+            line-height: 1.1;
+        }
+        .stat-trend {
+            font-size: 11px;
+            font-weight: 800;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+        }
+        .trend-up { color: #10b981; }
+        .trend-down { color: #ef4444; }
+        .stat-subtext {
+            font-size: 11px;
+            color: #94a3b8;
+            font-weight: 600;
+        }
+
+        /* MODERN CARDS & SURFACES */
+        .admin-card {
+            background: var(--card-bg);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-card);
+            padding: 20px;
+            margin-bottom: 22px;
+        }
+        .card-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .card-heading {
+            font-size: 15px;
+            font-weight: 900;
+            color: var(--text-dark);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .card-heading i {
+            color: var(--teal-primary);
+        }
+
+        /* SMART FILTER BAR */
+        .smart-filter-bar {
+            background: #ffffff;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-color);
+            padding: 14px 18px;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            box-shadow: var(--shadow-card);
+        }
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            min-width: 180px;
+        }
+        .filter-input {
+            width: 100%;
+            padding: 9px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            font-size: 12px;
+            font-weight: 700;
+            outline: none;
+            background: #f8fafc;
+            color: var(--text-dark);
+        }
+        .filter-input:focus {
+            border-color: var(--teal-primary);
+            background: #ffffff;
+        }
+        .filter-select {
+            padding: 9px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            font-size: 12px;
+            font-weight: 700;
+            background: #f8fafc;
+            color: var(--text-dark);
+            outline: none;
+            cursor: pointer;
+        }
+        .btn-filter-apply {
+            background: var(--teal-primary);
+            color: white;
+            border: none;
+            padding: 9px 16px;
+            border-radius: var(--radius-md);
+            font-size: 12px;
+            font-weight: 800;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: var(--transition);
+        }
+        .btn-filter-apply:hover {
+            background: var(--teal-dark);
+        }
+        .btn-filter-reset {
+            background: #f1f5f9;
+            color: var(--text-muted);
+            border: 1px solid var(--border-color);
+            padding: 9px 14px;
+            border-radius: var(--radius-md);
+            font-size: 12px;
+            font-weight: 800;
+            cursor: pointer;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-filter-reset:hover {
+            background: #e2e8f0;
+            color: var(--text-dark);
+        }
+
+        /* DATA TABLES */
+        .table-responsive-box {
+            background: white;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-card);
+            overflow-x: auto;
+            position: relative;
+        }
+        .admin-data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12.5px;
+            text-align: left;
+        }
+        .admin-data-table th {
+            background: #f8fafc;
+            color: var(--text-muted);
+            font-weight: 800;
+            text-transform: uppercase;
+            font-size: 11px;
+            padding: 13px 14px;
+            border-bottom: 2px solid var(--border-color);
+            white-space: nowrap;
+        }
+        .admin-data-table td {
+            padding: 13px 14px;
+            border-bottom: 1px solid #f1f5f9;
+            color: var(--text-slate);
+            vertical-align: middle;
+        }
+        .admin-data-table tr:hover td {
+            background: #f8fafc;
+        }
+
+        /* STATUS BADGES */
+        .badge-status-chip {
+            padding: 4px 9px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .chip-success { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+        .chip-pending { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+        .chip-failed  { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+        .chip-info    { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+
+        /* BUTTON ACTION CHIPS */
+        .btn-action-sm {
+            padding: 5px 10px;
+            border-radius: var(--radius-sm);
+            font-size: 11px;
+            font-weight: 800;
+            cursor: pointer;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: var(--transition);
+        }
+        .btn-act-teal { background: #e6f7f5; color: #008779; }
+        .btn-act-teal:hover { background: #008779; color: white; }
+        .btn-act-blue { background: #e0f2fe; color: #0284c7; }
+        .btn-act-blue:hover { background: #0284c7; color: white; }
+        .btn-act-amber { background: #fef3c7; color: #d97706; }
+        .btn-act-amber:hover { background: #d97706; color: white; }
+        .btn-act-red { background: #fee2e2; color: #dc2626; }
+        .btn-act-red:hover { background: #dc2626; color: white; }
+
+        /* PAGINATION */
+        .pagination-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 18px;
+            border-top: 1px solid var(--border-color);
+            background: white;
+            border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+            flex-wrap: wrap;
+            gap: 10px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        .pagination-buttons {
+            display: flex;
+            gap: 4px;
+        }
+        .page-btn-item {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background: white;
+            color: var(--text-slate);
+            font-size: 12px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .page-btn-item.active {
+            background: var(--teal-primary);
+            color: white;
+            border-color: var(--teal-primary);
+        }
+        .page-btn-item:hover:not(.active) {
+            background: #f1f5f9;
+        }
+
+        /* MODAL OVERLAY & BOX */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(5px);
+            z-index: 99999;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal-content-card {
+            background: white;
+            border-radius: var(--radius-xl);
+            width: 100%;
+            max-width: 520px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            padding: 24px;
+            position: relative;
+            animation: slideModal 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes slideModal {
+            from { transform: translateY(20px) scale(0.97); opacity: 0; }
+            to { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        .modal-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .modal-title {
+            font-size: 16px;
+            font-weight: 900;
+            color: var(--text-dark);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-modal-close {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 18px;
+            cursor: pointer;
+        }
+        .btn-modal-close:hover {
+            color: #0f172a;
+        }
+
+        /* TOAST CONTAINER */
+        .toast-box {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: #1e293b;
+            color: white;
+            padding: 12px 18px;
+            border-radius: var(--radius-lg);
+            font-size: 12.5px;
+            font-weight: 700;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 999999;
+            transform: translateY(60px);
+            opacity: 0;
+            transition: var(--transition);
+        }
+        .toast-box.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        .toast-box.success { border-left: 5px solid #10b981; }
+        .toast-box.info    { border-left: 5px solid #0284c7; }
+        .toast-box.warning { border-left: 5px solid #f59e0b; }
+    </style>
+</head>
+
+<body class="viewport-desktop">
+
+    <!-- ========================================================
+         TOOLBAR PENGENDALI SIMULASI (DEVICE SWITCHER & REAL QUICK CONTROL)
+         ======================================================== -->
+    <header class="preview-toolbar">
+        <div class="toolbar-left">
+            <div class="toolbar-brand">
+                <i class="fas fa-bolt"></i>
+                <span>GARUDATEL ADMIN COMMAND CENTER</span>
+                <span class="tag-pill">PROTOTYPE v2.0</span>
+            </div>
+        </div>
+
+        <div class="toolbar-controls">
+            <!-- Viewport Switcher -->
+            <button class="tool-btn active" id="btnViewDesktop" onclick="setViewport('desktop', this)" title="Layar Lebar Desktop PC (100%)">
+                <i class="fas fa-desktop"></i> <span>Desktop PC</span>
+            </button>
+            <button class="tool-btn" id="btnViewLaptop" onclick="setViewport('laptop', this)" title="Layar Laptop 1280px">
+                <i class="fas fa-laptop"></i> <span>Laptop</span>
+            </button>
+            <button class="tool-btn" id="btnViewTablet" onclick="setViewport('tablet', this)" title="Layar Tablet / iPad (768px)">
+                <i class="fas fa-tablet-alt"></i> <span>Tablet</span>
+            </button>
+            <button class="tool-btn" id="btnViewMobile" onclick="setViewport('mobile', this)" title="Layar Handphone (414px)">
+                <i class="fas fa-mobile-alt"></i> <span>Mobile</span>
+            </button>
+
+            <!-- Quick Page Selector -->
+            <select class="select-screen-quick" id="quickScreenSelect" onchange="switchScreen(this.value)">
+                <option value="screen-dashboard">📊 1. Dashboard Utama (Command Center)</option>
+                <option value="screen-transactions">⚡ 2. Pusat Transaksi (Realtime Data)</option>
+                <option value="screen-users">👥 3. Data Pelanggan & Downline</option>
+                <option value="screen-merchant-api">🛒 4. POS Command Center & API Kasir</option>
+                <option value="screen-products">📦 5. Produk PPOB (Katalog & Status)</option>
+                <option value="screen-margin">🏷️ 6. Auto-Tier Margin (5 Level Rumus)</option>
+                <option value="screen-saldo">💰 7. Saldo & Tiket Digiflazz (H2H)</option>
+                <option value="screen-tier">👑 8. Tier & Downline VIP</option>
+                <option value="screen-tickets">🎧 9. Pusat Tiket CS (Telegram)</option>
+                <option value="screen-config">🔌 10. Konfigurasi API & Gateway (Tab)</option>
+                <option value="screen-store">🏪 11. Profil Toko & Logo Struk</option>
+                <option value="screen-reports">📈 12. Laporan & Rekapitulasi</option>
+            </select>
+        </div>
+    </header>
+
+    <!-- ========================================================
+         MAIN WORKSPACE AREA
+         ======================================================== -->
+    <div class="preview-stage" id="previewStage">
+        <div class="device-container">
+
+            <!-- SIDEBAR NAVIGASI KIRI UTAMA -->
+            <aside class="admin-sidebar" id="adminSidebar">
+                <!-- Brand Header -->
+                <a href="javascript:void(0)" onclick="switchScreen('screen-dashboard')" class="sidebar-brand">
+                    <div class="brand-logo-box">
+                        <i class="fas fa-shield-halved"></i>
+                    </div>
+                    <div class="brand-text hide-on-slim">
+                        <span class="brand-name">iPay Admin</span>
+                        <span class="brand-sub">Command Center</span>
+                    </div>
+                </a>
+
+                <!-- Profile Info Card -->
+                <div class="sidebar-profile-card">
+                    <div class="profile-avatar-wrap">
+                        <div class="profile-avatar">AD</div>
+                        <div class="status-dot" title="Server & Admin Online"></div>
+                    </div>
+                    <div class="profile-info hide-on-slim">
+                        <div class="profile-name">Administrator</div>
+                        <div class="profile-role">Super Admin</div>
+                    </div>
+                </div>
+
+                <!-- Nav Menu List -->
+                <div class="sidebar-menu">
+                    <div class="menu-category-title hide-on-slim">Ringkasan & Analitik</div>
+                    <a class="nav-item active" data-screen="screen-dashboard" onclick="switchScreen('screen-dashboard')">
+                        <i class="fas fa-chart-pie" style="color: #38bdf8;"></i>
+                        <span class="nav-label hide-on-slim">Dashboard Utama</span>
+                    </a>
+                    <a class="nav-item" data-screen="screen-reports" onclick="switchScreen('screen-reports')">
+                        <i class="fas fa-chart-line" style="color: #a78bfa;"></i>
+                        <span class="nav-label hide-on-slim">Laporan Rekapitulasi</span>
+                    </a>
+
+                    <div class="menu-category-title hide-on-slim">Operasional Transaksi</div>
+                    <a class="nav-item" data-screen="screen-transactions" onclick="switchScreen('screen-transactions')">
+                        <i class="fas fa-receipt" style="color: #34d399;"></i>
+                        <span class="nav-label hide-on-slim">Pusat Transaksi</span>
+                        <span class="nav-badge badge-teal hide-on-slim">1.284</span>
+                    </a>
+                    <a class="nav-item" data-screen="screen-saldo" onclick="switchScreen('screen-saldo')">
+                        <i class="fas fa-wallet" style="color: #fbbf24;"></i>
+                        <span class="nav-label hide-on-slim">Saldo Digiflazz</span>
+                        <span class="nav-badge badge-amber hide-on-slim">Live</span>
+                    </a>
+                    <a class="nav-item" data-screen="screen-merchant-api" onclick="switchScreen('screen-merchant-api')">
+                        <i class="fas fa-cash-register" style="color: #f472b6;"></i>
+                        <span class="nav-label hide-on-slim">POS & Kasir API</span>
+                        <span class="nav-badge badge-blue hide-on-slim">HOT</span>
+                    </a>
+
+                    <div class="menu-category-title hide-on-slim">Pengguna & Kemitraan</div>
+                    <a class="nav-item" data-screen="screen-users" onclick="switchScreen('screen-users')">
+                        <i class="fas fa-users-cog" style="color: #60a5fa;"></i>
+                        <span class="nav-label hide-on-slim">Data Pelanggan</span>
+                        <span class="nav-badge badge-blue hide-on-slim">1.420</span>
+                    </a>
+                    <a class="nav-item" data-screen="screen-tier" onclick="switchScreen('screen-tier')">
+                        <i class="fas fa-crown" style="color: #fbbf24;"></i>
+                        <span class="nav-label hide-on-slim">Tier & Downline VIP</span>
+                    </a>
+
+                    <div class="menu-category-title hide-on-slim">Katalog & Margin</div>
+                    <a class="nav-item" data-screen="screen-products" onclick="switchScreen('screen-products')">
+                        <i class="fas fa-boxes-stacked" style="color: #2dd4bf;"></i>
+                        <span class="nav-label hide-on-slim">Produk PPOB</span>
+                    </a>
+                    <a class="nav-item" data-screen="screen-margin" onclick="switchScreen('screen-margin')">
+                        <i class="fas fa-tags" style="color: #fb923c;"></i>
+                        <span class="nav-label hide-on-slim">Auto-Tier Margin</span>
+                    </a>
+
+                    <div class="menu-category-title hide-on-slim">Layanan CS & Pengumuman</div>
+                    <a class="nav-item" data-screen="screen-tickets" onclick="switchScreen('screen-tickets')">
+                        <i class="fas fa-headset" style="color: #38bdf8;"></i>
+                        <span class="nav-label hide-on-slim">Tiket Bantuan CS</span>
+                        <span class="nav-badge badge-red hide-on-slim">2 Open</span>
+                    </a>
+
+                    <div class="menu-category-title hide-on-slim">Konfigurasi & Pengaturan</div>
+                    <a class="nav-item" data-screen="screen-config" onclick="switchScreen('screen-config')">
+                        <i class="fas fa-sliders" style="color: #c084fc;"></i>
+                        <span class="nav-label hide-on-slim">Gateway & API Hub</span>
+                    </a>
+                    <a class="nav-item" data-screen="screen-store" onclick="switchScreen('screen-store')">
+                        <i class="fas fa-store" style="color: #34d399;"></i>
+                        <span class="nav-label hide-on-slim">Profil Toko & Struk</span>
+                    </a>
+                </div>
+
+                <!-- Sidebar Footer -->
+                <div class="sidebar-footer hide-on-slim">
+                    <button class="btn-sidebar-quick" onclick="showToast('Kembali ke Halaman Web Pengguna / Beranda', 'info')">
+                        <i class="fas fa-external-link-alt"></i> <span>Web User</span>
+                    </button>
+                    <button class="btn-sidebar-quick" onclick="showToast('Logout aman simulasi panel admin', 'warning')">
+                        <i class="fas fa-sign-out-alt"></i> <span>Keluar</span>
+                    </button>
+                </div>
+            </aside>
+
+            <!-- Backdrop Drawer Mobile -->
+            <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="toggleDrawer(false)"></div>
+
+            <!-- AREA KONTEN UTAMA DENGAN TOPBAR -->
+            <main class="admin-main">
+                <!-- TOPBAR RESPOCIF -->
+                <div class="admin-topbar">
+                    <div class="topbar-left">
+                        <button class="btn-collapse-sidebar" id="btnToggleNav" onclick="toggleSidebarView()" title="Buka / Ciutkan Menu">
+                            <i class="fas fa-bars"></i>
+                        </button>
+                        <div class="page-header-info">
+                            <div class="page-breadcrumbs">Admin &gt; <span id="topBreadcrumb">Dashboard Utama</span></div>
+                            <h2 class="page-title" id="topPageTitle">Executive Command Center</h2>
+                        </div>
+                    </div>
+
+                    <div class="topbar-center">
+                        <div class="topbar-search">
+                            <i class="fas fa-search"></i>
+                            <input type="text" placeholder="Cari ID Trx, Nama Pelanggan, No HP, atau SKU..." id="globalSearchInput" onkeydown="handleGlobalSearch(event)">
+                        </div>
+                    </div>
+
+                    <div class="topbar-right">
+                        <!-- Gateway Status Live Indicator -->
+                        <div class="gateway-status-pill">
+                            <div class="pulse-circle"></div>
+                            <span>Digiflazz &amp; Gateway OK</span>
+                        </div>
+
+                        <!-- Notification Bell -->
+                        <button class="topbar-btn-icon" onclick="showToast('Pusat Notifikasi Admin: 3 info transaksi baru', 'info')" title="Notifikasi Baru">
+                            <i class="far fa-bell"></i>
+                            <span class="badge-bell">3</span>
+                        </button>
+
+                        <!-- Primary Action Button -->
+                        <button class="btn-topbar-action" onclick="openModalDeposit()">
+                            <i class="fas fa-plus-circle"></i>
+                            <span>Deposit Saldo H2H</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- SCROLLABLE BODY CONTENT (12 SCREENS INTERAKTIF) -->
+                <div class="content-scrollable">
+
+                    <!-- ========================================================
+                         SCREEN 1: DASHBOARD UTAMA (COMMAND CENTER)
+                         ======================================================== -->
+                    <section class="screen-view active-screen" id="screen-dashboard">
+                        <!-- 4 STATS CARDS -->
+                        <div class="stats-grid-4">
+                            <div class="stat-card-modern">
+                                <div class="stat-card-header">
+                                    <span class="stat-title">Omset Hari Ini</span>
+                                    <div class="stat-icon-wrap" style="background: #e6f7f5; color: #008779;">
+                                        <i class="fas fa-wallet"></i>
+                                    </div>
+                                </div>
+                                <div class="stat-val-row">
+                                    <span class="stat-val">Rp 18.420.000</span>
+                                </div>
+                                <div class="stat-trend trend-up">
+                                    <i class="fas fa-arrow-trend-up"></i>
+                                    <span>+14.2% dibanding kemarin</span>
+                                </div>
+                                <span class="stat-subtext">Dari 1.284 total pembayaran lunas</span>
+                            </div>
+
+                            <div class="stat-card-modern">
+                                <div class="stat-card-header">
+                                    <span class="stat-title">Estimasi Laba Bersih</span>
+                                    <div class="stat-icon-wrap" style="background: #f0fdf4; color: #16a34a;">
+                                        <i class="fas fa-coins"></i>
+                                    </div>
+                                </div>
+                                <div class="stat-val-row">
+                                    <span class="stat-val">Rp 1.845.200</span>
+                                </div>
+                                <div class="stat-trend trend-up">
+                                    <i class="fas fa-arrow-trend-up"></i>
+                                    <span>+8.5% margin rata-rata</span>
+                                </div>
+                                <span class="stat-subtext">Margin bersih setelah potongan H2H</span>
+                            </div>
+
+                            <div class="stat-card-modern">
+                                <div class="stat-card-header">
+                                    <span class="stat-title">Transaksi Berjalan</span>
+                                    <div class="stat-icon-wrap" style="background: #e0f2fe; color: #0284c7;">
+                                        <i class="fas fa-bolt"></i>
+                                    </div>
+                                </div>
+                                <div class="stat-val-row">
+                                    <span class="stat-val">1.284</span>
+                                </div>
+                                <div style="display: flex; gap: 8px; font-size: 11px; font-weight: 800;">
+                                    <span style="color: #10b981;">1.264 Sukses</span> • 
+                                    <span style="color: #f59e0b;">8 Pending</span> • 
+                                    <span style="color: #ef4444;">12 Gagal</span>
+                                </div>
+                                <span class="stat-subtext">Success rate sistem: 98.4%</span>
+                            </div>
+
+                            <div class="stat-card-modern">
+                                <div class="stat-card-header">
+                                    <span class="stat-title">Saldo H2H Digiflazz</span>
+                                    <div class="stat-icon-wrap" style="background: #fef3c7; color: #d97706;">
+                                        <i class="fas fa-vault"></i>
+                                    </div>
+                                </div>
+                                <div class="stat-val-row">
+                                    <span class="stat-val">Rp 4.850.250</span>
+                                </div>
+                                <div class="stat-trend" style="color: #0284c7;">
+                                    <i class="fas fa-users"></i>
+                                    <span>Saldo Pelanggan: Rp 42.85M</span>
+                                </div>
+                                <span class="stat-subtext">Status Key: Production Active</span>
+                            </div>
+                        </div>
+
+                        <!-- 2-COLUMN GRID (CHART & GATEWAY HUB) -->
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; margin-bottom: 22px;">
+                            <!-- GRAFIK OMSET 7 HARI TERAKHIR -->
+                            <div class="admin-card" style="margin-bottom: 0;">
+                                <div class="card-header-row">
+                                    <div class="card-heading">
+                                        <i class="fas fa-chart-column"></i>
+                                        <span>Tren Omset &amp; Transaksi 7 Hari Terakhir</span>
+                                    </div>
+                                    <span class="badge-status-chip chip-info">Realtime DB</span>
+                                </div>
+                                <div style="height: 220px; width: 100%;">
+                                    <canvas id="dashboardWeeklyChart"></canvas>
+                                </div>
+                            </div>
+
+                            <!-- GATEWAY HUB MONITORING -->
+                            <div class="admin-card" style="margin-bottom: 0;">
+                                <div class="card-header-row">
+                                    <div class="card-heading">
+                                        <i class="fas fa-network-wired"></i>
+                                        <span>Status Koneksi Provider &amp; Bot</span>
+                                    </div>
+                                    <button class="btn-action-sm btn-act-blue" onclick="showToast('Koneksi seluruh gateway aktif & normal', 'success')">
+                                        <i class="fas fa-satellite-dish"></i> Cek Ping
+                                    </button>
+                                </div>
+                                <div style="display: flex; flex-direction: column; gap: 10px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: #f8fafc; border-radius: 10px; border: 1px solid var(--border-color);">
+                                        <div style="display: flex; align-items: center; gap: 10px;">
+                                            <i class="fas fa-server" style="color: #008779; font-size: 16px;"></i>
+                                            <div>
+                                                <div style="font-size: 12px; font-weight: 800; color: #1e293b;">Digiflazz API H2H</div>
+                                                <div style="font-size: 10px; color: #64748b;">IP: 203.194.115.182 (Whitelisted)</div>
+                                            </div>
+                                        </div>
+                                        <span class="badge-status-chip chip-success"><i class="fas fa-check-circle"></i> CONNECTED</span>
+                                    </div>
+
+                                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: #f8fafc; border-radius: 10px; border: 1px solid var(--border-color);">
+                                        <div style="display: flex; align-items: center; gap: 10px;">
+                                            <i class="fas fa-bolt" style="color: #6366f1; font-size: 16px;"></i>
+                                            <div>
+                                                <div style="font-size: 12px; font-weight: 800; color: #1e293b;">VIP-Reseller Gateway</div>
+                                                <div style="font-size: 10px; color: #64748b;">H2H Secondary Backup</div>
+                                            </div>
+                                        </div>
+                                        <span class="badge-status-chip chip-success"><i class="fas fa-check-circle"></i> AKTIF (ON)</span>
+                                    </div>
+
+                                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: #f8fafc; border-radius: 10px; border: 1px solid var(--border-color);">
+                                        <div style="display: flex; align-items: center; gap: 10px;">
+                                            <i class="fas fa-credit-card" style="color: #0284c7; font-size: 16px;"></i>
+                                            <div>
+                                                <div style="font-size: 12px; font-weight: 800; color: #1e293b;">Payment Gateway QRIS</div>
+                                                <div style="font-size: 10px; color: #64748b;">Engine: PaymentKita (Otomatis)</div>
+                                            </div>
+                                        </div>
+                                        <span class="badge-status-chip chip-success"><i class="fas fa-check-circle"></i> READY</span>
+                                    </div>
+
+                                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: #f8fafc; border-radius: 10px; border: 1px solid var(--border-color);">
+                                        <div style="display: flex; align-items: center; gap: 10px;">
+                                            <i class="fab fa-telegram" style="color: #0284c7; font-size: 18px;"></i>
+                                            <div>
+                                                <div style="font-size: 12px; font-weight: 800; color: #1e293b;">Bot 1 CS Telegram</div>
+                                                <div style="font-size: 10px; color: #64748b;">Inbox Bantuan &amp; Notif Trx</div>
+                                            </div>
+                                        </div>
+                                        <span class="badge-status-chip chip-info"><i class="fas fa-robot"></i> LISTENING</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- LIVE TRANSAKSI TERAKHIR TABLE -->
+                        <div class="admin-card" style="padding: 0; overflow: hidden; margin-top: 22px;">
+                            <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                                <div class="card-heading">
+                                    <i class="fas fa-clock-rotate-left"></i>
+                                    <span>5 Transaksi Terkini Secara Realtime</span>
+                                </div>
+                                <button class="btn-action-sm btn-act-teal" onclick="switchScreen('screen-transactions')">
+                                    <span>Lihat Semua Transaksi</span> <i class="fas fa-arrow-right"></i>
+                                </button>
+                            </div>
+                            <div class="table-responsive-box" style="border: none; border-radius: 0; box-shadow: none;">
+                                <table class="admin-data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>ID Trx</th>
+                                            <th>Waktu</th>
+                                            <th>Pelanggan</th>
+                                            <th>Produk</th>
+                                            <th>No Tujuan</th>
+                                            <th>Harga Jual</th>
+                                            <th>Profit</th>
+                                            <th>Status</th>
+                                            <th style="text-align: right;">Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="dashboardTrxBody">
+                                        <tr>
+                                            <td><b style="color: #0284c7;">#TRX-89412</b></td>
+                                            <td><small>09:41:20 WIB</small></td>
+                                            <td><b>Budi Santoso</b> <span class="badge-status-chip chip-info">MEMBER</span></td>
+                                            <td>Telkomsel 50.000</td>
+                                            <td><code>081234567890</code></td>
+                                            <td><b>Rp 50.800</b></td>
+                                            <td><span style="color: #10b981; font-weight: 800;">+Rp 800</span></td>
+                                            <td><span class="badge-status-chip chip-success"><i class="fas fa-check"></i> SUKSES</span></td>
+                                            <td style="text-align: right;">
+                                                <button class="btn-action-sm btn-act-blue" onclick="openModalTrx('#TRX-89412', 'Telkomsel 50.000', '081234567890', 'Rp 50.800', 'SUKSES', 'SN-TSEL-994129841')">Detail</button>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td><b style="color: #0284c7;">#TRX-89411</b></td>
+                                            <td><small>09:39:15 WIB</small></td>
+                                            <td><b>Konter Berkah</b> <span class="badge-status-chip chip-pending">VIP</span></td>
+                                            <td>PLN Token 100.000</td>
+                                            <td><code>32019948192</code></td>
+                                            <td><b>Rp 100.250</b></td>
+                                            <td><span style="color: #10b981; font-weight: 800;">+Rp 1.250</span></td>
+                                            <td><span class="badge-status-chip chip-success"><i class="fas fa-check"></i> SUKSES</span></td>
+                                            <td style="text-align: right;">
+                                                <button class="btn-action-sm btn-act-blue" onclick="openModalTrx('#TRX-89411', 'PLN Token 100.000', '32019948192', 'Rp 100.250', 'SUKSES', '3291-8491-0021-9941')">Detail</button>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td><b style="color: #0284c7;">#TRX-89410</b></td>
+                                            <td><small>09:35:02 WIB</small></td>
+                                            <td><b>Andi Pratama</b> <span class="badge-status-chip chip-info">MEMBER</span></td>
+                                            <td>Dana Saldo 25.000</td>
+                                            <td><code>085712349918</code></td>
+                                            <td><b>Rp 25.600</b></td>
+                                            <td><span style="color: #10b981; font-weight: 800;">+Rp 600</span></td>
+                                            <td><span class="badge-status-chip chip-pending"><i class="fas fa-clock fa-spin"></i> PENDING</span></td>
+                                            <td style="text-align: right;">
+                                                <button class="btn-action-sm btn-act-amber" onclick="openModalTrx('#TRX-89410', 'Dana Saldo 25.000', '085712349918', 'Rp 25.600', 'PENDING', 'MENUNGGU-RESPONSE-H2H')">Cek SN</button>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td><b style="color: #0284c7;">#TRX-89409</b></td>
+                                            <td><small>09:28:44 WIB</small></td>
+                                            <td><b>Siti Rahma</b> <span class="badge-status-chip chip-info">MEMBER</span></td>
+                                            <td>Indosat Freedom 10GB</td>
+                                            <td><code>085811223344</code></td>
+                                            <td><b>Rp 38.500</b></td>
+                                            <td><span style="color: #10b981; font-weight: 800;">+Rp 1.100</span></td>
+                                            <td><span class="badge-status-chip chip-success"><i class="fas fa-check"></i> SUKSES</span></td>
+                                            <td style="text-align: right;">
+                                                <button class="btn-action-sm btn-act-blue" onclick="openModalTrx('#TRX-89409', 'Indosat Freedom 10GB', '085811223344', 'Rp 38.500', 'SUKSES', 'SN-ISAT-38192019')">Detail</button>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td><b style="color: #0284c7;">#TRX-89408</b></td>
+                                            <td><small>09:15:10 WIB</small></td>
+                                            <td><b>Hasan Basri</b> <span class="badge-status-chip chip-info">RESELLER</span></td>
+                                            <td>ShopeePay 50.000</td>
+                                            <td><code>089612345678</code></td>
+                                            <td><b>Rp 50.650</b></td>
+                                            <td><span style="color: #ef4444; font-weight: 800;">Rp 0</span></td>
+                                            <td><span class="badge-status-chip chip-failed"><i class="fas fa-times"></i> GAGAL</span></td>
+                                            <td style="text-align: right;">
+                                                <button class="btn-action-sm btn-act-red" onclick="openModalTrx('#TRX-89408', 'ShopeePay 50.000', '089612345678', 'Rp 50.650', 'GAGAL', 'NOMOR_TUJUAN_TIDAK_VALID')">Alasan</button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+
+
+                    <!-- ========================================================
+                         SCREEN 2: PUSAT TRANSAKSI (TABLE & SMART FILTER)
+                         ======================================================== -->
+                    <section class="screen-view" id="screen-transactions">
+                        <!-- STATISTIK MINI ATAS -->
+                        <div class="stats-grid-4">
+                            <div class="stat-card-modern" style="padding: 14px 18px;">
+                                <div class="stat-title">Transaksi Sukses</div>
+                                <div class="stat-val" style="color: #10b981;">1.264 Trx</div>
+                                <span class="stat-subtext">Omset: Rp 18.150.000</span>
+                            </div>
+                            <div class="stat-card-modern" style="padding: 14px 18px;">
+                                <div class="stat-title">Transaksi Pending</div>
+                                <div class="stat-val" style="color: #f59e0b;">8 Trx</div>
+                                <span class="stat-subtext">Menunggu callback H2H</span>
+                            </div>
+                            <div class="stat-card-modern" style="padding: 14px 18px;">
+                                <div class="stat-title">Transaksi Gagal</div>
+                                <div class="stat-val" style="color: #ef4444;">12 Trx</div>
+                                <span class="stat-subtext">Saldo otomatis dikembalikan</span>
+                            </div>
+                            <div class="stat-card-modern" style="padding: 14px 18px;">
+                                <div class="stat-title">Total Keuntungan</div>
+                                <div class="stat-val" style="color: #0284c7;">Rp 1.845.200</div>
+                                <span class="stat-subtext">Margin bersih operasional</span>
+                            </div>
+                        </div>
+
+                        <!-- SMART FILTER BAR -->
+                        <div class="smart-filter-bar">
+                            <div class="filter-group">
+                                <i class="fas fa-search" style="color: #94a3b8;"></i>
+                                <input type="text" class="filter-input" id="trxSearchInput" placeholder="Cari ID Trx, No Pelanggan, atau SN..." onkeyup="filterTrxTable()">
+                            </div>
+                            <div class="filter-group" style="max-width: 160px;">
+                                <select class="filter-select" id="trxStatusSelect" onchange="filterTrxTable()">
+                                    <option value="">Semua Status</option>
+                                    <option value="SUKSES">Sukses (Lunas)</option>
+                                    <option value="PENDING">Pending (Proses)</option>
+                                    <option value="GAGAL">Gagal / Dibatalkan</option>
+                                </select>
+                            </div>
+                            <div class="filter-group" style="max-width: 160px;">
+                                <select class="filter-select">
+                                    <option value="today">Hari Ini (17 Okt)</option>
+                                    <option value="yesterday">Kemarin</option>
+                                    <option value="7days">7 Hari Terakhir</option>
+                                    <option value="month">Bulan Ini</option>
+                                </select>
+                            </div>
+                            <button class="btn-filter-apply" onclick="showToast('Filter pencarian transaksi diterapkan', 'success')">
+                                <i class="fas fa-filter"></i> <span>Terapkan</span>
+                            </button>
+                            <button class="btn-filter-reset" onclick="resetTrxFilter()">
+                                <i class="fas fa-undo"></i> <span>Reset</span>
+                            </button>
+                        </div>
+
+                        <!-- TABEL TRANSAKSI LENGKAP -->
+                        <div class="table-responsive-box">
+                            <table class="admin-data-table" id="tableTransactions">
+                                <thead>
+                                    <tr>
+                                        <th>ID Trx</th>
+                                        <th>Waktu</th>
+                                        <th>Pelanggan</th>
+                                        <th>Produk</th>
+                                        <th>No Tujuan</th>
+                                        <th>Serial Number (SN)</th>
+                                        <th>Modal H2H</th>
+                                        <th>Harga Jual</th>
+                                        <th>Profit</th>
+                                        <th>Status</th>
+                                        <th style="text-align: right;">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><b>#TRX-89412</b></td>
+                                        <td><small>17/10 09:41</small></td>
+                                        <td>Budi Santoso</td>
+                                        <td><b>Telkomsel 50.000</b></td>
+                                        <td><code>081234567890</code></td>
+                                        <td><span class="copyable-badge" onclick="copyText('SN-TSEL-994129841', this)">SN-TSEL-994129841 <i class="far fa-copy"></i></span></td>
+                                        <td>Rp 50.000</td>
+                                        <td><b>Rp 50.800</b></td>
+                                        <td><span style="color:#10b981; font-weight:800;">+Rp 800</span></td>
+                                        <td><span class="badge-status-chip chip-success">SUKSES</span></td>
+                                        <td style="text-align: right;">
+                                            <button class="btn-action-sm btn-act-blue" onclick="openModalTrx('#TRX-89412', 'Telkomsel 50.000', '081234567890', 'Rp 50.800', 'SUKSES', 'SN-TSEL-994129841')">Edit/SN</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><b>#TRX-89411</b></td>
+                                        <td><small>17/10 09:39</small></td>
+                                        <td>Konter Berkah</td>
+                                        <td><b>PLN Token 100.000</b></td>
+                                        <td><code>32019948192</code></td>
+                                        <td><span class="copyable-badge" onclick="copyText('3291-8491-0021-9941', this)">3291-8491-0021-9941 <i class="far fa-copy"></i></span></td>
+                                        <td>Rp 99.000</td>
+                                        <td><b>Rp 100.250</b></td>
+                                        <td><span style="color:#10b981; font-weight:800;">+Rp 1.250</span></td>
+                                        <td><span class="badge-status-chip chip-success">SUKSES</span></td>
+                                        <td style="text-align: right;">
+                                            <button class="btn-action-sm btn-act-blue" onclick="openModalTrx('#TRX-89411', 'PLN Token 100.000', '32019948192', 'Rp 100.250', 'SUKSES', '3291-8491-0021-9941')">Edit/SN</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><b>#TRX-89410</b></td>
+                                        <td><small>17/10 09:35</small></td>
+                                        <td>Andi Pratama</td>
+                                        <td><b>Dana Saldo 25.000</b></td>
+                                        <td><code>085712349918</code></td>
+                                        <td><span style="color:#f59e0b; font-style:italic;">Menunggu H2H...</span></td>
+                                        <td>Rp 25.000</td>
+                                        <td><b>Rp 25.600</b></td>
+                                        <td><span style="color:#10b981; font-weight:800;">+Rp 600</span></td>
+                                        <td><span class="badge-status-chip chip-pending">PENDING</span></td>
+                                        <td style="text-align: right;">
+                                            <button class="btn-action-sm btn-act-amber" onclick="openModalTrx('#TRX-89410', 'Dana Saldo 25.000', '085712349918', 'Rp 25.600', 'PENDING', '')">Update</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><b>#TRX-89408</b></td>
+                                        <td><small>17/10 09:15</small></td>
+                                        <td>Hasan Basri</td>
+                                        <td><b>ShopeePay 50.000</b></td>
+                                        <td><code>089612345678</code></td>
+                                        <td><span style="color:#ef4444;">NOMOR_TUJUAN_SALAH</span></td>
+                                        <td>Rp 50.000</td>
+                                        <td><b>Rp 50.650</b></td>
+                                        <td><span style="color:#ef4444; font-weight:800;">Rp 0</span></td>
+                                        <td><span class="badge-status-chip chip-failed">GAGAL</span></td>
+                                        <td style="text-align: right;">
+                                            <button class="btn-action-sm btn-act-red" onclick="openModalTrx('#TRX-89408', 'ShopeePay 50.000', '089612345678', 'Rp 50.650', 'GAGAL', 'NOMOR_TUJUAN_SALAH')">Alasan</button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <div class="pagination-container">
+                                <div>Menampilkan <b>4</b> dari <b>1.284</b> data transaksi</div>
+                                <div class="pagination-buttons">
+                                    <button class="page-btn-item"><i class="fas fa-chevron-left"></i></button>
+                                    <button class="page-btn-item active">1</button>
+                                    <button class="page-btn-item">2</button>
+                                    <button class="page-btn-item">3</button>
+                                    <button class="page-btn-item">...</button>
+                                    <button class="page-btn-item">52</button>
+                                    <button class="page-btn-item"><i class="fas fa-chevron-right"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+
+                    <!-- ========================================================
+                         SCREEN 3: DATA USER & DOWNLINE (/admin/users)
+                         ======================================================== -->
+                    <section class="screen-view" id="screen-users">
+                        <div class="stats-grid-4">
+                            <div class="stat-card-modern" style="padding: 14px 18px;">
+                                <div class="stat-title">Total Pengguna</div>
+                                <div class="stat-val">1.420 Akun</div>
+                                <span class="stat-subtext">Member: 1.180 • Reseller: 185</span>
+                            </div>
+                            <div class="stat-card-modern" style="padding: 14px 18px;">
+                                <div class="stat-title">Member VIP Aktif</div>
+                                <div class="stat-val" style="color: #f59e0b;">55 Mitra</div>
+                                <span class="stat-subtext">Hak Komisi Downline Aktif</span>
+                            </div>
+                            <div class="stat-card-modern" style="padding: 14px 18px;">
+                                <div class="stat-title">Total Saldo Beredar</div>
+                                <div class="stat-val" style="color: #10b981;">Rp 42.850.000</div>
+                                <span class="stat-subtext">Saldo mengendap di dompet</span>
+                            </div>
+                            <div class="stat-card-modern" style="padding: 14px 18px;">
+                                <div class="stat-title">Komisi Siap Cair</div>
+                                <div class="stat-val" style="color: #0284c7;">Rp 3.420.000</div>
+                                <span class="stat-subtext">Pencairan serentak tgl 28</span>
+                            </div>
+                        </div>
+
+                        <!-- FILTER BAR USER -->
+                        <div class="smart-filter-bar">
+                            <div class="filter-group">
+                                <i class="fas fa-search" style="color: #94a3b8;"></i>
+                                <input type="text" class="filter-input" placeholder="Cari nama, WhatsApp, email...">
+                            </div>
+                            <div class="filter-group" style="max-width: 150px;">
+                                <select class="filter-select">
+                                    <option value="">Semua Golongan</option>
+                                    <option value="vip">👑 VIP</option>
+                                    <option value="reseller">🏪 Reseller</option>
+                                    <option value="user">👤 Member</option>
+                                </select>
+                            </div>
+                            <div class="filter-group" style="max-width: 150px;">
+                                <select class="filter-select">
+                                    <option value="">Semua Saldo</option>
+                                    <option value="pos">Ada Saldo (&gt; 0)</option>
+                                    <option value="zero">Saldo Nol (Rp 0)</option>
+                                </select>
+                            </div>
+                            <button class="btn-filter-apply" onclick="showToast('Pencarian data user diterapkan', 'success')">
+                                <i class="fas fa-filter"></i> <span>Terapkan</span>
+                            </button>
+                        </div>
+
+                        <!-- TABEL USER -->
+                        <div class="table-responsive-box">
+                            <table class="admin-data-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Pelanggan</th>
+                                        <th>Golongan</th>
+                                        <th>Upline &amp; Downline</th>
+                                        <th>Saldo Utama</th>
+                                        <th>Komisi VIP</th>
+                                        <th>Poin</th>
+                                        <th>Status</th>
+                                        <th style="text-align: right;">Aksi Cepat</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>#1024</td>
+                                        <td>
+                                            <div style="font-weight: 800; color: #0f172a;">Konter Berkah Jaya</div>
+                                            <div style="font-size: 11px; color: #64748b;">081298410021</div>
+                                        </td>
+                                        <td><span class="badge-status-chip chip-pending">👑 VIP</span></td>
+                                        <td>
+                                            <div>Upline: Pusat</div>
+                                            <small style="color: #0284c7; font-weight: 800;">14 Downline</small>
+                                        </td>
+                                        <td><b style="color: #10b981;">Rp 1.450.000</b></td>
+                                        <td><b>Rp 245.000</b></td>
+                                        <td><span style="color: #f59e0b; font-weight: 800;">1.250 Pts</span></td>
+                                        <td><span class="badge-status-chip chip-success">AKTIF</span></td>
+                                        <td style="text-align: right;">
+                                            <button class="btn-action-sm btn-act-teal" onclick="openModalEditUser('Konter Berkah Jaya', '081298410021', '1450000', 'VIP', '1250')">Edit</button>
+                                            <button class="btn-action-sm btn-act-blue" onclick="openModalAdjustSaldo('Konter Berkah Jaya', '1450000')">Saldo</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>#1023</td>
+                                        <td>
+                                            <div style="font-weight: 800; color: #0f172a;">Budi Santoso</div>
+                                            <div style="font-size: 11px; color: #64748b;">081234567890</div>
+                                        </td>
+                                        <td><span class="badge-status-chip chip-info">👤 MEMBER</span></td>
+                                        <td>
+                                            <div>Upline: Konter Berkah</div>
+                                            <small style="color: #64748b;">0 Downline</small>
+                                        </td>
+                                        <td><b style="color: #10b981;">Rp 85.000</b></td>
+                                        <td>Rp 0</td>
+                                        <td><span style="color: #f59e0b; font-weight: 800;">120 Pts</span></td>
+                                        <td><span class="badge-status-chip chip-success">AKTIF</span></td>
+                                        <td style="text-align: right;">
+                                            <button class="btn-action-sm btn-act-teal" onclick="openModalEditUser('Budi Santoso', '081234567890', '85000', 'MEMBER', '120')">Edit</button>
+                                            <button class="btn-action-sm btn-act-blue" onclick="openModalAdjustSaldo('Budi Santoso', '85000')">Saldo</button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+
+
+                    <!-- ========================================================
+                         SCREEN 4: POS & KASIR WEB API (/admin/merchant_api)
+                         ======================================================== -->
+                    <section class="screen-view" id="screen-merchant-api">
+                        <div class="admin-card">
+                            <div class="card-header-row">
+                                <div class="card-heading">
+                                    <i class="fas fa-cash-register"></i>
+                                    <span>Manajemen Mitra Kasir Web POS &amp; API H2H</span>
+                                </div>
+                                <button class="btn-action-sm btn-act-teal" onclick="showToast('Fitur tambah masterkey merchant POS dibuka', 'info')">
+                                    <i class="fas fa-plus"></i> Tambah Mitra Kasir Baru
+                                </button>
+                            </div>
+                            <p style="font-size: 12px; color: #64748b; margin-bottom: 16px;">
+                                Mengelola lisensi Kasir Web POS toko, saldo deposit kasir, whitelist IP, dan izin transaksi otomatis.
+                            </p>
+                            <div class="table-responsive-box">
+                                <table class="admin-data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Nama Toko / Kasir</th>
+                                            <th>Pemilik &amp; WA</th>
+                                            <th>Saldo Kasir</th>
+                                            <th>Status Key</th>
+                                            <th>Whitelist IP</th>
+                                            <th>Masterkey POS</th>
+                                            <th style="text-align: right;">Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><b>Garuda POS Mart - Cabang 1</b></td>
+                                            <td>Andi Pratama (085712349918)</td>
+                                            <td><b style="color: #10b981;">Rp 2.850.000</b></td>
+                                            <td><span class="badge-status-chip chip-success">ACTIVE</span></td>
+                                            <td><code>Semua IP Diizinkan</code></td>
+                                            <td><span class="copyable-badge" onclick="copyText('MK-POS-88419201', this)">MK-POS-88419201 <i class="far fa-copy"></i></span></td>
+                                            <td style="text-align: right;">
+                                                <button class="btn-action-sm btn-act-blue" onclick="showToast('Membuka kasir POS toko...', 'info')">Buka POS</button>
+                                                <button class="btn-action-sm btn-act-teal" onclick="showToast('Atur saldo deposit kasir toko', 'info')">Saldo</button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+
+
+                    <!-- ========================================================
+                         SCREEN 5: PRODUK PPOB & KATALOG (/admin/produk)
+                         ======================================================== -->
+                    <section class="screen-view" id="screen-products">
+                        <div class="smart-filter-bar">
+                            <div class="filter-group">
+                                <i class="fas fa-search" style="color: #94a3b8;"></i>
+                                <input type="text" class="filter-input" placeholder="Cari nama produk, SKU, provider...">
+                            </div>
+                            <div class="filter-group" style="max-width: 150px;">
+                                <select class="filter-select">
+                                    <option value="">Semua Kategori</option>
+                                    <option value="pulsa">Pulsa Reguler</option>
+                                    <option value="data">Paket Data</option>
+                                    <option value="pln">Token Listrik</option>
+                                    <option value="emoney">E-Money / Saldo</option>
+                                    <option value="game">Voucher Game</option>
+                                </select>
+                            </div>
+                            <button class="btn-filter-apply" onclick="showToast('Sinkronisasi data katalog produk dengan Digiflazz...', 'info')">
+                                <i class="fas fa-sync-alt"></i> <span>Tarik Digiflazz</span>
+                            </button>
+                        </div>
+
+                        <div class="table-responsive-box">
+                            <table class="admin-data-table">
+                                <thead>
+                                    <tr>
+                                        <th>SKU Code</th>
+                                        <th>Nama Produk</th>
+                                        <th>Provider</th>
+                                        <th>Kategori</th>
+                                        <th>Modal H2H</th>
+                                        <th>Harga Jual User</th>
+                                        <th>Margin</th>
+                                        <th>Skema</th>
+                                        <th>Status</th>
+                                        <th style="text-align: right;">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><code>TS50</code></td>
+                                        <td><b>Telkomsel 50.000</b></td>
+                                        <td>Telkomsel</td>
+                                        <td>Pulsa Reguler</td>
+                                        <td>Rp 50.000</td>
+                                        <td><b>Rp 50.800</b></td>
+                                        <td><span style="color:#10b981; font-weight:800;">+Rp 800</span></td>
+                                        <td><span class="badge-status-chip chip-info">Auto Tier</span></td>
+                                        <td><span class="badge-status-chip chip-success">NORMAL</span></td>
+                                        <td style="text-align: right;">
+                                            <button class="btn-action-sm btn-act-teal" onclick="showToast('Ubah harga manual untuk Telkomsel 50.000', 'info')">Ubah Harga</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>PLN100</code></td>
+                                        <td><b>PLN Token Listrik 100.000</b></td>
+                                        <td>PLN</td>
+                                        <td>Token Listrik</td>
+                                        <td>Rp 99.000</td>
+                                        <td><b>Rp 100.250</b></td>
+                                        <td><span style="color:#10b981; font-weight:800;">+Rp 1.250</span></td>
+                                        <td><span class="badge-status-chip chip-info">Auto Tier</span></td>
+                                        <td><span class="badge-status-chip chip-success">NORMAL</span></td>
+                                        <td style="text-align: right;">
+                                            <button class="btn-action-sm btn-act-teal" onclick="showToast('Ubah harga manual untuk PLN 100.000', 'info')">Ubah Harga</button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+
+
+                    <!-- ========================================================
+                         SCREEN 6: AUTO-TIER MARGIN (/admin/margin)
+                         ======================================================== -->
+                    <section class="screen-view" id="screen-margin">
+                        <div class="admin-card">
+                            <div class="card-header-row">
+                                <div class="card-heading">
+                                    <i class="fas fa-tags"></i>
+                                    <span>Rumus Auto-Tier Margin (5 Tingkatan Otomatis)</span>
+                                </div>
+                                <button class="btn-action-sm btn-act-amber" onclick="showToast('Menghitung ulang margin untuk 1.850 produk...', 'success')">
+                                    <i class="fas fa-sync-alt"></i> Terapkan Rumus ke Semua Produk
+                                </button>
+                            </div>
+                            <p style="font-size: 12px; color: #64748b; margin-bottom: 20px;">
+                                Saat harga modal produk di Digiflazz naik atau turun, sistem secara cerdas akan menambahkan margin keuntungan sesuai batas modal di bawah ini:
+                            </p>
+
+                            <div style="display: flex; flex-direction: column; gap: 14px;">
+                                <div style="display: grid; grid-template-columns: 120px 1fr 1fr 1fr; gap: 12px; align-items: center; padding: 12px; background: #f8fafc; border-radius: 12px; border: 1px solid var(--border-color);">
+                                    <div><span class="badge-status-chip chip-info">LEVEL 1</span></div>
+                                    <div><label style="font-size: 10px; font-weight: 800; color: #64748b;">Min Modal</label><input type="text" class="filter-input" value="Rp 0"></div>
+                                    <div><label style="font-size: 10px; font-weight: 800; color: #64748b;">Max Modal</label><input type="text" class="filter-input" value="Rp 10.000"></div>
+                                    <div><label style="font-size: 10px; font-weight: 800; color: #008779;">Margin Keuntungan (+)</label><input type="text" class="filter-input" value="Rp 200" style="font-weight: 800; color: #008779;"></div>
+                                </div>
+
+                                <div style="display: grid; grid-template-columns: 120px 1fr 1fr 1fr; gap: 12px; align-items: center; padding: 12px; background: #f8fafc; border-radius: 12px; border: 1px solid var(--border-color);">
+                                    <div><span class="badge-status-chip chip-info">LEVEL 2</span></div>
+                                    <div><label style="font-size: 10px; font-weight: 800; color: #64748b;">Min Modal</label><input type="text" class="filter-input" value="Rp 10.001"></div>
+                                    <div><label style="font-size: 10px; font-weight: 800; color: #64748b;">Max Modal</label><input type="text" class="filter-input" value="Rp 50.000"></div>
+                                    <div><label style="font-size: 10px; font-weight: 800; color: #008779;">Margin Keuntungan (+)</label><input type="text" class="filter-input" value="Rp 500" style="font-weight: 800; color: #008779;"></div>
+                                </div>
+
+                                <div style="display: grid; grid-template-columns: 120px 1fr 1fr 1fr; gap: 12px; align-items: center; padding: 12px; background: #f8fafc; border-radius: 12px; border: 1px solid var(--border-color);">
+                                    <div><span class="badge-status-chip chip-info">LEVEL 3</span></div>
+                                    <div><label style="font-size: 10px; font-weight: 800; color: #64748b;">Min Modal</label><input type="text" class="filter-input" value="Rp 50.001"></div>
+                                    <div><label style="font-size: 10px; font-weight: 800; color: #64748b;">Max Modal</label><input type="text" class="filter-input" value="Rp 100.000"></div>
+                                    <div><label style="font-size: 10px; font-weight: 800; color: #008779;">Margin Keuntungan (+)</label><input type="text" class="filter-input" value="Rp 1.000" style="font-weight: 800; color: #008779;"></div>
+                                </div>
+                            </div>
+
+                            <button class="btn-topbar-action" style="margin-top: 18px;" onclick="showToast('Rumus Auto-Tier Margin berhasil disimpan!', 'success')">
+                                <i class="fas fa-save"></i> Simpan Rumus Margin
+                            </button>
+                        </div>
+                    </section>
+
+
+                    <!-- ========================================================
+                         SCREEN 7: SALDO & DEPOSIT DIGIFLAZZ (/admin/saldo)
+                         ======================================================== -->
+                    <section class="screen-view" id="screen-saldo">
+                        <div class="stats-grid-4">
+                            <div class="stat-card-modern">
+                                <div class="stat-title">Saldo Saat Ini</div>
+                                <div class="stat-val" style="color: #008779;">Rp 4.850.250</div>
+                                <span class="stat-subtext">Akun: garudatel_indo (Whitelisted)</span>
+                            </div>
+                            <div class="stat-card-modern">
+                                <div class="stat-title">Tiket Deposit Terbuka</div>
+                                <div class="stat-val" style="color: #f59e0b;">Rp 2.000.412</div>
+                                <span class="stat-subtext">Transfer ke Rekening BCA Digiflazz</span>
+                            </div>
+                        </div>
+
+                        <div class="admin-card">
+                            <div class="card-heading" style="margin-bottom: 14px;">
+                                <i class="fas fa-ticket-simple"></i>
+                                <span>Minta Tiket Deposit Otomatis Digiflazz</span>
+                            </div>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 16px;">
+                                <div>
+                                    <label style="font-size: 11px; font-weight: 800; color: #64748b; margin-bottom: 4px; display: block;">Pilih Bank Tujuan</label>
+                                    <select class="filter-select" style="width: 100%;">
+                                        <option value="BCA">BCA (Bank Central Asia)</option>
+                                        <option value="MANDIRI">Bank Mandiri</option>
+                                        <option value="BRI">Bank BRI</option>
+                                        <option value="BNI">Bank BNI</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="font-size: 11px; font-weight: 800; color: #64748b; margin-bottom: 4px; display: block;">Nominal Deposit (Rp)</label>
+                                    <input type="text" class="filter-input" value="2.000.000">
+                                </div>
+                            </div>
+                            <button class="btn-topbar-action" onclick="showToast('Tiket deposit Digiflazz Rp 2.000.412 berhasil dibuat!', 'success')">
+                                <i class="fas fa-paper-plane"></i> Minta Tiket Deposit
+                            </button>
+                        </div>
+                    </section>
+
+
+                    <!-- ========================================================
+                         SCREEN 8: TIER & DOWNLINE VIP (/admin/tier_settings)
+                         ======================================================== -->
+                    <section class="screen-view" id="screen-tier">
+                        <div class="admin-card">
+                            <div class="card-heading" style="margin-bottom: 14px;">
+                                <i class="fas fa-crown" style="color: #f59e0b;"></i>
+                                <span>Skema Diskon &amp; Komisi Kemitraan VIP</span>
+                            </div>
+                            <p style="font-size: 12px; color: #64748b; margin-bottom: 18px;">
+                                Atur tarif biaya upgrade akun, potongan harga langsung, dan pembagian komisi transaksi per downline.
+                            </p>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;">
+                                <div style="background: #f8fafc; padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);">
+                                    <div style="font-weight: 900; color: #0284c7; margin-bottom: 8px;">1. Golongan Member Biasa</div>
+                                    <div style="font-size: 11px; color: #64748b;">Masa aktif tanpa batas waktu, harga standar sesuai rumus auto-tier margin.</div>
+                                </div>
+                                <div style="background: #f8fafc; padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);">
+                                    <div style="font-weight: 900; color: #16a34a; margin-bottom: 8px;">2. Golongan Reseller Toko</div>
+                                    <div style="font-size: 11px; color: #64748b;">Mendapat diskon Rp 50 per transaksi pulsa/data. Biaya upgrade Rp 50.000/thn.</div>
+                                </div>
+                                <div style="background: #fefce8; padding: 16px; border-radius: 12px; border: 1px solid #fef08a;">
+                                    <div style="font-weight: 900; color: #d97706; margin-bottom: 8px;">3. Golongan VIP Kemitraan</div>
+                                    <div style="font-size: 11px; color: #854d0e;">Diskon Rp 100/trx + Komisi otomatis Rp 25 - Rp 50 tiap downline bertransaksi.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+
+                    <!-- ========================================================
+                         SCREEN 9: PUSAT TIKET CS (/admin/tickets)
+                         ======================================================== -->
+                    <section class="screen-view" id="screen-tickets">
+                        <div class="smart-filter-bar">
+                            <button class="btn-action-sm btn-act-teal" style="padding: 8px 14px;">Semua Tiket (16)</button>
+                            <button class="btn-action-sm btn-act-red" style="padding: 8px 14px;">Menunggu / Open (2)</button>
+                            <button class="btn-action-sm btn-act-amber" style="padding: 8px 14px;">Diproses (1)</button>
+                            <button class="btn-action-sm btn-act-blue" style="padding: 8px 14px;">Selesai (13)</button>
+                        </div>
+
+                        <div class="table-responsive-box">
+                            <table class="admin-data-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID Tiket</th>
+                                        <th>Pengirim</th>
+                                        <th>Kategori Kendala</th>
+                                        <th>Trx Terkait</th>
+                                        <th>Ringkasan Pesan</th>
+                                        <th>Status</th>
+                                        <th style="text-align: right;">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><b>#TCK-4819</b></td>
+                                        <td>Budi Santoso (081234567890)</td>
+                                        <td><span class="badge-status-chip chip-amber">PULSA BELUM MASUK</span></td>
+                                        <td><code>#TRX-89410</code></td>
+                                        <td>"Halo admin, pulsa Telkomsel 50rb saya belum masuk tapi status sukses..."</td>
+                                        <td><span class="badge-status-chip chip-pending">OPEN</span></td>
+                                        <td style="text-align: right;">
+                                            <button class="btn-action-sm btn-act-blue" onclick="openModalCS('#TCK-4819', 'Budi Santoso', '081234567890', 'Pulsa Belum Masuk')">Balas CS</button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+
+
+                    <!-- ========================================================
+                         SCREEN 10: KONFIGURASI API & GATEWAY (MODERN TAB SYSTEM)
+                         ======================================================== -->
+                    <section class="screen-view" id="screen-config">
+                        <div class="admin-card" style="padding: 0; overflow: hidden;">
+                            <!-- TAB HEADER NAV -->
+                            <div style="display: flex; border-bottom: 1px solid var(--border-color); background: #f8fafc; overflow-x: auto;">
+                                <button class="tab-nav-btn active" id="tabBtnDigi" onclick="switchConfigTab('tab-digi', this)" style="padding: 14px 20px; font-weight: 800; font-size: 12.5px; border: none; background: white; border-bottom: 2px solid var(--teal-primary); color: var(--teal-primary); cursor: pointer;">
+                                    <i class="fas fa-server"></i> API Digiflazz
+                                </button>
+                                <button class="tab-nav-btn" id="tabBtnVIP" onclick="switchConfigTab('tab-vip', this)" style="padding: 14px 20px; font-weight: 800; font-size: 12.5px; border: none; background: transparent; color: #64748b; cursor: pointer;">
+                                    <i class="fas fa-bolt"></i> VIP-Reseller
+                                </button>
+                                <button class="tab-nav-btn" id="tabBtnPG" onclick="switchConfigTab('tab-pg', this)" style="padding: 14px 20px; font-weight: 800; font-size: 12.5px; border: none; background: transparent; color: #64748b; cursor: pointer;">
+                                    <i class="fas fa-credit-card"></i> Payment Gateway
+                                </button>
+                                <button class="tab-nav-btn" id="tabBtnManual" onclick="switchConfigTab('tab-manual', this)" style="padding: 14px 20px; font-weight: 800; font-size: 12.5px; border: none; background: transparent; color: #64748b; cursor: pointer;">
+                                    <i class="fas fa-money-bill-transfer"></i> Deposit Manual
+                                </button>
+                                <button class="tab-nav-btn" id="tabBtnBot" onclick="switchConfigTab('tab-bot', this)" style="padding: 14px 20px; font-weight: 800; font-size: 12.5px; border: none; background: transparent; color: #64748b; cursor: pointer;">
+                                    <i class="fab fa-telegram"></i> Telegram &amp; WA Bot
+                                </button>
+                            </div>
+
+                            <!-- TAB 1: DIGIFLAZZ -->
+                            <div id="tab-digi" class="config-tab-pane" style="padding: 24px;">
+                                <div class="card-heading" style="margin-bottom: 14px;">
+                                    <i class="fas fa-server"></i> Parameter Akun Digiflazz H2H
+                                </div>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-bottom: 16px;">
+                                    <div>
+                                        <label style="font-size: 11px; font-weight: 800; color: #64748b; margin-bottom: 4px; display: block;">Username Digiflazz (DIGI_USER)</label>
+                                        <input type="text" class="filter-input" value="garudatel_indo">
+                                    </div>
+                                    <div>
+                                        <label style="font-size: 11px; font-weight: 800; color: #64748b; margin-bottom: 4px; display: block;">API Key (Production Key)</label>
+                                        <input type="password" class="filter-input" value="••••••••••••••••••••">
+                                    </div>
+                                </div>
+                                <div style="background: #ecfdf5; border: 1px solid #a7f3d0; padding: 14px; border-radius: 12px; margin-bottom: 16px;">
+                                    <div style="font-weight: 800; color: #065f46; font-size: 12px; margin-bottom: 6px;">IP Server untuk Whitelist Digiflazz:</div>
+                                    <div style="display: flex; gap: 8px;">
+                                        <input type="text" class="filter-input" value="203.194.115.182" readonly style="background: white; font-weight: 800; color: #065f46;">
+                                        <button class="btn-action-sm btn-act-teal" onclick="copyText('203.194.115.182', this)"><i class="far fa-copy"></i> Salin IP</button>
+                                    </div>
+                                </div>
+                                <button class="btn-topbar-action" onclick="showToast('Konfigurasi Digiflazz berhasil disimpan!', 'success')">
+                                    <i class="fas fa-save"></i> Simpan Pengaturan
+                                </button>
+                            </div>
+
+                            <!-- TAB 2: VIP-RESELLER -->
+                            <div id="tab-vip" class="config-tab-pane" style="display: none; padding: 24px;">
+                                <div class="card-heading" style="margin-bottom: 14px;">
+                                    <i class="fas fa-bolt" style="color: #6366f1;"></i> Status &amp; Kunci VIP-Reseller
+                                </div>
+                                <p style="font-size: 12px; color: #64748b; margin-bottom: 16px;">Provider alternatif saat stok Digiflazz sedang cut-off / maintenance.</p>
+                                <button class="btn-topbar-action" style="background: #10b981;" onclick="showToast('Status VIP-Reseller diubah', 'success')">
+                                    <i class="fas fa-power-off"></i> Toggle Provider (AKTIF)
+                                </button>
+                            </div>
+
+                            <!-- TAB 3: PAYMENT GATEWAY -->
+                            <div id="tab-pg" class="config-tab-pane" style="display: none; padding: 24px;">
+                                <div class="card-heading" style="margin-bottom: 14px;">
+                                    <i class="fas fa-credit-card" style="color: #0284c7;"></i> Switcher Payment Gateway Otomatis
+                                </div>
+                                <div style="display: flex; gap: 14px; margin-bottom: 16px;">
+                                    <div style="flex: 1; padding: 16px; border: 2px solid var(--teal-primary); border-radius: 12px; background: #e6f6f4;">
+                                        <b>PaymentKita (Utama)</b>
+                                        <p style="font-size: 11px; color: #64748b; margin-top: 4px;">Gateway QRIS otomatis instan tanpa potong fee berlebih.</p>
+                                    </div>
+                                    <div style="flex: 1; padding: 16px; border: 1px solid var(--border-color); border-radius: 12px; background: white;">
+                                        <b>Pakasir (Cadangan)</b>
+                                        <p style="font-size: 11px; color: #64748b; margin-top: 4px;">Fallback otomatis jika PaymentKita terjadi kendala antrean.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+
+                    <!-- ========================================================
+                         SCREEN 11: PROFIL TOKO & LOGO STRUK (/admin/store_settings)
+                         ======================================================== -->
+                    <section class="screen-view" id="screen-store">
+                        <div class="admin-card">
+                            <div class="card-heading" style="margin-bottom: 14px;">
+                                <i class="fas fa-store"></i>
+                                <span>Identitas Usaha &amp; Kustomisasi Struk Kasir</span>
+                            </div>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-bottom: 16px;">
+                                <div>
+                                    <label style="font-size: 11px; font-weight: 800; color: #64748b; margin-bottom: 4px; display: block;">Nama Toko / Outlet</label>
+                                    <input type="text" class="filter-input" value="GarudaTel - iPay Super App">
+                                </div>
+                                <div>
+                                    <label style="font-size: 11px; font-weight: 800; color: #64748b; margin-bottom: 4px; display: block;">Nomor WhatsApp CS</label>
+                                    <input type="text" class="filter-input" value="085189745582">
+                                </div>
+                                <div style="grid-column: 1 / -1;">
+                                    <label style="font-size: 11px; font-weight: 800; color: #64748b; margin-bottom: 4px; display: block;">Pesan Footer Struk Kasir Thermal</label>
+                                    <input type="text" class="filter-input" value="Terima kasih telah bertransaksi di outlet kami. Simpan struk ini sebagai bukti pembayaran sah.">
+                                </div>
+                            </div>
+                            <button class="btn-topbar-action" onclick="showToast('Profil toko & footer struk tersimpan!', 'success')">
+                                <i class="fas fa-save"></i> Simpan Profil Toko
+                            </button>
+                        </div>
+                    </section>
+
+
+                    <!-- ========================================================
+                         SCREEN 12: LAPORAN & REKAPITULASI (/admin/reports)
+                         ======================================================== -->
+                    <section class="screen-view" id="screen-reports">
+                        <div class="stats-grid-4">
+                            <div class="stat-card-modern">
+                                <div class="stat-title">Omset Bulan Ini</div>
+                                <div class="stat-val" style="color: #008779;">Rp 412.850.000</div>
+                                <span class="stat-subtext">Total transaksi masuk</span>
+                            </div>
+                            <div class="stat-card-modern">
+                                <div class="stat-title">Laba Kotor</div>
+                                <div class="stat-val" style="color: #10b981;">Rp 41.285.000</div>
+                                <span class="stat-subtext">Margin kotor rata-rata 10%</span>
+                            </div>
+                        </div>
+                        <div class="admin-card">
+                            <div class="card-heading" style="margin-bottom: 14px;">
+                                <i class="fas fa-file-invoice-dollar"></i>
+                                <span>Export Laporan Transaksi &amp; Mutasi Keuangan</span>
+                            </div>
+                            <p style="font-size: 12px; color: #64748b; margin-bottom: 16px;">
+                                Unduh laporan pembukuan bulanan format Excel/CSV atau Rekening Koran PDF resmi.
+                            </p>
+                            <button class="btn-topbar-action" onclick="showToast('Menyiapkan file laporan keuangan Excel/CSV...', 'info')">
+                                <i class="fas fa-file-excel"></i> Export Laporan Bulanan (.XLSX)
+                            </button>
+                        </div>
+                    </section>
+
+                </div>
+            </main>
+
+        </div>
+    </div>
+
+
+    <!-- ========================================================
+         INTERACTIVE POP-UP MODALS
+         ======================================================== -->
+    <!-- MODAL DETAIL TRANSAKSI & EDIT SN -->
+    <div class="modal-overlay" id="modalTrx">
+        <div class="modal-content-card">
+            <div class="modal-header-row">
+                <div class="modal-title">
+                    <i class="fas fa-receipt" style="color: var(--teal-primary);"></i>
+                    <span id="mTrxId">#TRX-0000</span>
+                </div>
+                <button class="btn-modal-close" onclick="closeModal('modalTrx')">&times;</button>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 12px; font-size: 12px;">
+                <div><b>Produk:</b> <span id="mTrxProduk">-</span></div>
+                <div><b>No Tujuan:</b> <code id="mTrxTujuan">-</code></div>
+                <div><b>Harga Jual:</b> <span id="mTrxHarga" style="font-weight: 800; color: #10b981;">-</span></div>
+                <div>
+                    <label style="font-weight: 800; display: block; margin-bottom: 4px;">Serial Number (SN):</label>
+                    <input type="text" class="filter-input" id="mTrxSN" value="">
+                </div>
+                <div>
+                    <label style="font-weight: 800; display: block; margin-bottom: 4px;">Ubah Status:</label>
+                    <select class="filter-select" id="mTrxStatus" style="width: 100%;">
+                        <option value="SUKSES">SUKSES (Lunas)</option>
+                        <option value="PENDING">PENDING</option>
+                        <option value="GAGAL">GAGAL (Refund)</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 8px; margin-top: 10px;">
+                    <button class="btn-topbar-action" style="flex: 1;" onclick="saveModalTrx()">Simpan Perubahan</button>
+                    <button class="btn-action-sm btn-act-blue" onclick="showToast('Webhook transaksi dikirim ulang ke merchant/bot', 'success')">Resend Webhook</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL EDIT PENGGUNA -->
+    <div class="modal-overlay" id="modalEditUser">
+        <div class="modal-content-card">
+            <div class="modal-header-row">
+                <div class="modal-title">
+                    <i class="fas fa-user-gear" style="color: #0284c7;"></i>
+                    <span>Edit Profil Pengguna</span>
+                </div>
+                <button class="btn-modal-close" onclick="closeModal('modalEditUser')">&times;</button>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 12px; font-size: 12px;">
+                <div>
+                    <label style="font-weight: 800; display: block; margin-bottom: 4px;">Nama Lengkap:</label>
+                    <input type="text" class="filter-input" id="mUserName" value="Budi Santoso">
+                </div>
+                <div>
+                    <label style="font-weight: 800; display: block; margin-bottom: 4px;">No WhatsApp:</label>
+                    <input type="text" class="filter-input" id="mUserPhone" value="081234567890">
+                </div>
+                <div>
+                    <label style="font-weight: 800; display: block; margin-bottom: 4px;">Golongan / Tier:</label>
+                    <select class="filter-select" id="mUserTier" style="width: 100%;">
+                        <option value="MEMBER">👤 Member Biasa</option>
+                        <option value="RESELLER">🏪 Reseller</option>
+                        <option value="VIP">👑 VIP Kemitraan</option>
+                    </select>
+                </div>
+                <button class="btn-topbar-action" onclick="saveModalUser()">Simpan Data Pelanggan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL ATUR SALDO USER -->
+    <div class="modal-overlay" id="modalAdjustSaldo">
+        <div class="modal-content-card">
+            <div class="modal-header-row">
+                <div class="modal-title">
+                    <i class="fas fa-coins" style="color: #10b981;"></i>
+                    <span>Atur Saldo Pengguna</span>
+                </div>
+                <button class="btn-modal-close" onclick="closeModal('modalAdjustSaldo')">&times;</button>
+            </div>
+            <div style="font-size: 12px; margin-bottom: 12px;">
+                Pelanggan: <b id="mAdjUserName">Budi Santoso</b> (Saldo Saat Ini: <span id="mAdjCurrentSaldo" style="color: #10b981; font-weight: 800;">Rp 85.000</span>)
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 12px; font-size: 12px;">
+                <div>
+                    <label style="font-weight: 800; display: block; margin-bottom: 4px;">Jenis Aksi:</label>
+                    <select class="filter-select" style="width: 100%;">
+                        <option value="add">➕ Tambah Saldo (Deposit Manual)</option>
+                        <option value="deduct">➖ Kurangi Saldo (Penarikan / Koreksi)</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-weight: 800; display: block; margin-bottom: 4px;">Nominal (Rp):</label>
+                    <input type="text" class="filter-input" value="100.000">
+                </div>
+                <div>
+                    <label style="font-weight: 800; display: block; margin-bottom: 4px;">Catatan Mutasi:</label>
+                    <input type="text" class="filter-input" value="Topup manual oleh admin">
+                </div>
+                <button class="btn-topbar-action" onclick="saveModalSaldo()">Proses Penyesuaian Saldo</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL RESPON TIKET BANTUAN CS -->
+    <div class="modal-overlay" id="modalCS">
+        <div class="modal-content-card">
+            <div class="modal-header-row">
+                <div class="modal-title">
+                    <i class="fas fa-headset" style="color: var(--teal-primary);"></i>
+                    <span>Tanggapan Bantuan CS - <span id="mCSId">#TCK-0000</span></span>
+                </div>
+                <button class="btn-modal-close" onclick="closeModal('modalCS')">&times;</button>
+            </div>
+            <div style="font-size: 12px; margin-bottom: 12px; background: #f8fafc; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border-color);">
+                <div><b>Pelanggan:</b> <span id="mCSUser">-</span> (<span id="mCSPhone">-</span>)</div>
+                <div style="margin-top: 4px;"><b>Kategori:</b> <span id="mCSCategory" class="badge-status-chip chip-amber">-</span></div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 12px; font-size: 12px;">
+                <div>
+                    <label style="font-weight: 800; display: block; margin-bottom: 4px;">Ubah Status Tiket:</label>
+                    <select class="filter-select" id="mCSStatus" style="width: 100%;">
+                        <option value="PROCESS">🔄 DIPROSES (Sedang Investigasi)</option>
+                        <option value="RESOLVED">✅ SELESAI (Masalah Beres)</option>
+                        <option value="OPEN">⏳ OPEN (Menunggu Respon)</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-weight: 800; display: block; margin-bottom: 4px;">Pesan Balasan CS ke Pengguna:</label>
+                    <textarea class="filter-input" id="mCSMessage" rows="3" style="resize: vertical; width: 100%; box-sizing: border-box;" placeholder="Tuliskan pesan solusi atau konfirmasi ke pengguna..."></textarea>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn-topbar-action" style="flex: 1;" onclick="saveModalCS()">
+                        <i class="fas fa-paper-plane"></i> Kirim Respon ke Pengguna
+                    </button>
+                    <button class="btn-action-sm btn-act-red" onclick="closeModal('modalCS')">Batal</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFIKASI -->
+    <div class="toast-box" id="liveToast">
+        <i class="fas fa-check-circle" style="color: #34d399; font-size: 16px;"></i>
+        <span id="toastMessage">Tindakan berhasil diproses!</span>
+    </div>
+
+
+    <!-- ========================================================
+         SCRIPT ENGINE (INTERAKTIVITAS PENUH PROTOTIPE)
+         ======================================================== -->
+    <script>
+        // Inisialisasi Grafik Mingguan Chart.js
+        let weeklyChart = null;
+
+        function initDashboardChart() {
+            const ctx = document.getElementById('dashboardWeeklyChart');
+            if (!ctx) return;
+            if (weeklyChart) weeklyChart.destroy();
+
+            weeklyChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Hari Ini'],
+                    datasets: [
+                        {
+                            label: 'Omset (Juta Rp)',
+                            data: [12.4, 14.8, 13.9, 16.2, 15.8, 17.1, 18.4],
+                            backgroundColor: '#008779',
+                            borderRadius: 6,
+                            barPercentage: 0.6
+                        },
+                        {
+                            label: 'Laba Bersih (Juta Rp)',
+                            data: [1.2, 1.5, 1.4, 1.6, 1.5, 1.7, 1.8],
+                            backgroundColor: '#38bdf8',
+                            borderRadius: 6,
+                            barPercentage: 0.6
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                font: { size: 10, weight: '700' },
+                                boxWidth: 12
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            ticks: { font: { size: 9 } },
+                            grid: { color: '#f1f5f9' }
+                        },
+                        x: {
+                            ticks: { font: { size: 9, weight: '700' } },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Switcher Antar Halaman Panel Admin
+        const screenTitles = {
+            'screen-dashboard': { title: 'Executive Command Center', breadcrumb: 'Dashboard Utama' },
+            'screen-transactions': { title: 'Pusat Transaksi & Monitoring H2H', breadcrumb: 'Transaksi' },
+            'screen-users': { title: 'Data Pelanggan & Jaringan Downline', breadcrumb: 'Data User' },
+            'screen-merchant-api': { title: 'POS Command Center & Merchant API', breadcrumb: 'Kasir POS' },
+            'screen-products': { title: 'Katalog Produk PPOB & Status Cut-Off', breadcrumb: 'Katalog Produk' },
+            'screen-margin': { title: 'Auto-Tier Margin & Hitung Laba Otomatis', breadcrumb: 'Auto Margin' },
+            'screen-saldo': { title: 'Saldo & Tiket Deposit Digiflazz', breadcrumb: 'Saldo H2H' },
+            'screen-tier': { title: 'Skema Golongan & Komisi Kemitraan VIP', breadcrumb: 'Tier Akun' },
+            'screen-tickets': { title: 'Pusat Tiket CS & Inbox Telegram', breadcrumb: 'Tiket CS' },
+            'screen-config': { title: 'Integrasi API, Webhook & Gateway Hub', breadcrumb: 'Konfigurasi' },
+            'screen-store': { title: 'Profil Outlet & Desain Struk Kasir', breadcrumb: 'Profil Toko' },
+            'screen-reports': { title: 'Laporan Keuangan & Rekapitulasi Pembukuan', breadcrumb: 'Laporan' }
+        };
+
+        function switchScreen(screenId) {
+            // Update Tab Content
+            document.querySelectorAll('.screen-view').forEach(el => el.classList.remove('active-screen'));
+            const targetScreen = document.getElementById(screenId);
+            if (targetScreen) targetScreen.classList.add('active-screen');
+
+            // Update Nav item active
+            document.querySelectorAll('.sidebar-menu .nav-item').forEach(el => {
+                el.classList.toggle('active', el.getAttribute('data-screen') === screenId);
+            });
+
+            // Update Header Title & Breadcrumb
+            if (screenTitles[screenId]) {
+                document.getElementById('topPageTitle').innerText = screenTitles[screenId].title;
+                document.getElementById('topBreadcrumb').innerText = screenTitles[screenId].breadcrumb;
+            }
+
+            // Sync Quick Dropdown
+            const quickSelect = document.getElementById('quickScreenSelect');
+            if (quickSelect && quickSelect.value !== screenId) {
+                quickSelect.value = screenId;
+            }
+
+            // Close mobile drawer if open
+            toggleDrawer(false);
+
+            // Re-render chart if switching to dashboard
+            if (screenId === 'screen-dashboard') {
+                setTimeout(initDashboardChart, 100);
+            }
+
+            // Show Toast Info
+            showToast(`Membuka halaman: ${screenTitles[screenId] ? screenTitles[screenId].breadcrumb : screenId}`, 'info');
+        }
+
+        // Viewport Switcher Helper
+        function setViewport(mode, btn) {
+            document.querySelectorAll('.toolbar-controls .tool-btn').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+
+            const body = document.body;
+            body.classList.remove('viewport-desktop', 'viewport-laptop', 'viewport-tablet', 'viewport-mobile');
+            body.classList.add(`viewport-${mode}`);
+
+            const sidebar = document.getElementById('adminSidebar');
+            if (mode === 'tablet' || mode === 'mobile') {
+                sidebar.classList.remove('slim');
+            }
+
+            showToast(`Simulasi resolusi layar diubah ke: ${mode.toUpperCase()}`, 'info');
+            setTimeout(initDashboardChart, 200);
+        }
+
+        // Toggle Sidebar Slim / Drawer
+        function toggleSidebarView() {
+            const body = document.body;
+            const sidebar = document.getElementById('adminSidebar');
+            const backdrop = document.getElementById('sidebarBackdrop');
+
+            if (body.classList.contains('viewport-tablet') || body.classList.contains('viewport-mobile')) {
+                // Mode HP/Tablet: Toggle Drawer
+                const isOpen = sidebar.classList.contains('open-drawer');
+                toggleDrawer(!isOpen);
+            } else {
+                // Mode Desktop/Laptop: Toggle Slim
+                sidebar.classList.toggle('slim');
+                showToast(sidebar.classList.contains('slim') ? 'Sidebar diciutkan (Slim Mode)' : 'Sidebar dilebarkan', 'info');
+            }
+        }
+
+        function toggleDrawer(open) {
+            const sidebar = document.getElementById('adminSidebar');
+            const backdrop = document.getElementById('sidebarBackdrop');
+            if (open) {
+                sidebar.classList.add('open-drawer');
+                if (backdrop) backdrop.classList.add('active');
+            } else {
+                sidebar.classList.remove('open-drawer');
+                if (backdrop) backdrop.classList.remove('active');
+            }
+        }
+
+        // Switch Config Tabs
+        function switchConfigTab(tabId, btn) {
+            document.querySelectorAll('.tab-nav-btn').forEach(b => {
+                b.style.background = 'transparent';
+                b.style.borderBottom = 'none';
+                b.style.color = '#64748b';
+            });
+            document.querySelectorAll('.config-tab-pane').forEach(p => p.style.display = 'none');
+
+            btn.style.background = 'white';
+            btn.style.borderBottom = '2px solid var(--teal-primary)';
+            btn.style.color = 'var(--teal-primary)';
+
+            const pane = document.getElementById(tabId);
+            if (pane) pane.style.display = 'block';
+        }
+
+        // Copy Text Helper
+        function copyText(text, el) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast(`Teks berhasil disalin: "${text}"`, 'success');
+            }).catch(() => {
+                showToast(`Salin: ${text}`, 'info');
+            });
+        }
+
+        // Modal Helpers
+        function openModal(id) {
+            const m = document.getElementById(id);
+            if (m) m.classList.add('active');
+        }
+        function closeModal(id) {
+            const m = document.getElementById(id);
+            if (m) m.classList.remove('active');
+        }
+
+        function openModalTrx(id, produk, tujuan, harga, status, sn) {
+            document.getElementById('mTrxId').innerText = id;
+            document.getElementById('mTrxProduk').innerText = produk;
+            document.getElementById('mTrxTujuan').innerText = tujuan;
+            document.getElementById('mTrxHarga').innerText = harga;
+            document.getElementById('mTrxSN').value = sn;
+            document.getElementById('mTrxStatus').value = status;
+            openModal('modalTrx');
+        }
+        function saveModalTrx() {
+            closeModal('modalTrx');
+            showToast('Perubahan Serial Number & Status transaksi berhasil disimpan!', 'success');
+        }
+
+        function openModalEditUser(nama, phone, saldo, tier, poin) {
+            document.getElementById('mUserName').value = nama;
+            document.getElementById('mUserPhone').value = phone;
+            document.getElementById('mUserTier').value = tier;
+            openModal('modalEditUser');
+        }
+        function saveModalUser() {
+            closeModal('modalEditUser');
+            showToast('Profil pengguna berhasil diperbarui!', 'success');
+        }
+
+        function openModalAdjustSaldo(nama, saldo) {
+            document.getElementById('mAdjUserName').innerText = nama;
+            document.getElementById('mAdjCurrentSaldo').innerText = 'Rp ' + Number(saldo).toLocaleString('id-ID');
+            openModal('modalAdjustSaldo');
+        }
+        function saveModalSaldo() {
+            closeModal('modalAdjustSaldo');
+            showToast('Penyesuaian saldo berhasil dibukukan ke mutasi!', 'success');
+        }
+
+        function openModalCS(id, user, phone, cat) {
+            document.getElementById('mCSId').innerText = id;
+            document.getElementById('mCSUser').innerText = user;
+            document.getElementById('mCSPhone').innerText = phone;
+            document.getElementById('mCSCategory').innerText = cat;
+            document.getElementById('mCSMessage').value = 'Halo ' + user + ', keluhan Anda mengenai ' + cat + ' pada transaksi terkait sedang kami lakukan investigasi ke server provider. Kami akan update segera setelah proses verifikasi selesai.';
+            openModal('modalCS');
+        }
+        function saveModalCS() {
+            closeModal('modalCS');
+            showToast('Tanggapan bantuan CS berhasil dikirim ke pengguna via bot!', 'success');
+        }
+
+        function openModalDeposit() {
+            switchScreen('screen-saldo');
+        }
+
+        // Toast Notification System
+        let toastTimer = null;
+        function showToast(msg, type = 'info') {
+            const toast = document.getElementById('liveToast');
+            const toastMsg = document.getElementById('toastMessage');
+            if (!toast || !toastMsg) return;
+
+            toastMsg.innerText = msg;
+            toast.className = `toast-box ${type} show`;
+
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // Filter Table Transaksi Simulasi
+        function filterTrxTable() {
+            const q = document.getElementById('trxSearchInput').value.toLowerCase();
+            const status = document.getElementById('trxStatusSelect').value.toUpperCase();
+            const rows = document.querySelectorAll('#tableTransactions tbody tr');
+
+            rows.forEach(r => {
+                const text = r.innerText.toLowerCase();
+                const matchesQ = !q || text.includes(q);
+                const matchesStatus = !status || text.includes(status);
+                r.style.display = matchesQ && matchesStatus ? '' : 'none';
+            });
+        }
+        function resetTrxFilter() {
+            document.getElementById('trxSearchInput').value = '';
+            document.getElementById('trxStatusSelect').value = '';
+            filterTrxTable();
+            showToast('Filter transaksi di-reset', 'info');
+        }
+
+        // Global Search
+        function handleGlobalSearch(e) {
+            if (e.key === 'Enter') {
+                const q = e.target.value.trim();
+                if (q) {
+                    showToast(`Mencari data secara global: "${q}"`, 'info');
+                    switchScreen('screen-transactions');
+                    document.getElementById('trxSearchInput').value = q;
+                    filterTrxTable();
+                }
+            }
+        }
+
+        // Inisialisasi awal saat halaman dimuat
+        document.addEventListener('DOMContentLoaded', () => {
+            initDashboardChart();
+        });
+    </script>
+</body>
+</html>

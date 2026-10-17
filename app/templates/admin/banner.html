@@ -1,153 +1,352 @@
-{% extends 'admin/layout.html' %}
+{% extends 'admin/base_admin.html' %}
 
-{% block title %}GarudaTel - Banner Center{% endblock %}
+{% block title %}GarudaTel - Manajemen Banner Promo{% endblock %}
 
-{% set page_title = "Banner Center" %}
+{% block breadcrumb %}CMS & Promosi / Banner Promo{% endblock %}
+
+{% block page_title %}Manajemen Banner Promosi{% endblock %}
+
+{% block topbar_actions %}
+<a href="#formBanner" class="adm-btn adm-btn-primary">
+    <i class="fas fa-plus-circle"></i> Tambah Banner
+</a>
+{% endblock %}
 
 {% block page_css %}
 <style>
-    .banner-stats { display: flex; gap: 15px; margin-bottom: 20px; }
-    .banner-stat-card { flex: 1; background: white; padding: 18px; border-radius: 12px; border: 1px solid #E2E8F0; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
-    .banner-stat-val { font-size: 24px; font-weight: 900; color: #1E293B; margin-top: 5px; }
-    .banner-stat-lbl { font-size: 11px; font-weight: 800; color: #64748B; text-transform: uppercase; }
+    .banner-stats-grid { 
+        display: grid; 
+        grid-template-columns: repeat(2, 1fr); 
+        gap: 16px; 
+        margin-bottom: 24px; 
+    }
+    .banner-stat-card { 
+        background: white; 
+        padding: 18px 20px; 
+        border-radius: 14px; 
+        border: 1px solid #E2E8F0; 
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04); 
+        display: flex; 
+        align-items: center; 
+        gap: 16px; 
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .banner-stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.06);
+    }
+    .banner-stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        flex-shrink: 0;
+    }
+    .banner-stat-val { 
+        font-size: 24px; 
+        font-weight: 900; 
+        color: #1E293B; 
+        line-height: 1.1;
+    }
+    .banner-stat-lbl { 
+        font-size: 11px; 
+        font-weight: 800; 
+        color: #64748B; 
+        text-transform: uppercase; 
+        letter-spacing: 0.5px;
+        margin-top: 4px;
+    }
 
-    .card-banner { background: white; border-radius: 12px; border: 1px solid #E2E8F0; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
-    .card-title { font-size: 15px; font-weight: 800; color: #1E293B; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+    .modern-card { 
+        background: white; 
+        border-radius: 14px; 
+        border: 1px solid #E2E8F0; 
+        padding: 22px; 
+        margin-bottom: 24px; 
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04); 
+    }
+    .card-title { 
+        font-size: 15px; 
+        font-weight: 800; 
+        color: #1E293B; 
+        margin-bottom: 18px; 
+        display: flex; 
+        align-items: center; 
+        gap: 10px; 
+    }
 
-    .form-group { margin-bottom: 14px; }
-    .form-group label { display: block; font-size: 11px; font-weight: 800; color: #64748B; margin-bottom: 5px; }
-    .form-ctrl { width: 100%; padding: 10px 12px; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 12px; font-family: inherit; box-sizing: border-box; outline: none; }
-    .form-ctrl:focus { border-color: #3A827F; }
+    .form-grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { 
+        display: block; 
+        font-size: 11px; 
+        font-weight: 800; 
+        color: #475569; 
+        margin-bottom: 6px; 
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+    }
+    .form-ctrl { 
+        width: 100%; 
+        padding: 10px 14px; 
+        border: 1px solid #CBD5E1; 
+        border-radius: 8px; 
+        font-size: 12px; 
+        font-family: inherit; 
+        box-sizing: border-box; 
+        outline: none; 
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .form-ctrl:focus { 
+        border-color: #3A827F; 
+        box-shadow: 0 0 0 3px rgba(58, 130, 127, 0.12);
+    }
 
-    .btn-save-banner { background: #3A827F; color: white; border: none; padding: 11px 20px; border-radius: 8px; font-size: 12px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
-    .btn-save-banner:hover { background: #2D6664; }
+    .banner-thumb-box {
+        width: 140px;
+        height: 64px;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid #E2E8F0;
+        background: #F8FAFC;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .banner-thumb { 
+        width: 100%; 
+        height: 100%; 
+        object-fit: cover; 
+        transition: transform 0.2s ease;
+    }
+    .banner-thumb:hover {
+        transform: scale(1.08);
+    }
 
-    .banner-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    .banner-table th { background: #F8FAFC; color: #334155; padding: 12px 10px; border-bottom: 2px solid #E2E8F0; text-align: left; font-weight: 800; }
-    .banner-table td { padding: 12px 10px; border-bottom: 1px solid #F1F5F9; vertical-align: middle; }
-    .banner-thumb { width: 120px; height: 55px; border-radius: 6px; object-fit: cover; border: 1px solid #E2E8F0; background: #F1F5F9; }
+    .modern-table { 
+        width: 100%; 
+        border-collapse: collapse; 
+        font-size: 12px; 
+    }
+    .modern-table th { 
+        background: #F8FAFC; 
+        color: #475569; 
+        padding: 12px 14px; 
+        border-bottom: 2px solid #E2E8F0; 
+        text-align: left; 
+        font-weight: 800; 
+        letter-spacing: 0.3px;
+    }
+    .modern-table td { 
+        padding: 14px; 
+        border-bottom: 1px solid #F1F5F9; 
+        vertical-align: middle; 
+    }
+    .modern-table tr:hover { 
+        background: #F8FAFC; 
+    }
 
-    .badge-active { background: #D1FAE5; color: #065F46; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; }
-    .badge-inactive { background: #F1F5F9; color: #64748B; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; }
+    .badge-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 800;
+    }
+    .badge-status.active { background: #D1FAE5; color: #065F46; }
+    .badge-status.inactive { background: #F1F5F9; color: #64748B; }
 
-    .btn-toggle { background: #E2E8F0; color: #334155; border: none; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; }
-    .btn-delete { background: #FEE2E2; color: #DC2626; border: none; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; }
+    .btn-action-toggle { 
+        background: #F1F5F9; 
+        color: #334155; 
+        border: 1px solid #E2E8F0; 
+        padding: 6px 12px; 
+        border-radius: 6px; 
+        font-size: 11px; 
+        font-weight: 800; 
+        cursor: pointer; 
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        transition: 0.15s ease;
+    }
+    .btn-action-toggle:hover { background: #E2E8F0; color: #0F172A; }
+
+    .btn-action-delete { 
+        background: #FEE2E2; 
+        color: #DC2626; 
+        border: 1px solid #FECACA; 
+        padding: 6px 12px; 
+        border-radius: 6px; 
+        font-size: 11px; 
+        font-weight: 800; 
+        cursor: pointer; 
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        transition: 0.15s ease;
+    }
+    .btn-action-delete:hover { background: #FCA5A5; color: #991B1B; }
+
+    @media (max-width: 768px) {
+        .banner-stats-grid { grid-template-columns: 1fr; }
+        .form-grid-2 { grid-template-columns: 1fr; }
+    }
 </style>
 {% endblock %}
 
 {% block admin_content %}
 
-<div class="banner-stats">
+<!-- STATS CARDS -->
+<div class="banner-stats-grid">
     <div class="banner-stat-card">
-        <i class="fas fa-images" style="font-size: 22px; color: #3A827F;"></i>
-        <div class="banner-stat-val">{{ total_banners }}</div>
-        <div class="banner-stat-lbl">Total Banner</div>
+        <div class="banner-stat-icon" style="background: rgba(58, 130, 127, 0.12); color: #3A827F;">
+            <i class="fas fa-images"></i>
+        </div>
+        <div>
+            <div class="banner-stat-val">{{ total_banners }}</div>
+            <div class="banner-stat-lbl">Total Banner Tersimpan</div>
+        </div>
     </div>
     <div class="banner-stat-card">
-        <i class="fas fa-check-circle" style="font-size: 22px; color: #10B981;"></i>
-        <div class="banner-stat-val">{{ active_banners }}</div>
-        <div class="banner-stat-lbl">Banner Aktif</div>
+        <div class="banner-stat-icon" style="background: rgba(16, 185, 129, 0.12); color: #10B981;">
+            <i class="fas fa-check-circle"></i>
+        </div>
+        <div>
+            <div class="banner-stat-val">{{ active_banners }}</div>
+            <div class="banner-stat-lbl">Banner Aktif Ditampilkan</div>
+        </div>
     </div>
 </div>
 
 <!-- FORM TAMBAH BANNER -->
-<div class="card-banner">
+<div class="modern-card" id="formBanner">
     <div class="card-title">
         <i class="fas fa-plus-circle" style="color: #3A827F;"></i>
-        Tambah Banner Baru
+        <span>Tambah Banner Promosi Baru</span>
     </div>
 
     <form method="POST" action="{{ url_for('admin.add_banner') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         
-        <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-            <div style="flex: 1; min-width: 250px;" class="form-group">
-                <label>Judul Promo / Label Banner</label>
+        <div class="form-grid-2">
+            <div class="form-group">
+                <label>Judul Promo / Label Banner <span style="color:#EF4444;">*</span></label>
                 <input type="text" name="title" required placeholder="Contoh: Promo Cashback Merdeka 50%" class="form-ctrl">
+                <span style="font-size: 10px; color: #64748B; margin-top: 4px; display: block;">Judul akan muncul sebagai alt text dan referensi internal promosi.</span>
             </div>
 
-            <div style="flex: 1; min-width: 250px;" class="form-group">
-                <label>URL Gambar Banner (Image Link / CDN)</label>
-                <input type="url" name="image_url" required placeholder="https://domain.com/banner-promo.jpg" class="form-ctrl">
+            <div class="form-group">
+                <label>URL Gambar Banner (Image CDN / Cloud Link) <span style="color:#EF4444;">*</span></label>
+                <input type="url" name="image_url" id="inputImageUrl" required placeholder="https://domain.com/banner-promo.jpg" class="form-ctrl" oninput="previewLiveImage(this.value)">
+                <span style="font-size: 10px; color: #64748B; margin-top: 4px; display: block;">Rekomendasi rasio gambar: 16:9 atau 2:1 (Landscape) resolusi tinggi.</span>
             </div>
         </div>
 
-        <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
-            <div style="flex: 2; min-width: 250px;" class="form-group">
+        <div class="form-grid-2" style="align-items: center;">
+            <div class="form-group">
                 <label>Target URL / Tautan Klik (Opsional)</label>
                 <input type="text" name="link_url" placeholder="/trx/checkout atau https://wa.me/..." class="form-ctrl">
+                <span style="font-size: 10px; color: #64748B; margin-top: 4px; display: block;">Jika diisi, saat banner diklik pengguna akan langsung diarahkan ke halaman ini.</span>
             </div>
 
-            <div style="flex: 1; min-width: 150px; margin-top: 5px;">
-                <label style="display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 12px; cursor: pointer;">
-                    <input type="checkbox" name="is_active" value="1" checked style="width: 18px; height: 18px; accent-color: #3A827F;">
-                    Status Langsung Aktif
+            <div class="form-group" style="padding-top: 8px;">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; text-transform: none; font-size: 13px; font-weight: 700; color: #1E293B;">
+                    <input type="checkbox" name="is_active" value="1" checked style="width: 18px; height: 18px; accent-color: #3A827F; cursor: pointer;">
+                    <span>Aktifkan & Tampilkan di Aplikasi Sekarang</span>
                 </label>
+                <span style="font-size: 10px; color: #64748B; margin-left: 28px; display: block;">Hilangkan centang jika ingin menyimpan sebagai draf terlebih dahulu.</span>
             </div>
         </div>
 
-        <button type="submit" class="btn-save-banner">
-            <i class="fas fa-save"></i> Simpan Banner
-        </button>
+        <!-- LIVE IMAGE PREVIEW HELPER -->
+        <div id="livePreviewContainer" style="display: none; margin-bottom: 16px; padding: 12px; background: #F8FAFC; border-radius: 8px; border: 1px dashed #CBD5E1;">
+            <div style="font-size: 11px; font-weight: 800; color: #475569; margin-bottom: 6px;">Live Preview Thumbnail:</div>
+            <img id="livePreviewImg" src="" alt="Preview" style="max-height: 80px; border-radius: 6px; border: 1px solid #E2E8F0;" onerror="this.src='https://placehold.co/140x64?text=URL+Tidak+Valid';">
+        </div>
+
+        <div style="margin-top: 8px;">
+            <button type="submit" class="adm-btn adm-btn-primary" style="padding: 10px 22px;">
+                <i class="fas fa-save"></i> Simpan & Terbitkan Banner
+            </button>
+        </div>
     </form>
 </div>
 
-<!-- TABEL BANNER -->
-<div class="card-banner">
-    <div class="card-title">
-        <i class="fas fa-list" style="color: #3A827F;"></i>
-        Daftar Banner Promo
+<!-- TABEL DAFTAR BANNER -->
+<div class="modern-card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; flex-wrap: wrap; gap: 12px;">
+        <div class="card-title" style="margin-bottom: 0;">
+            <i class="fas fa-images" style="color: #3A827F;"></i>
+            <span>Daftar Banner Promo Terpasang</span>
+            <span style="font-size: 11px; font-weight: 800; background: #F1F5F9; color: #475569; padding: 3px 8px; border-radius: 12px;">
+                {{ banners|length }} Banner
+            </span>
+        </div>
     </div>
 
     <div style="overflow-x: auto;">
-        <table class="banner-table">
+        <table class="modern-table">
             <thead>
                 <tr>
-                    <th style="width: 130px;">Preview</th>
-                    <th>Judul Banner</th>
-                    <th>Tautan</th>
+                    <th style="width: 150px;">Preview</th>
+                    <th>Judul Banner & ID</th>
+                    <th>Tautan Tujuan</th>
                     <th>Status</th>
-                    <th style="text-align: right;">Aksi</th>
+                    <th style="text-align: right; width: 180px;">Aksi</th>
                 </tr>
             </thead>
             <tbody>
                 {% for b in banners %}
                 <tr>
                     <td>
-                        <img src="{{ b.image_url }}" alt="{{ b.title }}" class="banner-thumb" onerror="this.src='https://placehold.co/120x55?text=No+Image';">
+                        <div class="banner-thumb-box">
+                            <img src="{{ b.image_url }}" alt="{{ b.title }}" class="banner-thumb" loading="lazy" onerror="this.src='https://placehold.co/140x64?text=Gambar+Rusak';">
+                        </div>
                     </td>
                     <td>
-                        <div style="font-weight: 800; color: #1E293B;">{{ b.title }}</div>
-                        <div style="font-size: 10px; color: #64748B;">ID: #{{ b.id }}</div>
+                        <div style="font-weight: 800; color: #1E293B; font-size: 13px;">{{ b.title }}</div>
+                        <div style="font-size: 11px; color: #64748B; margin-top: 2px;">
+                            <span style="font-family: monospace; background: #F1F5F9; padding: 2px 6px; border-radius: 4px;">ID: #{{ b.id }}</span>
+                        </div>
                     </td>
                     <td>
                         {% if b.link_url %}
-                            <a href="{{ b.link_url }}" target="_blank" style="color: #0284C7; text-decoration: none; font-size: 11px;">
+                            <a href="{{ b.link_url }}" target="_blank" style="color: #0284C7; text-decoration: none; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;">
                                 <i class="fas fa-external-link-alt"></i> {{ b.link_url[:40] }}{% if b.link_url|length > 40 %}...{% endif %}
                             </a>
                         {% else %}
-                            <span style="color: #94A3B8; font-size: 11px;">-</span>
+                            <span style="color: #94A3B8; font-size: 11px; font-style: italic;">Tidak ada tautan (Hanya Display)</span>
                         {% endif %}
                     </td>
                     <td>
                         {% if b.is_active %}
-                            <span class="badge-active"><i class="fas fa-check"></i> AKTIF</span>
+                            <span class="badge-status active"><i class="fas fa-check-circle"></i> AKTIF</span>
                         {% else %}
-                            <span class="badge-inactive">NONAKTIF</span>
+                            <span class="badge-status inactive"><i class="fas fa-pause-circle"></i> NONAKTIF</span>
                         {% endif %}
                     </td>
                     <td style="text-align: right;">
                         <div style="display: inline-flex; gap: 6px;">
                             <form method="POST" action="{{ url_for('admin.toggle_banner', id=b.id) }}" style="display: inline;">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                <button type="submit" class="btn-toggle" title="Ubah Status Aktif">
-                                    <i class="fas fa-power-off"></i> {% if b.is_active %}Matikan{% else %}Nyalakan{% endif %}
+                                <button type="submit" class="btn-action-toggle" title="Ubah Status Aktif/Nonaktif">
+                                    <i class="fas fa-power-off"></i> {% if b.is_active %}Nonaktifkan{% else %}Aktifkan{% endif %}
                                 </button>
                             </form>
-                            <form method="POST" action="{{ url_for('admin.delete_banner', id=b.id) }}" style="display: inline;" onsubmit="return confirm('Hapus banner ini permanen?');">
+                            <form method="POST" action="{{ url_for('admin.delete_banner', id=b.id) }}" style="display: inline;" onsubmit="return confirm('Apakah Anda yakin ingin menghapus banner ini secara permanen?');">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                <button type="submit" class="btn-delete" title="Hapus Banner">
-                                    <i class="fas fa-trash"></i> Hapus
+                                <button type="submit" class="btn-action-delete" title="Hapus Banner">
+                                    <i class="fas fa-trash-alt"></i> Hapus
                                 </button>
                             </form>
                         </div>
@@ -155,9 +354,10 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="5" style="text-align: center; padding: 30px; color: #64748B;">
-                        <i class="fas fa-image" style="font-size: 30px; color: #CBD5E1; display: block; margin-bottom: 8px;"></i>
-                        Belum ada banner promo yang ditambahkan.
+                    <td colspan="5" style="text-align: center; padding: 40px 20px; color: #64748B;">
+                        <i class="fas fa-image" style="font-size: 36px; color: #CBD5E1; display: block; margin-bottom: 12px;"></i>
+                        <div style="font-weight: 800; font-size: 14px; color: #334155;">Belum Ada Banner Promo</div>
+                        <div style="font-size: 12px; color: #94A3B8; margin-top: 4px;">Tambahkan banner promo pertama Anda menggunakan formulir di atas.</div>
                     </td>
                 </tr>
                 {% endfor %}
@@ -165,5 +365,18 @@
         </table>
     </div>
 </div>
+
+<script>
+    function previewLiveImage(url) {
+        const container = document.getElementById('livePreviewContainer');
+        const img = document.getElementById('livePreviewImg');
+        if (url && url.trim().length > 10) {
+            img.src = url.trim();
+            container.style.display = 'block';
+        } else {
+            container.style.display = 'none';
+        }
+    }
+</script>
 
 {% endblock %}

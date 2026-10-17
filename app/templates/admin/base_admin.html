@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>{% block title %}{{ page_title or "Admin Panel" }} - {{ store.name }}{% endblock %}</title>
+    
+    <!-- Google Fonts & FontAwesome 6 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- SweetAlert2 11 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <!-- Modern Admin Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_modern.css') }}?v=2.0">
+    
+    {% block head_extra %}{% endblock %}
+</head>
+
+<body class="admin-body">
+
+    <div class="admin-wrapper">
+        <!-- ========================================================
+             SIDEBAR NAVIGASI TERPADU & PERSISTEN
+             ======================================================== -->
+        <aside class="admin-sidebar" id="adminSidebar">
+            <!-- Brand Logo & Nama -->
+            <a href="{{ url_for('admin.dashboard') }}" class="sidebar-brand">
+                <div class="brand-logo-box">
+                    <i class="fas fa-bolt"></i>
+                </div>
+                <div class="brand-text hide-on-slim">
+                    <span class="brand-name">{{ store.name }}</span>
+                    <span class="brand-sub">COMMAND CENTER</span>
+                </div>
+            </a>
+
+            <!-- Super Admin Profile Card -->
+            <div class="sidebar-profile-card">
+                <div class="profile-avatar-wrap">
+                    <div class="profile-avatar">AD</div>
+                    <div class="status-dot" title="Server & Admin Online"></div>
+                </div>
+                <div class="profile-info hide-on-slim">
+                    <div class="profile-name">Administrator</div>
+                    <div class="profile-role">Super Admin</div>
+                </div>
+            </div>
+
+            <!-- Menu Navigasi Berkategori -->
+            <div class="sidebar-menu">
+                <!-- Kategori 1: Ringkasan -->
+                <div class="menu-category-title hide-on-slim">Ringkasan & Analitik</div>
+                <a href="{{ url_for('admin.dashboard') }}" class="nav-item {% if request.endpoint in ['admin.dashboard'] %}active{% endif %}">
+                    <i class="fas fa-chart-pie" style="color: #38bdf8;"></i>
+                    <span class="nav-label hide-on-slim">Dashboard Utama</span>
+                </a>
+                <a href="{{ url_for('admin.reports') }}" class="nav-item {% if request.endpoint in ['admin.reports'] %}active{% endif %}">
+                    <i class="fas fa-chart-line" style="color: #a78bfa;"></i>
+                    <span class="nav-label hide-on-slim">Laporan Rekapitulasi</span>
+                </a>
+
+                <!-- Kategori 2: Operasional -->
+                <div class="menu-category-title hide-on-slim">Operasional Transaksi</div>
+                <a href="{{ url_for('admin.transactions') }}" class="nav-item {% if request.endpoint in ['admin.transactions'] %}active{% endif %}">
+                    <i class="fas fa-receipt" style="color: #34d399;"></i>
+                    <span class="nav-label hide-on-slim">Pusat Transaksi</span>
+                </a>
+                <a href="{{ url_for('admin.saldo') }}" class="nav-item {% if request.endpoint in ['admin.saldo'] %}active{% endif %}">
+                    <i class="fas fa-wallet" style="color: #fbbf24;"></i>
+                    <span class="nav-label hide-on-slim">Saldo Digiflazz</span>
+                    <span class="nav-badge badge-amber hide-on-slim">Live</span>
+                </a>
+                <a href="{{ url_for('admin.merchant_api_index') }}" class="nav-item {% if request.endpoint in ['admin.merchant_api_index'] %}active{% endif %}">
+                    <i class="fas fa-cash-register" style="color: #f472b6;"></i>
+                    <span class="nav-label hide-on-slim">POS & Kasir API</span>
+                    <span class="nav-badge badge-blue hide-on-slim">HOT</span>
+                </a>
+                <a href="{{ url_for('admin.otp_manual') }}" class="nav-item {% if request.endpoint in ['admin.otp_manual'] %}active{% endif %}">
+                    <i class="fas fa-shield-alt" style="color: #fb7185;"></i>
+                    <span class="nav-label hide-on-slim">OTP Manual Center</span>
+                    {% if pending_otp_count and pending_otp_count > 0 %}
+                    <span class="nav-badge badge-red hide-on-slim">{{ pending_otp_count }}</span>
+                    {% endif %}
+                </a>
+
+                <!-- Kategori 3: Pengguna & Kemitraan -->
+                <div class="menu-category-title hide-on-slim">Pengguna & Kemitraan</div>
+                <a href="{{ url_for('admin.users') }}" class="nav-item {% if request.endpoint in ['admin.users'] %}active{% endif %}">
+                    <i class="fas fa-users-cog" style="color: #60a5fa;"></i>
+                    <span class="nav-label hide-on-slim">Data Pelanggan</span>
+                </a>
+                <a href="{{ url_for('admin.tier_settings') }}" class="nav-item {% if request.endpoint in ['admin.tier_settings'] %}active{% endif %}">
+                    <i class="fas fa-crown" style="color: #fbbf24;"></i>
+                    <span class="nav-label hide-on-slim">Tier & Downline VIP</span>
+                </a>
+                <a href="{{ url_for('admin.point_settings') }}" class="nav-item {% if request.endpoint in ['admin.point_settings'] %}active{% endif %}">
+                    <i class="fas fa-star" style="color: #eab308;"></i>
+                    <span class="nav-label hide-on-slim">Pengaturan Poin</span>
+                </a>
+
+                <!-- Kategori 4: Katalog & Margin -->
+                <div class="menu-category-title hide-on-slim">Katalog & Margin</div>
+                <a href="{{ url_for('admin.produk') }}" class="nav-item {% if request.endpoint in ['admin.produk'] %}active{% endif %}">
+                    <i class="fas fa-boxes-stacked" style="color: #2dd4bf;"></i>
+                    <span class="nav-label hide-on-slim">Produk PPOB</span>
+                </a>
+                <a href="{{ url_for('admin.margin') }}" class="nav-item {% if request.endpoint in ['admin.margin'] %}active{% endif %}">
+                    <i class="fas fa-tags" style="color: #fb923c;"></i>
+                    <span class="nav-label hide-on-slim">Auto-Tier Margin</span>
+                </a>
+
+                <!-- Kategori 5: Layanan CS & Pengumuman -->
+                <div class="menu-category-title hide-on-slim">Layanan CS & Info</div>
+                <a href="{{ url_for('admin.tickets') }}" class="nav-item {% if request.endpoint in ['admin.tickets'] %}active{% endif %}">
+                    <i class="fas fa-headset" style="color: #38bdf8;"></i>
+                    <span class="nav-label hide-on-slim">Tiket Bantuan CS</span>
+                </a>
+                <a href="{{ url_for('admin.banner') }}" class="nav-item {% if request.endpoint in ['admin.banner'] %}active{% endif %}">
+                    <i class="fas fa-image" style="color: #818cf8;"></i>
+                    <span class="nav-label hide-on-slim">Banner Promo</span>
+                </a>
+                <a href="{{ url_for('admin.broadcast') }}" class="nav-item {% if request.endpoint in ['admin.broadcast'] %}active{% endif %}">
+                    <i class="fas fa-bullhorn" style="color: #c084fc;"></i>
+                    <span class="nav-label hide-on-slim">Pesan Broadcast</span>
+                </a>
+                <a href="{{ url_for('admin.notifications') }}" class="nav-item {% if request.endpoint in ['admin.notifications'] %}active{% endif %}">
+                    <i class="fas fa-bell" style="color: #f472b6;"></i>
+                    <span class="nav-label hide-on-slim">Pengumuman & Notif</span>
+                </a>
+
+                <!-- Kategori 6: Konfigurasi -->
+                <div class="menu-category-title hide-on-slim">Konfigurasi & Pengaturan</div>
+                <a href="{{ url_for('admin.store_settings') }}" class="nav-item {% if request.endpoint in ['admin.store_settings'] %}active{% endif %}">
+                    <i class="fas fa-store" style="color: #34d399;"></i>
+                    <span class="nav-label hide-on-slim">Profil Toko & Struk</span>
+                </a>
+                <a href="{{ url_for('admin.device_logs') }}" class="nav-item {% if request.endpoint in ['admin.device_logs'] %}active{% endif %}">
+                    <i class="fas fa-shield-halved" style="color: #a3e635;"></i>
+                    <span class="nav-label hide-on-slim">Log & Keamanan</span>
+                </a>
+            </div>
+
+            <!-- Sidebar Footer Quick Actions -->
+            <div class="sidebar-footer hide-on-slim">
+                <a href="/" target="_blank" class="btn-sidebar-quick" title="Buka Halaman Web Pengguna">
+                    <i class="fas fa-external-link-alt"></i> <span>Web User</span>
+                </a>
+                <a href="{{ url_for('admin.logout') }}" class="btn-sidebar-quick" title="Keluar dari Panel Admin">
+                    <i class="fas fa-sign-out-alt"></i> <span>Keluar</span>
+                </a>
+            </div>
+        </aside>
+
+        <!-- Mobile Drawer Backdrop -->
+        <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="toggleDrawer(false)"></div>
+
+        <!-- ========================================================
+             AREA KONTEN UTAMA DENGAN TOPBAR RESPOCIF
+             ======================================================== -->
+        <main class="admin-main">
+            <!-- Topbar Header -->
+            <header class="admin-topbar">
+                <div class="topbar-left">
+                    <button class="btn-collapse-sidebar" id="btnToggleNav" onclick="toggleSidebarView()" title="Buka / Ciutkan Menu">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <div class="page-header-info">
+                        <div class="page-breadcrumbs">Admin &gt; <span>{% block breadcrumb %}{{ breadcrumb or "Dashboard" }}{% endblock %}</span></div>
+                        <h2 class="page-title">{% block page_title %}{{ page_title or "Executive Command Center" }}{% endblock %}</h2>
+                    </div>
+                </div>
+
+                <div class="topbar-center">
+                    <form action="{{ url_for('admin.transactions') }}" method="GET" class="topbar-search">
+                        <i class="fas fa-search"></i>
+                        <input type="text" name="q" placeholder="Cari ID Trx, No HP, atau Pelanggan..." value="{{ request.args.get('q', '') }}">
+                    </form>
+                </div>
+
+                <div class="topbar-right">
+                    <!-- Live Gateway Status Pill -->
+                    <div class="gateway-status-pill">
+                        <div class="pulse-circle"></div>
+                        <span>Server &amp; Gateway OK</span>
+                    </div>
+
+                    <!-- Notification Bell -->
+                    <a href="{{ url_for('admin.tickets') }}" class="topbar-btn-icon" title="Tiket Bantuan CS">
+                        <i class="far fa-bell"></i>
+                    </a>
+
+                    <!-- Primary Quick Action -->
+                    {% block topbar_action %}
+                    <a href="{{ url_for('admin.saldo') }}" class="btn-topbar-action">
+                        <i class="fas fa-plus-circle"></i>
+                        <span>Deposit Saldo H2H</span>
+                    </a>
+                    {% endblock %}
+                </div>
+            </header>
+
+            <!-- Scrollable Content Area -->
+            <div class="content-scrollable">
+                <!-- Flash Messages -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                <div class="alert-container">
+                    {% for category, message in messages %}
+                    <div class="alert-modern alert-{{ category if category != 'message' else 'info' }}">
+                        <i class="fas fa-{% if category in ['success'] %}check-circle{% elif category in ['danger', 'error'] %}exclamation-circle{% elif category in ['warning'] %}triangle-exclamation{% else %}info-circle{% endif %}"></i>
+                        <span>{{ message }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% endwith %}
+
+                <!-- Main Content Block -->
+                {% block admin_content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Notification Box -->
+    <div class="toast-box" id="liveToast">
+        <i class="fas fa-check-circle" style="color: #34d399; font-size: 16px;"></i>
+        <span id="toastMessage">Tindakan berhasil diproses!</span>
+    </div>
+
+    <!-- Core Admin JavaScript Engine -->
+    <script>
+        // Toggle Sidebar Slim (Desktop) / Drawer (Mobile & Tablet)
+        function toggleSidebarView() {
+            const sidebar = document.getElementById('adminSidebar');
+            const backdrop = document.getElementById('sidebarBackdrop');
+            const isMobile = window.innerWidth <= 991;
+
+            if (isMobile) {
+                const isOpen = sidebar.classList.contains('open-drawer');
+                toggleDrawer(!isOpen);
+            } else {
+                sidebar.classList.toggle('slim');
+                const isSlim = sidebar.classList.contains('slim');
+                try {
+                    localStorage.setItem('admin_sidebar_slim', isSlim ? 'true' : 'false');
+                } catch(e) {}
+            }
+        }
+
+        function toggleDrawer(open) {
+            const sidebar = document.getElementById('adminSidebar');
+            const backdrop = document.getElementById('sidebarBackdrop');
+            if (open) {
+                sidebar.classList.add('open-drawer');
+                if (backdrop) backdrop.classList.add('active');
+            } else {
+                sidebar.classList.remove('open-drawer');
+                if (backdrop) backdrop.classList.remove('active');
+            }
+        }
+
+        // Restore Slim state on Desktop
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window.innerWidth > 991) {
+                try {
+                    if (localStorage.getItem('admin_sidebar_slim') === 'true') {
+                        const sb = document.getElementById('adminSidebar');
+                        if (sb) sb.classList.add('slim');
+                    }
+                } catch(e) {}
+            }
+        });
+
+        // Toast Notification System
+        let toastTimer = null;
+        function showToast(msg, type = 'info') {
+            const toast = document.getElementById('liveToast');
+            const toastMsg = document.getElementById('toastMessage');
+            if (!toast || !toastMsg) return;
+
+            toastMsg.innerText = msg;
+            toast.className = `toast-box ${type} show`;
+
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3200);
+        }
+
+        // 1-Click Copy Helper
+        function copyText(text, btn) {
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text).then(() => {
+                    showToast('Teks berhasil disalin: ' + text, 'success');
+                }).catch(() => {
+                    fallbackCopy(text);
+                });
+            } else {
+                fallbackCopy(text);
+            }
+        }
+
+        function fallbackCopy(text) {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            showToast('Teks berhasil disalin: ' + text, 'success');
+        }
+
+        // Modal Open/Close Helpers
+        function openModal(id) {
+            const m = document.getElementById(id);
+            if (m) {
+                m.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+        }
+        function closeModal(id) {
+            const m = document.getElementById(id);
+            if (m) {
+                m.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+        }
+
+        // Close modal on click outside
+        window.addEventListener('click', (e) => {
+            if (e.target.classList && e.target.classList.contains('modal-overlay')) {
+                e.target.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+        });
+    </script>
+
+    {% block script_extra %}{% endblock %}
+
+</body>
+</html>
