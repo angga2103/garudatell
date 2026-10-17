@@ -1192,6 +1192,27 @@ def user_kickout(user_id):
         return jsonify({'status': 'success', 'message': f'Sesi login akun {user.name} berhasil diputus (Kick Out). Akun kini bebas login.'})
     return jsonify({'status': 'error', 'message': msg}), 400
 
+@admin_bp.route('/users/<int:user_id>/sync_commission', methods=['POST'])
+@csrf.exempt
+def sync_user_commission(user_id):
+    if not session.get('admin_logged_in'):
+        if request.is_json:
+            return jsonify({'success': False, 'message': 'Sesi telah berakhir'}), 401
+        return redirect(url_for('admin.login'))
+
+    from app.services.commission_service import sync_user_commission_balance
+    ok, msg, report = sync_user_commission_balance(user_id)
+
+    if request.is_json:
+        return jsonify({'success': ok, 'message': msg, 'report': report})
+
+    if ok:
+        flash(f"✅ {msg}", "success")
+    else:
+        flash(f"❌ {msg}", "danger")
+
+    return redirect(url_for('admin.users'))
+
 @admin_bp.route('/device-logs')
 def device_logs():
     if not session.get('admin_logged_in'):

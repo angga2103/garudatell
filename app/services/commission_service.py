@@ -277,3 +277,122 @@ def prune_commission_history():
         db.session.commit()
         logger.info(f"[COMMISSION] Housekeeping: {deleted} baris data komisi lebih dari {retention_days} hari berhasil dibersihkan.")
     return deleted
+
+
+def sync_user_commission_balance(user_or_identifier):
+    """
+    Menghitung ulang dan menyinkronkan saldo komisi (commission_balance) seorang Upline VIP:
+    1. Mencari user berdasarkan ID, nama, nomor WhatsApp, atau email.
+    2. Mendeteksi seluruh downline aktif.
+    3. Memeriksa transaksi sukses downline yang belum tercatat di CommissionLog (backfill aman).
+    4. Menghitung total saldo komisi riil berstatus 'earned' (belum dicairkan).
+    5. Memperbarui user.commission_balance agar 100% sinkron dan akurat.
+    """
+    if isinstance(user_or_identifier, User):
+        user = user_or_identifier
+    elif isinstance(user_or_identifier, int) or str(user_or_identifier).isdigit():
+        user = User.query.get(int(user_or_identifier))
+    else:
+        q = str(user_or_identifier).strip()
+        user = User.query.filter(
+            (User.name.ilike(f"%{q}%")) |
+            (User.phone.ilike(f"%{q}%")) |
+            (User.email.ilike(f"%{q}%"))
+        ).first()
+
+    if not user:
+        return False, f"Pengguna '{user_or_identifier}' tidak ditemukan!", None
+
+    old_balance = float(user.commission_balance or 0.0)
+
+    # 1. Ambil seluruh downline
+    downlines = User.query.filter_by(upline_id=user.id).all()
+    downline_ids = [d.id for d in downlines]
+
+    backfilled_count = 0
+    backfilled_amount = 0.0
+
+    # 2. Cek apakah ada transaksi sukses downline yang belum pernah tercatat di CommissionLog
+    if downline_ids:
+        unlogged_trxs = Transaction.query.filter(
+            Transaction.user_id.in_(downline_ids),
+            Transaction.status == 'SUCCESS',
+            ~Transaction.sku_code.in_(EXCLUDED_SKUS)
+        ).all()
+
+        commission_cfg = get_setting_float('commission_flat', 100.0)
+
+        for trx in unlogged_trxs:
+            sku = str(getattr(trx, 'sku_code', '') or '').strip()
+            if 'DEPOSIT' in sku.upper() or 'UPGRADE' in sku.upper():
+                continue
+
+            existing_log = CommissionLog.query.filter_by(transaction_id=trx.id).first()
+            if not existing_log:
+                prod = Product.query.filter_by(sku_code=sku).first()
+                if prod and prod.base_price:
+                    margin = max(0.0, float(prod.sell_price or 0.0) - float(prod.base_price or 0.0))
+                    max_allowed = max(0.0, margin * 0.30)
+                    final_comm = min(commission_cfg, max_allowed)
+                    if margin < 150.0:
+                        final_comm = min(final_comm, 50.0)
+                else:
+                    final_comm = min(commission_cfg, 100.0)
+
+                final_comm = round(final_comm, 2)
+                if final_comm > 0:
+                    new_log = CommissionLog(
+                        upline_id=user.id,
+                        downline_id=trx.user_id,
+                        transaction_id=trx.id,
+                        trx_amount=float(trx.amount or 0.0),
+                        commission_amount=final_comm,
+                        status='earned',
+                        created_at=getattr(trx, 'created_at', None) or get_wib_datetime()
+                    )
+                    db.session.add(new_log)
+                    backfilled_count += 1
+                    backfilled_amount += final_comm
+
+        if backfilled_count > 0:
+            db.session.commit()
+
+    # 3. Hitung total komisi riil berstatus 'earned' (belum dicairkan)
+    earned_comm = db.session.query(db.func.sum(CommissionLog.commission_amount)).filter_by(
+        upline_id=user.id,
+        status='earned'
+    ).scalar() or 0.0
+
+    # Total yang sudah pernah dicairkan ('paid_out')
+    paid_comm = db.session.query(db.func.sum(CommissionLog.commission_amount)).filter_by(
+        upline_id=user.id,
+        status='paid_out'
+    ).scalar() or 0.0
+
+    # Total riwayat log komisi
+    total_logs_count = CommissionLog.query.filter_by(upline_id=user.id).count()
+
+    # 4. Sinkronkan ke commission_balance
+    new_balance = round(float(earned_comm), 2)
+    user.commission_balance = new_balance
+    db.session.commit()
+
+    report = {
+        'user_id': user.id,
+        'name': user.name,
+        'phone': user.phone,
+        'role': user.role,
+        'is_vip': user.is_vip_active() if hasattr(user, 'is_vip_active') else (user.role == 'vip'),
+        'downline_count': len(downlines),
+        'backfilled_logs': backfilled_count,
+        'backfilled_amount': backfilled_amount,
+        'total_logs_count': total_logs_count,
+        'total_paid_out': paid_comm,
+        'old_commission_balance': old_balance,
+        'new_commission_balance': new_balance,
+        'difference': round(new_balance - old_balance, 2)
+    }
+
+    logger.info(f"[COMMISSION SYNC] User {user.name} ({user.phone}) commission synced: {old_balance} -> {new_balance}")
+    return True, f"Saldo komisi {user.name} berhasil disinkronkan menjadi Rp {new_balance:,.0f}", report
+

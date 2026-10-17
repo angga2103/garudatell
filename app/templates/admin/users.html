@@ -268,11 +268,16 @@
             <!-- SALDO KOMISI DOWNLINE & UPLINE -->
             <div style="display: flex; gap: 10px; margin-bottom: 12px;">
                 <div style="flex: 1; background: #fefce8; border: 1px solid #fef08a; border-radius: 10px; padding: 10px;">
-                    <label style="display: block; font-size: 11px; font-weight: 800; color: #854d0e; margin-bottom: 4px;">
-                        <i class="fas fa-wallet" style="color: #eab308;"></i> Saldo Komisi (Rp)
-                    </label>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <label style="font-size: 11px; font-weight: 800; color: #854d0e; margin: 0;">
+                            <i class="fas fa-wallet" style="color: #eab308;"></i> Saldo Komisi (Rp)
+                        </label>
+                        <button type="button" onclick="syncCurrentCommission()" style="background: #eab308; color: #713f12; border: none; padding: 2px 7px; border-radius: 5px; font-size: 9.5px; font-weight: 800; cursor: pointer;" title="Hitung ulang otomatis dari transaksi downline">
+                            <i class="fas fa-sync-alt"></i> Hitung Ulang
+                        </button>
+                    </div>
                     <input type="number" id="eu_commission_balance" name="commission_balance" step="any" min="0" style="width: 100%; padding: 8px; border: 1px solid #fde047; border-radius: 8px; font-size: 13px; font-family: inherit; font-weight: 800; color: #854d0e; background: white; box-sizing: border-box; outline: none;">
-                    <small style="font-size: 9.5px; color: #a16207; display: block; margin-top: 3px;">Khusus VIP, dicairkan tiap tgl 28.</small>
+                    <small style="font-size: 9.5px; color: #a16207; display: block; margin-top: 3px;">Khusus VIP, dicairkan tiap tgl 28. Klik 'Hitung Ulang' jika saldo terhapus/tidak sinkron.</small>
                 </div>
                 <div style="flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px;">
                     <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; margin-bottom: 4px;">
@@ -1012,7 +1017,38 @@
 
         loadUserDownlines(userId);
         
+        currentEditUserId = userId;
         document.getElementById('editUserModal').style.display = 'flex';
+    }
+
+    let currentEditUserId = null;
+
+    function syncCurrentCommission() {
+        if (!currentEditUserId) {
+            alert("Pilih pengguna terlebih dahulu!");
+            return;
+        }
+        if (!confirm("Hitung ulang komisi pengguna ini berdasarkan seluruh riwayat transaksi sukses downline-nya?")) return;
+
+        fetch(`/admin/users/${currentEditUserId}/sync_commission`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success && data.report) {
+                document.getElementById('eu_commission_balance').value = data.report.new_commission_balance;
+                alert(`✅ ${data.message}\n\n• Jumlah Downline: ${data.report.downline_count} user\n• Log Transaksi Komisi: ${data.report.total_logs_count}\n• Komisi Siap Cair: Rp ${data.report.new_commission_balance.toLocaleString('id-ID')}`);
+            } else {
+                alert(data.message || 'Gagal menyinkronkan komisi');
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert("Terjadi kesalahan jaringan atau server saat menyinkronkan komisi.");
+        });
     }
 
     function closeEditModal() {
