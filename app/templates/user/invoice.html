@@ -750,7 +750,7 @@
             {% set clean_trx_sn = "Jalur operator sedang gangguan sementara. Saldo aman & telah direfund." if (is_trx_failed and is_trx_bal_err) else (trx.sn or '') %}
             {% if clean_trx_sn %}
             <div class="detail-row" style="flex-direction: column; align-items: stretch; gap: 4px; padding-top: 6px;">
-                <div class="sn-wrapper" data-sn="{{ clean_trx_sn|escape }}" data-failed="{{ 'true' if is_trx_failed else 'false' }}">
+                <div class="sn-wrapper" data-sn="{{ clean_trx_sn|escape }}" data-failed="{{ 'true' if is_trx_failed else 'false' }}" data-product="{{ (trx.product_name or '')|escape }}">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
                         <span class="detail-label">{% if is_trx_failed %}Keterangan{% else %}Serial Number (SN){% endif %}</span>
                     </div>
@@ -1115,19 +1115,33 @@ function cleanRawSn(rawSn) {
     return String(rawSn).trim().replace(/^(SN|Keterangan|KET)\s*:\s*/i, '').trim();
 }
 
-function parseSnData(rawSn, isFailed = false) {
+function parseSnData(rawSn, isFailed = false, productName = '') {
     const s = cleanRawSn(rawSn);
     if (!s) return { type: 'empty', raw: '' };
     if (isFailed) return { type: 'failed', raw: s, message: s };
 
+    // Analisis konteks produk
+    const ctx = (productName || '').toLowerCase();
+    const isExplicitNonPln = /indosat|isat|telkomsel|tsel|xl|axis|tri|three|smartfren|pulsa|kuota|paket|data|telepon|sms|game|voucher|dana|gopay|ovo|shopee/i.test(ctx);
+    const isExplicitPln = /pln|token\s*pln|token\s*listrik|stroom/i.test(ctx);
+    const hasPlnKeywords = /kwh|token\s*listrik|stroom|tarif|daya/i.test(s) || /\bpln\b/i.test(s) || /\b(?:r1|r1m|r1t|r2|r3|b1|b2|i1|i2|p1)\b/i.test(s) || /\b\d{3,4}\s*va\b/i.test(s);
+
     // 1. PLN Token (20 Digit)
     const plnMatch = s.match(/(?:^|\D)(\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4})(?:\D|$)/);
     const digitsToken = plnMatch ? plnMatch[1].replace(/[-\s]/g, '') : '';
-    if (plnMatch && (
-        /kwh|pln|r1|b1|i1|va|stroom/i.test(s) ||
-        digitsToken.length === 20 ||
-        s.split('/').length >= 3
-    )) {
+
+    let isValidPlnToken = false;
+    if (plnMatch && digitsToken.length === 20) {
+        if (isExplicitNonPln) {
+            isValidPlnToken = false;
+        } else if (isExplicitPln || hasPlnKeywords) {
+            isValidPlnToken = true;
+        } else if (s.split('/').length >= 3 && (/kwh/i.test(s) || /va/i.test(s))) {
+            isValidPlnToken = true;
+        }
+    }
+
+    if (isValidPlnToken) {
         const rawToken = digitsToken;
         const formattedToken = rawToken.match(/.{1,4}/g).join(' - ');
         const parts = s.split('/').map(p => p.trim()).filter(p => p && p.replace(/[-\s]/g, '') !== rawToken);
@@ -1270,8 +1284,8 @@ function parseSnData(rawSn, isFailed = false) {
     };
 }
 
-function formatSnForCopy(rawSn, isFailed = false) {
-    const data = parseSnData(rawSn, isFailed);
+function formatSnForCopy(rawSn, isFailed = false, productName = '') {
+    const data = parseSnData(rawSn, isFailed, productName);
     if (data.type === 'empty') return '-';
     if (data.type === 'failed') return data.message || '';
 
@@ -1339,9 +1353,9 @@ function formatSnForCopy(rawSn, isFailed = false) {
     return data.raw;
 }
 
-function renderSnHtml(rawSn, isFailed = false) {
+function renderSnHtml(rawSn, isFailed = false, productName = '') {
     if (!rawSn) return '';
-    const data = parseSnData(rawSn, isFailed);
+    const data = parseSnData(rawSn, isFailed, productName);
 
     // 1. Pesan Transaksi Gagal / Refund
     if (data.type === 'failed') {
@@ -1388,7 +1402,7 @@ function renderSnHtml(rawSn, isFailed = false) {
 
     // 3. Telkomsel Cek Kuota & Status Kartu
     if (data.type === 'telkomsel_info') {
-        const cleanCopy = formatSnForCopy(rawSn, isFailed);
+        const cleanCopy = formatSnForCopy(rawSn, isFailed, productName);
         let chipsHtml = '';
         if (data.masaAktif) {
             chipsHtml += `<span class="sn-meta-chip"><i class="far fa-calendar-alt" style="color: #2563eb;"></i> <b>Masa Aktif:</b> ${escapeHtml(data.masaAktif)}</span>`;
@@ -1432,7 +1446,7 @@ function renderSnHtml(rawSn, isFailed = false) {
 
     // 4. XL / AXIS Cek Kuota & Status Kartu
     if (data.type === 'xl_info') {
-        const cleanCopy = formatSnForCopy(rawSn, isFailed);
+        const cleanCopy = formatSnForCopy(rawSn, isFailed, productName);
         let chipsHtml = '';
         if (data.dukcapil) {
             chipsHtml += `<span class="sn-meta-chip sn-chip-success"><i class="fas fa-check-circle"></i> <b>Registrasi:</b> ${escapeHtml(data.dukcapil)}</span>`;
@@ -1471,7 +1485,7 @@ function renderSnHtml(rawSn, isFailed = false) {
 
     // 5. Multi-Package Bertanda '*' atau 'sisa kuota'
     if (data.type === 'multi_quota') {
-        const cleanCopy = formatSnForCopy(rawSn, isFailed);
+        const cleanCopy = formatSnForCopy(rawSn, isFailed, productName);
         let cardInfoHtml = data.cardInfo ? `<div class="sn-sim-badge"><i class="fas fa-sim-card"></i> ${escapeHtml(data.cardInfo)}</div>` : '';
         let pulsaInfoHtml = data.pulsaInfo ? `<div class="sn-pulsa-chip"><i class="fas fa-coins" style="color: #d97706;"></i> <b>${escapeHtml(data.pulsaInfo)}</b></div>` : '';
 
@@ -1516,7 +1530,7 @@ function renderSnHtml(rawSn, isFailed = false) {
 
     // 6. Voucher
     if (data.type === 'voucher') {
-        const cleanCopy = formatSnForCopy(rawSn, isFailed);
+        const cleanCopy = formatSnForCopy(rawSn, isFailed, productName);
         return `
             <div class="sn-pretty-box sn-voucher-box">
                 <div class="sn-pretty-header">
@@ -1544,9 +1558,9 @@ function renderSnHtml(rawSn, isFailed = false) {
     `;
 }
 
-function formatSnForWhatsApp(rawSn) {
+function formatSnForWhatsApp(rawSn, productName = '') {
     if (!rawSn) return '-';
-    const cleanText = formatSnForCopy(rawSn, false);
+    const cleanText = formatSnForCopy(rawSn, false, productName);
     const lines = cleanText.split('\n');
     if (lines.length === 1) {
         return cleanText;
@@ -1554,17 +1568,18 @@ function formatSnForWhatsApp(rawSn) {
     return '\n' + lines.map(line => '  ' + line).join('\n');
 }
 
-function formatSnForThermal(rawSn) {
+function formatSnForThermal(rawSn, productName = '') {
     if (!rawSn) return '-';
-    return formatSnForCopy(rawSn, false);
+    return formatSnForCopy(rawSn, false, productName);
 }
 
 function initSnFormatting() {
     document.querySelectorAll('.sn-wrapper[data-sn]').forEach(el => {
         const rawSn = el.getAttribute('data-sn');
         const isFailed = el.getAttribute('data-failed') === 'true';
+        const productName = el.getAttribute('data-product') || '';
         if (rawSn) {
-            const prettyHtml = renderSnHtml(rawSn, isFailed);
+            const prettyHtml = renderSnHtml(rawSn, isFailed, productName);
             if (prettyHtml) {
                 el.innerHTML = prettyHtml;
             }
@@ -1589,7 +1604,7 @@ function shareReceiptWhatsApp() {
     const produk = {{ trx.product_name|tojson }};
     const tujuan = {{ trx.target_number|tojson }};
     const rawSn = {{ (clean_trx_sn or '-')|tojson }};
-    const snFormatted = formatSnForWhatsApp(rawSn);
+    const snFormatted = formatSnForWhatsApp(rawSn, produk);
     const isQrisWithFee = {{ 'true' if (trx.payment_method and trx.payment_method|upper == 'QRIS' and (pg_fee|default(0)) > 0) else 'false' }};
     const hargaPokok = 'Rp ' + Number({{ trx.amount }}).toLocaleString('id-ID');
     const feePg = 'Rp ' + Number({{ pg_fee|default(0) }}).toLocaleString('id-ID');
@@ -1630,7 +1645,7 @@ function printViaRawBT() {
     const produk = {{ trx.product_name|tojson }};
     const tujuan = {{ trx.target_number|tojson }};
     const rawSn = {{ (clean_trx_sn or '-')|tojson }};
-    const snThermal = formatSnForThermal(rawSn);
+    const snThermal = formatSnForThermal(rawSn, produk);
     const isQrisWithFee = {{ 'true' if (trx.payment_method and trx.payment_method|upper == 'QRIS' and (pg_fee|default(0)) > 0) else 'false' }};
     const hargaPokok = 'Rp ' + Number({{ trx.amount }}).toLocaleString('id-ID');
     const feePg = 'Rp ' + Number({{ pg_fee|default(0) }}).toLocaleString('id-ID');
@@ -1732,7 +1747,7 @@ async function connectAndPrintBluetooth() {
         commands.push(...encoder.encode('PRODUK  : ' + {{ trx.product_name|tojson }} + '\n'));
         commands.push(...encoder.encode('TUJUAN  : ' + {{ trx.target_number|tojson }} + '\n'));
         {% if clean_trx_sn %}
-        const thermalSnBt = formatSnForThermal({{ clean_trx_sn|tojson }});
+        const thermalSnBt = formatSnForThermal({{ clean_trx_sn|tojson }}, {{ trx.product_name|tojson }});
         commands.push(...encoder.encode('{% if is_trx_failed %}KET     : {% else %}SN      : {% endif %}' + thermalSnBt + '\n'));
         {% endif %}
         commands.push(...encoder.encode('--------------------------------\n'));

@@ -131,7 +131,7 @@ def clean_raw_sn(raw_sn):
     return s
 
 
-def parse_sn_data(raw_sn, is_failed=False):
+def parse_sn_data(raw_sn, is_failed=False, product_name='', category='', sku=''):
     """
     Memecah string SN kompleks (Cek Kuota Telkomsel, XL, PLN, Voucher, dll)
     menjadi dictionary data terstruktur.
@@ -143,14 +143,37 @@ def parse_sn_data(raw_sn, is_failed=False):
     if is_failed:
         return {'type': 'failed', 'raw': s, 'message': s}
 
+    # Analisis konteks produk
+    ctx_str = f"{product_name} {category} {sku}".lower()
+    is_explicit_non_pln = any(kw in ctx_str for kw in [
+        'indosat', 'isat', 'telkomsel', 'tsel', 'xl', 'axis', 'tri', 'three', 'smartfren',
+        'pulsa', 'kuota', 'paket', 'data', 'telepon', 'sms', 'game', 'voucher game',
+        'mobile legends', 'free fire', 'dana', 'gopay', 'ovo', 'shopeepay'
+    ])
+    is_explicit_pln = any(kw in ctx_str for kw in ['pln', 'token pln', 'token listrik', 'stroom'])
+
     # 1. PLN Token (20 Digit)
     pln_match = re.search(r'(?:^|\D)(\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4})(?:\D|$)', s)
     digits_token = re.sub(r'[-\s]', '', pln_match.group(1)) if pln_match else ''
-    if pln_match and (
-        any(k in s.lower() for k in ['kwh', 'pln', 'r1', 'b1', 'i1', 'va', 'stroom'])
-        or len(digits_token) == 20
-        or len(s.split('/')) >= 3
-    ):
+
+    # PLN Token harus memiliki bukti kuat terkait listrik, ATAU produknya memang PLN
+    has_pln_keywords = (
+        any(k in s.lower() for k in ['kwh', 'token listrik', 'stroom', 'tarif', 'daya'])
+        or bool(re.search(r'\bpln\b', s, re.I))
+        or bool(re.search(r'\b(?:r1|r1m|r1t|r2|r3|b1|b2|i1|i2|p1)\b', s, re.I))
+        or bool(re.search(r'\b\d{3,4}\s*va\b', s, re.I))
+    )
+
+    is_valid_pln_token = False
+    if pln_match and len(digits_token) == 20:
+        if is_explicit_non_pln:
+            is_valid_pln_token = False
+        elif is_explicit_pln or has_pln_keywords:
+            is_valid_pln_token = True
+        elif len(s.split('/')) >= 3 and ('kwh' in s.lower() or 'va' in s.lower()):
+            is_valid_pln_token = True
+
+    if is_valid_pln_token:
         raw_token = digits_token
         formatted_token = ' - '.join([raw_token[i:i+4] for i in range(0, 20, 4)])
         parts = [p.strip() for p in s.split('/') if p.strip() and re.sub(r'[-\s]', '', p) != raw_token]
@@ -277,12 +300,12 @@ def parse_sn_data(raw_sn, is_failed=False):
     }
 
 
-def format_clean_sn_text(raw_sn, is_failed=False):
+def format_clean_sn_text(raw_sn, is_failed=False, product_name='', category='', sku=''):
     """
     Format string SN menjadi teks berbaris rapi untuk disalin (Clipboard),
     dikirim ke WhatsApp (Struk WA), atau struk printer.
     """
-    data = parse_sn_data(raw_sn, is_failed=is_failed)
+    data = parse_sn_data(raw_sn, is_failed=is_failed, product_name=product_name, category=category, sku=sku)
     stype = data.get('type')
 
     if stype == 'empty':

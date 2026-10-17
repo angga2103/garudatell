@@ -88,6 +88,38 @@ class TestSnFormatter(unittest.TestCase):
         formatted = format_clean_sn_text(sn)
         self.assertEqual(formatted, "0214087997076300006722")
 
+    def test_indosat_20_digit_sn_not_pln(self):
+        # 20 digit plain serial number without PLN keywords should NOT be treated as PLN token
+        sn = "04307700039662634187"
+        data = parse_sn_data(sn)
+        self.assertEqual(data['type'], 'simple')
+        self.assertEqual(data['raw'], "04307700039662634187")
+
+        formatted = format_clean_sn_text(sn)
+        self.assertEqual(formatted, "04307700039662634187")
+        self.assertNotIn("TOKEN PLN", formatted)
+
+    def test_indosat_20_digit_sn_with_product_context(self):
+        sn = "04307700039662634187"
+        product_name = "Indosat Freedom Internet 8 GB"
+        data = parse_sn_data(sn, product_name=product_name, category="Data")
+        self.assertEqual(data['type'], 'simple')
+
+        formatted = format_clean_sn_text(sn, product_name=product_name, category="Data")
+        self.assertEqual(formatted, "04307700039662634187")
+        self.assertNotIn("TOKEN PLN", formatted)
+
+    def test_pln_token_with_product_context(self):
+        # Even without PLN keywords in the SN string, if product is PLN, format as PLN token
+        sn = "04307700039662634187"
+        product_name = "PLN Prabayar 20.000"
+        data = parse_sn_data(sn, product_name=product_name, category="PLN")
+        self.assertEqual(data['type'], 'pln_token')
+        self.assertEqual(data['formatted_token'], "0430 - 7700 - 0396 - 6263 - 4187")
+
+        formatted = format_clean_sn_text(sn, product_name=product_name, category="PLN")
+        self.assertIn("TOKEN PLN : 0430 - 7700 - 0396 - 6263 - 4187", formatted)
+
     def test_failed_transaction(self):
         sn = "Nomor tujuan salah atau tidak aktif"
         data = parse_sn_data(sn, is_failed=True)

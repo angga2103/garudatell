@@ -1328,14 +1328,32 @@ function closeReceipt() {
     document.getElementById('receiptModal').style.display = 'none';
 }
 
-function formatSnForWhatsApp(rawSn) {
+function formatSnForWhatsApp(rawSn, productName = '') {
     if (!rawSn) return '-';
     let clean = rawSn.trim().replace(/^SN\s*:\s*/i, '').replace(/^(Keterangan|KET)\s*:\s*/i, '').trim();
 
+    const ctx = (productName || '').toLowerCase();
+    const isExplicitNonPln = /indosat|isat|telkomsel|tsel|xl|axis|tri|three|smartfren|pulsa|kuota|paket|data|telepon|sms|game|voucher|dana|gopay|ovo|shopee/i.test(ctx);
+    const isExplicitPln = /pln|token\s*pln|token\s*listrik|stroom/i.test(ctx);
+    const hasPlnKeywords = /kwh|token\s*listrik|stroom|tarif|daya/i.test(clean) || /\bpln\b/i.test(clean) || /\b(?:r1|r1m|r1t|r2|r3|b1|b2|i1|i2|p1)\b/i.test(clean) || /\b\d{3,4}\s*va\b/i.test(clean);
+
     // 1. PLN Token
     const plnMatch = clean.match(/(?:^|\D)(\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4})(?:\D|$)/);
-    if (plnMatch && (clean.toLowerCase().includes('kwh') || clean.toLowerCase().includes('pln') || clean.split('/').length >= 3 || plnMatch[1].replace(/[-\s]/g, '').length === 20)) {
-        const rawToken = plnMatch[1].replace(/[-\s]/g, '');
+    const digitsToken = plnMatch ? plnMatch[1].replace(/[-\s]/g, '') : '';
+
+    let isValidPlnToken = false;
+    if (plnMatch && digitsToken.length === 20) {
+        if (isExplicitNonPln) {
+            isValidPlnToken = false;
+        } else if (isExplicitPln || hasPlnKeywords) {
+            isValidPlnToken = true;
+        } else if (clean.split('/').length >= 3 && (/kwh/i.test(clean) || /va/i.test(clean))) {
+            isValidPlnToken = true;
+        }
+    }
+
+    if (isValidPlnToken) {
+        const rawToken = digitsToken;
         const formattedToken = rawToken.match(/.{1,4}/g).join(' - ');
         const parts = clean.split('/').map(p => p.trim()).filter(p => !p.replace(/[-\s]/g, '').includes(rawToken));
         let out = `\n  ⚡ *TOKEN: ${formattedToken}*`;
@@ -1383,7 +1401,7 @@ function shareCurrentReceiptModalWa() {
 
 function shareCashierReceiptWa(refId, produk, tujuan, harga, sn, waktu, status) {
     const storeName = {{ store_name|tojson }};
-    const formattedSn = formatSnForWhatsApp(sn);
+    const formattedSn = formatSnForWhatsApp(sn, produk);
     let text = 
         `*STRUK TRANSAKSI ${storeName.toUpperCase()}*\n` +
         `--------------------------------\n` +
