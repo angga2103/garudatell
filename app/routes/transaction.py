@@ -1747,3 +1747,127 @@ def callback_vipreseller():
         db.session.rollback()
         print(f"[ERROR WEBHOOK VIP-RESELLER] {str(e)}")
         return jsonify({'result': False, 'message': f'Internal error: {str(e)}'}), 500
+
+
+# =====================================================================
+# WEBHOOK DANA OTOMATIS - HP SAMSUNG J1 ACE (NOTIFICATION FORWARDER)
+# =====================================================================
+
+@trx_bp.route('/callback/dana-mutasi', methods=['POST', 'GET'])
+@trx_bp.route('/callback/dana', methods=['POST', 'GET'])
+@csrf.exempt
+def callback_dana_mutasi():
+    """
+    Webhook callback dari HP Samsung J1 Ace untuk otomatisasi deposit DANA.
+    Mendukung format JSON, Form Data, dan Query Parameters dari berbagai APK Notifikasi.
+    """
+    from app.services.dana_mutasi_service import (
+        get_dana_device_token,
+        process_incoming_dana_mutation,
+        extract_amount_from_text,
+        extract_sender_from_text,
+        record_device_heartbeat
+    )
+
+    # 1. Validasi Secret Token
+    expected_token = get_dana_device_token()
+
+    req_token = (
+        request.headers.get('X-Device-Token') or
+        request.headers.get('X-Api-Key') or
+        request.headers.get('Authorization', '').replace('Bearer ', '').strip() or
+        request.args.get('token') or
+        request.args.get('key')
+    )
+
+    raw_json = request.get_json(silent=True) or {}
+    form_data = request.form.to_dict() or {}
+
+    if not req_token:
+        req_token = (
+            raw_json.get('token') or raw_json.get('key') or raw_json.get('api_key') or
+            form_data.get('token') or form_data.get('key') or form_data.get('api_key')
+        )
+
+    if not req_token or req_token.strip() != expected_token.strip():
+        print(f"[DANA CALLBACK REJECTED] Unauthorized token: {req_token} from IP {request.remote_addr}")
+        return jsonify({'status': 'error', 'message': 'Unauthorized device token'}), 401
+
+    # 2. Catat Heartbeat HP Samsung J1 Ace
+    client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+    battery = raw_json.get('battery') or form_data.get('battery')
+    is_charging = raw_json.get('charging') or form_data.get('charging')
+    record_device_heartbeat(battery=battery, is_charging=is_charging, client_ip=client_ip)
+
+    # 3. Ekstraksi Nominal
+    text_content = (
+        raw_json.get('text') or raw_json.get('message') or raw_json.get('body') or
+        form_data.get('text') or form_data.get('message') or form_data.get('body') or ''
+    )
+    title_content = raw_json.get('title') or form_data.get('title') or ''
+    combined_text = f"{title_content} {text_content}".strip()
+
+    amount = raw_json.get('amount') or raw_json.get('nominal') or form_data.get('amount') or form_data.get('nominal')
+    if not amount and combined_text:
+        amount = extract_amount_from_text(combined_text)
+
+    if not amount:
+        print(f"[DANA CALLBACK] Notifikasi diterima tapi tidak ada nominal uang: '{combined_text}'")
+        return jsonify({'status': 'ignored', 'message': 'No amount detected in notification'}), 200
+
+    # 4. Ekstraksi Pengirim
+    sender = (
+        raw_json.get('sender') or raw_json.get('sender_name') or raw_json.get('from') or
+        form_data.get('sender') or form_data.get('sender_name') or form_data.get('from')
+    )
+    if not sender and combined_text:
+        sender = extract_sender_from_text(combined_text)
+
+    # 5. Eksekusi Pencocokan & Tambah Saldo
+    ok, msg, trx = process_incoming_dana_mutation(amount, sender_name=sender, raw_text=combined_text)
+
+    if ok and trx:
+        return jsonify({
+            'status': 'success',
+            'message': msg,
+            'ref_id': trx.ref_id,
+            'amount': trx.amount,
+            'user_id': trx.user_id
+        }), 200
+    else:
+        return jsonify({
+            'status': 'unmatched',
+            'message': msg,
+            'amount': amount
+        }), 200
+
+
+@trx_bp.route('/callback/dana-ping', methods=['POST', 'GET'])
+@csrf.exempt
+def callback_dana_ping():
+    """Endpoint Heartbeat sederhana untuk HP Samsung J1 Ace."""
+    from app.services.dana_mutasi_service import get_dana_device_token, record_device_heartbeat
+    expected_token = get_dana_device_token()
+    req_token = (
+        request.headers.get('X-Device-Token') or
+        request.headers.get('X-Api-Key') or
+        request.args.get('token') or
+        request.args.get('key')
+    )
+    raw_json = request.get_json(silent=True) or {}
+    if not req_token:
+        req_token = raw_json.get('token') or raw_json.get('key')
+
+    if not req_token or req_token.strip() != expected_token.strip():
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+
+    battery = raw_json.get('battery') or request.args.get('battery')
+    is_charging = raw_json.get('charging') or request.args.get('charging')
+    client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+    record_device_heartbeat(battery=battery, is_charging=is_charging, client_ip=client_ip)
+
+    return jsonify({
+        'status': 'ok',
+        'message': 'Pong! Samsung J1 Ace terhubung dengan GarudaTel.',
+        'server_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    }), 200

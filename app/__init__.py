@@ -132,7 +132,7 @@ def create_app(test_config=None):
     app.register_blueprint(merchant_api_bp, url_prefix='/api/v1')
 
     # Daftarkan Alias Route Webhook Callback (/api/callback/... & /callback/...)
-    from app.routes.transaction import callback_digiflazz, callback_paymentkita, callback_pakasir, callback_vipreseller
+    from app.routes.transaction import callback_digiflazz, callback_paymentkita, callback_pakasir, callback_vipreseller, callback_dana_mutasi, callback_dana_ping
     webhook_routes = [
         ('/api/callback/vipreseller', callback_vipreseller),
         ('/callback/vipreseller', callback_vipreseller),
@@ -142,10 +142,16 @@ def create_app(test_config=None):
         ('/callback/paymentkita', callback_paymentkita),
         ('/api/callback/pakasir', callback_pakasir),
         ('/callback/pakasir', callback_pakasir),
+        ('/api/callback/dana-mutasi', callback_dana_mutasi),
+        ('/callback/dana-mutasi', callback_dana_mutasi),
+        ('/api/callback/dana', callback_dana_mutasi),
+        ('/callback/dana', callback_dana_mutasi),
+        ('/api/callback/dana-ping', callback_dana_ping),
+        ('/callback/dana-ping', callback_dana_ping),
     ]
     for path, handler in webhook_routes:
         endpoint_name = 'alias_' + path.replace('/', '_').strip('_')
-        app.add_url_rule(path, endpoint=endpoint_name, view_func=handler, methods=['POST'])
+        app.add_url_rule(path, endpoint=endpoint_name, view_func=handler, methods=['POST', 'GET'])
 
     # Daftarkan Alias Route Cron Job Otomatis (/api/cron/sync-products & /api/cron/check-low-balance)
     from app.routes.admin import cron_sync_products, cron_check_low_balance

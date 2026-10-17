@@ -76,6 +76,20 @@ def get_setting_int(key, default=0):
     except (ValueError, TypeError):
         return default
 
+def set_setting_value(key, value, description=None):
+    """Menyimpan atau memperbarui nilai setting di database dan mengupdate cache."""
+    s = Setting.query.filter_by(key=key).first()
+    if not s:
+        s = Setting(key=key, value=str(value), description=description)
+        db.session.add(s)
+    else:
+        s.value = str(value)
+        if description:
+            s.description = description
+    db.session.commit()
+    invalidate_setting_cache(key)
+    return True
+
 def get_store_name():
     """Mengembalikan nama toko dinamis saat ini dari tabel Setting (Profil Toko)."""
     return get_setting_value('store_name', DEFAULT_STORE_NAME)

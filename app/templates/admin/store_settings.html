@@ -374,6 +374,90 @@
             </div>
         </div>
 
+        <!-- INTEGRASI HP SAMSUNG GALAXY J1 ACE (DANA MUTASI OTOMATIS) -->
+        <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 14px; padding: 18px; margin-top: 20px; margin-bottom: 22px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+                <div style="font-weight: 900; font-size: 14px; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-mobile-screen-button" style="color: #0284c7; font-size: 18px;"></i>
+                    <span>Status HP Verifikator (Samsung Galaxy J1 Ace)</span>
+                </div>
+                <div>
+                    {% if dana_device_status.is_online %}
+                        <span style="background: #dcfce7; color: #166534; font-size: 11px; font-weight: 900; padding: 5px 12px; border-radius: 20px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #86efac;">
+                            <span style="width: 8px; height: 8px; border-radius: 50%; background: #22c55e; display: inline-block;"></span> ONLINE (Terhubung)
+                        </span>
+                    {% else %}
+                        <span style="background: #f1f5f9; color: #64748b; font-size: 11px; font-weight: 900; padding: 5px 12px; border-radius: 20px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #cbd5e1;">
+                            <span style="width: 8px; height: 8px; border-radius: 50%; background: #94a3b8; display: inline-block;"></span> STANDBY / BELUM TERHUBUNG
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- GRID STATS HP -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px;">
+                <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 14px;">
+                    <div style="font-size: 11px; font-weight: 800; color: #64748b;">Ping Terakhir:</div>
+                    <div style="font-size: 13px; font-weight: 900; color: #1e293b; margin-top: 2px;">
+                        {{ dana_device_status.last_ping_str }}
+                        {% if dana_device_status.minutes_ago is not none %}
+                            <small style="color: #64748b; font-weight: 600;">({{ dana_device_status.minutes_ago }} mnt lalu)</small>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 14px;">
+                    <div style="font-size: 11px; font-weight: 800; color: #64748b;">Status Baterai:</div>
+                    <div style="font-size: 13px; font-weight: 900; color: #0284c7; margin-top: 2px;">
+                        {% if dana_device_status.battery != '-' %}
+                            <i class="fas fa-battery-half"></i> {{ dana_device_status.battery }}%
+                            {% if dana_device_status.is_charging %}<span style="color: #eab308; margin-left: 4px;"><i class="fas fa-bolt"></i> Dicas</span>{% endif %}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 14px;">
+                    <div style="font-size: 11px; font-weight: 800; color: #64748b;">IP Address HP:</div>
+                    <div style="font-size: 13px; font-weight: 900; color: #334155; margin-top: 2px;">
+                        {{ dana_device_status.client_ip }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- KONFIGURASI WEBHOOK & TOKEN UNTUK APK HP -->
+            <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; margin-bottom: 12px;">
+                <div style="font-size: 12px; font-weight: 900; color: #0f172a; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+                    <i class="fas fa-link" style="color: #00877a;"></i> Data Pengaturan untuk Aplikasi Forwarder di Samsung J1 Ace:
+                </div>
+
+                <div style="margin-bottom: 12px;">
+                    <label style="font-size: 11px; font-weight: 800; color: #475569; display: block; margin-bottom: 4px;">1. Webhook URL (POST):</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" readonly id="danaWebhookUrlInput" class="form-input" value="{{ dana_webhook_url }}" style="background: #f8fafc; font-weight: 800; color: #0f766e; font-size: 12px;">
+                        <button type="button" onclick="copyWebhookData('danaWebhookUrlInput')" style="background: #00877a; color: white; border: none; padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 800; cursor: pointer; white-space: nowrap;">
+                            <i class="fas fa-copy"></i> Salin URL
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <label style="font-size: 11px; font-weight: 800; color: #475569; display: block; margin-bottom: 4px;">2. Secret Token / Header (X-Device-Token):</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" readonly id="danaTokenInput" class="form-input" value="{{ dana_device_token }}" style="background: #f8fafc; font-family: monospace; font-weight: 800; color: #334155; font-size: 12px;">
+                        <button type="button" onclick="copyWebhookData('danaTokenInput')" style="background: #e2e8f0; color: #1e293b; border: none; padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 800; cursor: pointer; white-space: nowrap;">
+                            <i class="fas fa-copy"></i> Salin Token
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div style="font-size: 11.5px; color: #64748b; line-height: 1.5;">
+                <i class="fas fa-circle-info" style="color: #0284c7;"></i> <strong>Panduan Cepat Samsung J1 Ace:</strong> Pasang aplikasi Forwarder (Notif2Webhook), beri izin Notification Access, isi Webhook URL di atas, dan masukkan Header <code>X-Device-Token</code>. Notifikasi saldo masuk dari DANA akan langsung memvalidasi saldo member secara otomatis.
+            </div>
+        </div>
+
         <div style="margin-bottom: 18px;">
             <label class="form-label">Instruksi Tambahan untuk User (Opsional):</label>
             <textarea name="instructions" rows="2" class="form-input" style="font-size: 12px;">{{ manual_depo.instructions }}</textarea>
@@ -386,6 +470,27 @@
 </div>
 
 <script>
+    function copyWebhookData(elementId) {
+        var el = document.getElementById(elementId);
+        if (el) {
+            navigator.clipboard.writeText(el.value).then(() => {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Disalin!',
+                        text: 'Teks berhasil disalin ke clipboard.',
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                } else {
+                    alert('Berhasil disalin ke clipboard!');
+                }
+            }).catch(() => {
+                prompt('Salin secara manual:', el.value);
+            });
+        }
+    }
+
     function syncStoreEwalletFromDana() {
         var danaNum = document.getElementById('store_depo_dana_number').value.trim();
         var danaNm = document.getElementById('store_depo_dana_name').value.trim();

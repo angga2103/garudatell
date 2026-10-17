@@ -3343,7 +3343,28 @@ def store_settings():
         
     store = get_store_settings()
     manual_depo = get_manual_deposit_settings()
-    return render_template('admin/store_settings.html', store=store, manual_depo=manual_depo, page_title='Pengaturan Toko & Logo Struk')
+    
+    from app.services.dana_mutasi_service import get_device_status, get_dana_device_token
+    dana_device_status = get_device_status()
+    dana_device_token = get_dana_device_token()
+    dana_webhook_url = request.host_url.rstrip('/') + '/api/callback/dana-mutasi'
+
+    return render_template('admin/store_settings.html',
+                           store=store,
+                           manual_depo=manual_depo,
+                           dana_device_status=dana_device_status,
+                           dana_device_token=dana_device_token,
+                           dana_webhook_url=dana_webhook_url,
+                           page_title='Pengaturan Toko & Logo Struk')
+
+
+@admin_bp.route('/store_settings/regenerate_dana_token', methods=['POST'])
+def store_settings_regenerate_dana_token():
+    """Membuat ulang token autentikasi device HP DANA."""
+    from app.services.dana_mutasi_service import regenerate_dana_device_token
+    new_token = regenerate_dana_device_token()
+    flash(f'✅ Token Device DANA berhasil diperbarui: {new_token}', 'success')
+    return redirect(url_for('admin.store_settings'))
 
 
 @admin_bp.route('/store_settings/delete_logo', methods=['POST'])

@@ -513,6 +513,314 @@
             font-size: 14px;
         }
     }
+
+    /* AZSTORECUAN STYLE DANA AUTOMATED PAYMENT CARD */
+    .dana-pay-card {
+        background: #ffffff;
+        border-radius: 24px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+        border: 1px solid rgba(226, 232, 240, 0.9);
+        overflow: hidden;
+        margin-bottom: 22px;
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    .dana-time-banner {
+        background: #fff1f2;
+        border-bottom: 1px solid #ffe4e6;
+        padding: 14px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .dana-time-label {
+        font-size: 13px;
+        font-weight: 900;
+        color: #e11d48;
+        letter-spacing: 0.5px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .dana-time-val {
+        font-size: 15px;
+        font-weight: 900;
+        color: #e11d48;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .dana-card-body {
+        padding: 22px 20px;
+    }
+
+    .dana-section-sub {
+        font-size: 12px;
+        font-weight: 800;
+        color: #00877a;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 6px;
+    }
+
+    .dana-total-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 14px;
+    }
+
+    .dana-total-amount {
+        font-size: 28px;
+        font-weight: 900;
+        color: #00877a;
+        letter-spacing: -0.5px;
+    }
+
+    .dana-btn-salin {
+        background: #ffffff;
+        border: 1.5px solid #a7f3d0;
+        color: #00877a;
+        padding: 7px 16px;
+        border-radius: 12px;
+        font-size: 13px;
+        font-weight: 800;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s;
+    }
+
+    .dana-btn-salin:hover {
+        background: #ecfdf5;
+        border-color: #00877a;
+    }
+
+    .dana-divider-dashed {
+        border-top: 1.5px dashed #cbd5e1;
+        margin: 16px 0 18px 0;
+    }
+
+    .dana-dest-box {
+        background: #ffffff;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 16px;
+        margin-bottom: 18px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+    }
+
+    .dana-logo-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .dana-badge-icon {
+        width: 30px;
+        height: 30px;
+        background: #108ee9;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+    }
+
+    .dana-logo-text {
+        font-size: 16px;
+        font-weight: 900;
+        color: #108ee9;
+        letter-spacing: 0.5px;
+    }
+
+    .dana-dest-divider {
+        border-top: 1px dashed #e2e8f0;
+        margin: 12px 0;
+    }
+
+    .dana-dest-details {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .dana-dest-lbl {
+        font-size: 11px;
+        font-weight: 800;
+        color: #64748b;
+        letter-spacing: 0.3px;
+    }
+
+    .dana-dest-num {
+        font-size: 20px;
+        font-weight: 900;
+        color: #00877a;
+        letter-spacing: 0.5px;
+        margin: 2px 0;
+    }
+
+    .dana-dest-owner {
+        font-size: 11px;
+        font-weight: 800;
+        color: #64748b;
+        text-transform: uppercase;
+    }
+
+    .dana-alert-box {
+        background: #fffbeb;
+        border: 1.5px solid #fed7aa;
+        border-left: 4px solid #f97316;
+        border-radius: 12px;
+        padding: 12px 14px;
+        margin-bottom: 22px;
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+    }
+
+    .dana-alert-icon {
+        color: #ea580c;
+        font-size: 18px;
+        margin-top: 1px;
+        flex-shrink: 0;
+    }
+
+    .dana-alert-title {
+        font-size: 11.5px;
+        font-weight: 900;
+        color: #c2410c;
+        margin-bottom: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .dana-alert-desc {
+        font-size: 11.5px;
+        color: #9a3412;
+        line-height: 1.45;
+        font-weight: 600;
+    }
+
+    .dana-status-polling {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        margin-bottom: 20px;
+        font-size: 13px;
+        font-weight: 800;
+        color: #475569;
+    }
+
+    .dana-spinner-ring {
+        width: 18px;
+        height: 18px;
+        border: 2.5px solid #cbd5e1;
+        border-top-color: #00877a;
+        border-radius: 50%;
+        animation: spinDana 0.8s linear infinite;
+    }
+
+    @keyframes spinDana {
+        to { transform: rotate(360deg); }
+    }
+
+    .dana-actions-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+
+    .dana-btn-cancel {
+        background: white;
+        border: 1.5px solid #fecaca;
+        color: #ef4444;
+        border-radius: 12px;
+        padding: 12px 10px;
+        font-size: 13px;
+        font-weight: 800;
+        cursor: pointer;
+        text-align: center;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        font-family: 'Nunito', sans-serif;
+    }
+
+    .dana-btn-cancel:hover {
+        background: #fef2f2;
+        border-color: #ef4444;
+    }
+
+    .dana-btn-wa {
+        background: white;
+        border: 1.5px solid #a7f3d0;
+        color: #059669;
+        border-radius: 12px;
+        padding: 12px 10px;
+        font-size: 13px;
+        font-weight: 800;
+        cursor: pointer;
+        text-align: center;
+        text-decoration: none;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        font-family: 'Nunito', sans-serif;
+    }
+
+    .dana-btn-wa:hover {
+        background: #ecfdf5;
+        border-color: #059669;
+    }
+
+    .dana-success-box {
+        background: #ecfdf5;
+        border: 1.5px solid #a7f3d0;
+        border-radius: 16px;
+        padding: 24px 20px;
+        text-align: center;
+        margin-bottom: 20px;
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    .dana-success-icon {
+        color: #10b981;
+        font-size: 48px;
+        margin-bottom: 10px;
+        animation: bounceIn 0.5s ease-out;
+    }
+
+    .dana-success-title {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 900;
+        color: #065f46;
+    }
+
+    .dana-success-msg {
+        font-size: 13px;
+        color: #047857;
+        margin: 8px 0 0 0;
+        line-height: 1.5;
+        font-weight: 600;
+    }
+
+    @keyframes bounceIn {
+        0% { transform: scale(0.3); opacity: 0; }
+        50% { transform: scale(1.1); }
+        100% { transform: scale(1); opacity: 1; }
+    }
 </style>
 {% endblock %}
 
@@ -536,8 +844,8 @@
 </div>
 
 <div class="deposit-container">
-    <!-- KARTU FORM DEPOSIT -->
-    <div class="deposit-card">
+    <!-- KARTU FORM DEPOSIT INPUT (BISA DISEMBUNYIKAN JIKA TIKET DANA OTOMATIS AKTIF) -->
+    <div id="depositFormSection" class="deposit-card" style="{% if active_dana_ticket %}display: none;{% endif %}">
         <!-- 1. PILIH NOMINAL -->
         <div class="section-title">
             <i class="fas fa-money-bill-wave"></i>
@@ -573,8 +881,8 @@
 
         <div class="custom-nominal-box">
             <span class="prefix">Rp</span>
-            <input type="number" id="inputNominal" min="10000" step="1000" value="50000" placeholder="Nominal lainnya (Min. 10.000)" oninput="onCustomNominalInput()">
-            <small style="color: #64748b; font-size: 11px; margin-top: 4px; display: block;">Minimal pengisian saldo adalah Rp 10.000.</small>
+            <input type="number" id="inputNominal" min="5000" step="1000" value="50000" placeholder="Nominal lainnya (Min. 5.000)" oninput="onCustomNominalInput()">
+            <small style="color: #64748b; font-size: 11px; margin-top: 4px; display: block;">Minimal pengisian saldo adalah Rp 5.000 (DANA) / Rp 10.000 (QRIS/Lainnya).</small>
         </div>
 
         <!-- 2. PILIH METODE PEMBAYARAN -->
@@ -584,21 +892,60 @@
         </div>
 
         <div class="method-tabs">
-            <button type="button" class="tab-btn active" id="tabQrisBtn" onclick="switchTab('qris')">
+            <button type="button" class="tab-btn active" id="tabDanaBtn" onclick="switchTab('dana')">
+                <i class="fas fa-bolt" style="color: #0284c7; font-size: 14px;"></i>
+                DANA (Otomatis 24 Jam)
+            </button>
+            <button type="button" class="tab-btn" id="tabQrisBtn" onclick="switchTab('qris')">
                 <i class="fas fa-qrcode" style="font-size: 14px;"></i>
-                Barcode QRIS (Otomatis)
+                QRIS Barcode (Semua Bank)
             </button>
             <button type="button" class="tab-btn" id="tabManualBtn" onclick="switchTab('manual')">
                 <i class="fas fa-hand-holding-usd" style="font-size: 14px;"></i>
-                Transfer Manual E-Wallet
+                ShopeePay / GoPay
             </button>
         </div>
 
-        <!-- TAB 1: QRIS OTOMATIS -->
-        <div id="qrisContent" class="tab-content active">
+        <!-- TAB 1: DANA OTOMATIS (DEFAULT UTAMA) -->
+        <div id="danaContent" class="tab-content active">
+            <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border: 1.5px solid #bae6fd; border-radius: 16px; padding: 16px; margin-bottom: 18px;">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                    <span style="width: 42px; height: 42px; background: #108ee9; color: white; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 4px 10px rgba(16,142,233,0.25); flex-shrink: 0;">
+                        <i class="fas fa-bolt"></i>
+                    </span>
+                    <div>
+                        <div style="font-weight: 900; font-size: 14px; color: #0369a1; display: flex; align-items: center; gap: 6px;">
+                            <span>DANA Mutasi Otomatis</span>
+                            <span style="background: #0284c7; color: white; font-size: 9px; font-weight: 900; padding: 2px 7px; border-radius: 6px;">0% FEE / GRATIS</span>
+                        </div>
+                        <div style="font-size: 11.5px; color: #0284c7; margin-top: 2px;">
+                            Verifikasi instan via kode unik 3 digit. Saldo otomatis masuk dalam detik tanpa kirim bukti!
+                        </div>
+                    </div>
+                </div>
+
+                <div style="background: white; border-radius: 12px; padding: 12px 14px; border: 1px solid #e0f2fe;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-bottom: 6px;">
+                        <span style="color: #64748b; font-weight: 700;">Tujuan Akun DANA:</span>
+                        <span style="font-weight: 900; color: #0f172a;">{{ depo_settings.dana_number if depo_settings else '081775700114' }}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px;">
+                        <span style="color: #64748b; font-weight: 700;">Atas Nama:</span>
+                        <span style="font-weight: 800; color: #0369a1;">{{ depo_settings.dana_name if depo_settings else 'GarudaTel / Kasir' }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <button type="button" class="btn-main-action" id="btnProsesDanaAuto" onclick="submitDanaAutoDeposit()" style="background: linear-gradient(135deg, #108ee9 0%, #0284c7 100%);">
+                <i class="fas fa-bolt"></i> Lanjutkan Pembayaran DANA (Otomatis)
+            </button>
+        </div>
+
+        <!-- TAB 2: QRIS OTOMATIS -->
+        <div id="qrisContent" class="tab-content">
             <div class="qris-badge-info">
                 <div class="qris-icon-wrap">
-                    <i class="fas fa-bolt" style="color: #059669;"></i>
+                    <i class="fas fa-qrcode" style="color: #059669;"></i>
                 </div>
                 <div>
                     <div style="font-weight: 800; font-size: 13px; color: #065f46; display: flex; align-items: center; gap: 6px;">
@@ -612,7 +959,7 @@
             </div>
 
             <ul class="qris-features-list">
-                <li><i class="fas fa-check-circle" style="color: #10b981;"></i> Saldo masuk otomatis seketika setelah pembayaran sukses (tanpa konfirmasi manual).</li>
+                <li><i class="fas fa-check-circle" style="color: #10b981;"></i> Saldo masuk otomatis seketika setelah pembayaran sukses.</li>
                 <li><i class="fas fa-check-circle" style="color: #10b981;"></i> Pindai Barcode QRIS dinamis di layar invoice Anda.</li>
             </ul>
 
@@ -621,16 +968,12 @@
             </button>
         </div>
 
-        <!-- TAB 2: TRANSFER MANUAL E-WALLET -->
+        <!-- TAB 3: SHOPEEPAY / GOPAY (TRANSFER MANUAL) -->
         <div id="manualContent" class="tab-content">
             <div style="font-size: 12px; font-weight: 800; color: #475569; margin-bottom: 8px;">Pilih Akun E-Wallet Tujuan:</div>
             
-            <div class="ewallet-selector">
-                <div class="ewallet-item active" id="ew_dana" onclick="selectEwallet('DANA')">
-                    <span class="ewallet-logo color-dana"><i class="fas fa-wallet"></i></span>
-                    <span class="ewallet-name">DANA</span>
-                </div>
-                <div class="ewallet-item" id="ew_shopee" onclick="selectEwallet('SHOPEEPAY')">
+            <div class="ewallet-selector" style="grid-template-columns: repeat(2, 1fr);">
+                <div class="ewallet-item active" id="ew_shopee" onclick="selectEwallet('SHOPEEPAY')">
                     <span class="ewallet-logo color-shopee"><i class="fas fa-shopping-bag"></i></span>
                     <span class="ewallet-name">SHOPEEPAY</span>
                 </div>
@@ -643,9 +986,9 @@
             <!-- REKENING TUJUAN -->
             <div class="dest-card">
                 <div>
-                    <span style="font-size: 11px; color: #64748b; font-weight: 700; display: block;" id="destNameLabel">Nomor E-Wallet DANA</span>
-                    <div class="dest-info-num" id="destInfoNum">{{ (depo_settings.dana_number if depo_settings else '081775700114') }}</div>
-                    <span style="font-size: 11px; color: #059669; font-weight: 800;" id="destOwnerName">a.n {{ (depo_settings.dana_name if depo_settings else 'GarudaTel / Kasir') }}</span>
+                    <span style="font-size: 11px; color: #64748b; font-weight: 700; display: block;" id="destNameLabel">Nomor E-Wallet ShopeePay</span>
+                    <div class="dest-info-num" id="destInfoNum">{{ (depo_settings.shopee_number if depo_settings else '081775700114') }}</div>
+                    <span style="font-size: 11px; color: #059669; font-weight: 800;" id="destOwnerName">a.n {{ (depo_settings.shopee_name if depo_settings else 'GarudaTel / Kasir') }}</span>
                 </div>
                 <button type="button" class="copy-btn" id="btnCopyEwallet" onclick="copyCurrentEwallet()">
                     <i class="fas fa-copy"></i> Salin Nomor
@@ -718,6 +1061,115 @@
         </div>
     </div>
 
+    <!-- KARTU PEMBAYARAN DANA OTOMATIS (AZSTORECUAN STYLE - PERSIS REFERENSI) -->
+    <div id="danaPaymentCard" class="dana-pay-card" style="{% if not active_dana_ticket %}display: none;{% endif %}">
+        <!-- BANNER BATAS WAKTU (PINK / SOFT RED) -->
+        <div class="dana-time-banner">
+            <span class="dana-time-label">
+                <i class="fas fa-hourglass-half"></i> BATAS WAKTU:
+            </span>
+            <div class="dana-time-val">
+                <i class="far fa-clock"></i>
+                <span id="danaCountdownText">30:00</span>
+            </div>
+        </div>
+
+        <div class="dana-card-body">
+            <!-- TOTAL PEMBAYARAN -->
+            <div class="dana-section-sub">TOTAL PEMBAYARAN</div>
+            <div class="dana-total-row">
+                <div class="dana-total-amount" id="danaCardTotalText">
+                    {% if active_dana_ticket %}
+                        Rp {{ "{:,.0f}".format(active_dana_ticket.total_transfer).replace(',', '.') }}
+                    {% else %}
+                        Rp 50.047
+                    {% endif %}
+                </div>
+                <button type="button" class="dana-btn-salin" onclick="copyDanaCardTotal()">
+                    <i class="far fa-clone"></i> Salin
+                </button>
+            </div>
+
+            <div class="dana-divider-dashed"></div>
+
+            <!-- KIRIM PEMBAYARAN KE -->
+            <div class="dana-section-sub">KIRIM PEMBAYARAN KE:</div>
+            
+            <div class="dana-dest-box">
+                <div class="dana-logo-header">
+                    <span class="dana-badge-icon"><i class="fas fa-wallet"></i></span>
+                    <span class="dana-logo-text">DANA</span>
+                </div>
+                
+                <div class="dana-dest-divider"></div>
+
+                <div class="dana-dest-details">
+                    <div>
+                        <div class="dana-dest-lbl">NOMOR TUJUAN:</div>
+                        <div class="dana-dest-num" id="danaCardDestNum">
+                            {% if active_dana_ticket %}
+                                {{ active_dana_ticket.dest_number }}
+                            {% else %}
+                                {{ depo_settings.dana_number if depo_settings else '081775700114' }}
+                            {% endif %}
+                        </div>
+                        <div class="dana-dest-owner" id="danaCardDestName">
+                            {% if active_dana_ticket %}
+                                A/N {{ active_dana_ticket.dest_name }}
+                            {% else %}
+                                A/N {{ depo_settings.dana_name if depo_settings else 'GARUDATEL / KASIR' }}
+                            {% endif %}
+                        </div>
+                    </div>
+                    <button type="button" class="dana-btn-salin" onclick="copyDanaCardNumber()">
+                        <i class="far fa-clone"></i> Salin
+                    </button>
+                </div>
+            </div>
+
+            <!-- PERINGATAN PENTING -->
+            <div class="dana-alert-box">
+                <div class="dana-alert-icon">
+                    <i class="fas fa-info-circle"></i>
+                </div>
+                <div>
+                    <div class="dana-alert-title">PENTING: TRANSFER TEPAT NOMINAL</div>
+                    <div class="dana-alert-desc">
+                        Pastikan transfer <strong>SAMA PERSIS</strong> dengan "Total Pembayaran" (termasuk 3 digit terakhir) agar saldo otomatis masuk.
+                    </div>
+                </div>
+            </div>
+
+            <!-- STATUS POLLING ANIMASI -->
+            <div id="danaPollingStatus" class="dana-status-polling">
+                <div class="dana-spinner-ring"></div>
+                <span id="danaStatusLabel">Menunggu sistem mendeteksi pembayaran...</span>
+            </div>
+
+            <!-- KOTAK SUKSES CELEBRATION (MUNCUL JIKA PEMBAYARAN BERHASIL) -->
+            <div id="danaSuccessCard" class="dana-success-box" style="display: none;">
+                <div class="dana-success-icon"><i class="fas fa-check-circle"></i></div>
+                <h3 class="dana-success-title">Pembayaran Berhasil Dideteksi!</h3>
+                <p class="dana-success-msg" id="danaSuccessMsg">Saldo Anda telah berhasil ditambahkan.</p>
+                <div style="margin-top: 18px;">
+                    <button type="button" class="btn-main-action" onclick="finishDanaDeposit()" style="max-width: 260px; margin: 0 auto;">
+                        <i class="fas fa-check"></i> Selesai & Kembali
+                    </button>
+                </div>
+            </div>
+
+            <!-- DUA TOMBOL DI BAWAH: BATALKAN TRX & HUBUNGI ADMIN -->
+            <div id="danaButtonsRow" class="dana-actions-grid">
+                <button type="button" class="dana-btn-cancel" onclick="cancelCurrentDanaTicket()">
+                    <i class="fas fa-times-circle"></i> Batalkan Trx
+                </button>
+                <a id="danaBtnWaAdmin" href="https://wa.me/{{ active_dana_ticket.clean_wa if active_dana_ticket else '6281775700114' }}?text=Halo%20Admin%2C%20bantuan%20deposit%20DANA" target="_blank" class="dana-btn-wa">
+                    <i class="fab fa-whatsapp"></i> Hubungi Admin
+                </a>
+            </div>
+        </div>
+    </div>
+
     <!-- RIWAYAT DEPOSIT TERAKHIR -->
     <div class="history-card">
         <div class="section-title">
@@ -766,7 +1218,14 @@
 <script>
     let currentNominal = 50000;
     let currentUniqueCode = Math.floor(Math.random() * 99) + 1; // 1 s/d 99
-    let selectedEwallet = 'DANA';
+    let selectedEwallet = 'SHOPEEPAY';
+    let danaRefId = null;
+    let danaExpiresEpoch = null;
+    let danaCountdownTimer = null;
+    let danaPollingInterval = null;
+    let currentDanaTotal = 0;
+
+    const initialActiveDanaTicket = {{ active_dana_ticket|tojson if active_dana_ticket else 'null' }};
 
     function formatRupiah(number) {
         return 'Rp ' + Math.round(number).toLocaleString('id-ID');
@@ -777,9 +1236,12 @@
         const code = currentUniqueCode;
         const total = nominal + code;
 
-        document.getElementById('sumNominalText').innerText = formatRupiah(nominal);
-        document.getElementById('sumUniqueCodeText').innerText = '+ Rp ' + (code < 10 ? '0' + code : code);
-        document.getElementById('sumTotalDisplay').innerText = formatRupiah(total);
+        const sumNom = document.getElementById('sumNominalText');
+        if (sumNom) sumNom.innerText = formatRupiah(nominal);
+        const sumCode = document.getElementById('sumUniqueCodeText');
+        if (sumCode) sumCode.innerText = '+ Rp ' + (code < 10 ? '0' + code : code);
+        const sumTot = document.getElementById('sumTotalDisplay');
+        if (sumTot) sumTot.innerText = formatRupiah(total);
     }
 
     function selectNominal(amt) {
@@ -807,21 +1269,25 @@
     }
 
     function switchTab(tab) {
+        const danaBtn = document.getElementById('tabDanaBtn');
         const qrisBtn = document.getElementById('tabQrisBtn');
         const manualBtn = document.getElementById('tabManualBtn');
+        const danaContent = document.getElementById('danaContent');
         const qrisContent = document.getElementById('qrisContent');
         const manualContent = document.getElementById('manualContent');
 
-        if (tab === 'qris') {
-            qrisBtn.classList.add('active');
-            manualBtn.classList.remove('active');
-            qrisContent.classList.add('active');
-            manualContent.classList.remove('active');
+        [danaBtn, qrisBtn, manualBtn].forEach(b => b && b.classList.remove('active'));
+        [danaContent, qrisContent, manualContent].forEach(c => c && c.classList.remove('active'));
+
+        if (tab === 'dana') {
+            if (danaBtn) danaBtn.classList.add('active');
+            if (danaContent) danaContent.classList.add('active');
+        } else if (tab === 'qris') {
+            if (qrisBtn) qrisBtn.classList.add('active');
+            if (qrisContent) qrisContent.classList.add('active');
         } else {
-            manualBtn.classList.add('active');
-            qrisBtn.classList.remove('active');
-            manualContent.classList.add('active');
-            qrisContent.classList.remove('active');
+            if (manualBtn) manualBtn.classList.add('active');
+            if (manualContent) manualContent.classList.add('active');
             updateSummary();
         }
     }
@@ -846,12 +1312,17 @@
         selectedEwallet = type;
         document.querySelectorAll('.ewallet-item').forEach(el => el.classList.remove('active'));
         
-        if (type === 'DANA') document.getElementById('ew_dana').classList.add('active');
-        else if (type === 'SHOPEEPAY') document.getElementById('ew_shopee').classList.add('active');
-        else if (type === 'GOPAY') document.getElementById('ew_gopay').classList.add('active');
+        if (type === 'SHOPEEPAY') {
+            const el = document.getElementById('ew_shopee');
+            if (el) el.classList.add('active');
+        } else if (type === 'GOPAY') {
+            const el = document.getElementById('ew_gopay');
+            if (el) el.classList.add('active');
+        }
 
-        const acc = ewalletAccounts[type] || ewalletAccounts['DANA'];
-        document.getElementById('destNameLabel').innerText = 'Nomor E-Wallet ' + type;
+        const acc = ewalletAccounts[type] || ewalletAccounts['SHOPEEPAY'];
+        const lbl = document.getElementById('destNameLabel');
+        if (lbl) lbl.innerText = 'Nomor E-Wallet ' + type;
         const numEl = document.getElementById('destInfoNum');
         if (numEl) numEl.innerText = acc.number;
         const ownerEl = document.getElementById('destOwnerName');
@@ -859,7 +1330,7 @@
     }
 
     function copyCurrentEwallet() {
-        const acc = ewalletAccounts[selectedEwallet] || ewalletAccounts['DANA'];
+        const acc = ewalletAccounts[selectedEwallet] || ewalletAccounts['SHOPEEPAY'];
         copyText(acc.number, 'Nomor e-wallet ' + selectedEwallet + ' (' + acc.number + ') berhasil disalin!');
     }
 
@@ -881,10 +1352,211 @@
         copyText(total.toString(), 'Nominal total Rp ' + total.toLocaleString('id-ID') + ' berhasil disalin!');
     }
 
+    // PROSES DEPOSIT DANA OTOMATIS (AZSTORECUAN CARD)
+    function submitDanaAutoDeposit() {
+        if (currentNominal < 5000) {
+            alert('Minimal deposit DANA adalah Rp 5.000');
+            return;
+        }
+
+        const btn = document.getElementById('btnProsesDanaAuto');
+        const origText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyiapkan Tiket DANA...';
+        btn.disabled = true;
+
+        fetch('/deposit/manual', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                nominal: currentNominal,
+                ewallet_type: 'DANA'
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            btn.innerHTML = origText;
+            btn.disabled = false;
+
+            if (data.status === 'success' && data.is_auto) {
+                showDanaPaymentCard(data);
+            } else {
+                alert(data.message || 'Gagal menyiapkan tiket deposit DANA');
+            }
+        })
+        .catch(err => {
+            btn.innerHTML = origText;
+            btn.disabled = false;
+            alert('Terjadi kesalahan koneksi server: ' + err);
+        });
+    }
+
+    function showDanaPaymentCard(ticket) {
+        danaRefId = ticket.ref_id;
+        danaExpiresEpoch = ticket.expires_epoch;
+        currentDanaTotal = ticket.total_transfer || ticket.amount;
+
+        const formSection = document.getElementById('depositFormSection');
+        if (formSection) formSection.style.display = 'none';
+
+        const card = document.getElementById('danaPaymentCard');
+        if (card) card.style.display = 'block';
+
+        const totalEl = document.getElementById('danaCardTotalText');
+        if (totalEl) totalEl.innerText = formatRupiah(currentDanaTotal);
+
+        const destNumEl = document.getElementById('danaCardDestNum');
+        if (destNumEl) destNumEl.innerText = ticket.ewallet_dest || ticket.dest_number || '081775700114';
+
+        const destNameEl = document.getElementById('danaCardDestName');
+        if (destNameEl) destNameEl.innerText = 'A/N ' + (ticket.ewallet_owner || ticket.dest_name || 'GARUDATEL / KASIR').toUpperCase();
+
+        const btnWa = document.getElementById('danaBtnWaAdmin');
+        if (btnWa && (ticket.wa_url || ticket.wa_web_url)) {
+            btnWa.href = ticket.wa_url || ticket.wa_web_url;
+        }
+
+        // Reset state tampilan
+        const pollEl = document.getElementById('danaPollingStatus');
+        if (pollEl) pollEl.style.display = 'flex';
+        const btnsEl = document.getElementById('danaButtonsRow');
+        if (btnsEl) btnsEl.style.display = 'grid';
+        const succEl = document.getElementById('danaSuccessCard');
+        if (succEl) succEl.style.display = 'none';
+
+        startDanaCountdown();
+        startDanaPolling();
+
+        if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function startDanaCountdown() {
+        if (danaCountdownTimer) clearInterval(danaCountdownTimer);
+
+        function tick() {
+            if (!danaExpiresEpoch) return;
+            const nowSec = Math.floor(Date.now() / 1000);
+            const diff = danaExpiresEpoch - nowSec;
+
+            if (diff <= 0) {
+                const countdownEl = document.getElementById('danaCountdownText');
+                if (countdownEl) countdownEl.innerText = '00:00';
+                clearInterval(danaCountdownTimer);
+                const statusLbl = document.getElementById('danaStatusLabel');
+                if (statusLbl) statusLbl.innerText = 'Waktu pembayaran telah habis (Kadaluarsa).';
+                return;
+            }
+
+            const m = Math.floor(diff / 60);
+            const s = diff % 60;
+            const countdownEl = document.getElementById('danaCountdownText');
+            if (countdownEl) {
+                countdownEl.innerText = (m < 10 ? '0' + m : m) + ':' + (s < 10 ? '0' + s : s);
+            }
+        }
+
+        tick();
+        danaCountdownTimer = setInterval(tick, 1000);
+    }
+
+    function startDanaPolling() {
+        if (danaPollingInterval) clearInterval(danaPollingInterval);
+
+        function checkStatus() {
+            if (!danaRefId) return;
+
+            fetch('/deposit/status/' + encodeURIComponent(danaRefId))
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'SUCCESS' || data.is_success) {
+                    clearInterval(danaPollingInterval);
+                    if (danaCountdownTimer) clearInterval(danaCountdownTimer);
+
+                    const pollEl = document.getElementById('danaPollingStatus');
+                    if (pollEl) pollEl.style.display = 'none';
+                    const btnsEl = document.getElementById('danaButtonsRow');
+                    if (btnsEl) btnsEl.style.display = 'none';
+
+                    const successCard = document.getElementById('danaSuccessCard');
+                    const msgEl = document.getElementById('danaSuccessMsg');
+                    if (msgEl) {
+                        msgEl.innerText = 'Saldo sebesar ' + formatRupiah(data.amount || currentDanaTotal) + ' telah berhasil ditambahkan ke akun GarudaTel Anda.';
+                    }
+                    if (successCard) successCard.style.display = 'block';
+
+                    // Update wallet pill saldo di header nav
+                    const walletPill = document.querySelector('.wallet-pill span');
+                    if (walletPill && data.user_balance) {
+                        walletPill.innerText = 'Saldo: ' + formatRupiah(data.user_balance);
+                    }
+                } else if (data.status === 'EXPIRED') {
+                    clearInterval(danaPollingInterval);
+                    if (danaCountdownTimer) clearInterval(danaCountdownTimer);
+                    const statusLbl = document.getElementById('danaStatusLabel');
+                    if (statusLbl) statusLbl.innerText = 'Tiket deposit telah kadaluarsa.';
+                } else if (data.status === 'CANCELLED') {
+                    clearInterval(danaPollingInterval);
+                    if (danaCountdownTimer) clearInterval(danaCountdownTimer);
+                    finishDanaDeposit();
+                }
+            })
+            .catch(err => {
+                console.log('Polling status error:', err);
+            });
+        }
+
+        danaPollingInterval = setInterval(checkStatus, 3000);
+    }
+
+    function cancelCurrentDanaTicket() {
+        if (!danaRefId) return;
+        if (!confirm('Apakah Anda yakin ingin membatalkan transaksi deposit ini?')) {
+            return;
+        }
+
+        fetch('/deposit/cancel/' + encodeURIComponent(danaRefId), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (danaPollingInterval) clearInterval(danaPollingInterval);
+            if (danaCountdownTimer) clearInterval(danaCountdownTimer);
+            danaRefId = null;
+            window.location.reload();
+        })
+        .catch(err => {
+            alert('Gagal membatalkan transaksi: ' + err);
+        });
+    }
+
+    function finishDanaDeposit() {
+        if (danaPollingInterval) clearInterval(danaPollingInterval);
+        if (danaCountdownTimer) clearInterval(danaCountdownTimer);
+        window.location.reload();
+    }
+
+    function copyDanaCardTotal() {
+        if (currentDanaTotal) {
+            copyText(currentDanaTotal.toString(), 'Nominal total Rp ' + currentDanaTotal.toLocaleString('id-ID') + ' berhasil disalin!');
+        }
+    }
+
+    function copyDanaCardNumber() {
+        const numEl = document.getElementById('danaCardDestNum');
+        if (numEl) {
+            const num = numEl.innerText.trim();
+            if (num) {
+                copyText(num, 'Nomor DANA ' + num + ' berhasil disalin!');
+            }
+        }
+    }
+
     // PROSES DEPOSIT QRIS OTOMATIS
     function submitQrisDeposit() {
         if (currentNominal < 10000) {
-            alert('Minimal deposit adalah Rp 10.000');
+            alert('Minimal deposit QRIS adalah Rp 10.000');
             return;
         }
 
@@ -902,7 +1574,6 @@
         .then(res => res.json())
         .then(data => {
             if (data.status === 'success' && data.ref_id) {
-                // Alihkan langsung ke invoice QRIS yang aktif
                 window.location.href = '/trx/invoice/' + data.ref_id;
             } else {
                 alert(data.message || 'Gagal menyiapkan deposit QRIS');
@@ -917,7 +1588,7 @@
         });
     }
 
-    // PROSES DEPOSIT MANUAL E-WALLET DENGAN KODE UNIK (MENGGUNAKAN SKEMA LANGSUNG whatsapp://)
+    // PROSES DEPOSIT MANUAL SHOPEEPAY / GOPAY DENGAN KODE UNIK
     function submitManualDeposit() {
         if (currentNominal < 10000) {
             alert('Minimal deposit adalah Rp 10.000');
@@ -942,14 +1613,11 @@
         .then(res => res.json())
         .then(data => {
             if (data.status === 'success') {
-                // Tampilkan kotak sukses dan tombol direct
                 document.getElementById('waActionArea').style.display = 'none';
                 const successBox = document.getElementById('waSuccessBox');
                 successBox.style.display = 'block';
                 document.getElementById('btnDirectWa').href = data.wa_url;
                 document.getElementById('btnFallbackWa').href = data.wa_web_url;
-
-                // Langsung luncurkan protokol whatsapp:// tanpa membuka tab/halaman browser baru
                 window.location.href = data.wa_url;
             } else {
                 alert(data.message || 'Gagal mengajukan deposit manual.');
@@ -965,6 +1633,11 @@
     }
 
     // Inisialisasi tampilan awal
-    updateSummary();
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSummary();
+        if (initialActiveDanaTicket) {
+            showDanaPaymentCard(initialActiveDanaTicket);
+        }
+    });
 </script>
 {% endblock %}

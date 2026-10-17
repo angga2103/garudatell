@@ -1940,17 +1940,53 @@ def deposit():
     from app.services.setting_service import get_manual_deposit_settings
     depo_settings = get_manual_deposit_settings()
 
+    # Cek apakah user memiliki tiket deposit DANA otomatis yang masih pending (aktif dalam 30 menit)
+    active_dana_ticket = None
+    cutoff_30m = datetime.utcnow() - timedelta(minutes=30)
+    pending_dana = Transaction.query.filter(
+        Transaction.user_id == current_user.id,
+        Transaction.sku_code == 'DEPOSIT_MANUAL',
+        Transaction.payment_method == 'dana_auto',
+        Transaction.status == 'PENDING',
+        Transaction.created_at >= cutoff_30m
+    ).order_by(Transaction.id.desc()).first()
+
+    if pending_dana:
+        from datetime import timezone
+        import re
+        expires_at = pending_dana.created_at + timedelta(minutes=30)
+        expires_epoch = int(expires_at.replace(tzinfo=timezone.utc).timestamp())
+        
+        wa_raw = depo_settings.get('wa_target') or "081775700114"
+        clean_wa = re.sub(r'[^0-9]', '', str(wa_raw))
+        if clean_wa.startswith('0'):
+            clean_wa = '62' + clean_wa[1:]
+        elif not clean_wa.startswith('62') and clean_wa:
+            clean_wa = '62' + clean_wa
+        if not clean_wa:
+            clean_wa = '6281775700114'
+
+        active_dana_ticket = {
+            'ref_id': pending_dana.ref_id,
+            'total_transfer': int(pending_dana.amount or 0),
+            'dest_number': pending_dana.target_number or depo_settings.get('dana_number') or "081775700114",
+            'dest_name': depo_settings.get('dana_name') or "GarudaTel / Kasir",
+            'expires_epoch': expires_epoch,
+            'clean_wa': clean_wa
+        }
+
     return render_template('user/deposit.html',
                            active_pg=active_pg,
                            gateway_name=gateway_name,
                            recent_deposits=recent_deposits,
-                           depo_settings=depo_settings)
+                           depo_settings=depo_settings,
+                           active_dana_ticket=active_dana_ticket)
 
 
 @user_bp.route('/deposit/manual', methods=['POST'])
 @csrf.exempt
 def deposit_manual_action():
-    """Memproses pengajuan deposit transfer manual E-Wallet dengan kode unik 01-99."""
+    """Memproses pengajuan deposit transfer E-Wallet (DANA Otomatis via J1 Ace atau ShopeePay/GoPay)."""
     from flask import jsonify, request
     import random
     import time
@@ -1975,25 +2011,8 @@ def deposit_manual_action():
     except (ValueError, TypeError):
         return jsonify({'status': 'error', 'message': 'Nominal tidak valid.'}), 400
 
-    if nominal < 10000:
-        return jsonify({'status': 'error', 'message': 'Minimal deposit manual adalah Rp 10.000.'}), 400
-
-    # Generate 2 digit kode unik acak 01 s/d 99
-    unique_code = random.randint(1, 99)
-    total_transfer = nominal + unique_code
-
-    ref_id = f"DEP-MANUAL-{int(time.time())}{random.randint(100, 999)}"
-
-    # Ambil nomor e-wallet dan atas nama dinamis sesuai jenis e-wallet yang dipilih user
-    if ewallet_type == 'SHOPEEPAY':
-        ewallet_dest = depo_settings.get('shopee_number') or "081775700114"
-        ewallet_owner = depo_settings.get('shopee_name') or "GarudaTel / Kasir"
-    elif ewallet_type == 'GOPAY':
-        ewallet_dest = depo_settings.get('gopay_number') or "081775700114"
-        ewallet_owner = depo_settings.get('gopay_name') or "GarudaTel / Kasir"
-    else:
-        ewallet_dest = depo_settings.get('dana_number') or "081775700114"
-        ewallet_owner = depo_settings.get('dana_name') or "GarudaTel / Kasir"
+    if nominal < 5000:
+        return jsonify({'status': 'error', 'message': 'Minimal deposit adalah Rp 5.000.'}), 400
 
     # Nomor WA admin tujuan konfirmasi
     wa_raw = depo_settings.get('wa_target') or "081775700114"
@@ -2005,7 +2024,61 @@ def deposit_manual_action():
     if not clean_wa:
         clean_wa = '6281775700114'
 
-    # Simpan ke tabel Transaksi
+    user_name = getattr(current_user, 'name', 'Member')
+    user_phone = getattr(current_user, 'phone', '-')
+    from app.services.setting_service import get_store_name
+    current_store = get_store_name()
+
+    # KHUSUS DANA: Menggunakan Tiket Deposit Otomatis 3-Digit Unique Code (Verifikasi HP Samsung J1 Ace)
+    if ewallet_type == 'DANA':
+        from app.services.dana_mutasi_service import create_dana_deposit_ticket
+        success, msg, ticket_data = create_dana_deposit_ticket(current_user.id, nominal)
+        if not success:
+            return jsonify({'status': 'error', 'message': msg}), 400
+
+        wa_message = (
+            f"Halo Admin {current_store}, kendala tiket deposit otomatis DANA:\n\n"
+            f"• Nama Akun: {user_name}\n"
+            f"• No. WhatsApp: {user_phone}\n"
+            f"• Ref ID: {ticket_data['ref_id']}\n"
+            f"• Total Transfer: Rp {ticket_data['total_transfer']:,}\n"
+            f"• Tujuan DANA: {ticket_data['dest_number']} a.n {ticket_data['dest_name']}\n\n"
+            f"Mohon bantuannya admin. Terima kasih!"
+        )
+        wa_url = f"https://wa.me/{clean_wa}?text={quote(wa_message)}"
+
+        return jsonify({
+            'status': 'success',
+            'is_auto': True,
+            'ref_id': ticket_data['ref_id'],
+            'nominal': ticket_data['nominal'],
+            'unique_code': ticket_data['unique_code'],
+            'total_transfer': ticket_data['total_transfer'],
+            'ewallet_type': 'DANA',
+            'ewallet_dest': ticket_data['dest_number'],
+            'ewallet_owner': ticket_data['dest_name'],
+            'expires_epoch': ticket_data['expires_epoch'],
+            'expires_at_str': ticket_data['expires_at_str'],
+            'wa_url': wa_url,
+            'wa_web_url': wa_url,
+            'message': 'Tiket deposit DANA otomatis berhasil dibuat.'
+        }), 200
+
+    # METODE LAIN (SHOPEEPAY / GOPAY): Transfer Manual Konfirmasi WhatsApp
+    if nominal < 10000:
+        return jsonify({'status': 'error', 'message': 'Minimal deposit transfer manual adalah Rp 10.000.'}), 400
+
+    unique_code = random.randint(1, 99)
+    total_transfer = nominal + unique_code
+    ref_id = f"DEP-MANUAL-{int(time.time())}{random.randint(100, 999)}"
+
+    if ewallet_type == 'SHOPEEPAY':
+        ewallet_dest = depo_settings.get('shopee_number') or "081775700114"
+        ewallet_owner = depo_settings.get('shopee_name') or "GarudaTel / Kasir"
+    else:
+        ewallet_dest = depo_settings.get('gopay_number') or "081775700114"
+        ewallet_owner = depo_settings.get('gopay_name') or "GarudaTel / Kasir"
+
     trx = Transaction(
         ref_id=ref_id,
         user_id=current_user.id,
@@ -2025,12 +2098,6 @@ def deposit_manual_action():
     from app.services.telegram_service import async_send_trx_notification
     async_send_trx_notification(trx, title="PENGAJUAN DEPOSIT MANUAL")
 
-    # Format URL WhatsApp konfirmasi
-    user_name = getattr(current_user, 'name', 'Member')
-    user_phone = getattr(current_user, 'phone', '-')
-    from app.services.setting_service import get_store_name
-    current_store = get_store_name()
-    
     wa_message = (
         f"Halo Admin {current_store}, saya ingin konfirmasi deposit manual E-Wallet:\n\n"
         f"• Nama Akun: {user_name}\n"
@@ -2042,12 +2109,12 @@ def deposit_manual_action():
         f"• Ref ID: {ref_id}\n\n"
         f"Saya sudah mentransfer sesuai jumlah total di atas. Mohon segera dicek dan disetujui. Terima kasih!"
     )
-    # Format URL WhatsApp konfirmasi dengan nomor tujuan dinamis
     wa_url = f"whatsapp://send?phone={clean_wa}&text={quote(wa_message)}"
     wa_web_url = f"https://wa.me/{clean_wa}?text={quote(wa_message)}"
 
     return jsonify({
         'status': 'success',
+        'is_auto': False,
         'ref_id': ref_id,
         'nominal': nominal,
         'unique_code': f"{unique_code:02d}",
@@ -2059,6 +2126,33 @@ def deposit_manual_action():
         'wa_web_url': wa_web_url,
         'message': 'Pengajuan deposit manual berhasil dibuat.'
     }), 200
+
+
+@user_bp.route('/deposit/status/<ref_id>')
+def deposit_status_action(ref_id):
+    """Mengecek status tiket deposit (polling live untuk browser member)."""
+    from flask import jsonify
+    from app.services.dana_mutasi_service import check_deposit_ticket_status
+
+    user_id = current_user.id if current_user.is_authenticated else None
+    result = check_deposit_ticket_status(ref_id, user_id=user_id)
+    return jsonify(result)
+
+
+@user_bp.route('/deposit/cancel/<ref_id>', methods=['POST'])
+@csrf.exempt
+def deposit_cancel_action(ref_id):
+    """Membatalkan tiket deposit pending (Tombol 'Batalkan Trx')."""
+    from flask import jsonify
+    from app.services.dana_mutasi_service import cancel_deposit_ticket
+
+    if not current_user.is_authenticated:
+        return jsonify({'status': 'error', 'message': 'Silakan login terlebih dahulu.'}), 401
+
+    ok, msg = cancel_deposit_ticket(ref_id, user_id=current_user.id)
+    if ok:
+        return jsonify({'status': 'success', 'message': msg})
+    return jsonify({'status': 'error', 'message': msg}), 400
 
 
 @user_bp.route('/muslimtrack')
