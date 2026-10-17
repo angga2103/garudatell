@@ -1795,25 +1795,40 @@ def callback_dana_mutasi():
 
     # 2. Catat Heartbeat HP Samsung J1 Ace
     client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
-    battery = raw_json.get('battery') or form_data.get('battery')
-    is_charging = raw_json.get('charging') or form_data.get('charging')
+    battery = raw_json.get('battery') or raw_json.get('battery_level') or raw_json.get('level') or form_data.get('battery')
+    is_charging = raw_json.get('charging') or raw_json.get('is_charging') or form_data.get('charging')
     record_device_heartbeat(battery=battery, is_charging=is_charging, client_ip=client_ip)
 
     # 3. Ekstraksi Nominal
     text_content = (
         raw_json.get('text') or raw_json.get('message') or raw_json.get('body') or
+        raw_json.get('big_text') or raw_json.get('subtext') or
         form_data.get('text') or form_data.get('message') or form_data.get('body') or ''
     )
     title_content = raw_json.get('title') or form_data.get('title') or ''
     combined_text = f"{title_content} {text_content}".strip()
 
-    amount = raw_json.get('amount') or raw_json.get('nominal') or form_data.get('amount') or form_data.get('nominal')
+    raw_amt = raw_json.get('amount') or raw_json.get('nominal') or form_data.get('amount') or form_data.get('nominal')
+    amount = None
+    if raw_amt is not None and str(raw_amt).strip() != '':
+        if isinstance(raw_amt, (int, float)):
+            amount = int(raw_amt)
+        elif isinstance(raw_amt, dict):
+            v = raw_amt.get('value') or raw_amt.get('amount')
+            amount = extract_amount_from_text(str(v))
+        else:
+            amount = extract_amount_from_text(str(raw_amt))
+
     if not amount and combined_text:
         amount = extract_amount_from_text(combined_text)
 
     if not amount:
-        print(f"[DANA CALLBACK] Notifikasi diterima tapi tidak ada nominal uang: '{combined_text}'")
-        return jsonify({'status': 'ignored', 'message': 'No amount detected in notification'}), 200
+        print(f"[DANA CALLBACK] Ping / Notifikasi tanpa nominal uang diterima dari {client_ip}")
+        return jsonify({
+            'status': 'ok',
+            'message': 'Heartbeat / Ping terhubung berhasil dicatat.',
+            'device_status': 'online'
+        }), 200
 
     # 4. Ekstraksi Pengirim
     sender = (
@@ -1845,24 +1860,39 @@ def callback_dana_mutasi():
 @trx_bp.route('/callback/dana-ping', methods=['POST', 'GET'])
 @csrf.exempt
 def callback_dana_ping():
-    """Endpoint Heartbeat sederhana untuk HP Samsung J1 Ace."""
+    """Endpoint Heartbeat untuk HP Samsung J1 Ace (PayHook)."""
     from app.services.dana_mutasi_service import get_dana_device_token, record_device_heartbeat
     expected_token = get_dana_device_token()
+
+    auth_header = request.headers.get('Authorization', '')
+    bearer_token = auth_header.replace('Bearer ', '').strip() if 'Bearer ' in auth_header else auth_header.strip()
+
     req_token = (
         request.headers.get('X-Device-Token') or
         request.headers.get('X-Api-Key') or
+        bearer_token or
         request.args.get('token') or
         request.args.get('key')
     )
     raw_json = request.get_json(silent=True) or {}
+    form_data = request.form.to_dict() or {}
     if not req_token:
-        req_token = raw_json.get('token') or raw_json.get('key')
+        req_token = (
+            raw_json.get('token') or raw_json.get('key') or raw_json.get('api_key') or
+            form_data.get('token') or form_data.get('key') or form_data.get('api_key')
+        )
 
     if not req_token or req_token.strip() != expected_token.strip():
-        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+        return jsonify({'status': 'error', 'message': 'Unauthorized device token'}), 401
 
-    battery = raw_json.get('battery') or request.args.get('battery')
-    is_charging = raw_json.get('charging') or request.args.get('charging')
+    battery = (
+        raw_json.get('battery') or raw_json.get('battery_level') or raw_json.get('level') or
+        form_data.get('battery') or request.args.get('battery')
+    )
+    is_charging = (
+        raw_json.get('charging') or raw_json.get('is_charging') or
+        form_data.get('charging') or request.args.get('charging')
+    )
     client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
     record_device_heartbeat(battery=battery, is_charging=is_charging, client_ip=client_ip)
 

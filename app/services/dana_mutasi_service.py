@@ -238,8 +238,16 @@ def process_incoming_dana_mutation(raw_amount, sender_name="Member DANA", raw_te
     Eksekusi atomic dengan locking baris database untuk mencegah double-credit.
     """
     try:
-        amount_int = int(float(raw_amount))
-    except (ValueError, TypeError):
+        if isinstance(raw_amount, (int, float)):
+            amount_int = int(raw_amount)
+        elif isinstance(raw_amount, dict):
+            val = raw_amount.get('value') or raw_amount.get('amount') or 0
+            clean_str = re.sub(r'[^0-9]', '', str(val))
+            amount_int = int(clean_str)
+        else:
+            clean_str = re.sub(r'[^0-9]', '', str(raw_amount))
+            amount_int = int(clean_str)
+    except (ValueError, TypeError, Exception):
         return False, f"Nominal mutasi tidak valid: {raw_amount}", None
 
     cutoff = datetime.utcnow() - timedelta(minutes=45)
