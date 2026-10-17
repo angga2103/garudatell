@@ -8,66 +8,141 @@
 
 {% block topbar_actions %}
 <div class="topbar-actions-group">
-    <a href="{{ url_for('admin.transactions') }}" class="adm-btn adm-btn-secondary">
-        <i class="fas fa-exchange-alt"></i> Pusat Transaksi
-    </a>
-    <button type="button" class="adm-btn adm-btn-outline" onclick="toggleExpenseConfig()">
+    <button type="button" class="btn-topbar-custom btn-topbar-primary" onclick="toggleExpenseConfig()">
         <i class="fas fa-sliders-h"></i> Sesuaikan Beban & Pajak
     </button>
-    <button type="button" class="adm-btn adm-btn-outline" onclick="window.print()">
-        <i class="fas fa-print"></i> Cetak / PDF
-    </button>
-    <button type="button" class="adm-btn adm-btn-primary" onclick="exportIncomeStatementCSV()">
+    <button type="button" class="btn-topbar-custom btn-topbar-secondary" onclick="exportIncomeStatementCSV()">
         <i class="fas fa-file-csv"></i> Unduh CSV
+    </button>
+    <button type="button" class="btn-topbar-custom btn-topbar-secondary" onclick="window.print()">
+        <i class="fas fa-print"></i> Cetak PDF
     </button>
 </div>
 {% endblock %}
 
 {% block page_css %}
 <style>
-    /* TOPBAR ACTIONS GROUP */
+    /* TOPBAR CUSTOM BUTTONS */
     .topbar-actions-group {
         display: flex;
         gap: 8px;
-        flex-wrap: wrap;
         align-items: center;
+        flex-wrap: wrap;
     }
-    .adm-btn-outline {
-        background: #FFFFFF;
-        border: 1px solid #CBD5E1;
-        color: #334155;
-        font-weight: 700;
-        font-size: 12.5px;
-        padding: 7px 14px;
-        border-radius: 9px;
+    .btn-topbar-custom {
         display: inline-flex;
         align-items: center;
-        gap: 7px;
+        gap: 6px;
+        padding: 7px 14px;
+        border-radius: 9px;
+        font-size: 12px;
+        font-weight: 800;
         cursor: pointer;
         transition: all 0.15s ease;
+        text-decoration: none;
     }
-    .adm-btn-outline:hover {
-        background: #F8FAFC;
-        border-color: #94A3B8;
+    .btn-topbar-primary {
+        background: #008779;
+        color: white;
+        border: 1px solid #008779;
+    }
+    .btn-topbar-primary:hover {
+        background: #006e63;
+        color: white;
+    }
+    .btn-topbar-secondary {
+        background: white;
+        color: #334155;
+        border: 1px solid #CBD5E1;
+    }
+    .btn-topbar-secondary:hover {
+        background: #F1F5F9;
         color: #0F172A;
     }
-    .adm-btn-primary {
-        background: #008779;
-        border: 1px solid #008779;
-        color: #FFFFFF;
-        font-weight: 700;
+
+    /* HERO HEADER & ACTION COMMAND BAR */
+    .report-hero-bar {
+        background: linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%);
+        border: 1px solid #E2E8F0;
+        border-radius: 14px;
+        padding: 20px 22px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+        flex-wrap: wrap;
+    }
+    .report-hero-left {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+    .report-hero-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        background: #E6F3F2;
+        color: #008779;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        flex-shrink: 0;
+    }
+    .report-hero-title {
+        font-size: 17px;
+        font-weight: 900;
+        color: #0F172A;
+        line-height: 1.25;
+    }
+    .report-hero-sub {
+        font-size: 12px;
+        color: #64748B;
+        margin-top: 3px;
+        font-weight: 600;
+    }
+    .report-hero-buttons {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .btn-hero-action {
+        padding: 9px 16px;
+        border-radius: 10px;
         font-size: 12.5px;
-        padding: 7px 14px;
-        border-radius: 9px;
+        font-weight: 800;
         display: inline-flex;
         align-items: center;
         gap: 7px;
         cursor: pointer;
         transition: all 0.15s ease;
+        text-decoration: none;
     }
-    .adm-btn-primary:hover {
+    .btn-hero-teal {
+        background: #008779;
+        color: white;
+        border: 1px solid #008779;
+        box-shadow: 0 2px 8px rgba(0, 135, 121, 0.25);
+    }
+    .btn-hero-teal:hover {
         background: #006e63;
         border-color: #006e63;
+        color: white;
+        transform: translateY(-1px);
+    }
+    .btn-hero-light {
+        background: #FFFFFF;
+        color: #334155;
+        border: 1px solid #CBD5E1;
+    }
+    .btn-hero-light:hover {
+        background: #F1F5F9;
+        color: #0F172A;
+        border-color: #94A3B8;
+        transform: translateY(-1px);
     }
 
     /* FILTER SECTION */
@@ -76,7 +151,7 @@
         border: 1px solid #E2E8F0;
         border-radius: 14px;
         padding: 18px 20px;
-        margin-bottom: 22px;
+        margin-bottom: 20px;
         box-shadow: 0 1px 3px rgba(0,0,0,0.03);
     }
     .filter-pills { 
@@ -151,97 +226,61 @@
         gap: 6px;
     }
 
-    /* KPI STATS GRID */
-    .rep-stats-grid { 
-        display: grid; 
-        grid-template-columns: repeat(3, 1fr); 
-        gap: 16px; 
-        margin-bottom: 24px; 
-    }
-    .rep-stat-card { 
-        background: white; 
-        padding: 18px 20px; 
-        border-radius: 14px; 
-        border: 1px solid #E2E8F0; 
-        box-shadow: 0 1px 3px rgba(0,0,0,0.04); 
-        display: flex;
-        align-items: flex-start;
-        gap: 15px;
-        transition: transform 0.15s ease, box-shadow 0.15s ease;
-        position: relative;
-        overflow: hidden;
-    }
-    .rep-stat-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 14px rgba(0,0,0,0.06);
-    }
-    .rep-stat-icon {
-        width: 46px;
-        height: 46px;
+    /* ALWAYS-VISIBLE EXPENSE STATUS BAR */
+    .active-expense-status-bar {
+        background: #F0FDF4;
+        border: 1px solid #BBF7D0;
         border-radius: 12px;
+        padding: 12px 18px;
+        margin-bottom: 22px;
         display: flex;
         align-items: center;
-        justify-content: center;
-        font-size: 19px;
-        flex-shrink: 0;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        font-size: 12.5px;
     }
-    .rep-stat-info {
-        flex: 1;
-        min-width: 0;
+    .aes-left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: #166534;
+        font-weight: 700;
+        flex-wrap: wrap;
     }
-    .rep-stat-val { 
-        font-size: 19px; 
-        font-weight: 900; 
-        color: #0F172A; 
-        line-height: 1.25;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+    .aes-item {
+        background: #DCFCE7;
+        padding: 3px 9px;
+        border-radius: 6px;
+        font-weight: 800;
+        color: #14532D;
     }
-    .rep-stat-lbl { 
-        font-size: 11px; 
-        font-weight: 800; 
-        color: #64748B; 
-        text-transform: uppercase; 
-        letter-spacing: 0.5px;
-        margin-top: 4px; 
-    }
-    .rep-stat-sub {
+    .btn-aes-toggle {
+        background: #15803D;
+        color: white;
+        border: none;
+        padding: 5px 12px;
+        border-radius: 7px;
+        font-weight: 800;
         font-size: 11.5px;
-        color: #475569;
-        font-weight: 600;
-        margin-top: 6px;
-        display: flex;
-        align-items: center;
-        gap: 5px;
-    }
-    .badge-status-profit {
+        cursor: pointer;
         display: inline-flex;
         align-items: center;
-        gap: 4px;
-        font-size: 10px;
-        font-weight: 800;
-        padding: 2px 7px;
-        border-radius: 12px;
-        text-transform: uppercase;
+        gap: 5px;
+        transition: background 0.15s ease;
     }
-    .badge-profit-surplus {
-        background: #D1FAE5;
-        color: #065F46;
-    }
-    .badge-profit-deficit {
-        background: #FEE2E2;
-        color: #991B1B;
+    .btn-aes-toggle:hover {
+        background: #166534;
     }
 
     /* EXPENSE SIMULATOR CARD */
     .expense-config-card {
         background: #FFFFFF;
-        border: 1px solid #008779;
+        border: 2px solid #008779;
         border-radius: 14px;
         padding: 22px;
         margin-bottom: 24px;
-        box-shadow: 0 4px 16px rgba(0, 135, 121, 0.08);
+        box-shadow: 0 4px 16px rgba(0, 135, 121, 0.12);
         display: none; /* toggle via button */
         animation: slideDown 0.25s ease-out;
     }
@@ -313,6 +352,90 @@
         flex-wrap: wrap;
         padding-top: 14px;
         border-top: 1px solid #F1F5F9;
+    }
+
+    /* KPI STATS GRID */
+    .rep-stats-grid { 
+        display: grid; 
+        grid-template-columns: repeat(3, 1fr); 
+        gap: 16px; 
+        margin-bottom: 24px; 
+    }
+    .rep-stat-card { 
+        background: white; 
+        padding: 18px 20px; 
+        border-radius: 14px; 
+        border: 1px solid #E2E8F0; 
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04); 
+        display: flex;
+        align-items: flex-start;
+        gap: 15px;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    .rep-stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 14px rgba(0,0,0,0.06);
+    }
+    .rep-stat-icon {
+        width: 46px;
+        height: 46px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 19px;
+        flex-shrink: 0;
+    }
+    .rep-stat-info {
+        flex: 1;
+        min-width: 0;
+    }
+    .rep-stat-val { 
+        font-size: 19px; 
+        font-weight: 900; 
+        color: #0F172A; 
+        line-height: 1.25;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .rep-stat-lbl { 
+        font-size: 11px; 
+        font-weight: 800; 
+        color: #64748B; 
+        text-transform: uppercase; 
+        letter-spacing: 0.5px;
+        margin-top: 4px; 
+    }
+    .rep-stat-sub {
+        font-size: 11.5px;
+        color: #475569;
+        font-weight: 600;
+        margin-top: 6px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        flex-wrap: wrap;
+    }
+    .badge-status-profit {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 10px;
+        font-weight: 800;
+        padding: 2px 7px;
+        border-radius: 12px;
+        text-transform: uppercase;
+    }
+    .badge-profit-surplus {
+        background: #D1FAE5;
+        color: #065F46;
+    }
+    .badge-profit-deficit {
+        background: #FEE2E2;
+        color: #991B1B;
     }
 
     /* INCOME STATEMENT TABLE */
@@ -408,14 +531,6 @@
         color: #475569;
         display: inline-block;
     }
-    .is-val-positive {
-        color: #059669;
-        font-weight: 800;
-    }
-    .is-val-negative {
-        color: #DC2626;
-        font-weight: 800;
-    }
     .is-ratio-pill {
         background: #F1F5F9;
         color: #475569;
@@ -423,6 +538,22 @@
         border-radius: 10px;
         font-size: 11px;
         font-weight: 700;
+    }
+    .btn-row-edit {
+        font-size: 10.5px;
+        color: #008779;
+        background: #E6F3F2;
+        padding: 2px 6px;
+        border-radius: 4px;
+        text-decoration: none;
+        font-weight: 700;
+        cursor: pointer;
+        border: none;
+        margin-left: 6px;
+    }
+    .btn-row-edit:hover {
+        background: #008779;
+        color: white;
     }
 
     /* CARDS GRID FOR TOP PRODUCTS & PAYMENT METHODS */
@@ -482,10 +613,10 @@
             color: black !important;
             font-size: 11pt !important;
         }
-        .adm-sidebar, .adm-topbar, .topbar-actions-group, .report-filters-card, .expense-config-card, .filter-pills, .custom-date-bar {
+        .adm-sidebar, .admin-topbar, .report-hero-bar, .report-filters-card, .active-expense-status-bar, .expense-config-card {
             display: none !important;
         }
-        .adm-main, .adm-content {
+        .admin-main, .content-scrollable {
             margin: 0 !important;
             padding: 0 !important;
         }
@@ -525,12 +656,13 @@
         .rep-content-grid { grid-template-columns: 1fr; }
     }
     @media (max-width: 640px) {
+        .report-hero-bar { flex-direction: column; align-items: stretch; }
+        .report-hero-buttons { width: 100%; justify-content: stretch; }
+        .btn-hero-action { flex: 1; justify-content: center; text-align: center; }
         .rep-stats-grid { grid-template-columns: 1fr; }
         .expense-grid { grid-template-columns: 1fr; }
         .custom-date-bar { flex-direction: column; align-items: stretch; }
         .active-period-banner { margin-left: 0; width: 100%; justify-content: center; }
-        .topbar-actions-group { width: 100%; }
-        .adm-btn-outline, .adm-btn-primary { flex: 1; justify-content: center; }
     }
 </style>
 {% endblock %}
@@ -542,42 +674,69 @@
     <div style="font-size: 20px; font-weight: 900; letter-spacing: 0.5px; color: #000;">GARUDATEL DIGITAL INDONESIA</div>
     <div style="font-size: 13px; font-weight: 700; color: #333; margin-top: 2px;">LAPORAN KEUANGAN & REKAPITULASI LABA RUGI (INCOME STATEMENT)</div>
     <div style="font-size: 11px; color: #555; margin-top: 4px;">
-        Periode Analisis: <b>{{ range_label }}</b> | Dicetak Pada: {{ now_wib_fmt if now_wib_fmt is defined else '' }}
+        Periode Analisis: <b>{{ range_label }}</b> | Dicetak Oleh: Administrator Sistem
+    </div>
+</div>
+
+<!-- HERO HEADER & ACTION COMMAND BAR (Directly inside page) -->
+<div class="report-hero-bar">
+    <div class="report-hero-left">
+        <div class="report-hero-icon">
+            <i class="fas fa-chart-line"></i>
+        </div>
+        <div>
+            <div class="report-hero-title">Laporan Keuangan & Rekapitulasi Laba Rugi</div>
+            <div class="report-hero-sub">Pusat analisis omset riil, HPP provider, komisi VIP downline, poin member, beban server dinamis, dan kalkulasi pajak.</div>
+        </div>
+    </div>
+    <div class="report-hero-buttons">
+        <button type="button" class="btn-hero-action btn-hero-teal" onclick="toggleExpenseConfig()">
+            <i class="fas fa-sliders-h"></i> Sesuaikan Beban & Pajak
+        </button>
+        <button type="button" class="btn-hero-action btn-hero-light" onclick="exportIncomeStatementCSV()">
+            <i class="fas fa-file-csv" style="color: #10B981;"></i> Unduh CSV
+        </button>
+        <button type="button" class="btn-hero-action btn-hero-light" onclick="window.print()">
+            <i class="fas fa-print" style="color: #64748B;"></i> Cetak / PDF
+        </button>
+        <a href="{{ url_for('admin.transactions') }}" class="btn-hero-action btn-hero-light">
+            <i class="fas fa-exchange-alt" style="color: #0284C7;"></i> Pusat Transaksi
+        </a>
     </div>
 </div>
 
 <!-- FILTER & PERIODE SECTION -->
 <div class="report-filters-card">
     <div class="filter-pills">
-        <a href="{{ url_for('admin.reports', range='today', server_cost=server_cost, other_cost=other_server_cost, tax_mode=tax_mode, tax_rate=tax_rate) }}" 
+        <a href="{{ url_for('admin.reports', range='today', server_cost=server_cost, other_cost=other_server_cost, other_notes=other_server_notes, tax_mode=tax_mode, tax_rate=tax_rate) }}" 
            class="filter-pill {% if time_range == 'today' %}active{% endif %}">
             <i class="fas fa-calendar-day"></i> Hari Ini
         </a>
-        <a href="{{ url_for('admin.reports', range='yesterday', server_cost=server_cost, other_cost=other_server_cost, tax_mode=tax_mode, tax_rate=tax_rate) }}" 
+        <a href="{{ url_for('admin.reports', range='yesterday', server_cost=server_cost, other_cost=other_server_cost, other_notes=other_server_notes, tax_mode=tax_mode, tax_rate=tax_rate) }}" 
            class="filter-pill {% if time_range == 'yesterday' %}active{% endif %}">
             <i class="fas fa-history"></i> Kemarin
         </a>
-        <a href="{{ url_for('admin.reports', range='7days', server_cost=server_cost, other_cost=other_server_cost, tax_mode=tax_mode, tax_rate=tax_rate) }}" 
+        <a href="{{ url_for('admin.reports', range='7days', server_cost=server_cost, other_cost=other_server_cost, other_notes=other_server_notes, tax_mode=tax_mode, tax_rate=tax_rate) }}" 
            class="filter-pill {% if time_range == '7days' %}active{% endif %}">
             <i class="fas fa-calendar-week"></i> 7 Hari Terakhir
         </a>
-        <a href="{{ url_for('admin.reports', range='this_month', server_cost=server_cost, other_cost=other_server_cost, tax_mode=tax_mode, tax_rate=tax_rate) }}" 
+        <a href="{{ url_for('admin.reports', range='this_month', server_cost=server_cost, other_cost=other_server_cost, other_notes=other_server_notes, tax_mode=tax_mode, tax_rate=tax_rate) }}" 
            class="filter-pill {% if time_range == 'this_month' %}active{% endif %}">
             <i class="fas fa-calendar-alt"></i> Bulan Ini
         </a>
-        <a href="{{ url_for('admin.reports', range='last_month', server_cost=server_cost, other_cost=other_server_cost, tax_mode=tax_mode, tax_rate=tax_rate) }}" 
+        <a href="{{ url_for('admin.reports', range='last_month', server_cost=server_cost, other_cost=other_server_cost, other_notes=other_server_notes, tax_mode=tax_mode, tax_rate=tax_rate) }}" 
            class="filter-pill {% if time_range == 'last_month' %}active{% endif %}">
             <i class="fas fa-calendar-check"></i> Bulan Lalu
         </a>
-        <a href="{{ url_for('admin.reports', range='30days', server_cost=server_cost, other_cost=other_server_cost, tax_mode=tax_mode, tax_rate=tax_rate) }}" 
+        <a href="{{ url_for('admin.reports', range='30days', server_cost=server_cost, other_cost=other_server_cost, other_notes=other_server_notes, tax_mode=tax_mode, tax_rate=tax_rate) }}" 
            class="filter-pill {% if time_range == '30days' %}active{% endif %}">
             <i class="fas fa-clock"></i> 30 Hari Terakhir
         </a>
-        <a href="{{ url_for('admin.reports', range='this_year', server_cost=server_cost, other_cost=other_server_cost, tax_mode=tax_mode, tax_rate=tax_rate) }}" 
+        <a href="{{ url_for('admin.reports', range='this_year', server_cost=server_cost, other_cost=other_server_cost, other_notes=other_server_notes, tax_mode=tax_mode, tax_rate=tax_rate) }}" 
            class="filter-pill {% if time_range == 'this_year' %}active{% endif %}">
             <i class="fas fa-chart-bar"></i> Tahun Ini
         </a>
-        <a href="{{ url_for('admin.reports', range='all', server_cost=server_cost, other_cost=other_server_cost, tax_mode=tax_mode, tax_rate=tax_rate) }}" 
+        <a href="{{ url_for('admin.reports', range='all', server_cost=server_cost, other_cost=other_server_cost, other_notes=other_server_notes, tax_mode=tax_mode, tax_rate=tax_rate) }}" 
            class="filter-pill {% if time_range == 'all' %}active{% endif %}">
             <i class="fas fa-globe"></i> Semua Waktu
         </a>
@@ -603,7 +762,7 @@
             <input type="date" name="end_date" value="{{ end_date_str }}" required>
         </div>
 
-        <button type="submit" class="adm-btn adm-btn-secondary" style="padding: 6px 14px; font-size: 12px;">
+        <button type="submit" class="btn-hero-action btn-hero-light" style="padding: 6px 14px; font-size: 12px;">
             <i class="fas fa-filter"></i> Terapkan Rentang
         </button>
 
@@ -614,6 +773,22 @@
     </form>
 </div>
 
+<!-- ALWAYS-VISIBLE STATUS BEBAN & PAJAK AKTIF -->
+<div class="active-expense-status-bar">
+    <div class="aes-left">
+        <i class="fas fa-sliders-h" style="color: #166534; font-size: 14px;"></i>
+        <span>Pengaturan Beban Aktif:</span>
+        <span>Server Pokok: <b class="aes-item" id="bar_server_cost">Rp {{ "{:,.0f}".format(server_cost).replace(',', '.') }}</b></span>
+        <span>Beban Lainnya: <b class="aes-item" id="bar_other_cost">Rp {{ "{:,.0f}".format(other_server_cost).replace(',', '.') }}</b></span>
+        <span>Pajak: <b class="aes-item" id="bar_tax_lbl">{{ tax_label }}</b></span>
+    </div>
+    <div>
+        <button type="button" class="btn-aes-toggle" onclick="toggleExpenseConfig()">
+            <i class="fas fa-pen"></i> Sesuaikan / Simulasi Beban
+        </button>
+    </div>
+</div>
+
 <!-- DYNAMIC EXPENSE & TAX CUSTOMIZER / SIMULATOR (Collapsible) -->
 <div id="expenseConfigCard" class="expense-config-card">
     <div class="expense-config-header">
@@ -621,7 +796,7 @@
             <i class="fas fa-sliders-h" style="color: #008779;"></i>
             <span>Kalkulator & Pengatur Beban Server & Skema Pajak Dinamis</span>
         </div>
-        <button type="button" class="btn-close-config" onclick="toggleExpenseConfig()" style="background:none; border:none; color:#64748B; font-size:16px; cursor:pointer;">
+        <button type="button" onclick="toggleExpenseConfig()" style="background:none; border:none; color:#64748B; font-size:16px; cursor:pointer;" title="Tutup Panel">
             <i class="fas fa-times"></i>
         </button>
     </div>
@@ -635,7 +810,7 @@
                     <span style="position: absolute; left: 10px; top: 8px; font-weight: 800; color: #64748B; font-size: 12px;">Rp</span>
                     <input type="number" id="input_server_cost" name="server_cost" value="{{ '{:.0f}'.format(server_cost) }}" step="1000" style="padding-left: 32px;" required>
                 </div>
-                <span class="form-help">Default Rp 125.000 / bulan. Dinamis bisa disesuaikan dengan paket VPS aktif.</span>
+                <span class="form-help">Default Rp 125.000 / bulan. Dinamis disesuaikan dengan invoice VPS Anda.</span>
             </div>
 
             <!-- 2. BEBAN SERVER & OPERASIONAL LAINNYA -->
@@ -673,16 +848,16 @@
 
         <div class="expense-actions-bar">
             <div style="font-size: 11.5px; color: #64748B; font-weight: 600;">
-                <i class="fas fa-info-circle"></i> Angka dapat disimulasikan live seketika, atau disimpan permanen ke database sebagai nilai standar toko.
+                <i class="fas fa-info-circle"></i> Angka dapat disimulasikan live seketika di layar, atau disimpan permanen ke database sebagai nilai standar toko.
             </div>
             <div style="display: flex; gap: 8px;">
-                <button type="button" class="adm-btn adm-btn-outline" onclick="resetExpenseToDefault()">
+                <button type="button" class="btn-hero-action btn-hero-light" onclick="resetExpenseToDefault()">
                     <i class="fas fa-undo"></i> Reset Default
                 </button>
-                <button type="submit" class="adm-btn adm-btn-secondary">
-                    <i class="fas fa-calculator"></i> Simulasi Live
+                <button type="submit" class="btn-hero-action btn-hero-light">
+                    <i class="fas fa-calculator" style="color: #0284C7;"></i> Simulasi Live
                 </button>
-                <button type="button" class="adm-btn adm-btn-primary" onclick="saveExpenseSettingsPermanent()">
+                <button type="button" class="btn-hero-action btn-hero-teal" onclick="saveExpenseSettingsPermanent()">
                     <i class="fas fa-save"></i> Simpan Sebagai Default
                 </button>
             </div>
@@ -704,7 +879,7 @@
             <div class="rep-stat-lbl">Omset Penjualan Produk</div>
             <div class="rep-stat-sub">
                 <i class="fas fa-check-circle" style="color: #10B981;"></i>
-                <span>{{ success_trx }} Transaksi Berhasil ({{ success_rate }}%)</span>
+                <span>{{ success_trx }} Transaksi Sukses ({{ success_rate }}%)</span>
             </div>
         </div>
     </div>
@@ -769,7 +944,10 @@
             <div class="rep-stat-val" style="color: #008779;" id="kpi_server_and_tax">
                 Rp {{ "{:,.0f}".format(total_server_costs + tax_expense).replace(',', '.') }}
             </div>
-            <div class="rep-stat-lbl">Beban Server & Pajak</div>
+            <div class="rep-stat-lbl">
+                Beban Server & Pajak
+                <button type="button" class="btn-row-edit" onclick="toggleExpenseConfig()">Ubah</button>
+            </div>
             <div class="rep-stat-sub" id="kpi_server_and_tax_sub">
                 <span>Server Rp {{ "{:,.0f}".format(server_cost).replace(',', '.') }} + Pajak Rp {{ "{:,.0f}".format(tax_expense).replace(',', '.') }}</span>
             </div>
@@ -811,7 +989,10 @@
                 <div class="is-subtitle">Standar Akuntansi Finansial GarudaTel Digital • Periode: {{ range_label }}</div>
             </div>
         </div>
-        <div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <button type="button" class="btn-topbar-custom btn-topbar-primary" onclick="toggleExpenseConfig()">
+                <i class="fas fa-sliders-h"></i> Sesuaikan Beban & Pajak
+            </button>
             <span class="is-category-badge" style="background: #E0F2FE; color: #0369A1;">
                 <i class="fas fa-shield-alt"></i> Data Riil Terverifikasi Sistem
             </span>
@@ -903,7 +1084,10 @@
                 </tr>
                 <tr>
                     <td>
-                        <div style="font-weight: 800; color: #0F172A;">Beban Pokok Sewa Server (VPS)</div>
+                        <div style="font-weight: 800; color: #0F172A;">
+                            Beban Pokok Sewa Server (VPS)
+                            <button type="button" class="btn-row-edit" onclick="toggleExpenseConfig()">Ubah</button>
+                        </div>
                         <div style="font-size: 11px; color: #64748B;">Biaya hosting VPS server aplikasi GarudaTel (Dinamis: Default Rp 125.000 / bulan)</div>
                     </td>
                     <td><span class="is-category-badge">Infrastruktur</span></td>
@@ -914,7 +1098,10 @@
                 </tr>
                 <tr>
                     <td>
-                        <div style="font-weight: 800; color: #0F172A;">Beban Server & Operasional Tambahan</div>
+                        <div style="font-weight: 800; color: #0F172A;">
+                            Beban Server & Operasional Tambahan
+                            <button type="button" class="btn-row-edit" onclick="toggleExpenseConfig()">Ubah</button>
+                        </div>
                         <div style="font-size: 11px; color: #64748B;" id="row_other_notes_lbl">{{ other_server_notes }}</div>
                     </td>
                     <td><span class="is-category-badge">Operasional Tambahan</span></td>
@@ -954,7 +1141,10 @@
                 </tr>
                 <tr>
                     <td>
-                        <div style="font-weight: 800; color: #0F172A;" id="row_tax_title">Beban Pajak Dinamis</div>
+                        <div style="font-weight: 800; color: #0F172A;">
+                            Beban Pajak Dinamis
+                            <button type="button" class="btn-row-edit" onclick="toggleExpenseConfig()">Ubah</button>
+                        </div>
                         <div style="font-size: 11px; color: #64748B;" id="row_tax_lbl">{{ tax_label }}</div>
                     </td>
                     <td><span class="is-category-badge">Kewajiban Pajak</span></td>
@@ -1242,6 +1432,11 @@ function applyExpenseSimulation(e) {
 
     document.getElementById('row_net_profit').innerText = formatRp(netProfit);
     document.getElementById('ratio_net').innerText = netMarginPercent + "%";
+
+    // UPDATE ACTIVE STATUS BAR
+    document.getElementById('bar_server_cost').innerText = formatRp(serverCost);
+    document.getElementById('bar_other_cost').innerText = formatRp(otherCost);
+    document.getElementById('bar_tax_lbl').innerText = taxLabel;
 
     // UPDATE KPI CARDS
     document.getElementById('kpi_server_and_tax').innerText = formatRp(totalServerCosts + taxExpense);

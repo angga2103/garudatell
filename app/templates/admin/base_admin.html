@@ -196,11 +196,13 @@
                     </a>
 
                     <!-- Primary Quick Action -->
+                    {% block topbar_actions %}
                     {% block topbar_action %}
                     <a href="{{ url_for('admin.saldo') }}" class="btn-topbar-action">
                         <i class="fas fa-plus-circle"></i>
                         <span>Deposit Saldo H2H</span>
                     </a>
+                    {% endblock %}
                     {% endblock %}
                 </div>
             </header>
