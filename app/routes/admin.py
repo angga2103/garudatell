@@ -2948,13 +2948,17 @@ def tickets():
     total_open = SupportTicket.query.filter_by(status='OPEN').count()
     total_process = SupportTicket.query.filter_by(status='PROCESS').count()
     total_resolved = SupportTicket.query.filter_by(status='RESOLVED').count()
+    total_closed = SupportTicket.query.filter_by(status='CLOSED').count()
+    total_all = SupportTicket.query.count()
 
     return render_template('admin/tickets.html',
                            tickets=all_tickets,
                            current_filter=filter_status,
                            total_open=total_open,
                            total_process=total_process,
-                           total_resolved=total_resolved)
+                           total_resolved=total_resolved,
+                           total_closed=total_closed,
+                           total_all=total_all)
 
 
 @admin_bp.route('/tickets/<int:id>/status', methods=['POST'])
@@ -2963,10 +2967,16 @@ def update_ticket_status(id):
     from app.models.support_ticket import SupportTicket
     ticket = SupportTicket.query.get_or_404(id)
     new_status = request.form.get('status', 'RESOLVED').upper()
+    admin_reply_text = request.form.get('admin_reply', '').strip()
+
     if new_status in ['OPEN', 'PROCESS', 'RESOLVED', 'CLOSED']:
         ticket.status = new_status
+        if admin_reply_text:
+            ticket.admin_reply = admin_reply_text
+            ticket.admin_replied_at = datetime.utcnow()
+            ticket.admin_name = 'Admin CS'
         db.session.commit()
-        flash(f'✅ Status tiket #{ticket.ticket_number} diperbarui menjadi {new_status}.', 'success')
+        flash(f'✅ Status tiket #{ticket.ticket_number} berhasil diperbarui menjadi {new_status}.', 'success')
     else:
         flash('Status tidak valid!', 'danger')
     return redirect(url_for('admin.tickets'))

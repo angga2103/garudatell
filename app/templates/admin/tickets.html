@@ -1,175 +1,668 @@
 {% extends 'admin/base_admin.html' %}
 
-{% block title %}GarudaTel - Tiket Bantuan CS (Bot Telegram){% endblock %}
+{% block title %}Pusat Tiket CS & Bantuan - {{ store.name }}{% endblock %}
 
 {% block breadcrumb %}Layanan CS / Tiket Bantuan{% endblock %}
 
-{% block page_title %}Pusat Tiket CS & Bantuan (Bot Telegram){% endblock %}
+{% block page_title %}Pusat Tiket CS & Bantuan Pelanggan{% endblock %}
 
 {% block page_css %}
 <style>
-    .ticket-stats-grid { 
-        display: grid; 
-        grid-template-columns: repeat(3, 1fr); 
-        gap: 16px; 
-        margin-bottom: 24px; 
+    /* ==========================================================================
+       TICKETS COMMAND CENTER - MODERN REDESIGN
+       ========================================================================== */
+    :root {
+        --cs-primary: #008779;
+        --cs-primary-dark: #00695c;
+        --cs-primary-light: #e6f4f2;
+        --cs-surface: #ffffff;
+        --cs-border: #E2E8F0;
+        --cs-slate-900: #0F172A;
+        --cs-slate-700: #334155;
+        --cs-slate-500: #64748B;
+        --cs-slate-100: #F1F5F9;
+        --cs-slate-50: #F8FAFC;
     }
-    .ticket-stat-card { 
-        background: white; 
-        padding: 18px 20px; 
-        border-radius: 14px; 
-        border: 1px solid #E2E8F0; 
-        box-shadow: 0 1px 3px rgba(0,0,0,0.04); 
+
+    /* --- HERO HEADER BAR --- */
+    .cs-hero-banner {
+        background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+        border-radius: 16px;
+        padding: 22px 26px;
+        color: white;
+        margin-bottom: 22px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        position: relative;
+        overflow: hidden;
+    }
+    .cs-hero-banner::after {
+        content: '';
+        position: absolute;
+        top: -40px;
+        right: -40px;
+        width: 180px;
+        height: 180px;
+        background: radial-gradient(circle, rgba(0, 135, 121, 0.25) 0%, transparent 70%);
+        pointer-events: none;
+    }
+    .cs-hero-info {
         display: flex;
         align-items: center;
         gap: 16px;
-        transition: transform 0.15s ease, box-shadow 0.15s ease;
     }
-    .ticket-stat-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 14px rgba(0,0,0,0.06);
-    }
-    .ticket-stat-icon {
-        width: 48px;
-        height: 48px;
-        border-radius: 12px;
+    .cs-hero-icon {
+        width: 52px;
+        height: 52px;
+        border-radius: 14px;
+        background: rgba(0, 135, 121, 0.2);
+        border: 1px solid rgba(0, 135, 121, 0.4);
+        color: #2dd4bf;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 20px;
+        font-size: 24px;
         flex-shrink: 0;
+    }
+    .cs-hero-title {
+        font-size: 18px;
+        font-weight: 900;
+        letter-spacing: -0.3px;
+        margin-bottom: 4px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .cs-hero-desc {
+        font-size: 12.5px;
+        color: #94A3B8;
+        font-weight: 600;
+        line-height: 1.4;
+    }
+    .cs-hero-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-shrink: 0;
+        z-index: 2;
+    }
+    .btn-hero-action {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        padding: 8px 14px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: 800;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        text-decoration: none;
+        transition: 0.15s ease;
+        cursor: pointer;
+    }
+    .btn-hero-action:hover {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        transform: translateY(-1px);
+    }
+    .btn-hero-action.btn-wa-direct {
+        background: #16A34A;
+        border-color: #15803D;
+        box-shadow: 0 2px 8px rgba(22, 163, 74, 0.35);
+    }
+    .btn-hero-action.btn-wa-direct:hover {
+        background: #15803D;
+    }
+
+    /* --- STATS KPI CARDS --- */
+    .ticket-stats-grid { 
+        display: grid; 
+        grid-template-columns: repeat(4, 1fr); 
+        gap: 14px; 
+        margin-bottom: 22px; 
+    }
+    .ticket-stat-card { 
+        background: white; 
+        padding: 16px 18px; 
+        border-radius: 14px; 
+        border: 1px solid var(--cs-border); 
+        box-shadow: 0 1px 3px rgba(0,0,0,0.03); 
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        text-decoration: none;
+        color: inherit;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    .ticket-stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.06);
+    }
+    .ticket-stat-card.active-kpi {
+        border-color: var(--cs-primary);
+        box-shadow: 0 0 0 2px rgba(0, 135, 121, 0.2);
+    }
+    .ticket-stat-content {
+        flex: 1;
+        min-width: 0;
     }
     .ticket-stat-val { 
         font-size: 26px; 
         font-weight: 900; 
         line-height: 1.1; 
+        letter-spacing: -0.5px;
     }
     .ticket-stat-lbl { 
         font-size: 11px; 
         font-weight: 800; 
-        color: #64748B; 
+        color: var(--cs-slate-500); 
         text-transform: uppercase; 
         letter-spacing: 0.5px;
         margin-top: 4px; 
     }
-
-    .filter-bar {
+    .ticket-stat-badge {
+        display: inline-block;
+        font-size: 10px;
+        font-weight: 800;
+        padding: 2px 7px;
+        border-radius: 20px;
+        margin-top: 6px;
+    }
+    .ticket-stat-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
         display: flex;
-        gap: 8px;
-        margin-bottom: 22px;
-        overflow-x: auto;
-        padding-bottom: 4px;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        flex-shrink: 0;
+    }
+
+    /* Color variations */
+    .stat-open { border-left: 4px solid #EF4444; }
+    .stat-open .ticket-stat-val { color: #DC2626; }
+    .stat-open .ticket-stat-icon { background: #FEE2E2; color: #DC2626; }
+    .stat-open .ticket-stat-badge { background: #FEF2F2; color: #DC2626; border: 1px solid #FECACA; }
+
+    .stat-process { border-left: 4px solid #F59E0B; }
+    .stat-process .ticket-stat-val { color: #D97706; }
+    .stat-process .ticket-stat-icon { background: #FEF3C7; color: #D97706; }
+    .stat-process .ticket-stat-badge { background: #FFFBEB; color: #B45309; border: 1px solid #FDE68A; }
+
+    .stat-resolved { border-left: 4px solid #10B981; }
+    .stat-resolved .ticket-stat-val { color: #059669; }
+    .stat-resolved .ticket-stat-icon { background: #D1FAE5; color: #059669; }
+    .stat-resolved .ticket-stat-badge { background: #ECFDF5; color: #047857; border: 1px solid #A7F3D0; }
+
+    .stat-all { border-left: 4px solid #0284C7; }
+    .stat-all .ticket-stat-val { color: #0284C7; }
+    .stat-all .ticket-stat-icon { background: #E0F2FE; color: #0284C7; }
+    .stat-all .ticket-stat-badge { background: #F0F9FF; color: #0369A1; border: 1px solid #BAE6FD; }
+
+    /* --- INTERACTIVE CONTROL BAR (FILTERS + INSTANT SEARCH) --- */
+    .cs-control-bar {
+        background: white;
+        border: 1px solid var(--cs-border);
+        border-radius: 14px;
+        padding: 12px 16px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        flex-wrap: wrap;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    }
+    .filter-tabs-group {
+        display: flex;
+        gap: 6px;
+        align-items: center;
         flex-wrap: wrap;
     }
-    .filter-btn {
-        padding: 8px 18px;
-        border-radius: 20px;
-        font-size: 12px;
+    .filter-tab {
+        padding: 7px 14px;
+        border-radius: 9999px;
+        font-size: 11.5px;
         font-weight: 800;
         text-decoration: none;
-        color: #475569;
-        background: white;
-        border: 1px solid #CBD5E1;
+        color: var(--cs-slate-700);
+        background: var(--cs-slate-50);
+        border: 1px solid var(--cs-border);
         transition: 0.15s ease;
-        white-space: nowrap;
         display: inline-flex;
         align-items: center;
         gap: 6px;
+        white-space: nowrap;
     }
-    .filter-btn:hover { 
-        background: #F1F5F9; 
-        color: #0F172A;
+    .filter-tab:hover {
+        background: #E2E8F0;
+        color: var(--cs-slate-900);
     }
-    .filter-btn.active {
-        background: #008779;
+    .filter-tab.active {
+        background: var(--cs-primary);
         color: white;
-        border-color: #008779;
-        box-shadow: 0 2px 8px rgba(0, 135, 121, 0.25);
+        border-color: var(--cs-primary);
+        box-shadow: 0 2px 6px rgba(0, 135, 121, 0.25);
     }
-    .filter-count-badge {
+    .filter-pill-count {
         background: rgba(0,0,0,0.08);
         padding: 1px 7px;
-        border-radius: 10px;
-        font-size: 11px;
+        border-radius: 12px;
+        font-size: 10.5px;
+        font-weight: 900;
     }
-    .filter-btn.active .filter-count-badge {
+    .filter-tab.active .filter-pill-count {
         background: rgba(255,255,255,0.25);
+        color: white;
     }
 
-    .modern-card { 
-        background: white; 
-        border-radius: 14px; 
-        border: 1px solid #E2E8F0; 
-        box-shadow: 0 1px 3px rgba(0,0,0,0.04); 
-        overflow: hidden;
+    .search-filter-box {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: 1;
+        min-width: 260px;
+        justify-content: flex-end;
     }
-
-    .data-table {
+    .search-input-wrap {
+        position: relative;
+        flex: 1;
+        max-width: 380px;
+    }
+    .search-input-wrap i.search-icon {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94A3B8;
+        font-size: 13px;
+        pointer-events: none;
+    }
+    .search-input-wrap input {
         width: 100%;
-        border-collapse: collapse;
-        font-size: 12.5px;
-        text-align: left;
+        padding: 8px 34px 8px 34px;
+        border-radius: 10px;
+        border: 1px solid var(--cs-border);
+        background: var(--cs-slate-50);
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--cs-slate-900);
+        outline: none;
+        transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
     }
-    .data-table th {
-        background: #F8FAFC;
-        color: #475569;
-        font-weight: 800;
-        padding: 13px 14px;
-        border-bottom: 2px solid #E2E8F0;
-        text-transform: uppercase;
-        font-size: 11px;
-        letter-spacing: 0.5px;
-    }
-    .data-table td {
-        padding: 14px;
-        border-bottom: 1px solid #F1F5F9;
-        color: #334155;
-        vertical-align: top;
-    }
-    .data-table tbody tr:hover {
-        background: #F8FAFC;
-    }
-
-    .complaint-bubble {
-        background: #F8FAFC; 
-        padding: 12px 14px; 
-        border-radius: 10px; 
-        border-left: 3px solid #008779; 
-        margin-bottom: 10px; 
-        font-size: 12.5px; 
-        color: #1E293B; 
-        white-space: pre-wrap; 
-        line-height: 1.5;
-    }
-
-    .trx-context-card {
-        background: #FFFFFF; 
-        border: 1px solid #E2E8F0; 
-        padding: 10px 12px; 
-        border-radius: 8px; 
-        font-size: 11.5px;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
-    }
-
-    .status-select {
-        padding: 7px 10px;
-        border-radius: 8px;
-        border: 1.5px solid #CBD5E1;
-        font-size: 11.5px;
-        font-weight: 800;
+    .search-input-wrap input:focus {
+        border-color: var(--cs-primary);
         background: white;
+        box-shadow: 0 0 0 3px rgba(0, 135, 121, 0.12);
+    }
+    .search-clear-btn {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        color: #94A3B8;
+        cursor: pointer;
+        font-size: 12px;
+        display: none;
+        padding: 2px;
+    }
+    .search-clear-btn:hover {
+        color: #475569;
+    }
+
+    .category-filter-select {
+        padding: 8px 12px;
+        border-radius: 10px;
+        border: 1px solid var(--cs-border);
+        background: var(--cs-slate-50);
+        font-size: 11.5px;
+        font-weight: 800;
+        color: var(--cs-slate-700);
         outline: none;
         cursor: pointer;
         transition: border-color 0.15s ease;
     }
-    .status-select:focus {
-        border-color: #008779;
+    .category-filter-select:focus {
+        border-color: var(--cs-primary);
     }
 
-    .btn-wa-reply {
+    /* --- TICKETS CONTAINER --- */
+    .tickets-container {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    /* --- MODERN TICKET CARD --- */
+    .ticket-card {
+        background: white;
+        border-radius: 14px;
+        border: 1px solid var(--cs-border);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+        overflow: hidden;
+    }
+    .ticket-card:hover {
+        border-color: #CBD5E1;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    .ticket-card.status-border-open {
+        border-left: 4px solid #EF4444;
+    }
+    .ticket-card.status-border-process {
+        border-left: 4px solid #F59E0B;
+    }
+    .ticket-card.status-border-resolved {
+        border-left: 4px solid #10B981;
+    }
+    .ticket-card.status-border-closed {
+        border-left: 4px solid #94A3B8;
+    }
+
+    /* Card Header */
+    .ticket-card-header {
+        padding: 12px 18px;
+        background: #FAFBFD;
+        border-bottom: 1px solid #F1F5F9;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    .ticket-header-left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .ticket-number-pill {
+        font-family: monospace;
+        font-size: 12px;
+        font-weight: 800;
+        color: #0284C7;
+        background: #E0F2FE;
+        border: 1px solid #BAE6FD;
+        padding: 3px 8px;
+        border-radius: 6px;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        cursor: pointer;
+        transition: background 0.15s ease;
+    }
+    .ticket-number-pill:hover {
+        background: #BAE6FD;
+    }
+    .ticket-category-badge {
+        font-size: 11px;
+        font-weight: 800;
+        padding: 3px 9px;
+        border-radius: 6px;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .cat-transaksi { background: #FEF3C7; color: #92400E; border: 1px solid #FDE68A; }
+    .cat-deposit { background: #E0F2FE; color: #0369A1; border: 1px solid #BAE6FD; }
+    .cat-akun { background: #F3E8FF; color: #6B21A8; border: 1px solid #E9D5FF; }
+    .cat-other { background: #F1F5F9; color: #475569; border: 1px solid #E2E8F0; }
+
+    .ticket-time-text {
+        font-size: 11px;
+        color: var(--cs-slate-500);
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-weight: 600;
+    }
+    .ticket-bot-status {
+        font-size: 10px;
+        font-weight: 800;
+        padding: 2px 7px;
+        border-radius: 4px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .bot-ok { background: #DCFCE7; color: #166534; border: 1px solid #BBF7D0; }
+    .bot-fail { background: #FEE2E2; color: #991B1B; border: 1px solid #FECACA; }
+
+    .ticket-header-right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+    }
+
+    /* Card Body */
+    .ticket-card-body {
+        padding: 16px 18px;
+        display: grid;
+        grid-template-columns: 240px 1fr;
+        gap: 20px;
+    }
+
+    /* Customer Left Column */
+    .ticket-customer-col {
+        border-right: 1px solid #F1F5F9;
+        padding-right: 16px;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        gap: 8px;
+    }
+    .cust-avatar-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .cust-avatar {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #008779, #0284C7);
+        color: white;
+        font-size: 13px;
+        font-weight: 900;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        text-transform: uppercase;
+        box-shadow: 0 2px 6px rgba(0, 135, 121, 0.2);
+    }
+    .cust-meta {
+        min-width: 0;
+    }
+    .cust-name {
+        font-size: 13.5px;
+        font-weight: 800;
+        color: var(--cs-slate-900);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .cust-id-badge {
+        font-size: 10px;
+        font-weight: 800;
+        color: var(--cs-slate-500);
+        font-family: monospace;
+    }
+    .cust-phone-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 800;
+        color: #0284C7;
+        text-decoration: none;
+        background: #F0F9FF;
+        border: 1px solid #BAE6FD;
+        padding: 5px 9px;
+        border-radius: 7px;
+        width: fit-content;
+        transition: 0.15s ease;
+    }
+    .cust-phone-btn:hover {
+        background: #BAE6FD;
+        color: #0369A1;
+    }
+
+    /* Complaint Right Column */
+    .ticket-content-col {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        min-width: 0;
+    }
+
+    .complaint-quote-box {
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-left: 3.5px solid var(--cs-primary);
+        padding: 12px 16px;
+        border-radius: 10px;
+        position: relative;
+    }
+    .complaint-quote-header {
+        font-size: 10.5px;
+        font-weight: 800;
+        color: var(--cs-slate-500);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .complaint-text {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--cs-slate-900);
+        line-height: 1.5;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+    /* Linked Transaction Box */
+    .linked-trx-box {
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-size: 11.5px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+    }
+    .linked-trx-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 6px;
+        flex-wrap: wrap;
+    }
+    .linked-trx-title {
+        font-weight: 800;
+        color: var(--cs-slate-700);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .linked-trx-ref {
+        font-family: monospace;
+        font-weight: 800;
+        color: #0284C7;
+        background: #F0F9FF;
+        padding: 2px 6px;
+        border-radius: 5px;
+        border: 1px solid #BAE6FD;
+    }
+    .linked-trx-product {
+        font-size: 12px;
+        font-weight: 800;
+        color: var(--cs-slate-900);
+        margin-bottom: 3px;
+    }
+    .linked-trx-details {
+        color: var(--cs-slate-500);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        font-size: 11px;
+    }
+    .badge-trx-status {
+        font-size: 10px;
+        font-weight: 900;
+        padding: 2px 6px;
+        border-radius: 4px;
+        text-transform: uppercase;
+    }
+    .trx-success { background: #DCFCE7; color: #166534; }
+    .trx-failed { background: #FEE2E2; color: #991B1B; }
+    .trx-process { background: #FEF3C7; color: #92400E; }
+
+    /* Admin / CS Reply Box */
+    .reply-history-box {
+        background: #F0FDF4;
+        border: 1px solid #BBF7D0;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-size: 12px;
+    }
+    .reply-history-header {
+        font-size: 10.5px;
+        font-weight: 800;
+        color: #166534;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 4px;
+    }
+    .reply-history-text {
+        color: #14532D;
+        font-weight: 600;
+        line-height: 1.45;
+        white-space: pre-wrap;
+    }
+
+    /* Actions Bottom Bar / Header Right Controls */
+    .status-select-form {
+        margin: 0;
+    }
+    .status-select-box {
+        padding: 6px 10px;
+        border-radius: 8px;
+        font-size: 11.5px;
+        font-weight: 800;
+        background: white;
+        border: 1.5px solid var(--cs-border);
+        outline: none;
+        cursor: pointer;
+        transition: 0.15s ease;
+    }
+    .status-select-box.status-OPEN { border-color: #F87171; color: #DC2626; background: #FEF2F2; }
+    .status-select-box.status-PROCESS { border-color: #FBBF24; color: #D97706; background: #FFFBEB; }
+    .status-select-box.status-RESOLVED { border-color: #34D399; color: #059669; background: #ECFDF5; }
+    .status-select-box.status-CLOSED { border-color: #CBD5E1; color: #64748B; background: #F8FAFC; }
+
+    .btn-action-wa {
         background: #16A34A;
         color: white;
-        padding: 7px 14px;
+        padding: 6px 12px;
         border-radius: 8px;
         font-size: 11.5px;
         font-weight: 800;
@@ -178,190 +671,798 @@
         align-items: center;
         gap: 6px;
         transition: 0.15s ease;
-        box-shadow: 0 2px 6px rgba(22, 163, 74, 0.25);
+        box-shadow: 0 1px 3px rgba(22, 163, 74, 0.3);
+        border: none;
     }
-    .btn-wa-reply:hover { 
-        background: #15803D; 
-        color: white; 
+    .btn-action-wa:hover {
+        background: #15803D;
+        color: white;
         transform: translateY(-1px);
     }
+    .btn-action-detail {
+        background: white;
+        color: var(--cs-slate-700);
+        border: 1px solid var(--cs-border);
+        padding: 6px 12px;
+        border-radius: 8px;
+        font-size: 11.5px;
+        font-weight: 800;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        transition: 0.15s ease;
+    }
+    .btn-action-detail:hover {
+        background: #F1F5F9;
+        color: var(--cs-slate-900);
+    }
 
-    @media (max-width: 900px) {
+    /* EMPTY STATE */
+    .empty-state-card {
+        background: white;
+        border-radius: 16px;
+        border: 1px solid var(--cs-border);
+        padding: 50px 20px;
+        text-align: center;
+        color: var(--cs-slate-500);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    }
+    .empty-state-icon {
+        width: 64px;
+        height: 64px;
+        border-radius: 20px;
+        background: #F1F5F9;
+        color: #94A3B8;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        margin-bottom: 14px;
+    }
+
+    /* MODAL POPUP */
+    .cs-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.6);
+        backdrop-filter: blur(4px);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        padding: 16px;
+    }
+    .cs-modal-box {
+        background: white;
+        border-radius: 16px;
+        max-width: 640px;
+        width: 100%;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2), 0 10px 10px -5px rgba(0,0,0,0.1);
+        display: flex;
+        flex-direction: column;
+        animation: modalScaleUp 0.15s ease-out;
+    }
+    @keyframes modalScaleUp {
+        from { opacity: 0; transform: scale(0.96); }
+        to { opacity: 1; transform: scale(1); }
+    }
+    .cs-modal-header {
+        padding: 18px 20px;
+        border-bottom: 1px solid #F1F5F9;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .cs-modal-title {
+        font-size: 16px;
+        font-weight: 900;
+        color: var(--cs-slate-900);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .cs-modal-close {
+        background: none;
+        border: none;
+        font-size: 18px;
+        color: #94A3B8;
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 6px;
+    }
+    .cs-modal-close:hover {
+        color: #1E293B;
+        background: #F1F5F9;
+    }
+    .cs-modal-body {
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+    .cs-modal-footer {
+        padding: 14px 20px;
+        background: #F8FAFC;
+        border-top: 1px solid #F1F5F9;
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        border-radius: 0 0 16px 16px;
+    }
+
+    .quick-template-chip {
+        font-size: 11px;
+        font-weight: 700;
+        background: #F1F5F9;
+        color: var(--cs-slate-700);
+        border: 1px solid var(--cs-border);
+        padding: 5px 10px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: 0.15s ease;
+    }
+    .quick-template-chip:hover {
+        background: #E2E8F0;
+        color: var(--cs-slate-900);
+    }
+
+    /* RESPONSIVE BREAKPOINTS */
+    @media (max-width: 1024px) {
+        .ticket-stats-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 768px) {
+        .cs-hero-banner { flex-direction: column; align-items: flex-start; padding: 18px 20px; }
+        .cs-hero-actions { width: 100%; justify-content: flex-start; }
         .ticket-stats-grid { grid-template-columns: 1fr; }
+        .ticket-card-body { grid-template-columns: 1fr; gap: 14px; }
+        .ticket-customer-col { border-right: none; border-bottom: 1px solid #F1F5F9; padding-right: 0; padding-bottom: 12px; }
+        .cs-control-bar { flex-direction: column; align-items: stretch; }
+        .search-filter-box { justify-content: stretch; width: 100%; }
+        .search-input-wrap { max-width: 100%; }
+        .ticket-card-header { flex-direction: column; align-items: flex-start; }
+        .ticket-header-right { width: 100%; justify-content: space-between; margin-top: 6px; }
     }
 </style>
 {% endblock %}
 
 {% block admin_content %}
 
-<!-- STATISTIK KARTU (3 KOLOM) -->
+<!-- HERO HEADER BANNER -->
+<div class="cs-hero-banner">
+    <div class="cs-hero-info">
+        <div class="cs-hero-icon">
+            <i class="fas fa-headset"></i>
+        </div>
+        <div>
+            <div class="cs-hero-title">
+                Pusat Tiket CS & Komplain Pelanggan
+                <span style="font-size: 11px; font-weight: 800; background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4); color: #6ee7b7; padding: 2px 8px; border-radius: 12px; display: inline-flex; align-items: center; gap: 4px;">
+                    <i class="fas fa-circle" style="font-size: 7px; color: #34d399;"></i> Telegram Bot Terhubung
+                </span>
+            </div>
+            <div class="cs-hero-desc">
+                Pantau seluruh komplain transaksi, kendala deposit, dan tiket bantuan dari Bot Telegram & Web secara real-time.
+            </div>
+        </div>
+    </div>
+    <div class="cs-hero-actions">
+        <button type="button" class="btn-hero-action" onclick="window.location.reload()" title="Muat Ulang Halaman">
+            <i class="fas fa-sync-alt"></i> Refresh Data
+        </button>
+        <a href="https://web.telegram.org/" target="_blank" class="btn-hero-action" title="Buka Telegram Web">
+            <i class="fab fa-telegram-plane" style="color: #38bdf8;"></i> Buka Telegram
+        </a>
+    </div>
+</div>
+
+<!-- STATISTIK KARTU (4 KPI DENGAN FILTER CEPAT) -->
 <div class="ticket-stats-grid">
-    <div class="ticket-stat-card" style="border-left: 4px solid #EF4444;">
-        <div class="ticket-stat-icon" style="background: rgba(239, 68, 68, 0.12); color: #EF4444;">
+    <!-- 1. Tiket Baru (Open) -->
+    <a href="{{ url_for('admin.tickets', status='OPEN') }}" class="ticket-stat-card stat-open {% if current_filter == 'OPEN' %}active-kpi{% endif %}" title="Filter Tiket Baru">
+        <div class="ticket-stat-content">
+            <div class="ticket-stat-val">{{ total_open }}</div>
+            <div class="ticket-stat-lbl">Tiket Baru (Open)</div>
+            <span class="ticket-stat-badge">Perlu Tindakan Segera</span>
+        </div>
+        <div class="ticket-stat-icon">
             <i class="fas fa-envelope-open-text"></i>
         </div>
-        <div>
-            <div class="ticket-stat-val" style="color: #EF4444;">{{ total_open }}</div>
-            <div class="ticket-stat-lbl">Tiket Baru (Open)</div>
+    </a>
+
+    <!-- 2. Sedang Diproses -->
+    <a href="{{ url_for('admin.tickets', status='PROCESS') }}" class="ticket-stat-card stat-process {% if current_filter == 'PROCESS' %}active-kpi{% endif %}" title="Filter Sedang Diproses">
+        <div class="ticket-stat-content">
+            <div class="ticket-stat-val">{{ total_process }}</div>
+            <div class="ticket-stat-lbl">Sedang Diproses</div>
+            <span class="ticket-stat-badge">Dalam Penanganan CS</span>
         </div>
-    </div>
-    <div class="ticket-stat-card" style="border-left: 4px solid #F59E0B;">
-        <div class="ticket-stat-icon" style="background: rgba(245, 158, 11, 0.12); color: #F59E0B;">
+        <div class="ticket-stat-icon">
             <i class="fas fa-clock-rotate-left"></i>
         </div>
-        <div>
-            <div class="ticket-stat-val" style="color: #D97706;">{{ total_process }}</div>
-            <div class="ticket-stat-lbl">Sedang Diproses</div>
+    </a>
+
+    <!-- 3. Selesai / Teratasi -->
+    <a href="{{ url_for('admin.tickets', status='RESOLVED') }}" class="ticket-stat-card stat-resolved {% if current_filter == 'RESOLVED' %}active-kpi{% endif %}" title="Filter Selesai">
+        <div class="ticket-stat-content">
+            <div class="ticket-stat-val">{{ total_resolved }}</div>
+            <div class="ticket-stat-lbl">Selesai / Teratasi</div>
+            <span class="ticket-stat-badge">Kendala Tuntas</span>
         </div>
-    </div>
-    <div class="ticket-stat-card" style="border-left: 4px solid #10B981;">
-        <div class="ticket-stat-icon" style="background: rgba(16, 185, 129, 0.12); color: #10B981;">
+        <div class="ticket-stat-icon">
             <i class="fas fa-circle-check"></i>
         </div>
-        <div>
-            <div class="ticket-stat-val" style="color: #059669;">{{ total_resolved }}</div>
-            <div class="ticket-stat-lbl">Selesai / Teratasi</div>
+    </a>
+
+    <!-- 4. Semua Tiket Masuk -->
+    <a href="{{ url_for('admin.tickets', status='ALL') }}" class="ticket-stat-card stat-all {% if current_filter == 'ALL' %}active-kpi{% endif %}" title="Lihat Semua Tiket">
+        <div class="ticket-stat-content">
+            <div class="ticket-stat-val">{{ total_all }}</div>
+            <div class="ticket-stat-lbl">Total Riwayat Tiket</div>
+            <span class="ticket-stat-badge">Semua Status</span>
+        </div>
+        <div class="ticket-stat-icon">
+            <i class="fas fa-layer-group"></i>
+        </div>
+    </a>
+</div>
+
+<!-- INTERACTIVE CONTROL BAR (TABS + INSTANT SEARCH + KATEGORI) -->
+<div class="cs-control-bar">
+    <!-- Filter Tabs -->
+    <div class="filter-tabs-group">
+        <a href="{{ url_for('admin.tickets', status='ALL') }}" class="filter-tab {% if current_filter == 'ALL' %}active{% endif %}">
+            <i class="fas fa-list-ul"></i> Semua
+            <span class="filter-pill-count">{{ total_all }}</span>
+        </a>
+        <a href="{{ url_for('admin.tickets', status='OPEN') }}" class="filter-tab {% if current_filter == 'OPEN' %}active{% endif %}">
+            <i class="fas fa-circle" style="color: #EF4444; font-size: 8px;"></i> Open
+            <span class="filter-pill-count">{{ total_open }}</span>
+        </a>
+        <a href="{{ url_for('admin.tickets', status='PROCESS') }}" class="filter-tab {% if current_filter == 'PROCESS' %}active{% endif %}">
+            <i class="fas fa-circle" style="color: #F59E0B; font-size: 8px;"></i> Diproses
+            <span class="filter-pill-count">{{ total_process }}</span>
+        </a>
+        <a href="{{ url_for('admin.tickets', status='RESOLVED') }}" class="filter-tab {% if current_filter == 'RESOLVED' %}active{% endif %}">
+            <i class="fas fa-circle" style="color: #10B981; font-size: 8px;"></i> Selesai
+            <span class="filter-pill-count">{{ total_resolved }}</span>
+        </a>
+        <a href="{{ url_for('admin.tickets', status='CLOSED') }}" class="filter-tab {% if current_filter == 'CLOSED' %}active{% endif %}">
+            <i class="fas fa-circle" style="color: #94A3B8; font-size: 8px;"></i> Ditutup
+            <span class="filter-pill-count">{{ total_closed }}</span>
+        </a>
+    </div>
+
+    <!-- Search Box & Category Filter -->
+    <div class="search-filter-box">
+        <select class="category-filter-select" id="categoryFilter" onchange="applyInstantFilter()">
+            <option value="">Semua Kategori</option>
+            <option value="transaksi">Transaksi Bermasalah</option>
+            <option value="deposit">Deposit & Saldo</option>
+            <option value="layanan">Pertanyaan Layanan / Akun</option>
+            <option value="lainnya">Lainnya</option>
+        </select>
+
+        <div class="search-input-wrap">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" id="liveSearchInput" placeholder="Cari tiket, pelanggan, HP, ref ID..." onkeyup="applyInstantFilter()">
+            <button type="button" class="search-clear-btn" id="searchClearBtn" onclick="clearLiveSearch()" title="Hapus Pencarian">
+                <i class="fas fa-times-circle"></i>
+            </button>
         </div>
     </div>
 </div>
 
-<!-- FILTER TABS BAR -->
-<div class="filter-bar">
-    <a href="{{ url_for('admin.tickets', status='ALL') }}" class="filter-btn {% if current_filter == 'ALL' %}active{% endif %}">
-        <i class="fas fa-layer-group"></i> Semua Tiket
-    </a>
-    <a href="{{ url_for('admin.tickets', status='OPEN') }}" class="filter-btn {% if current_filter == 'OPEN' %}active{% endif %}">
-        <i class="fas fa-circle" style="color: #EF4444; font-size: 8px;"></i> Tiket Open 
-        <span class="filter-count-badge">{{ total_open }}</span>
-    </a>
-    <a href="{{ url_for('admin.tickets', status='PROCESS') }}" class="filter-btn {% if current_filter == 'PROCESS' %}active{% endif %}">
-        <i class="fas fa-circle" style="color: #F59E0B; font-size: 8px;"></i> Sedang Diproses 
-        <span class="filter-count-badge">{{ total_process }}</span>
-    </a>
-    <a href="{{ url_for('admin.tickets', status='RESOLVED') }}" class="filter-btn {% if current_filter == 'RESOLVED' %}active{% endif %}">
-        <i class="fas fa-circle" style="color: #10B981; font-size: 8px;"></i> Selesai 
-        <span class="filter-count-badge">{{ total_resolved }}</span>
-    </a>
-    <a href="{{ url_for('admin.tickets', status='CLOSED') }}" class="filter-btn {% if current_filter == 'CLOSED' %}active{% endif %}">
-        <i class="fas fa-circle" style="color: #94A3B8; font-size: 8px;"></i> Ditutup
-    </a>
-</div>
-
-<!-- TABEL DAFTAR TIKET -->
-<div class="modern-card">
-    <div style="overflow-x: auto;">
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th style="width: 150px;">Nomor &amp; Waktu</th>
-                    <th style="width: 170px;">Pelapor / Member</th>
-                    <th style="width: 150px;">Kategori Masalah</th>
-                    <th>Detail Keluhan &amp; Transaksi</th>
-                    <th style="width: 140px;">Status Tiket</th>
-                    <th style="width: 130px; text-align: center;">Tindakan</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for t in tickets %}
-                <tr>
-                    <td>
-                        <div style="font-weight: 800; color: #0284C7; font-size: 13px;">#{{ t.ticket_number }}</div>
-                        <div style="color: #64748B; font-size: 11px; margin-top: 3px;">
-                            <i class="far fa-clock"></i> {{ t.created_at_wib }}
-                        </div>
-                        {% if t.telegram_sent %}
-                            <div style="font-size: 10px; color: #16A34A; font-weight: 800; margin-top: 6px; display: inline-flex; align-items: center; gap: 4px; background: #DCFCE7; padding: 2px 6px; border-radius: 4px;">
-                                <i class="fab fa-telegram-plane"></i> Terkirim ke Bot
-                            </div>
-                        {% else %}
-                            <div style="font-size: 10px; color: #DC2626; font-weight: 800; margin-top: 6px; display: inline-flex; align-items: center; gap: 4px; background: #FEE2E2; padding: 2px 6px; border-radius: 4px;">
-                                <i class="fas fa-times-circle"></i> Gagal Kirim Bot
-                            </div>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <div style="font-weight: 800; color: #1E293B; font-size: 13px;">{{ t.user_name }}</div>
-                        <div style="font-size: 11.5px; color: #0284C7; font-weight: 700; margin-top: 2px;">
-                            <i class="fas fa-phone-alt" style="font-size: 10px;"></i> {{ t.user_phone }}
-                        </div>
-                        <div style="font-size: 10.5px; color: #64748B; margin-top: 2px;">
-                            User ID: <span style="font-family: monospace; font-weight: 800;">#{{ t.user_id }}</span>
-                        </div>
-                    </td>
-                    <td>
-                        <span style="display: inline-block; background: #F1F5F9; color: #475569; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 800; line-height: 1.3;">
-                            {{ t.category }}
-                        </span>
-                    </td>
-                    <td>
-                        <!-- Pesan Keluhan Pelanggan -->
-                        <div class="complaint-bubble">
-                            {{ t.message }}
-                        </div>
-
-                        <!-- Rincian Transaksi Terkait (Jika Ada) -->
-                        {% if t.transaction %}
-                        <div class="trx-context-card">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                                <span style="font-weight: 800; color: #475569; font-size: 11px;">
-                                    <i class="fas fa-box-archive" style="color: #008779;"></i> Transaksi Terkait:
-                                </span>
-                                <span style="font-family: monospace; font-weight: 800; color: #0284C7; font-size: 11px;">
-                                    {{ t.transaction.ref_id }}
-                                </span>
-                            </div>
-                            <div style="color: #1E293B; font-weight: 700;">
-                                {{ t.transaction.product_name or '-' }}
-                            </div>
-                            <div style="color: #475569; margin-top: 2px;">
-                                Tujuan: <code style="background: #F1F5F9; padding: 1px 4px; border-radius: 4px;">{{ t.transaction.target_number or '-' }}</code> 
-                                &bull; Nominal: <b>Rp {{ "{:,.0f}".format(t.transaction.amount or 0).replace(',', '.') }}</b>
-                            </div>
-                            <div style="margin-top: 4px; display: flex; align-items: center; gap: 8px;">
-                                <span style="font-size: 10px; font-weight: 900; padding: 2px 6px; border-radius: 4px; 
-                                    {% if t.transaction.status == 'SUCCESS' %}background: #DCFCE7; color: #166534;
-                                    {% elif t.transaction.status == 'FAILED' %}background: #FEE2E2; color: #991B1B;
-                                    {% else %}background: #FEF3C7; color: #92400E;{% endif %}">
-                                    {{ t.transaction.status }}
-                                </span>
-                                {% if t.transaction.sn %}
-                                <span style="font-size: 10px; color: #64748B;">
-                                    SN: <code style="background: #F1F5F9; padding: 1px 4px; border-radius: 4px;">{{ t.transaction.sn }}</code>
-                                </span>
-                                {% endif %}
-                            </div>
-                        </div>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <form action="{{ url_for('admin.update_ticket_status', id=t.id) }}" method="POST">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                            <select name="status" class="status-select" onchange="this.form.submit()" style="width: 100%;">
-                                <option value="OPEN" {% if t.status == 'OPEN' %}selected{% endif %}>🔴 OPEN</option>
-                                <option value="PROCESS" {% if t.status == 'PROCESS' %}selected{% endif %}>🟡 PROCESS</option>
-                                <option value="RESOLVED" {% if t.status == 'RESOLVED' %}selected{% endif %}>🟢 RESOLVED</option>
-                                <option value="CLOSED" {% if t.status == 'CLOSED' %}selected{% endif %}>⚪ CLOSED</option>
-                            </select>
-                        </form>
-                    </td>
-                    <td align="center">
-                        <a href="https://wa.me/{{ t.clean_phone_for_wa }}?text=Halo%20{{ t.user_name }},%20kami%20dari%20Customer%20Service%20GarudaTel%20ingin%20menindaklanjuti%20tiket%20bantuan%20nomor%20{{ t.ticket_number }}:" target="_blank" class="btn-wa-reply" title="Balas via WhatsApp">
-                            <i class="fab fa-whatsapp"></i> Chat WA
-                        </a>
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="6" align="center" style="padding: 40px; color: #94A3B8;">
-                        <i class="fas fa-inbox" style="font-size: 36px; margin-bottom: 10px; display: block; color: #CBD5E1;"></i>
-                        <div style="font-weight: 800; font-size: 14px; color: #475569;">Belum Ada Tiket Bantuan</div>
-                        <div style="font-size: 12px; color: #94A3B8; margin-top: 4px;">Tiket keluhan dari Bot Telegram pelanggan akan muncul di sini.</div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+<!-- INFORMASI JUMLAH TIKET TAMPIL -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 0 4px;">
+    <div style="font-size: 12px; font-weight: 800; color: #64748B;">
+        <span id="filteredCount">{{ tickets|length }}</span> tiket ditemukan
+    </div>
+    <div style="font-size: 11.5px; color: #94A3B8; font-style: italic;">
+        Urut berdasarkan waktu terbaru (Real-time)
     </div>
 </div>
 
+<!-- DAFTAR FEED TIKET MODERN -->
+<div class="tickets-container" id="ticketsListContainer">
+    {% for t in tickets %}
+    {% set cat_lower = (t.category or '')|lower %}
+    {% set cat_class = 'cat-transaksi' if 'transaksi' in cat_lower else ('cat-deposit' if 'deposit' in cat_lower or 'saldo' in cat_lower else ('cat-akun' if 'akun' in cat_lower or 'layanan' in cat_lower else 'cat-other')) %}
+    
+    <div class="ticket-card status-border-{{ t.status|lower }}" 
+         data-ticket-no="{{ t.ticket_number|lower }}"
+         data-user-name="{{ t.user_name|lower }}"
+         data-user-phone="{{ t.user_phone|lower }}"
+         data-category="{{ cat_lower }}"
+         data-status="{{ t.status }}"
+         data-message="{{ t.message|lower }}"
+         data-ref-id="{{ (t.transaction.ref_id if t.transaction else '')|lower }}"
+         data-trx-target="{{ (t.transaction.target_number if t.transaction else '')|lower }}"
+         data-trx-product="{{ (t.transaction.product_name if t.transaction else '')|lower }}">
+        
+        <!-- HEADER TIKET -->
+        <div class="ticket-card-header">
+            <div class="ticket-header-left">
+                <!-- No Tiket -->
+                <div class="ticket-number-pill" onclick="copyTicketNumber('{{ t.ticket_number }}')" title="Klik untuk salin nomor tiket">
+                    <i class="far fa-copy" style="font-size: 10px;"></i> #{{ t.ticket_number }}
+                </div>
+
+                <!-- Kategori Masalah -->
+                <span class="ticket-category-badge {{ cat_class }}">
+                    {% if 'transaksi' in cat_lower %}
+                        <i class="fas fa-receipt" style="font-size: 10px;"></i>
+                    {% elif 'deposit' in cat_lower or 'saldo' in cat_lower %}
+                        <i class="fas fa-wallet" style="font-size: 10px;"></i>
+                    {% elif 'akun' in cat_lower or 'layanan' in cat_lower %}
+                        <i class="fas fa-user-gear" style="font-size: 10px;"></i>
+                    {% else %}
+                        <i class="fas fa-circle-question" style="font-size: 10px;"></i>
+                    {% endif %}
+                    {{ t.category }}
+                </span>
+
+                <!-- Waktu Tiket -->
+                <span class="ticket-time-text">
+                    <i class="far fa-clock"></i> {{ t.created_at_wib }}
+                </span>
+
+                <!-- Telegram Sent Status -->
+                {% if t.telegram_sent %}
+                    <span class="ticket-bot-status bot-ok" title="Tiket berhasil diteruskan ke Bot Telegram CS">
+                        <i class="fab fa-telegram-plane"></i> Bot Sent
+                    </span>
+                {% else %}
+                    <span class="ticket-bot-status bot-fail" title="Pemberitahuan ke Bot Telegram belum terkirim">
+                        <i class="fas fa-exclamation-triangle"></i> Bot Pending
+                    </span>
+                {% endif %}
+            </div>
+
+            <!-- AKSI KANAN HEADER -->
+            <div class="ticket-header-right">
+                <!-- Dropdown Status Tiket Cepat -->
+                <form action="{{ url_for('admin.update_ticket_status', id=t.id) }}" method="POST" class="status-select-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <select name="status" class="status-select-box status-{{ t.status }}" onchange="handleStatusChange(this, '{{ t.ticket_number }}')" title="Ubah Status Tiket Langsung">
+                        <option value="OPEN" {% if t.status == 'OPEN' %}selected{% endif %}>🔴 OPEN</option>
+                        <option value="PROCESS" {% if t.status == 'PROCESS' %}selected{% endif %}>🟡 DIPROSES</option>
+                        <option value="RESOLVED" {% if t.status == 'RESOLVED' %}selected{% endif %}>🟢 SELESAI</option>
+                        <option value="CLOSED" {% if t.status == 'CLOSED' %}selected{% endif %}>⚪ DITUTUP</option>
+                    </select>
+                </form>
+
+                <!-- Tombol Chat WA -->
+                <a href="https://wa.me/{{ t.clean_phone_for_wa }}?text=Halo%20{{ t.user_name }},%20kami%20dari%20Customer%20Service%20{{ store.name|urlencode }}%20ingin%20menindaklanjuti%20tiket%20bantuan%20nomor%20{{ t.ticket_number }}:" 
+                   target="_blank" 
+                   class="btn-action-wa" 
+                   title="Buka Chat WhatsApp ke Pelanggan">
+                    <i class="fab fa-whatsapp"></i> Chat WA
+                </a>
+
+                <!-- Tombol Detail / Balas Resmi -->
+                <button type="button" 
+                        class="btn-action-detail" 
+                        onclick="openDetailModal({{ t.id }}, '{{ t.ticket_number }}', '{{ t.user_name|replace("'", "\\'") }}', '{{ t.user_phone }}', '{{ t.category|replace("'", "\\'") }}', '{{ t.status }}', `{{ t.message|replace("`", "\\`") }}`, `{{ (t.admin_reply or '')|replace("`", "\\`") }}`, '{{ t.clean_phone_for_wa }}', '{{ (t.transaction.ref_id if t.transaction else '') }}', '{{ (t.transaction.product_name if t.transaction else '')|replace("'", "\\'") }}', '{{ (t.transaction.target_number if t.transaction else '') }}')"
+                        title="Lihat Detail & Buat Balasan Resmi">
+                    <i class="fas fa-reply"></i> Balas
+                </button>
+            </div>
+        </div>
+
+        <!-- BODY TIKET -->
+        <div class="ticket-card-body">
+            <!-- Kolom Pelanggan -->
+            <div class="ticket-customer-col">
+                <div class="cust-avatar-row">
+                    <div class="cust-avatar">
+                        {{ (t.user_name[:2] if t.user_name else 'US') }}
+                    </div>
+                    <div class="cust-meta">
+                        <div class="cust-name" title="{{ t.user_name }}">{{ t.user_name }}</div>
+                        <div class="cust-id-badge">User ID: #{{ t.user_id }}</div>
+                    </div>
+                </div>
+
+                <a href="tel:{{ t.user_phone }}" class="cust-phone-btn" title="Nomor WhatsApp / Kontak Pelanggan">
+                    <i class="fas fa-phone-alt" style="font-size: 10px;"></i>
+                    <span>{{ t.user_phone }}</span>
+                </a>
+
+                {% if t.user and t.user.email %}
+                <div style="font-size: 11px; color: #64748B; word-break: break-all; margin-top: 2px;">
+                    <i class="far fa-envelope"></i> {{ t.user.email }}
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Kolom Isi Keluhan & Konteks Transaksi -->
+            <div class="ticket-content-col">
+                <!-- Balon Keluhan Pelanggan -->
+                <div class="complaint-quote-box">
+                    <div class="complaint-quote-header">
+                        <i class="fas fa-comment-dots" style="color: var(--cs-primary);"></i> Keluhan / Pertanyaan Member:
+                    </div>
+                    <div class="complaint-text">{{ t.message }}</div>
+                </div>
+
+                <!-- Snapshot Transaksi Terkait (Jika Ada) -->
+                {% if t.transaction %}
+                <div class="linked-trx-box">
+                    <div class="linked-trx-top">
+                        <span class="linked-trx-title">
+                            <i class="fas fa-box-archive" style="color: #0284C7;"></i> Transaksi Terkait:
+                            <span class="linked-trx-ref">{{ t.transaction.ref_id }}</span>
+                        </span>
+                        
+                        <span class="badge-trx-status {% if t.transaction.status == 'SUCCESS' %}trx-success{% elif t.transaction.status == 'FAILED' %}trx-failed{% else %}trx-process{% endif %}">
+                            <i class="fas {% if t.transaction.status == 'SUCCESS' %}fa-check-circle{% elif t.transaction.status == 'FAILED' %}fa-times-circle{% else %}fa-clock{% endif %}"></i>
+                            {{ t.transaction.status }}
+                        </span>
+                    </div>
+
+                    <div class="linked-trx-product">{{ t.transaction.product_name or '-' }}</div>
+                    
+                    <div class="linked-trx-details">
+                        <span>Tujuan: <code style="background: #F1F5F9; padding: 2px 5px; border-radius: 4px; font-weight: 800; color: #0F172A;">{{ t.transaction.target_number or '-' }}</code></span>
+                        <span>&bull;</span>
+                        <span>Nominal: <b>Rp {{ "{:,.0f}".format(t.transaction.amount or 0).replace(',', '.') }}</b></span>
+                        {% if t.transaction.payment_method %}
+                        <span>&bull;</span>
+                        <span style="text-transform: uppercase;">Metode: {{ t.transaction.payment_method }}</span>
+                        {% endif %}
+                    </div>
+
+                    {% if t.transaction.sn %}
+                    {% set is_t_failed = (t.transaction.status in ['FAILED', 'GAGAL', 'CANCELLED']) %}
+                    {% set clean_trx_sn = t.transaction.sn | clean_sn_text(is_t_failed, product_name=t.transaction.product_name, sku=t.transaction.sku_code) %}
+                    <div style="margin-top: 6px; font-size: 11px; color: #64748B; display: flex; align-items: center; gap: 6px;">
+                        <span>SN/Ket:</span>
+                        <code style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 2px 6px; border-radius: 4px; color: #0F172A; font-weight: 700;">{{ clean_trx_sn }}</code>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <!-- Balasan Resmi CS / Admin (Jika Sudah Pernah Dibalas) -->
+                {% if t.admin_reply %}
+                <div class="reply-history-box">
+                    <div class="reply-history-header">
+                        <span>
+                            <i class="fas fa-check-double"></i> 
+                            Balasan Resmi CS ({{ t.admin_name or 'Admin CS' }})
+                        </span>
+                        <span style="font-weight: 600; font-size: 10px; color: #15803D;">
+                            {{ t.admin_replied_at_wib }}
+                        </span>
+                    </div>
+                    <div class="reply-history-text">{{ t.admin_reply }}</div>
+                </div>
+                {% elif t.cs_reply %}
+                <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 8px 12px; font-size: 11.5px; color: #64748B;">
+                    <i class="fas fa-info-circle" style="color: #0284C7;"></i> Balasan Cepat Sistem: <span style="font-weight: 600;">{{ t.cs_reply }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- EMPTY STATE JIKA TIDAK ADA TIKET -->
+    <div class="empty-state-card">
+        <div class="empty-state-icon">
+            <i class="fas fa-inbox"></i>
+        </div>
+        <div style="font-size: 16px; font-weight: 900; color: #1E293B; margin-bottom: 6px;">
+            Belum Ada Tiket Bantuan
+        </div>
+        <div style="font-size: 13px; color: #64748B; max-width: 440px; margin: 0 auto; line-height: 1.5;">
+            Saat ini tidak ada tiket keluhan dengan status ini. Tiket keluhan dari Bot Telegram maupun web pengguna akan langsung tersinkronisasi di sini.
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- EMPTY STATE JIKA PENCARIAN NIHIL -->
+<div class="empty-state-card" id="searchEmptyState" style="display: none; margin-top: 10px;">
+    <div class="empty-state-icon">
+        <i class="fas fa-search"></i>
+    </div>
+    <div style="font-size: 16px; font-weight: 900; color: #1E293B; margin-bottom: 6px;">
+        Tiket Tidak Ditemukan
+    </div>
+    <div style="font-size: 13px; color: #64748B; max-width: 420px; margin: 0 auto;">
+        Tidak ada tiket yang cocok dengan kata kunci pencarian atau filter yang dipilih. Silakan coba kata kunci lain.
+    </div>
+</div>
+
+<!-- =========================================================================
+     MODAL DETAIL & BALAS TIKET RESMI
+     ========================================================================= -->
+<div class="cs-modal-backdrop" id="ticketDetailModal">
+    <div class="cs-modal-box">
+        <div class="cs-modal-header">
+            <div class="cs-modal-title">
+                <i class="fas fa-headset" style="color: var(--cs-primary);"></i>
+                <span>Tindak Lanjut Tiket <span id="modalTicketNo" style="color: #0284C7; font-family: monospace;"></span></span>
+            </div>
+            <button type="button" class="cs-modal-close" onclick="closeDetailModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <form id="modalReplyForm" action="" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            
+            <div class="cs-modal-body">
+                <!-- Info Member & Kategori -->
+                <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 12px;">
+                    <div>
+                        <div style="font-size: 10.5px; font-weight: 800; color: #64748B; text-transform: uppercase;">Pelanggan:</div>
+                        <div style="font-weight: 800; color: #0F172A;" id="modalUserName">-</div>
+                        <div style="color: #0284C7; font-weight: 700;" id="modalUserPhone">-</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 10.5px; font-weight: 800; color: #64748B; text-transform: uppercase;">Kategori & Transaksi:</div>
+                        <div style="font-weight: 800; color: #0F172A;" id="modalCategory">-</div>
+                        <div style="color: #64748B;" id="modalTrxInfo">-</div>
+                    </div>
+                </div>
+
+                <!-- Keluhan Pengguna -->
+                <div>
+                    <label style="font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px; display: block;">
+                        Keluhan / Pesan Pelanggan:
+                    </label>
+                    <div id="modalUserMessage" style="background: #FAFBFD; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 14px; font-size: 13px; color: #0F172A; white-space: pre-wrap; line-height: 1.45; font-weight: 600;">
+                        -
+                    </div>
+                </div>
+
+                <!-- Template Balasan WhatsApp Cepat -->
+                <div>
+                    <label style="font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px; display: block;">
+                        Template Balasan Cepat (Klik untuk Pasang):
+                    </label>
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                        <button type="button" class="quick-template-chip" onclick="applyTemplate(1)">
+                            ⏳ Sedang Dicek Provider
+                        </button>
+                        <button type="button" class="quick-template-chip" onclick="applyTemplate(2)">
+                            ✅ Transaksi Sukses & SN Terbit
+                        </button>
+                        <button type="button" class="quick-template-chip" onclick="applyTemplate(3)">
+                            ❌ Gagal & Saldo Telah Direfund
+                        </button>
+                        <button type="button" class="quick-template-chip" onclick="applyTemplate(4)">
+                            📋 Minta Data Tambahan
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Input Balasan Resmi Admin Web -->
+                <div>
+                    <label style="font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
+                        <span>Balasan Resmi CS (Tampil di Web Pelanggan):</span>
+                        <span style="font-size: 10.5px; color: #94A3B8; text-transform: none;">Opsional</span>
+                    </label>
+                    <textarea name="admin_reply" id="modalReplyTextarea" rows="3" style="width: 100%; border: 1px solid var(--cs-border); border-radius: 8px; padding: 10px 12px; font-size: 12.5px; font-family: inherit; outline: none; transition: 0.15s ease;" placeholder="Tulis catatan atau jawaban resmi untuk pelanggan..."></textarea>
+                </div>
+
+                <!-- Pilihan Update Status Tiket -->
+                <div>
+                    <label style="font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px; display: block;">
+                        Ubah Status Tiket:
+                    </label>
+                    <select name="status" id="modalStatusSelect" style="width: 100%; border: 1.5px solid var(--cs-border); border-radius: 8px; padding: 8px 12px; font-size: 12px; font-weight: 800; outline: none; cursor: pointer;">
+                        <option value="OPEN">🔴 OPEN (Menunggu Tindakan)</option>
+                        <option value="PROCESS">🟡 DIPROSES (Sedang Ditangani)</option>
+                        <option value="RESOLVED">🟢 RESOLVED (Masalah Selesai)</option>
+                        <option value="CLOSED">⚪ CLOSED (Tiket Ditutup)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="cs-modal-footer">
+                <button type="button" class="btn-action-detail" onclick="openWaWithCurrentReply()">
+                    <i class="fab fa-whatsapp" style="color: #16A34A;"></i> Buka di WhatsApp
+                </button>
+                <button type="button" class="btn-action-detail" onclick="closeDetailModal()">
+                    Batal
+                </button>
+                <button type="submit" class="btn-hero-action" style="background: var(--cs-primary); border-color: var(--cs-primary);">
+                    <i class="fas fa-save"></i> Simpan Balasan & Status
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block page_js %}
+<script>
+// =========================================================================
+// JAVASCRIPT LOGIC PUSAT TIKET CS GARUDATEL
+// =========================================================================
+
+// 1. Salin Nomor Tiket
+function copyTicketNumber(ticketNo) {
+    if (!navigator.clipboard) {
+        prompt("Salin nomor tiket:", ticketNo);
+        return;
+    }
+    navigator.clipboard.writeText(ticketNo).then(() => {
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'success',
+            title: 'Nomor tiket #' + ticketNo + ' disalin!',
+            showConfirmButton: false,
+            timer: 2000
+        });
+    });
+}
+
+// 2. Ubah Status Tiket Langsung dari Dropdown
+function handleStatusChange(selectElem, ticketNo) {
+    const newStatus = selectElem.value;
+    Swal.fire({
+        title: 'Perbarui Status?',
+        text: `Ubah status tiket #${ticketNo} menjadi ${newStatus}?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#008779',
+        cancelButtonColor: '#64748B',
+        confirmButtonText: 'Ya, Perbarui',
+        cancelButtonText: 'Batal'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            selectElem.form.submit();
+        } else {
+            // Revert ke status awal jika dibatalkan
+            window.location.reload();
+        }
+    });
+}
+
+// 3. Pencarian & Filter Instan Client-Side (Realtime)
+function applyInstantFilter() {
+    const searchVal = (document.getElementById('liveSearchInput').value || '').toLowerCase().trim();
+    const categoryVal = (document.getElementById('categoryFilter').value || '').toLowerCase().trim();
+    const clearBtn = document.getElementById('searchClearBtn');
+    
+    if (searchVal.length > 0) {
+        clearBtn.style.display = 'block';
+    } else {
+        clearBtn.style.display = 'none';
+    }
+
+    const cards = document.querySelectorAll('.ticket-card');
+    let visibleCount = 0;
+
+    cards.forEach(card => {
+        const ticketNo = card.getAttribute('data-ticket-no') || '';
+        const userName = card.getAttribute('data-user-name') || '';
+        const userPhone = card.getAttribute('data-user-phone') || '';
+        const category = card.getAttribute('data-category') || '';
+        const message = card.getAttribute('data-message') || '';
+        const refId = card.getAttribute('data-ref-id') || '';
+        const target = card.getAttribute('data-trx-target') || '';
+        const product = card.getAttribute('data-trx-product') || '';
+
+        const fullSearchContent = `${ticketNo} ${userName} ${userPhone} ${message} ${refId} ${target} ${product}`;
+
+        const matchesSearch = !searchVal || fullSearchContent.includes(searchVal);
+        const matchesCategory = !categoryVal || category.includes(categoryVal);
+
+        if (matchesSearch && matchesCategory) {
+            card.style.display = '';
+            visibleCount++;
+        } else {
+            card.style.display = 'none';
+        }
+    });
+
+    const countElem = document.getElementById('filteredCount');
+    if (countElem) countElem.innerText = visibleCount;
+
+    const emptySearchElem = document.getElementById('searchEmptyState');
+    if (emptySearchElem) {
+        if (visibleCount === 0 && cards.length > 0) {
+            emptySearchElem.style.display = 'block';
+        } else {
+            emptySearchElem.style.display = 'none';
+        }
+    }
+}
+
+function clearLiveSearch() {
+    const input = document.getElementById('liveSearchInput');
+    if (input) {
+        input.value = '';
+        applyInstantFilter();
+        input.focus();
+    }
+}
+
+// 4. Modal Detail & Balasan Resmi
+let currentModalData = {};
+
+function openDetailModal(id, ticketNo, userName, userPhone, category, status, message, adminReply, cleanPhone, refId, productName, target) {
+    currentModalData = {
+        id, ticketNo, userName, userPhone, category, status, message, adminReply, cleanPhone, refId, productName, target
+    };
+
+    document.getElementById('modalTicketNo').innerText = '#' + ticketNo;
+    document.getElementById('modalUserName').innerText = userName;
+    document.getElementById('modalUserPhone').innerText = userPhone;
+    document.getElementById('modalCategory').innerText = category;
+    document.getElementById('modalTrxInfo').innerText = refId ? (refId + ' (' + productName + ')') : 'Non-Transaksi';
+    document.getElementById('modalUserMessage').innerText = message;
+    document.getElementById('modalReplyTextarea').value = adminReply || '';
+    document.getElementById('modalStatusSelect').value = status;
+
+    const form = document.getElementById('modalReplyForm');
+    form.action = `/admin/tickets/${id}/status`;
+
+    const backdrop = document.getElementById('ticketDetailModal');
+    backdrop.style.display = 'flex';
+}
+
+function closeDetailModal() {
+    const backdrop = document.getElementById('ticketDetailModal');
+    backdrop.style.display = 'none';
+}
+
+// Tutup modal jika klik di luar box
+window.addEventListener('click', function(event) {
+    const backdrop = document.getElementById('ticketDetailModal');
+    if (event.target === backdrop) {
+        closeDetailModal();
+    }
+});
+
+// 5. Template Jawaban Cepat
+function applyTemplate(type) {
+    const name = currentModalData.userName || 'Kak';
+    const ticketNo = currentModalData.ticketNo || '';
+    const refId = currentModalData.refId || 'transaksi Anda';
+    const prod = currentModalData.productName || 'produk';
+    const textarea = document.getElementById('modalReplyTextarea');
+    const statusSelect = document.getElementById('modalStatusSelect');
+
+    let text = '';
+    if (type === 1) {
+        text = `Halo ${name}, kendala pada tiket #${ticketNo} (${refId}) saat ini sedang kami teruskan dan dalam pengecekan jalur provider resmi. Kami akan segera menginfokan kembali setelah mendapatkan update status terbaru. Terima kasih!`;
+        statusSelect.value = 'PROCESS';
+    } else if (type === 2) {
+        text = `Halo ${name}, kabar baik! Transaksi ${refId} (${prod}) telah berhasil diproses oleh operator dan serial number (SN) telah aktif. Silakan cek kembali riwayat transaksi atau nomor tujuan Anda. Terima kasih telah menghubungi kami!`;
+        statusSelect.value = 'RESOLVED';
+    } else if (type === 3) {
+        text = `Halo ${name}, mohon maaf atas ketidaknyamanannya. Transaksi ${refId} (${prod}) gagal diproses oleh sistem operator. Saldo akun Anda telah otomatis kami refund penuh ke saldo aplikasi. Anda dapat mencoba bertransaksi kembali. Terima kasih!`;
+        statusSelect.value = 'RESOLVED';
+    } else if (type === 4) {
+        text = `Halo ${name}, terkait tiket bantuan #${ticketNo}, mohon bantuannya untuk menginfokan nomor meter/tujuan atau screenshot notifikasi kendala yang muncul agar tim CS kami dapat mempercepat pengecekan. Terima kasih!`;
+        statusSelect.value = 'PROCESS';
+    }
+
+    textarea.value = text;
+    textarea.focus();
+}
+
+// 6. Buka WhatsApp dengan balasan yang sedang diketik
+function openWaWithCurrentReply() {
+    const cleanPhone = currentModalData.cleanPhone;
+    if (!cleanPhone) {
+        alert('Nomor HP pelanggan tidak valid.');
+        return;
+    }
+    const replyText = document.getElementById('modalReplyTextarea').value.trim();
+    const finalMsg = replyText || `Halo ${currentModalData.userName}, kami dari Customer Service {{ store.name|urlencode }} ingin menindaklanjuti tiket bantuan #${currentModalData.ticketNo}.`;
+    
+    window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(finalMsg)}`, '_blank');
+}
+</script>
 {% endblock %}
