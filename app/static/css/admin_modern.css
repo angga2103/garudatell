@@ -47,8 +47,24 @@
     box-sizing: border-box;
     margin: 0;
     padding: 0;
-    font-family: 'Nunito', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     -webkit-tap-highlight-color: transparent;
+}
+
+html, body, button, input, select, textarea {
+    font-family: 'Nunito', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Explicit FontAwesome 6 Icon glyph preservation */
+.fa, .fas, .far, .fal, .fab, .fad, .fa-solid, .fa-regular, .fa-brands,
+[class*="fa-"]::before, [class*=" fa-"]::before {
+    font-family: "Font Awesome 6 Free", "FontAwesome" !important;
+    font-style: normal;
+    font-variant: normal;
+    text-rendering: auto;
+    line-height: 1;
+}
+.fab, .fa-brands, [class*="fa-brands"]::before {
+    font-family: "Font Awesome 6 Brands", "FontAwesome" !important;
 }
 
 body.admin-body {
@@ -571,9 +587,19 @@ body.admin-body {
    ========================================================================== */
 .stats-grid-4 {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-    gap: 18px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
     margin-bottom: 22px;
+}
+@media (max-width: 1100px) {
+    .stats-grid-4 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+@media (max-width: 640px) {
+    .stats-grid-4 {
+        grid-template-columns: 1fr;
+    }
 }
 .stat-card-modern {
     background: var(--card-bg);

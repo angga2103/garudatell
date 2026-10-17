@@ -1,8 +1,8 @@
 {% extends 'admin/base_admin.html' %}
 
-{% block title %}GarudaTel - Tiket Bantuan CS (Bot 1 Telegram){% endblock %}
+{% block title %}GarudaTel - Tiket Bantuan CS (Bot Telegram){% endblock %}
 
-{% block breadcrumb %}Layanan / Tiket Bantuan CS{% endblock %}
+{% block breadcrumb %}Layanan CS / Tiket Bantuan{% endblock %}
 
 {% block page_title %}Pusat Tiket CS & Bantuan (Bot Telegram){% endblock %}
 
@@ -23,6 +23,11 @@
         display: flex;
         align-items: center;
         gap: 16px;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .ticket-stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 14px rgba(0,0,0,0.06);
     }
     .ticket-stat-icon {
         width: 48px;
@@ -35,9 +40,9 @@
         flex-shrink: 0;
     }
     .ticket-stat-val { 
-        font-size: 22px; 
+        font-size: 26px; 
         font-weight: 900; 
-        line-height: 1.2; 
+        line-height: 1.1; 
     }
     .ticket-stat-lbl { 
         font-size: 11px; 
@@ -51,41 +56,54 @@
     .filter-bar {
         display: flex;
         gap: 8px;
-        margin-bottom: 20px;
+        margin-bottom: 22px;
         overflow-x: auto;
         padding-bottom: 4px;
         flex-wrap: wrap;
     }
     .filter-btn {
-        padding: 7px 16px;
+        padding: 8px 18px;
         border-radius: 20px;
         font-size: 12px;
-        font-weight: 700;
+        font-weight: 800;
         text-decoration: none;
         color: #475569;
         background: white;
         border: 1px solid #CBD5E1;
-        transition: 0.15s;
+        transition: 0.15s ease;
         white-space: nowrap;
         display: inline-flex;
         align-items: center;
-        gap: 5px;
+        gap: 6px;
     }
-    .filter-btn:hover { background: #F1F5F9; }
+    .filter-btn:hover { 
+        background: #F1F5F9; 
+        color: #0F172A;
+    }
     .filter-btn.active {
-        background: #0284C7;
+        background: #008779;
         color: white;
-        border-color: #0284C7;
-        box-shadow: 0 2px 8px rgba(2, 132, 199, 0.25);
+        border-color: #008779;
+        box-shadow: 0 2px 8px rgba(0, 135, 121, 0.25);
+    }
+    .filter-count-badge {
+        background: rgba(0,0,0,0.08);
+        padding: 1px 7px;
+        border-radius: 10px;
+        font-size: 11px;
+    }
+    .filter-btn.active .filter-count-badge {
+        background: rgba(255,255,255,0.25);
     }
 
-    .table-container {
-        background: white;
-        border-radius: 14px;
-        border: 1px solid #E2E8F0;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    .modern-card { 
+        background: white; 
+        border-radius: 14px; 
+        border: 1px solid #E2E8F0; 
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04); 
         overflow: hidden;
     }
+
     .data-table {
         width: 100%;
         border-collapse: collapse;
@@ -103,7 +121,7 @@
         letter-spacing: 0.5px;
     }
     .data-table td {
-        padding: 13px 14px;
+        padding: 14px;
         border-bottom: 1px solid #F1F5F9;
         color: #334155;
         vertical-align: top;
@@ -112,33 +130,63 @@
         background: #F8FAFC;
     }
 
+    .complaint-bubble {
+        background: #F8FAFC; 
+        padding: 12px 14px; 
+        border-radius: 10px; 
+        border-left: 3px solid #008779; 
+        margin-bottom: 10px; 
+        font-size: 12.5px; 
+        color: #1E293B; 
+        white-space: pre-wrap; 
+        line-height: 1.5;
+    }
+
+    .trx-context-card {
+        background: #FFFFFF; 
+        border: 1px solid #E2E8F0; 
+        padding: 10px 12px; 
+        border-radius: 8px; 
+        font-size: 11.5px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    }
+
     .status-select {
-        padding: 6px 10px;
+        padding: 7px 10px;
         border-radius: 8px;
         border: 1.5px solid #CBD5E1;
         font-size: 11.5px;
-        font-weight: 700;
+        font-weight: 800;
         background: white;
         outline: none;
         cursor: pointer;
+        transition: border-color 0.15s ease;
     }
+    .status-select:focus {
+        border-color: #008779;
+    }
+
     .btn-wa-reply {
-        background: #22C55E;
+        background: #16A34A;
         color: white;
-        padding: 6px 12px;
+        padding: 7px 14px;
         border-radius: 8px;
-        font-size: 11px;
+        font-size: 11.5px;
         font-weight: 800;
         text-decoration: none;
         display: inline-flex;
         align-items: center;
-        gap: 5px;
-        transition: 0.15s;
-        box-shadow: 0 2px 4px rgba(34, 197, 94, 0.2);
+        gap: 6px;
+        transition: 0.15s ease;
+        box-shadow: 0 2px 6px rgba(22, 163, 74, 0.25);
     }
-    .btn-wa-reply:hover { background: #16A34A; color: white; }
+    .btn-wa-reply:hover { 
+        background: #15803D; 
+        color: white; 
+        transform: translateY(-1px);
+    }
 
-    @media (max-width: 768px) {
+    @media (max-width: 900px) {
         .ticket-stats-grid { grid-template-columns: 1fr; }
     }
 </style>
@@ -146,11 +194,11 @@
 
 {% block admin_content %}
 
-<!-- STATISTIK KARTU -->
+<!-- STATISTIK KARTU (3 KOLOM) -->
 <div class="ticket-stats-grid">
     <div class="ticket-stat-card" style="border-left: 4px solid #EF4444;">
-        <div class="ticket-stat-icon" style="background: #FEE2E2; color: #EF4444;">
-            <i class="fas fa-exclamation-circle"></i>
+        <div class="ticket-stat-icon" style="background: rgba(239, 68, 68, 0.12); color: #EF4444;">
+            <i class="fas fa-envelope-open-text"></i>
         </div>
         <div>
             <div class="ticket-stat-val" style="color: #EF4444;">{{ total_open }}</div>
@@ -158,8 +206,8 @@
         </div>
     </div>
     <div class="ticket-stat-card" style="border-left: 4px solid #F59E0B;">
-        <div class="ticket-stat-icon" style="background: #FEF3C7; color: #F59E0B;">
-            <i class="fas fa-spinner fa-spin"></i>
+        <div class="ticket-stat-icon" style="background: rgba(245, 158, 11, 0.12); color: #F59E0B;">
+            <i class="fas fa-clock-rotate-left"></i>
         </div>
         <div>
             <div class="ticket-stat-val" style="color: #D97706;">{{ total_process }}</div>
@@ -167,8 +215,8 @@
         </div>
     </div>
     <div class="ticket-stat-card" style="border-left: 4px solid #10B981;">
-        <div class="ticket-stat-icon" style="background: #D1FAE5; color: #10B981;">
-            <i class="fas fa-check-double"></i>
+        <div class="ticket-stat-icon" style="background: rgba(16, 185, 129, 0.12); color: #10B981;">
+            <i class="fas fa-circle-check"></i>
         </div>
         <div>
             <div class="ticket-stat-val" style="color: #059669;">{{ total_resolved }}</div>
@@ -177,78 +225,110 @@
     </div>
 </div>
 
-<!-- FILTER TABS -->
+<!-- FILTER TABS BAR -->
 <div class="filter-bar">
-    <a href="{{ url_for('admin.tickets', status='ALL') }}" class="filter-btn {% if current_filter == 'ALL' %}active{% endif %}">Semua Tiket</a>
-    <a href="{{ url_for('admin.tickets', status='OPEN') }}" class="filter-btn {% if current_filter == 'OPEN' %}active{% endif %}">🔴 Tiket Open ({{ total_open }})</a>
-    <a href="{{ url_for('admin.tickets', status='PROCESS') }}" class="filter-btn {% if current_filter == 'PROCESS' %}active{% endif %}">🟡 Sedang Diproses ({{ total_process }})</a>
-    <a href="{{ url_for('admin.tickets', status='RESOLVED') }}" class="filter-btn {% if current_filter == 'RESOLVED' %}active{% endif %}">🟢 Selesai ({{ total_resolved }})</a>
-    <a href="{{ url_for('admin.tickets', status='CLOSED') }}" class="filter-btn {% if current_filter == 'CLOSED' %}active{% endif %}">⚪ Ditutup</a>
+    <a href="{{ url_for('admin.tickets', status='ALL') }}" class="filter-btn {% if current_filter == 'ALL' %}active{% endif %}">
+        <i class="fas fa-layer-group"></i> Semua Tiket
+    </a>
+    <a href="{{ url_for('admin.tickets', status='OPEN') }}" class="filter-btn {% if current_filter == 'OPEN' %}active{% endif %}">
+        <i class="fas fa-circle" style="color: #EF4444; font-size: 8px;"></i> Tiket Open 
+        <span class="filter-count-badge">{{ total_open }}</span>
+    </a>
+    <a href="{{ url_for('admin.tickets', status='PROCESS') }}" class="filter-btn {% if current_filter == 'PROCESS' %}active{% endif %}">
+        <i class="fas fa-circle" style="color: #F59E0B; font-size: 8px;"></i> Sedang Diproses 
+        <span class="filter-count-badge">{{ total_process }}</span>
+    </a>
+    <a href="{{ url_for('admin.tickets', status='RESOLVED') }}" class="filter-btn {% if current_filter == 'RESOLVED' %}active{% endif %}">
+        <i class="fas fa-circle" style="color: #10B981; font-size: 8px;"></i> Selesai 
+        <span class="filter-count-badge">{{ total_resolved }}</span>
+    </a>
+    <a href="{{ url_for('admin.tickets', status='CLOSED') }}" class="filter-btn {% if current_filter == 'CLOSED' %}active{% endif %}">
+        <i class="fas fa-circle" style="color: #94A3B8; font-size: 8px;"></i> Ditutup
+    </a>
 </div>
 
-<!-- TABEL TIKET -->
-<div class="table-container">
+<!-- TABEL DAFTAR TIKET -->
+<div class="modern-card">
     <div style="overflow-x: auto;">
         <table class="data-table">
             <thead>
                 <tr>
-                    <th style="width: 140px;">Nomor & Waktu</th>
-                    <th style="width: 160px;">Pelapor / Pengguna</th>
+                    <th style="width: 150px;">Nomor &amp; Waktu</th>
+                    <th style="width: 170px;">Pelapor / Member</th>
                     <th style="width: 150px;">Kategori Masalah</th>
-                    <th>Detail Keluhan & Transaksi</th>
-                    <th style="width: 130px;">Status Tiket</th>
-                    <th style="width: 120px; text-align: center;">Tindakan</th>
+                    <th>Detail Keluhan &amp; Transaksi</th>
+                    <th style="width: 140px;">Status Tiket</th>
+                    <th style="width: 130px; text-align: center;">Tindakan</th>
                 </tr>
             </thead>
             <tbody>
                 {% for t in tickets %}
                 <tr>
                     <td>
-                        <div style="font-weight: 800; color: #0284c7;">#{{ t.ticket_number }}</div>
-                        <div style="color: #64748b; font-size: 10.5px; margin-top: 2px;">{{ t.created_at_wib }}</div>
+                        <div style="font-weight: 800; color: #0284C7; font-size: 13px;">#{{ t.ticket_number }}</div>
+                        <div style="color: #64748B; font-size: 11px; margin-top: 3px;">
+                            <i class="far fa-clock"></i> {{ t.created_at_wib }}
+                        </div>
                         {% if t.telegram_sent %}
-                            <div style="font-size: 9.5px; color: #16a34a; font-weight: 700; margin-top: 4px;">
+                            <div style="font-size: 10px; color: #16A34A; font-weight: 800; margin-top: 6px; display: inline-flex; align-items: center; gap: 4px; background: #DCFCE7; padding: 2px 6px; border-radius: 4px;">
                                 <i class="fab fa-telegram-plane"></i> Terkirim ke Bot
                             </div>
                         {% else %}
-                            <div style="font-size: 9.5px; color: #ef4444; font-weight: 700; margin-top: 4px;">
+                            <div style="font-size: 10px; color: #DC2626; font-weight: 800; margin-top: 6px; display: inline-flex; align-items: center; gap: 4px; background: #FEE2E2; padding: 2px 6px; border-radius: 4px;">
                                 <i class="fas fa-times-circle"></i> Gagal Kirim Bot
                             </div>
                         {% endif %}
                     </td>
                     <td>
-                        <div style="font-weight: 800; color: #1e293b;">{{ t.user_name }}</div>
-                        <div style="font-size: 11px; color: #64748b; font-family: monospace;">{{ t.user_phone }}</div>
-                        {% if t.user %}
-                            <div style="font-size: 10px; color: #00877a; font-weight: 700;">ID User: #{{ t.user.id }}</div>
-                        {% else %}
-                            <div style="font-size: 10px; color: #94a3b8;">Guest</div>
-                        {% endif %}
+                        <div style="font-weight: 800; color: #1E293B; font-size: 13px;">{{ t.user_name }}</div>
+                        <div style="font-size: 11.5px; color: #0284C7; font-weight: 700; margin-top: 2px;">
+                            <i class="fas fa-phone-alt" style="font-size: 10px;"></i> {{ t.user_phone }}
+                        </div>
+                        <div style="font-size: 10.5px; color: #64748B; margin-top: 2px;">
+                            User ID: <span style="font-family: monospace; font-weight: 800;">#{{ t.user_id }}</span>
+                        </div>
                     </td>
                     <td>
-                        <span style="font-weight: 700; color: #334155; background: #F1F5F9; padding: 3px 8px; border-radius: 6px; font-size: 11px;">
+                        <span style="display: inline-block; background: #F1F5F9; color: #475569; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 800; line-height: 1.3;">
                             {{ t.category }}
                         </span>
                     </td>
                     <td>
-                        <!-- Pesan Keluhan -->
-                        <div style="background: #f8fafc; padding: 10px 12px; border-radius: 8px; border-left: 3px solid #0284c7; margin-bottom: 8px; font-size: 12px; color: #1e293b; white-space: pre-wrap; line-height: 1.4;">
+                        <!-- Pesan Keluhan Pelanggan -->
+                        <div class="complaint-bubble">
                             {{ t.message }}
                         </div>
 
-                        <!-- Rincian Transaksi Jika Ada -->
+                        <!-- Rincian Transaksi Terkait (Jika Ada) -->
                         {% if t.transaction %}
-                        <div style="background: #fff; border: 1px solid #e2e8f0; padding: 8px 10px; border-radius: 8px; font-size: 11px;">
-                            <span style="font-weight: 800; color: #475569;">📦 Transaksi Terkait:</span>
-                            <span style="color: #0284c7; font-weight: 700; margin-left: 4px;">{{ t.transaction.ref_id }}</span>
-                            <div><b>Produk:</b> {{ t.transaction.product_name or '-' }}</div>
-                            <div><b>Tujuan:</b> <code>{{ t.transaction.target_number or '-' }}</code> | <b>Nominal:</b> Rp {{ "{:,.0f}".format(t.transaction.amount or 0).replace(',', '.') }}</div>
-                            <div>
-                                <b>Status Trx:</b> 
-                                <span style="font-weight: 800; color: {% if t.transaction.status == 'SUCCESS' %}#16a34a{% elif t.transaction.status == 'FAILED' %}#dc2626{% else %}#d97706{% endif %};">
+                        <div class="trx-context-card">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                <span style="font-weight: 800; color: #475569; font-size: 11px;">
+                                    <i class="fas fa-box-archive" style="color: #008779;"></i> Transaksi Terkait:
+                                </span>
+                                <span style="font-family: monospace; font-weight: 800; color: #0284C7; font-size: 11px;">
+                                    {{ t.transaction.ref_id }}
+                                </span>
+                            </div>
+                            <div style="color: #1E293B; font-weight: 700;">
+                                {{ t.transaction.product_name or '-' }}
+                            </div>
+                            <div style="color: #475569; margin-top: 2px;">
+                                Tujuan: <code style="background: #F1F5F9; padding: 1px 4px; border-radius: 4px;">{{ t.transaction.target_number or '-' }}</code> 
+                                &bull; Nominal: <b>Rp {{ "{:,.0f}".format(t.transaction.amount or 0).replace(',', '.') }}</b>
+                            </div>
+                            <div style="margin-top: 4px; display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 10px; font-weight: 900; padding: 2px 6px; border-radius: 4px; 
+                                    {% if t.transaction.status == 'SUCCESS' %}background: #DCFCE7; color: #166534;
+                                    {% elif t.transaction.status == 'FAILED' %}background: #FEE2E2; color: #991B1B;
+                                    {% else %}background: #FEF3C7; color: #92400E;{% endif %}">
                                     {{ t.transaction.status }}
                                 </span>
-                                {% if t.transaction.sn %} | <b>SN:</b> <code>{{ t.transaction.sn }}</code>{% endif %}
+                                {% if t.transaction.sn %}
+                                <span style="font-size: 10px; color: #64748B;">
+                                    SN: <code style="background: #F1F5F9; padding: 1px 4px; border-radius: 4px;">{{ t.transaction.sn }}</code>
+                                </span>
+                                {% endif %}
                             </div>
                         </div>
                         {% endif %}
@@ -256,7 +336,7 @@
                     <td>
                         <form action="{{ url_for('admin.update_ticket_status', id=t.id) }}" method="POST">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                            <select name="status" class="status-select" onchange="this.form.submit()">
+                            <select name="status" class="status-select" onchange="this.form.submit()" style="width: 100%;">
                                 <option value="OPEN" {% if t.status == 'OPEN' %}selected{% endif %}>🔴 OPEN</option>
                                 <option value="PROCESS" {% if t.status == 'PROCESS' %}selected{% endif %}>🟡 PROCESS</option>
                                 <option value="RESOLVED" {% if t.status == 'RESOLVED' %}selected{% endif %}>🟢 RESOLVED</option>
@@ -272,9 +352,10 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="6" align="center" style="padding: 40px; color: #94a3b8;">
-                        <i class="fas fa-inbox" style="font-size: 32px; margin-bottom: 8px; display: block; color: #CBD5E1;"></i>
-                        Belum ada tiket keluhan pada kategori ini.
+                    <td colspan="6" align="center" style="padding: 40px; color: #94A3B8;">
+                        <i class="fas fa-inbox" style="font-size: 36px; margin-bottom: 10px; display: block; color: #CBD5E1;"></i>
+                        <div style="font-weight: 800; font-size: 14px; color: #475569;">Belum Ada Tiket Bantuan</div>
+                        <div style="font-size: 12px; color: #94A3B8; margin-top: 4px;">Tiket keluhan dari Bot Telegram pelanggan akan muncul di sini.</div>
                     </td>
                 </tr>
                 {% endfor %}

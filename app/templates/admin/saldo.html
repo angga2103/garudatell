@@ -4,7 +4,7 @@
 
 {% block breadcrumb %}Keuangan / Saldo Provider{% endblock %}
 
-{% block page_title %}Saldo & Deposit Digiflazz{% endblock %}
+{% block page_title %}Saldo & Deposit Digiflazz Server{% endblock %}
 
 {% block topbar_actions %}
 <form method="POST" action="{{ url_for('admin.cek_saldo_digiflazz') }}" style="margin: 0;">
@@ -32,12 +32,18 @@
         display: flex;
         flex-direction: column;
         justify-content: space-between;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .saldo-stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 14px rgba(0,0,0,0.06);
     }
     .saldo-stat-val { 
-        font-size: 24px; 
+        font-size: 26px; 
         font-weight: 900; 
         color: #1E293B; 
         margin-top: 6px; 
+        line-height: 1.1;
     }
     .saldo-stat-lbl { 
         font-size: 11px; 
@@ -47,7 +53,7 @@
         letter-spacing: 0.5px; 
     }
 
-    .card-saldo { 
+    .modern-card { 
         background: white; 
         border-radius: 14px; 
         border: 1px solid #E2E8F0; 
@@ -73,7 +79,7 @@
         border-radius: 14px;
         padding: 22px;
         margin-bottom: 24px;
-        box-shadow: 0 6px 15px rgba(245, 158, 11, 0.15);
+        box-shadow: 0 6px 18px rgba(245, 158, 11, 0.15);
     }
 
     .quick-chips { 
@@ -88,15 +94,16 @@
         color: #334155; 
         font-size: 11px; 
         font-weight: 800; 
-        padding: 5px 12px; 
+        padding: 6px 14px; 
         border-radius: 20px; 
         cursor: pointer; 
         transition: all 0.15s ease; 
+        user-select: none;
     }
     .chip-btn:hover { 
-        background: #3A827F; 
+        background: #008779; 
         color: white; 
-        border-color: #3A827F; 
+        border-color: #008779; 
     }
 
     .saldo-table { 
@@ -107,7 +114,7 @@
     .saldo-table th { 
         background: #F8FAFC; 
         color: #475569; 
-        padding: 13px 12px; 
+        padding: 13px 14px; 
         border-bottom: 2px solid #E2E8F0; 
         text-align: left; 
         font-weight: 800; 
@@ -116,7 +123,7 @@
         letter-spacing: 0.5px;
     }
     .saldo-table td { 
-        padding: 13px 12px; 
+        padding: 14px; 
         border-bottom: 1px solid #F1F5F9; 
         vertical-align: middle; 
     }
@@ -132,7 +139,7 @@
         letter-spacing: 0.3px; 
         display: inline-flex;
         align-items: center;
-        gap: 4px;
+        gap: 5px;
     }
     .badge-pending { background: #FEF3C7; color: #D97706; }
     .badge-success { background: #ECFDF5; color: #059669; }
@@ -141,21 +148,32 @@
     .copy-tag { 
         background: white; 
         color: #B45309; 
-        border: 1px solid #FCD34D;
-        padding: 3px 8px; 
+        border: 1.5px solid #FCD34D;
+        padding: 4px 10px; 
         border-radius: 6px; 
         cursor: pointer; 
         font-size: 11px; 
         font-weight: 800; 
         margin-left: 8px; 
-        transition: 0.15s;
+        transition: 0.15s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
     }
     .copy-tag:hover { 
         background: #FEF3C7; 
+        border-color: #F59E0B;
+    }
+
+    .form-grid-3 {
+        display: grid; 
+        grid-template-columns: repeat(3, 1fr); 
+        gap: 16px;
     }
 
     @media (max-width: 991px) {
         .saldo-stats-grid { grid-template-columns: 1fr; }
+        .form-grid-3 { grid-template-columns: 1fr; }
     }
 </style>
 {% endblock %}
@@ -179,19 +197,20 @@
 </div>
 {% endif %}
 
-<!-- RINGKASAN SALDO DIGIFLAZZ -->
+<!-- RINGKASAN SALDO DIGIFLAZZ (3 KARTU STATS) -->
 <div class="saldo-stats-grid">
-    <div class="saldo-stat-card" style="border-left: 4px solid #3A827F;">
+    <!-- KARTU 1: SALDO RIIL SERVER -->
+    <div class="saldo-stat-card" style="border-left: 4px solid #008779;">
         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
             <div>
                 <div class="saldo-stat-lbl">Saldo Digiflazz Saat Ini</div>
                 <div class="saldo-stat-val" style="color: #059669;">Rp {{ "{:,.0f}".format(digi_balance).replace(',', '.') }}</div>
             </div>
-            <span style="font-size: 20px; color: #3A827F; background: rgba(58,130,127,0.1); width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+            <span style="font-size: 20px; color: #008779; background: rgba(0, 135, 121, 0.12); width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
                 <i class="fas fa-wallet"></i>
             </span>
         </div>
-        <div style="margin-top: 14px; font-size: 11px; color: #64748B; display: flex; align-items: center; gap: 6px;">
+        <div style="margin-top: 16px; font-size: 11px; color: #64748B; display: flex; align-items: center; gap: 6px;">
             {% if is_connected %}
                 <span class="badge-status badge-success"><i class="fas fa-circle" style="font-size: 8px;"></i> TERHUBUNG</span>
                 <span>Digiflazz API v1 Online</span>
@@ -202,27 +221,42 @@
         </div>
     </div>
 
+    <!-- KARTU 2: KREDENSIAL API -->
     <div class="saldo-stat-card" style="border-left: 4px solid #0284C7;">
-        <div>
-            <div class="saldo-stat-lbl">Kredensial Digiflazz</div>
-            <div style="margin-top: 10px; font-size: 12px; color: #334155; line-height: 1.8;">
-                <div><strong>Username:</strong> <code style="background: #F1F5F9; padding: 2px 6px; border-radius: 4px; font-weight: 700; color: #0284C7;">{{ digi_user or '-' }}</code></div>
-                <div><strong>Mode:</strong> <span style="font-weight: 800; color: {% if is_dev_key %}#D97706{% else %}#059669{% endif %};">{% if is_dev_key %}DEVELOPMENT (Sandbox){% else %}PRODUCTION (Live){% endif %}</span></div>
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+                <div class="saldo-stat-lbl">Kredensial Digiflazz</div>
+                <div style="margin-top: 8px; font-size: 12px; color: #334155; line-height: 1.8;">
+                    <div><strong>Username:</strong> <code style="background: #F1F5F9; padding: 2px 8px; border-radius: 4px; font-weight: 800; color: #0284C7; font-family: monospace;">{{ digi_user or '-' }}</code></div>
+                    <div><strong>Mode:</strong> <span style="font-weight: 800; color: {% if is_dev_key %}#D97706{% else %}#059669{% endif %};">{% if is_dev_key %}DEVELOPMENT (Sandbox){% else %}PRODUCTION (Live){% endif %}</span></div>
+                </div>
             </div>
+            <span style="font-size: 20px; color: #0284C7; background: rgba(2, 132, 199, 0.12); width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                <i class="fas fa-key"></i>
+            </span>
         </div>
-        <div style="margin-top: 8px; font-size: 11px; color: #64748B; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-            Endpoint: <code>{{ digi_url }}</code>
+        <div style="margin-top: 14px; font-size: 11px; color: #64748B; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+            Endpoint: <code style="font-size: 10px;">{{ digi_url }}</code>
         </div>
     </div>
 
+    <!-- KARTU 3: KETENTUAN DEPOSIT -->
     <div class="saldo-stat-card" style="border-left: 4px solid #F59E0B;">
-        <div>
-            <div class="saldo-stat-lbl">Petunjuk Deposit Provider</div>
-            <div style="margin-top: 10px; font-size: 11.5px; color: #64748B; line-height: 1.6;">
-                <div>• Minimal deposit: <strong>Rp 200.000</strong> (atau Rp 100.000 via Flip/ShopeePay)</div>
-                <div>• Transfer wajib <strong>persis hingga 3 digit kode unik</strong></div>
-                <div>• Jam operasional tiket: <strong>06.00 - 22.00 WIB</strong></div>
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+                <div class="saldo-stat-lbl">Ketentuan &amp; Operasional</div>
+                <div style="margin-top: 8px; font-size: 11.5px; color: #475569; line-height: 1.6;">
+                    <div>• Min. deposit: <strong>Rp 100.000</strong> (Flip/ShopeePay)</div>
+                    <div>• Transfer wajib <strong>persis hingga 3 digit unik</strong></div>
+                    <div>• Jam operasional: <strong>06.00 - 22.00 WIB</strong></div>
+                </div>
             </div>
+            <span style="font-size: 20px; color: #F59E0B; background: rgba(245, 158, 11, 0.12); width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                <i class="fas fa-info-circle"></i>
+            </span>
+        </div>
+        <div style="margin-top: 14px; font-size: 11px; color: #D97706; font-weight: 700;">
+            Tiket otomatis diverifikasi server
         </div>
     </div>
 </div>
@@ -232,48 +266,53 @@
 <div class="ticket-active-box">
     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
         <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-            <span style="background: #F59E0B; color: white; padding: 4px 10px; border-radius: 6px; font-weight: 900; font-size: 11px;">
+            <span style="background: #F59E0B; color: white; padding: 5px 12px; border-radius: 6px; font-weight: 900; font-size: 12px; display: inline-flex; align-items: center; gap: 6px;">
                 <i class="fas fa-ticket-alt"></i> TIKET DEPOSIT AKTIF #{{ latest_ticket.id }}
             </span>
-            <span style="font-size: 12px; color: #78350F; font-weight: 700;">Dibuat: {{ latest_ticket.created_at_wib }}</span>
+            <span style="font-size: 12px; color: #78350F; font-weight: 700;">
+                <i class="far fa-clock"></i> Diajukan: {{ latest_ticket.created_at_wib }}
+            </span>
         </div>
         <form method="POST" action="{{ url_for('admin.batal_tiket_deposit', id=latest_ticket.id) }}" style="margin: 0;" onsubmit="return confirm('Apakah Anda yakin ingin membatalkan tiket deposit ini?');">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-            <button type="submit" style="background: white; border: 1.5px solid #D97706; color: #B45309; padding: 6px 14px; border-radius: 8px; font-size: 11.5px; font-weight: 800; cursor: pointer; transition: 0.15s;">
+            <button type="submit" style="background: white; border: 1.5px solid #D97706; color: #B45309; padding: 6px 14px; border-radius: 8px; font-size: 11.5px; font-weight: 800; cursor: pointer; transition: 0.15s; display: inline-flex; align-items: center; gap: 6px;">
                 <i class="fas fa-times"></i> Batalkan Tiket
             </button>
         </form>
     </div>
 
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; background: white; padding: 18px 20px; border-radius: 12px; border: 1px solid #FDE68A;">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; background: white; padding: 20px; border-radius: 12px; border: 1px solid #FDE68A;">
         <div>
             <div style="font-size: 11px; font-weight: 800; color: #92400E; text-transform: uppercase;">Nominal Wajib Ditransfer (Persis):</div>
-            <div style="font-size: 26px; font-weight: 900; color: #B45309; margin: 6px 0; display: flex; align-items: center;">
+            <div style="font-size: 28px; font-weight: 900; color: #B45309; margin: 8px 0; display: flex; align-items: center;">
                 Rp {{ "{:,.0f}".format(latest_ticket.amount_transfer).replace(',', '.') }}
                 <button type="button" class="copy-tag" onclick="navigator.clipboard.writeText('{{ latest_ticket.amount_transfer|int }}'); alert('Nominal transfer disalin: {{ latest_ticket.amount_transfer|int }}');">
-                    <i class="fas fa-copy"></i> Salin
+                    <i class="fas fa-copy"></i> Salin Nominal
                 </button>
             </div>
             <div style="font-size: 11.5px; color: #B45309; font-weight: 700;">
-                *Jangan bulatkan nominal transfer agar sistem Digiflazz memvalidasi secara otomatis.
+                ⚠️ <em>Jangan bulatkan angka transfer agar sistem memvalidasi otomatis tanpa jeda.</em>
             </div>
         </div>
 
         <div>
-            <div style="font-size: 11px; font-weight: 800; color: #92400E; text-transform: uppercase;">Tujuan Transfer:</div>
-            <div style="font-size: 15px; font-weight: 900; color: #1E293B; margin-top: 4px;">
-                Bank / Metode: <span style="color: #0284C7;">{{ latest_ticket.bank }}</span>
+            <div style="font-size: 11px; font-weight: 800; color: #92400E; text-transform: uppercase;">Rekening &amp; Tujuan Transfer:</div>
+            <div style="font-size: 15px; font-weight: 900; color: #1E293B; margin-top: 6px;">
+                Metode: <span style="color: #0284C7;">{{ latest_ticket.bank }}</span>
             </div>
-            <div style="font-size: 13px; color: #334155; margin-top: 4px;">
-                <strong>Rekening Tujuan:</strong> <span style="font-family: monospace; font-weight: 800; color: #0F172A;">{{ latest_ticket.account_number or latest_ticket.notes }}</span>
+            <div style="font-size: 14px; color: #334155; margin-top: 6px; display: flex; align-items: center;">
+                <strong>Rekening:</strong> 
+                <span style="font-family: monospace; font-weight: 800; color: #0F172A; margin-left: 6px; font-size: 15px;">
+                    {{ latest_ticket.account_number or latest_ticket.notes }}
+                </span>
+                {% if latest_ticket.account_number or latest_ticket.notes %}
+                <button type="button" class="copy-tag" onclick="navigator.clipboard.writeText('{{ latest_ticket.account_number or latest_ticket.notes }}'); alert('Rekening disalin!');">
+                    <i class="fas fa-copy"></i> Salin Rekening
+                </button>
+                {% endif %}
             </div>
-            {% if latest_ticket.notes and latest_ticket.notes != latest_ticket.account_number %}
-            <div style="font-size: 12px; color: #B45309; margin-top: 4px;">
-                <strong>Berita / Notes:</strong> <code>{{ latest_ticket.notes }}</code>
-            </div>
-            {% endif %}
-            <div style="font-size: 12px; color: #64748B; margin-top: 4px;">
-                Pengirim terdaftar: <strong>{{ latest_ticket.owner_name }}</strong>
+            <div style="font-size: 12px; color: #64748B; margin-top: 6px;">
+                Pengirim Terdaftar: <strong>{{ latest_ticket.owner_name }}</strong>
             </div>
         </div>
     </div>
@@ -281,22 +320,24 @@
 {% endif %}
 
 <!-- FORM MINTA TIKET DEPOSIT BARU -->
-<div class="card-saldo">
+<div class="modern-card">
     <div class="card-title">
-        <span><i class="fas fa-plus-circle" style="color: #3A827F;"></i> Minta Tiket Deposit Digiflazz Baru</span>
+        <span style="display: flex; align-items: center; gap: 8px;">
+            <i class="fas fa-ticket-alt" style="color: #008779;"></i> Minta Tiket Deposit Digiflazz Baru
+        </span>
         <span style="font-size: 12px; color: #64748B; font-weight: 600;">Sistem tiket otomatis masuk saldo tanpa konfirmasi manual</span>
     </div>
 
     <form method="POST" action="{{ url_for('admin.minta_tiket_deposit') }}" onsubmit="return confirm('Konfirmasi: Buat tiket deposit ke Digiflazz sekarang?');">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px;">
+        <div class="form-grid-3">
             <div>
-                <label style="display: block; font-size: 11px; font-weight: 800; color: #64748B; margin-bottom: 5px;">
+                <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; margin-bottom: 6px; text-transform: uppercase;">
                     Nominal Deposit (Rp) <span style="color: #EF4444;">*</span>
                 </label>
                 <input type="number" id="depo_amount" name="amount" min="100000" step="50000" placeholder="Min. 100.000" required
-                       style="width: 100%; padding: 10px 12px; border: 1.5px solid #CBD5E1; border-radius: 8px; font-size: 14px; font-weight: 800; font-family: inherit; box-sizing: border-box; outline: none;">
+                       style="width: 100%; padding: 11px 14px; border: 1.5px solid #CBD5E1; border-radius: 8px; font-size: 14px; font-weight: 800; font-family: inherit; box-sizing: border-box; outline: none;">
                 <div class="quick-chips">
                     <span class="chip-btn" onclick="setNominal(200000)">200 Rb</span>
                     <span class="chip-btn" onclick="setNominal(500000)">500 Rb</span>
@@ -307,12 +348,12 @@
             </div>
 
             <div>
-                <label style="display: block; font-size: 11px; font-weight: 800; color: #64748B; margin-bottom: 5px;">
+                <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; margin-bottom: 6px; text-transform: uppercase;">
                     Pilihan Bank / Metode <span style="color: #EF4444;">*</span>
                 </label>
                 <select name="bank" required
-                        style="width: 100%; padding: 10px 12px; border: 1.5px solid #CBD5E1; border-radius: 8px; font-size: 13px; font-weight: 700; font-family: inherit; box-sizing: border-box; outline: none; background: white;">
-                    <optgroup label="Akun Perorangan (Flip & ShopeePay)">
+                        style="width: 100%; padding: 11px 14px; border: 1.5px solid #CBD5E1; border-radius: 8px; font-size: 13px; font-weight: 700; font-family: inherit; box-sizing: border-box; outline: none; background: white;">
+                    <optgroup label="Akun Perorangan (Flip &amp; ShopeePay)">
                         <option value="Flip">Flip (Transfer Antar Bank via Flip)</option>
                         <option value="ShopeePay">ShopeePay (Kirim Uang via ShopeePay)</option>
                     </optgroup>
@@ -323,23 +364,23 @@
                         <option value="BNI">BNI (Bank Negara Indonesia)</option>
                     </optgroup>
                 </select>
-                <div style="font-size: 10px; color: #64748B; margin-top: 5px;">
-                    ℹ️ <em>Akun Perorangan wajib memilih Flip/ShopeePay. Akun Perusahaan menggunakan transfer bank langsung.</em>
+                <div style="font-size: 10.5px; color: #64748B; margin-top: 6px;">
+                    ℹ️ <em>Akun Perorangan wajib memilih Flip/ShopeePay.</em>
                 </div>
             </div>
 
             <div>
-                <label style="display: block; font-size: 11px; font-weight: 800; color: #64748B; margin-bottom: 5px;">
+                <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; margin-bottom: 6px; text-transform: uppercase;">
                     Nama Pemilik Rekening Pengirim <span style="color: #EF4444;">*</span>
                 </label>
                 <input type="text" name="owner_name" placeholder="Contoh: ANGGA DIAN" required
-                       style="width: 100%; padding: 10px 12px; border: 1.5px solid #CBD5E1; border-radius: 8px; font-size: 13px; font-weight: 700; font-family: inherit; box-sizing: border-box; outline: none;">
-                <div style="font-size: 10px; color: #94A3B8; margin-top: 5px;">Harus sesuai nama di buku tabungan/rekening pengirim</div>
+                       style="width: 100%; padding: 11px 14px; border: 1.5px solid #CBD5E1; border-radius: 8px; font-size: 13px; font-weight: 700; font-family: inherit; box-sizing: border-box; outline: none;">
+                <div style="font-size: 10.5px; color: #94A3B8; margin-top: 6px;">Harus persis sama dengan nama di rekening pengirim</div>
             </div>
         </div>
 
         <div style="margin-top: 20px;">
-            <button type="submit" class="adm-btn adm-btn-primary" style="padding: 12px 24px; font-size: 13px; font-weight: 800;">
+            <button type="submit" class="adm-btn adm-btn-primary" style="padding: 12px 26px; font-size: 13px; font-weight: 800;">
                 <i class="fas fa-ticket-alt"></i> Dapatkan Tiket Deposit
             </button>
         </div>
@@ -347,39 +388,59 @@
 </div>
 
 <!-- RIWAYAT TIKET DEPOSIT -->
-<div class="card-saldo" style="padding: 0; overflow: hidden;">
+<div class="modern-card" style="padding: 0; overflow: hidden;">
     <div style="padding: 18px 22px; border-bottom: 1px solid #F1F5F9; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-        <span style="font-size: 15px; font-weight: 800; color: #1E293B;"><i class="fas fa-history" style="color: #0284C7;"></i> Riwayat Tiket Deposit Digiflazz</span>
-        <span style="font-size: 11px; font-weight: 700; color: #64748B;">Menampilkan 20 tiket terakhir</span>
+        <span style="font-size: 15px; font-weight: 800; color: #1E293B;">
+            <i class="fas fa-history" style="color: #0284C7;"></i> Riwayat Tiket Deposit Digiflazz
+        </span>
+        <span style="font-size: 11px; font-weight: 800; background: #F1F5F9; color: #64748B; padding: 4px 10px; border-radius: 20px;">
+            20 Tiket Terakhir
+        </span>
     </div>
 
     <div style="overflow-x: auto;">
         <table class="saldo-table">
             <thead>
                 <tr>
-                    <th>ID</th>
-                    <th>Waktu (WIB)</th>
-                    <th>Bank</th>
+                    <th style="width: 60px;">ID</th>
+                    <th style="width: 160px;">Waktu (WIB)</th>
+                    <th style="width: 130px;">Metode Bank</th>
                     <th>Nama Pengirim</th>
                     <th>Nominal Diajukan</th>
                     <th>Wajib Transfer</th>
                     <th>Petunjuk / Rekening</th>
-                    <th>Status</th>
+                    <th style="width: 120px; text-align: center;">Status</th>
                 </tr>
             </thead>
             <tbody>
                 {% for t in tickets %}
                 <tr>
-                    <td style="font-weight: 800; color: #64748B;">#{{ t.id }}</td>
-                    <td style="color: #475569;">{{ t.created_at_wib }}</td>
-                    <td><strong style="color: #0284C7;">{{ t.bank }}</strong></td>
-                    <td style="font-weight: 700; color: #1E293B;">{{ t.owner_name }}</td>
-                    <td>Rp {{ "{:,.0f}".format(t.amount_requested).replace(',', '.') }}</td>
-                    <td style="font-weight: 900; color: #059669;">Rp {{ "{:,.0f}".format(t.amount_transfer).replace(',', '.') }}</td>
-                    <td style="max-width: 250px; font-size: 11px; color: #475569;">
-                        {{ t.account_number or t.notes or '-' }}
+                    <td>
+                        <span style="font-family: monospace; font-weight: 800; background: #F1F5F9; padding: 2px 6px; border-radius: 4px; color: #475569;">
+                            #{{ t.id }}
+                        </span>
+                    </td>
+                    <td style="color: #475569; font-size: 11.5px;">
+                        <i class="far fa-calendar-alt" style="color: #94A3B8; margin-right: 4px;"></i> {{ t.created_at_wib }}
                     </td>
                     <td>
+                        <strong style="color: #0284C7; display: inline-flex; align-items: center; gap: 4px;">
+                            <i class="fas fa-university"></i> {{ t.bank }}
+                        </strong>
+                    </td>
+                    <td style="font-weight: 700; color: #1E293B;">{{ t.owner_name }}</td>
+                    <td style="color: #64748B;">Rp {{ "{:,.0f}".format(t.amount_requested).replace(',', '.') }}</td>
+                    <td style="font-weight: 900; color: #059669; font-size: 13px;">
+                        Rp {{ "{:,.0f}".format(t.amount_transfer).replace(',', '.') }}
+                    </td>
+                    <td style="max-width: 250px; font-size: 11.5px; color: #475569;">
+                        {% if t.account_number or t.notes %}
+                            <code style="background: #F8FAFC; padding: 2px 6px; border-radius: 4px; border: 1px solid #E2E8F0;">{{ t.account_number or t.notes }}</code>
+                        {% else %}
+                            <span style="color: #94A3B8;">-</span>
+                        {% endif %}
+                    </td>
+                    <td align="center">
                         {% if t.status == 'PENDING' %}
                             <span class="badge-status badge-pending"><i class="fas fa-clock"></i> PENDING</span>
                         {% elif t.status == 'SUCCESS' %}
@@ -392,8 +453,9 @@
                 {% else %}
                 <tr>
                     <td colspan="8" style="padding: 40px; text-align: center; color: #94A3B8;">
-                        <i class="fas fa-receipt" style="font-size: 32px; margin-bottom: 8px; color: #CBD5E1; display: block;"></i>
-                        Belum ada riwayat tiket deposit Digiflazz.
+                        <i class="fas fa-receipt" style="font-size: 36px; margin-bottom: 10px; color: #CBD5E1; display: block;"></i>
+                        <div style="font-weight: 800; font-size: 14px; color: #475569;">Belum Ada Riwayat Tiket Deposit</div>
+                        <div style="font-size: 12px; color: #94A3B8; margin-top: 4px;">Tiket deposit yang Anda buat akan muncul di tabel ini.</div>
                     </td>
                 </tr>
                 {% endfor %}

@@ -81,9 +81,19 @@
     }
     .quick-launcher-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        grid-template-columns: repeat(8, 1fr);
         gap: 12px;
         margin-bottom: 22px;
+    }
+    @media (max-width: 1200px) {
+        .quick-launcher-grid {
+            grid-template-columns: repeat(4, 1fr);
+        }
+    }
+    @media (max-width: 640px) {
+        .quick-launcher-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
     }
     .launcher-item {
         background: #ffffff;
