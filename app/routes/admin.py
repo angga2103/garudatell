@@ -2936,11 +2936,15 @@ def delete_notification(id):
 def tickets():
     """Daftar Tiket Keluhan Pengguna Masuk (CS Center)"""
     from app.models.support_ticket import SupportTicket
-    filter_status = request.args.get('status', 'ALL').upper()
+    filter_status = request.args.get('status', 'ACTIVE').upper()
     query = SupportTicket.query
 
-    if filter_status in ['OPEN', 'PROCESS', 'RESOLVED', 'CLOSED']:
+    if filter_status == 'ACTIVE':
+        # Default: hanya tampilkan tiket aktif (OPEN & PROCESS) agar tidak menumpuk ke bawah
+        query = query.filter(SupportTicket.status.in_(['OPEN', 'PROCESS']))
+    elif filter_status in ['OPEN', 'PROCESS', 'RESOLVED', 'CLOSED']:
         query = query.filter_by(status=filter_status)
+    # Jika 'ALL', tampilkan seluruh tiket tanpa filter status
 
     all_tickets = query.order_by(SupportTicket.created_at.desc()).limit(150).all()
     
@@ -2950,6 +2954,7 @@ def tickets():
     total_resolved = SupportTicket.query.filter_by(status='RESOLVED').count()
     total_closed = SupportTicket.query.filter_by(status='CLOSED').count()
     total_all = SupportTicket.query.count()
+    total_active = total_open + total_process
 
     return render_template('admin/tickets.html',
                            tickets=all_tickets,
@@ -2958,16 +2963,28 @@ def tickets():
                            total_process=total_process,
                            total_resolved=total_resolved,
                            total_closed=total_closed,
-                           total_all=total_all)
+                           total_all=total_all,
+                           total_active=total_active)
 
 
 @admin_bp.route('/tickets/<int:id>/status', methods=['POST'])
 def update_ticket_status(id):
-    """Memperbarui status tiket bantuan CS."""
+    """Memperbarui status tiket bantuan CS (mendukung AJAX & standard form submit)."""
     from app.models.support_ticket import SupportTicket
     ticket = SupportTicket.query.get_or_404(id)
-    new_status = request.form.get('status', 'RESOLVED').upper()
-    admin_reply_text = request.form.get('admin_reply', '').strip()
+
+    # Support form data or JSON
+    new_status = request.form.get('status')
+    if not new_status and request.is_json:
+        new_status = request.json.get('status')
+    new_status = (new_status or 'RESOLVED').strip().upper()
+
+    admin_reply_text = request.form.get('admin_reply')
+    if not admin_reply_text and request.is_json:
+        admin_reply_text = request.json.get('admin_reply')
+    admin_reply_text = (admin_reply_text or '').strip()
+
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json
 
     if new_status in ['OPEN', 'PROCESS', 'RESOLVED', 'CLOSED']:
         ticket.status = new_status
@@ -2976,10 +2993,25 @@ def update_ticket_status(id):
             ticket.admin_replied_at = datetime.utcnow()
             ticket.admin_name = 'Admin CS'
         db.session.commit()
-        flash(f'✅ Status tiket #{ticket.ticket_number} berhasil diperbarui menjadi {new_status}.', 'success')
+
+        msg = f'Status tiket #{ticket.ticket_number} berhasil diperbarui menjadi {new_status}.'
+        if is_ajax:
+            return jsonify({
+                'success': True,
+                'message': msg,
+                'ticket_id': ticket.id,
+                'ticket_number': ticket.ticket_number,
+                'new_status': new_status
+            })
+        flash(f'✅ {msg}', 'success')
     else:
-        flash('Status tidak valid!', 'danger')
-    return redirect(url_for('admin.tickets'))
+        msg = 'Status tidak valid!'
+        if is_ajax:
+            return jsonify({'success': False, 'message': msg}), 400
+        flash(msg, 'danger')
+
+    redirect_url = request.referrer or url_for('admin.tickets')
+    return redirect(redirect_url)
 
 
 # =====================================================================
