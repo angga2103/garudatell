@@ -1787,31 +1787,27 @@ def callback_dana_mutasi():
         else:
             bearer_token = auth_header
 
-    req_token = (
-        request.headers.get('X-Device-Token') or
-        request.headers.get('X-Api-Key') or
-        request.headers.get('X-API-Key') or
-        request.headers.get('X-Payhook-Token') or
-        bearer_token or
-        request.args.get('token') or
-        request.args.get('key') or
-        request.args.get('api_key')
-    )
-
-    raw_json = request.get_json(silent=True) or {}
-    form_data = request.form.to_dict() or {}
-
-    if not req_token:
-        req_token = (
-            raw_json.get('token') or raw_json.get('key') or raw_json.get('api_key') or
-            form_data.get('token') or form_data.get('key') or form_data.get('api_key')
-        )
-
-    clean_req = str(req_token or '').strip()
+    candidates = [
+        request.args.get('token'),
+        request.args.get('key'),
+        request.args.get('api_key'),
+        bearer_token,
+        request.headers.get('X-Device-Token'),
+        request.headers.get('X-Api-Key'),
+        request.headers.get('X-API-Key'),
+        request.headers.get('X-Payhook-Token'),
+        raw_json.get('token'),
+        raw_json.get('key'),
+        raw_json.get('api_key'),
+        form_data.get('token'),
+        form_data.get('key'),
+        form_data.get('api_key'),
+    ]
+    valid_candidates = [str(c).strip() for c in candidates if c and str(c).strip()]
     clean_exp = str(expected_token or '').strip()
 
-    if not clean_req or clean_req != clean_exp:
-        print(f"[DANA CALLBACK REJECTED 401] Received token: '{clean_req}', Expected: '{clean_exp}', Auth Header: '{auth_header}', URL Args: {dict(request.args)} from IP {request.remote_addr}")
+    if not clean_exp or clean_exp not in valid_candidates:
+        print(f"[DANA CALLBACK REJECTED 401] Candidates: {valid_candidates}, Expected: '{clean_exp}', Auth Header: '{auth_header}', URL Args: {dict(request.args)} from IP {request.remote_addr}")
         return jsonify({'status': 'error', 'message': 'Unauthorized device token'}), 401
 
     # 2. Catat Heartbeat HP Samsung J1 Ace
@@ -1903,29 +1899,27 @@ def callback_dana_ping():
         else:
             bearer_token = auth_header
 
-    req_token = (
-        request.headers.get('X-Device-Token') or
-        request.headers.get('X-Api-Key') or
-        request.headers.get('X-API-Key') or
-        request.headers.get('X-Payhook-Token') or
-        bearer_token or
-        request.args.get('token') or
-        request.args.get('key') or
-        request.args.get('api_key')
-    )
-    raw_json = request.get_json(silent=True) or {}
-    form_data = request.form.to_dict() or {}
-    if not req_token:
-        req_token = (
-            raw_json.get('token') or raw_json.get('key') or raw_json.get('api_key') or
-            form_data.get('token') or form_data.get('key') or form_data.get('api_key')
-        )
-
-    clean_req = str(req_token or '').strip()
+    candidates = [
+        request.args.get('token'),
+        request.args.get('key'),
+        request.args.get('api_key'),
+        bearer_token,
+        request.headers.get('X-Device-Token'),
+        request.headers.get('X-Api-Key'),
+        request.headers.get('X-API-Key'),
+        request.headers.get('X-Payhook-Token'),
+        raw_json.get('token'),
+        raw_json.get('key'),
+        raw_json.get('api_key'),
+        form_data.get('token'),
+        form_data.get('key'),
+        form_data.get('api_key'),
+    ]
+    valid_candidates = [str(c).strip() for c in candidates if c and str(c).strip()]
     clean_exp = str(expected_token or '').strip()
 
-    if not clean_req or clean_req != clean_exp:
-        print(f"[DANA PING REJECTED 401] Received token: '{clean_req}', Expected: '{clean_exp}', Auth Header: '{auth_header}', URL Args: {dict(request.args)} from IP {request.remote_addr}")
+    if not clean_exp or clean_exp not in valid_candidates:
+        print(f"[DANA PING REJECTED 401] Candidates: {valid_candidates}, Expected: '{clean_exp}', Auth Header: '{auth_header}', URL Args: {dict(request.args)} from IP {request.remote_addr}")
         return jsonify({'status': 'error', 'message': 'Unauthorized device token'}), 401
 
     battery = (
