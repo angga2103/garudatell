@@ -180,9 +180,9 @@ def generate_unique_code(nominal):
     return code, int(nominal) + code
 
 
-def create_dana_deposit_ticket(user_id, nominal):
+def create_ewallet_deposit_ticket(user_id, nominal, ewallet_type='DANA'):
     """
-    Membuat tiket deposit DANA Otomatis baru dengan kode unik.
+    Membuat tiket deposit E-Wallet Otomatis (DANA, GOPAY, SHOPEEPAY) baru dengan kode unik.
     """
     user = User.query.get(user_id)
     if not user:
@@ -192,12 +192,31 @@ def create_dana_deposit_ticket(user_id, nominal):
     if nominal < 5000:
         return False, "Minimal deposit adalah Rp 5.000", None
 
+    ewallet_type = str(ewallet_type or 'DANA').upper().strip()
     depo_settings = get_manual_deposit_settings()
-    dest_number = depo_settings.get('dana_number') or "081775700114"
-    dest_name = depo_settings.get('dana_name') or "GarudaTel / Kasir"
+
+    if ewallet_type == 'GOPAY':
+        dest_number = depo_settings.get('gopay_number') or "081775700114"
+        dest_name = depo_settings.get('gopay_name') or "GarudaTel / Kasir"
+        product_name = 'Deposit GoPay Otomatis'
+        payment_method = 'gopay_auto'
+        ref_prefix = 'DEP-GOPAY'
+    elif ewallet_type == 'SHOPEEPAY':
+        dest_number = depo_settings.get('shopee_number') or "081775700114"
+        dest_name = depo_settings.get('shopee_name') or "GarudaTel / Kasir"
+        product_name = 'Deposit ShopeePay Otomatis'
+        payment_method = 'shopeepay_auto'
+        ref_prefix = 'DEP-SHOPEE'
+    else:
+        ewallet_type = 'DANA'
+        dest_number = depo_settings.get('dana_number') or "081775700114"
+        dest_name = depo_settings.get('dana_name') or "GarudaTel / Kasir"
+        product_name = 'Deposit DANA Otomatis'
+        payment_method = 'dana_auto'
+        ref_prefix = 'DEP-DANA'
 
     unique_code, total_transfer = generate_unique_code(nominal)
-    ref_id = f"DEP-DANA-{int(time.time())}{random.randint(100, 999)}"
+    ref_id = f"{ref_prefix}-{int(time.time())}{random.randint(100, 999)}"
 
     # Durasi kadaluarsa 30 menit
     expires_at = datetime.utcnow() + timedelta(minutes=30)
@@ -207,15 +226,15 @@ def create_dana_deposit_ticket(user_id, nominal):
         ref_id=ref_id,
         user_id=user.id,
         sku_code='DEPOSIT_MANUAL',
-        product_name='Deposit DANA Otomatis',
+        product_name=product_name,
         target_number=dest_number,
         amount=float(total_transfer),
         base_price=0.0,
-        payment_method='dana_auto',
+        payment_method=payment_method,
         payment_status='UNPAID',
         status='PENDING',
         is_prepaid=True,
-        sn=f"Nominal Pokok: Rp {nominal:,} | Kode Unik: {unique_code:03d} | Total: Rp {total_transfer:,} | Rek: {dest_number} a.n {dest_name}"
+        sn=f"Nominal Pokok: Rp {nominal:,} | Kode Unik: {unique_code:03d} | Total: Rp {total_transfer:,} | Rek: {dest_number} a.n {dest_name} ({ewallet_type})"
     )
 
     db.session.add(trx)
@@ -224,15 +243,16 @@ def create_dana_deposit_ticket(user_id, nominal):
     # Kirim notifikasi transaksi tiket ke Telegram Admin
     try:
         from app.services.telegram_service import async_send_trx_notification
-        async_send_trx_notification(trx, title="TIKET DEPOSIT DANA DIBUAT (AUTO)")
+        async_send_trx_notification(trx, title=f"TIKET DEPOSIT {ewallet_type} DIBUAT (AUTO)")
     except Exception as e:
-        logger.error(f"[DANA DEPO] Error notif telegram: {e}")
+        logger.error(f"[{ewallet_type} DEPO] Error notif telegram: {e}")
 
     ticket_data = {
         'ref_id': ref_id,
         'nominal': nominal,
         'unique_code': f"{unique_code:03d}",
         'total_transfer': total_transfer,
+        'ewallet_type': ewallet_type,
         'dest_number': dest_number,
         'dest_name': dest_name,
         'status': 'PENDING',
@@ -241,7 +261,12 @@ def create_dana_deposit_ticket(user_id, nominal):
         'created_at_str': format_wib(trx.created_at)
     }
 
-    return True, "Tiket deposit DANA berhasil dibuat.", ticket_data
+    return True, f"Tiket deposit {ewallet_type} berhasil dibuat.", ticket_data
+
+
+def create_dana_deposit_ticket(user_id, nominal):
+    """Wrapper kompatibilitas untuk membuat tiket deposit DANA Otomatis."""
+    return create_ewallet_deposit_ticket(user_id, nominal, ewallet_type='DANA')
 
 
 def process_incoming_dana_mutation(raw_amount, sender_name="Member DANA", raw_text="", event_id=None):
@@ -304,20 +329,33 @@ def process_incoming_dana_mutation(raw_amount, sender_name="Member DANA", raw_te
         trx.payment_status = 'PAID'
         
         now_wib = format_wib()
-        clean_sender = str(sender_name or 'Member DANA').strip()[:50]
+        clean_sender = str(sender_name or 'Member E-Wallet').strip()[:50]
         evt_tag = f"evt:{event_id} " if event_id else ""
-        trx.sn = f"{trx.sn or ''} | SUKSES DANA AUTO via PayHook ({evt_tag}Pengirim: {clean_sender} - {now_wib})"
+        
+        ew_label = "DANA"
+        if trx.product_name:
+            if "GOPAY" in trx.product_name.upper():
+                ew_label = "GOPAY"
+            elif "SHOPEE" in trx.product_name.upper():
+                ew_label = "SHOPEEPAY"
+        elif trx.payment_method:
+            if "gopay" in trx.payment_method.lower():
+                ew_label = "GOPAY"
+            elif "shopee" in trx.payment_method.lower():
+                ew_label = "SHOPEEPAY"
+
+        trx.sn = f"{trx.sn or ''} | SUKSES {ew_label} AUTO via PayHook ({evt_tag}Pengirim: {clean_sender} - {now_wib})"
 
         db.session.commit()
-        logger.info(f"[DANA MUTASI ACC] User #{user.id} ({user.name}) Saldo +Rp {credit_amount:,} -> Rp {new_balance:,} | Trx: {trx.ref_id}")
+        logger.info(f"[{ew_label} MUTASI ACC] User #{user.id} ({user.name}) Saldo +Rp {credit_amount:,} -> Rp {new_balance:,} | Trx: {trx.ref_id}")
 
         # Kirim notifikasi keberhasilan ke Bot Notifikasi Telegram Admin
         try:
-            _send_dana_success_telegram_alert(trx, user, credit_amount, new_balance, clean_sender)
+            _send_dana_success_telegram_alert(trx, user, credit_amount, new_balance, clean_sender, ew_label)
         except Exception as e_alert:
-            logger.error(f"[DANA TELEGRAM ERR] {e_alert}")
+            logger.error(f"[{ew_label} TELEGRAM ERR] {e_alert}")
 
-        return True, f"Deposit Rp {credit_amount:,} untuk {user.name} berhasil disetujui otomatis!", trx
+        return True, f"Deposit {ew_label} Rp {credit_amount:,} untuk {user.name} berhasil disetujui otomatis!", trx
 
     except Exception as e:
         db.session.rollback()
@@ -373,7 +411,7 @@ def check_deposit_ticket_status(ref_id, user_id=None):
     }
 
 
-def _send_dana_success_telegram_alert(trx, user, amount, new_balance, sender_name):
+def _send_dana_success_telegram_alert(trx, user, amount, new_balance, sender_name, ew_label="DANA"):
     """Mengirim pesan notifikasi instan ke Bot Telegram Admin."""
     from app.services.telegram_service import get_bot_notif_credentials, get_bot_admin_credentials, call_telegram_api
     token, chat_id = get_bot_notif_credentials()
@@ -384,16 +422,16 @@ def _send_dana_success_telegram_alert(trx, user, amount, new_balance, sender_nam
 
     wib_now = format_wib()
     lines = [
-        "⚡ <b>DEPOSIT DANA OTOMATIS BERHASIL</b>",
+        f"⚡ <b>DEPOSIT {ew_label} OTOMATIS BERHASIL</b>",
         "━━━━━━━━━━━━━━━━━━━━━━",
         f"📋 <b>Ref ID:</b> <code>{trx.ref_id}</code>",
         f"👤 <b>Member:</b> <b>{user.name}</b> (<code>#{user.id}</code>)",
         f"📱 <b>WhatsApp:</b> <code>{user.phone}</code>",
         f"💰 <b>Nominal Masuk:</b> <b>Rp {amount:,.0f}</b>",
-        f"👤 <b>Pengirim DANA:</b> <b>{sender_name}</b>",
+        f"👤 <b>Pengirim {ew_label}:</b> <b>{sender_name}</b>",
         f"💳 <b>Saldo Utama Sekarang:</b> Rp {new_balance:,.0f}",
         f"📊 <b>Status:</b> <b>SUKSES (TERVERIFIKASI HP)</b>",
-        f"📱 <b>Alat Verifikasi:</b> Samsung J1 Ace",
+        f"📱 <b>Alat Verifikasi:</b> Samsung J1 Ace / PayHook",
         f"⏰ <b>Waktu:</b> {wib_now}",
         "━━━━━━━━━━━━━━━━━━━━━━",
         "✅ <i>Saldo otomatis masuk ke akun member tanpa potongan fee (0% MDR).</i>"

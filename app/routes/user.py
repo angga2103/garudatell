@@ -1940,21 +1940,21 @@ def deposit():
     from app.services.setting_service import get_manual_deposit_settings
     depo_settings = get_manual_deposit_settings()
 
-    # Cek apakah user memiliki tiket deposit DANA otomatis yang masih pending (aktif dalam 30 menit)
+    # Cek apakah user memiliki tiket deposit E-Wallet otomatis yang masih pending (aktif dalam 30 menit)
     active_dana_ticket = None
     cutoff_30m = datetime.utcnow() - timedelta(minutes=30)
-    pending_dana = Transaction.query.filter(
+    pending_ewallet = Transaction.query.filter(
         Transaction.user_id == current_user.id,
         Transaction.sku_code == 'DEPOSIT_MANUAL',
-        Transaction.payment_method == 'dana_auto',
+        Transaction.payment_method.in_(['dana_auto', 'gopay_auto', 'shopeepay_auto', 'shopee_auto']),
         Transaction.status == 'PENDING',
         Transaction.created_at >= cutoff_30m
     ).order_by(Transaction.id.desc()).first()
 
-    if pending_dana:
+    if pending_ewallet:
         from datetime import timezone
         import re
-        expires_at = pending_dana.created_at + timedelta(minutes=30)
+        expires_at = pending_ewallet.created_at + timedelta(minutes=30)
         expires_epoch = int(expires_at.replace(tzinfo=timezone.utc).timestamp())
         
         wa_raw = depo_settings.get('wa_target') or "081775700114"
@@ -1966,11 +1966,26 @@ def deposit():
         if not clean_wa:
             clean_wa = '6281775700114'
 
+        pm = str(pending_ewallet.payment_method or '').lower()
+        if 'gopay' in pm:
+            ew_type = 'GOPAY'
+            default_num = depo_settings.get('gopay_number') or "081775700114"
+            default_nm = depo_settings.get('gopay_name') or "GarudaTel / Kasir"
+        elif 'shopee' in pm:
+            ew_type = 'SHOPEEPAY'
+            default_num = depo_settings.get('shopee_number') or "081775700114"
+            default_nm = depo_settings.get('shopee_name') or "GarudaTel / Kasir"
+        else:
+            ew_type = 'DANA'
+            default_num = depo_settings.get('dana_number') or "081775700114"
+            default_nm = depo_settings.get('dana_name') or "GarudaTel / Kasir"
+
         active_dana_ticket = {
-            'ref_id': pending_dana.ref_id,
-            'total_transfer': int(pending_dana.amount or 0),
-            'dest_number': pending_dana.target_number or depo_settings.get('dana_number') or "081775700114",
-            'dest_name': depo_settings.get('dana_name') or "GarudaTel / Kasir",
+            'ref_id': pending_ewallet.ref_id,
+            'total_transfer': int(pending_ewallet.amount or 0),
+            'ewallet_type': ew_type,
+            'dest_number': pending_ewallet.target_number or default_num,
+            'dest_name': default_nm,
             'expires_epoch': expires_epoch,
             'clean_wa': clean_wa
         }
@@ -2029,20 +2044,20 @@ def deposit_manual_action():
     from app.services.setting_service import get_store_name
     current_store = get_store_name()
 
-    # KHUSUS DANA: Menggunakan Tiket Deposit Otomatis 3-Digit Unique Code (Verifikasi HP Samsung J1 Ace)
-    if ewallet_type == 'DANA':
-        from app.services.dana_mutasi_service import create_dana_deposit_ticket
-        success, msg, ticket_data = create_dana_deposit_ticket(current_user.id, nominal)
+    # E-WALLET OTOMATIS: DANA, GOPAY, SHOPEEPAY (Verifikasi HP Samsung J1 Ace via PayHook)
+    if ewallet_type in ['DANA', 'GOPAY', 'SHOPEEPAY']:
+        from app.services.dana_mutasi_service import create_ewallet_deposit_ticket
+        success, msg, ticket_data = create_ewallet_deposit_ticket(current_user.id, nominal, ewallet_type=ewallet_type)
         if not success:
             return jsonify({'status': 'error', 'message': msg}), 400
 
         wa_message = (
-            f"Halo Admin {current_store}, kendala tiket deposit otomatis DANA:\n\n"
+            f"Halo Admin {current_store}, kendala tiket deposit otomatis {ewallet_type}:\n\n"
             f"• Nama Akun: {user_name}\n"
             f"• No. WhatsApp: {user_phone}\n"
             f"• Ref ID: {ticket_data['ref_id']}\n"
             f"• Total Transfer: Rp {ticket_data['total_transfer']:,}\n"
-            f"• Tujuan DANA: {ticket_data['dest_number']} a.n {ticket_data['dest_name']}\n\n"
+            f"• Tujuan {ewallet_type}: {ticket_data['dest_number']} a.n {ticket_data['dest_name']}\n\n"
             f"Mohon bantuannya admin. Terima kasih!"
         )
         wa_url = f"https://wa.me/{clean_wa}?text={quote(wa_message)}"
@@ -2054,14 +2069,14 @@ def deposit_manual_action():
             'nominal': ticket_data['nominal'],
             'unique_code': ticket_data['unique_code'],
             'total_transfer': ticket_data['total_transfer'],
-            'ewallet_type': 'DANA',
+            'ewallet_type': ewallet_type,
             'ewallet_dest': ticket_data['dest_number'],
             'ewallet_owner': ticket_data['dest_name'],
             'expires_epoch': ticket_data['expires_epoch'],
             'expires_at_str': ticket_data['expires_at_str'],
             'wa_url': wa_url,
             'wa_web_url': wa_url,
-            'message': 'Tiket deposit DANA otomatis berhasil dibuat.'
+            'message': f'Tiket deposit {ewallet_type} otomatis berhasil dibuat.'
         }), 200
 
     # METODE LAIN (SHOPEEPAY / GOPAY): Transfer Manual Konfirmasi WhatsApp
