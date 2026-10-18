@@ -297,6 +297,10 @@ def save_manual_deposit_settings(form_data):
         'manual_depo_instructions': (instructions, 'Instruksi / Catatan Tambahan Transfer Manual')
     }
 
+    custom_token = form_data.get('dana_device_token', '').strip()
+    if custom_token and len(custom_token) >= 8:
+        mapping['dana_device_token'] = (custom_token, 'Secret Token Autentikasi HP DANA Mutasi')
+
     for k, (val, desc) in mapping.items():
         s = Setting.query.filter_by(key=k).first()
         if not s:

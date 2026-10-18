@@ -1772,12 +1772,30 @@ def callback_dana_mutasi():
     # 1. Validasi Secret Token
     expected_token = get_dana_device_token()
 
+    auth_header = (
+        request.headers.get('Authorization') or
+        request.headers.get('authorization') or
+        request.environ.get('HTTP_AUTHORIZATION') or
+        request.environ.get('REDIRECT_HTTP_AUTHORIZATION') or
+        ''
+    ).strip()
+
+    bearer_token = ''
+    if auth_header:
+        if auth_header.lower().startswith('bearer '):
+            bearer_token = auth_header[7:].strip()
+        else:
+            bearer_token = auth_header
+
     req_token = (
         request.headers.get('X-Device-Token') or
         request.headers.get('X-Api-Key') or
-        request.headers.get('Authorization', '').replace('Bearer ', '').strip() or
+        request.headers.get('X-API-Key') or
+        request.headers.get('X-Payhook-Token') or
+        bearer_token or
         request.args.get('token') or
-        request.args.get('key')
+        request.args.get('key') or
+        request.args.get('api_key')
     )
 
     raw_json = request.get_json(silent=True) or {}
@@ -1789,8 +1807,11 @@ def callback_dana_mutasi():
             form_data.get('token') or form_data.get('key') or form_data.get('api_key')
         )
 
-    if not req_token or req_token.strip() != expected_token.strip():
-        print(f"[DANA CALLBACK REJECTED] Unauthorized token: {req_token} from IP {request.remote_addr}")
+    clean_req = str(req_token or '').strip()
+    clean_exp = str(expected_token or '').strip()
+
+    if not clean_req or clean_req != clean_exp:
+        print(f"[DANA CALLBACK REJECTED 401] Received token: '{clean_req}', Expected: '{clean_exp}', Auth Header: '{auth_header}', URL Args: {dict(request.args)} from IP {request.remote_addr}")
         return jsonify({'status': 'error', 'message': 'Unauthorized device token'}), 401
 
     # 2. Catat Heartbeat HP Samsung J1 Ace
@@ -1867,15 +1888,30 @@ def callback_dana_ping():
     from app.services.dana_mutasi_service import get_dana_device_token, record_device_heartbeat
     expected_token = get_dana_device_token()
 
-    auth_header = request.headers.get('Authorization', '')
-    bearer_token = auth_header.replace('Bearer ', '').strip() if 'Bearer ' in auth_header else auth_header.strip()
+    auth_header = (
+        request.headers.get('Authorization') or
+        request.headers.get('authorization') or
+        request.environ.get('HTTP_AUTHORIZATION') or
+        request.environ.get('REDIRECT_HTTP_AUTHORIZATION') or
+        ''
+    ).strip()
+
+    bearer_token = ''
+    if auth_header:
+        if auth_header.lower().startswith('bearer '):
+            bearer_token = auth_header[7:].strip()
+        else:
+            bearer_token = auth_header
 
     req_token = (
         request.headers.get('X-Device-Token') or
         request.headers.get('X-Api-Key') or
+        request.headers.get('X-API-Key') or
+        request.headers.get('X-Payhook-Token') or
         bearer_token or
         request.args.get('token') or
-        request.args.get('key')
+        request.args.get('key') or
+        request.args.get('api_key')
     )
     raw_json = request.get_json(silent=True) or {}
     form_data = request.form.to_dict() or {}
@@ -1885,7 +1921,11 @@ def callback_dana_ping():
             form_data.get('token') or form_data.get('key') or form_data.get('api_key')
         )
 
-    if not req_token or req_token.strip() != expected_token.strip():
+    clean_req = str(req_token or '').strip()
+    clean_exp = str(expected_token or '').strip()
+
+    if not clean_req or clean_req != clean_exp:
+        print(f"[DANA PING REJECTED 401] Received token: '{clean_req}', Expected: '{clean_exp}', Auth Header: '{auth_header}', URL Args: {dict(request.args)} from IP {request.remote_addr}")
         return jsonify({'status': 'error', 'message': 'Unauthorized device token'}), 401
 
     battery = (
