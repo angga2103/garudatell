@@ -5,158 +5,568 @@
 <style>
     /* Variabel Warna Premium */
     :root {
-        --teal-main: #008f81;
+        --teal-main: #00877a;
         --teal-dark: #006056;
         --teal-darker: #004b44;
         --bg-light: #f5f8fa;
-        --text-dark: #2d3748;
-        --text-muted: #718096;
+        --text-dark: #1e293b;
+        --text-muted: #64748b;
     }
     body { background-color: var(--bg-light); }
 
     /* 1. Bagian Header Atas */
     .top-header {
-        background: var(--teal-main);
-        padding: 40px 20px 80px 20px;
+        background: linear-gradient(135deg, #00877a 0%, #00685d 100%);
+        padding: 34px 18px 75px 18px;
         color: white;
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        border-bottom-left-radius: 35px;
-        border-bottom-right-radius: 35px;
+        border-bottom-left-radius: 32px;
+        border-bottom-right-radius: 32px;
+        box-shadow: 0 4px 20px rgba(0, 135, 122, 0.15);
     }
-    .user-profile { display: flex; align-items: center; gap: 15px; }
-    .avatar {
-        width: 55px; height: 55px; background: #e2e8f0; border-radius: 50%;
-        display: flex; justify-content: center; align-items: center;
-        color: #a0aec0; font-size: 26px; border: 2.5px solid white; overflow: hidden;
+    .user-profile { display: flex; align-items: center; gap: 12px; }
+    .greeting { font-size: 13px; margin: 0; font-weight: 600; opacity: 0.92; }
+    .user-name-wrapper { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+    .user-name { font-size: 20px; font-weight: 900; margin: 0; letter-spacing: -0.3px; color: #ffffff; }
+    .outlet-tier-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: rgba(255, 255, 255, 0.18);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        padding: 2px 8px;
+        border-radius: 20px;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.3px;
+        color: #e6fffa;
+        backdrop-filter: blur(4px);
     }
-    .greeting { font-size: 13px; margin: 0; font-weight: 600; opacity: 0.9; }
-    .user-name { font-size: 20px; font-weight: 800; margin: 2px 0 0 0; }
 
-    .top-actions { display: flex; align-items: center; gap: 10px; margin-top: 5px; }
+    .top-actions { display: flex; align-items: center; gap: 10px; margin-top: 3px; }
     .date-pill {
-        background: rgba(255,255,255,0.25); padding: 7px 14px;
-        border-radius: 20px; font-size: 13px; font-weight: 700;
+        background: rgba(255,255,255,0.22); padding: 7px 14px;
+        border-radius: 20px; font-size: 12.5px; font-weight: 700;
+        border: 1px solid rgba(255,255,255,0.25);
+        backdrop-filter: blur(4px);
     }
     .bell-btn {
-        width: 38px; height: 38px; background: rgba(255,255,255,0.25);
+        width: 38px; height: 38px; background: rgba(255,255,255,0.22);
         border-radius: 50%; display: flex; justify-content: center; align-items: center;
         font-size: 16px; position: relative; cursor: pointer;
         color: white; text-decoration: none;
+        border: 1px solid rgba(255,255,255,0.25);
+        transition: transform 0.2s ease, background 0.2s ease;
     }
+    .bell-btn:hover { transform: scale(1.05); background: rgba(255,255,255,0.3); }
     .bell-dot {
         position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px;
         padding: 0 4px; background: #ef4444; color: #ffffff; border-radius: 10px;
         font-size: 10px; font-weight: 800; display: flex; align-items: center; justify-content: center;
-        border: 2px solid var(--teal-main); box-shadow: 0 2px 6px rgba(239,68,68,0.4);
+        border: 2px solid #00877a; box-shadow: 0 2px 6px rgba(239,68,68,0.4);
         line-height: 1; box-sizing: border-box;
     }
 
-    /* 2. Kartu Utama (Melayang) */
+    .btn-top-menu {
+        background: rgba(255,255,255,0.18);
+        border: 1px solid rgba(255,255,255,0.3);
+        color: white;
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 16px;
+        transition: 0.2s ease;
+        flex-shrink: 0;
+    }
+    .btn-top-menu:hover { background: rgba(255,255,255,0.28); }
+
+    /* 2. Kartu Utama Saldo & Aksi Cepat (Melayang) */
     .main-card-wrapper {
-        margin: -60px 15px 15px 15px; background: white; border-radius: 28px;
-        padding: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.06); position: relative; z-index: 10;
+        margin: -55px 15px 18px 15px;
+        background: white;
+        border-radius: 26px;
+        padding: 14px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.02);
+        position: relative;
+        z-index: 10;
+        border: 1px solid rgba(0, 135, 122, 0.08);
     }
     .balance-card {
-        background: var(--teal-dark); border-radius: 22px;
-        display: flex; overflow: hidden; color: white; margin-bottom: 25px;
+        background: linear-gradient(135deg, #006056 0%, #004b44 100%);
+        border-radius: 20px;
+        display: flex;
+        overflow: hidden;
+        color: white;
+        box-shadow: 0 4px 15px rgba(0, 75, 68, 0.25);
     }
     .balance-info {
-        flex: 1; padding: 18px 20px; display: flex; justify-content: space-between; align-items: center;
+        flex: 1;
+        padding: 16px 18px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
     }
     .bal-section { flex: 1; }
-    .bal-divider { width: 1px; background: rgba(255,255,255,0.2); height: 40px; margin: 0 15px; }
-    .bal-label { font-size: 12px; display: flex; align-items: center; gap: 6px; opacity: 0.9; margin-bottom: 6px; font-weight: 600; }
-    .bal-amount { font-size: 22px; font-weight: 800; margin: 0; letter-spacing: 0.5px; }
+    .bal-divider { width: 1px; background: rgba(255,255,255,0.2); height: 42px; margin: 0 14px; }
+    .bal-label {
+        font-size: 11.5px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        opacity: 0.92;
+        margin-bottom: 5px;
+        font-weight: 700;
+    }
+    .bal-label i { cursor: pointer; transition: opacity 0.2s; }
+    .bal-label i:hover { opacity: 1; }
+    .bal-amount {
+        font-size: 22px;
+        font-weight: 900;
+        margin: 0;
+        letter-spacing: -0.2px;
+        color: #ffffff;
+    }
     .scan-btn {
-        background: var(--teal-darker); width: 85px; display: flex; justify-content: center; align-items: center;
-        font-size: 32px; cursor: pointer; transition: background-color 0.2s;
+        background: #003e38;
+        width: 82px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 4px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        text-decoration: none;
+        color: white;
+        border-left: 1px solid rgba(255,255,255,0.1);
+    }
+    .scan-btn:hover { background: #00302b; }
+
+    /* Tombol Aksi Cepat di Bawah Saldo */
+    .hero-quick-actions {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        margin-top: 12px;
+        padding-top: 10px;
+        border-top: 1px solid #f1f5f9;
+        text-align: center;
+    }
+    .quick-act-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-decoration: none;
+        color: #334155;
+        padding: 6px 4px;
+        border-radius: 12px;
+        transition: all 0.2s ease;
+    }
+    .quick-act-btn:hover {
+        background: #f0fdfa;
+        transform: translateY(-1px);
+    }
+    .quick-act-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 14px;
+        background: #eef9f8;
+        color: #00877a;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        margin-bottom: 6px;
+        transition: all 0.2s ease;
+    }
+    .quick-act-btn:hover .quick-act-icon {
+        background: #00877a;
+        color: white;
+        box-shadow: 0 4px 12px rgba(0, 135, 122, 0.3);
+    }
+    .quick-act-text {
+        font-size: 11px;
+        font-weight: 800;
+        line-height: 1.2;
     }
 
-    /* 3. Grid Menu Aksi (Isi Saldo dll) */
-    .action-grid {
-        display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; text-align: center;
-    }
-    .action-item { text-decoration: none; color: var(--text-dark); cursor: pointer; display: flex; flex-direction: column; align-items: center; }
-    .action-icon {
-        width: 55px; height: 55px; background: #eef9f8; border-radius: 18px;
-        display: flex; justify-content: center; align-items: center;
-        margin-bottom: 10px; color: var(--teal-main); font-size: 22px; position: relative;
-    }
-    /* Efek Bintang/Sparkle */
-    .action-icon::after { content: '✦'; position: absolute; color: #fbc531; font-size: 12px; top: 8px; right: 8px; }
-    .action-icon::before { content: '✦'; position: absolute; color: #fbc531; font-size: 8px; bottom: 8px; left: 8px; }
-    .action-text { font-size: 12px; font-weight: 800; }
-
-    /* 5. Bagian Produk Cuan */
+    /* 3. Bagian Produk Cuan */
     .cuan-wrapper {
-        background: white; border-radius: 28px; padding: 25px 0 20px 0; margin: 0 15px 25px 15px;
+        background: white;
+        border-radius: 26px;
+        padding: 18px 16px;
+        margin: 0 15px 18px 15px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        border: 1px solid #f1f5f9;
+    }
+    .section-header-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 14px;
+        padding: 0 4px;
     }
     .section-title {
-        display: flex; align-items: center; gap: 10px; margin: 0 20px 20px 20px;
-        font-size: 18px; font-weight: 900; color: var(--text-dark); letter-spacing: -0.3px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0;
+        font-size: 16px;
+        font-weight: 900;
+        color: #1e293b;
+        letter-spacing: -0.2px;
     }
+    .link-more-cuan {
+        font-size: 11.5px;
+        font-weight: 800;
+        color: #00877a;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .link-more-cuan:hover { text-decoration: underline; }
+
     .cuan-scroll {
-        display: flex; gap: 15px; overflow-x: auto; padding: 0 20px; scrollbar-width: none; scroll-behavior: smooth;
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 6px;
+        padding: 0;
+        overflow: hidden;
     }
-    .cuan-scroll::-webkit-scrollbar { display: none; }
-    
-    .cuan-item { min-width: 75px; text-align: center; text-decoration: none; color: var(--text-dark); display: flex; flex-direction: column; align-items: center; }
+    .cuan-item {
+        text-align: center;
+        text-decoration: none;
+        color: #1e293b;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 4px 2px;
+        border-radius: 14px;
+        transition: transform 0.15s ease;
+    }
+    .cuan-item:hover { transform: translateY(-2px); }
     .cuan-icon {
-        width: 65px; height: 65px; background: #eef9f8; border-radius: 20px;
-        display: flex; justify-content: center; align-items: center;
-        margin-bottom: 10px; font-size: 26px; font-weight: 900; position: relative;
+        width: 52px;
+        height: 52px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 18px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 6px;
+        font-size: 20px;
+        font-weight: 900;
+        position: relative;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.02);
     }
-    .cuan-icon::after { content: '✦'; position: absolute; color: #b2dfdb; font-size: 14px; top: 8px; right: 8px; }
-    .cuan-icon::before { content: '✦'; position: absolute; color: #b2dfdb; font-size: 10px; bottom: 10px; left: 8px; }
-    .cuan-text { font-size: 12px; font-weight: 800; white-space: nowrap; }
+    .cuan-icon::after { content: '✦'; position: absolute; color: #b2dfdb; font-size: 10px; top: 5px; right: 6px; }
+    .cuan-icon::before { content: '✦'; position: absolute; color: #b2dfdb; font-size: 8px; bottom: 5px; left: 6px; }
+    .cuan-text { font-size: 10.5px; font-weight: 800; white-space: nowrap; }
 
     .icon-tsel { color: #eb4d4b; letter-spacing: -1px; }
-    .icon-xl { color: #009432; font-style: italic; }
-    .icon-axis { font-size: 9px; position: absolute; bottom: 12px; right: 12px; color: #ab47bc; font-style: normal; }
-    .icon-im3 { color: #00b894; letter-spacing: -1px; font-family: monospace;}
+    .icon-xl { color: #009432; font-style: italic; font-size: 16px; margin-right: 3px; }
+    .icon-axis { font-size: 8px; position: absolute; bottom: 5px; right: 5px; color: #ab47bc; font-style: normal; font-weight: 800; }
+    .icon-im3 { color: #00b894; letter-spacing: -1px; font-family: monospace; }
     .icon-tri { color: #eb4d4b; font-weight: 900; }
     .icon-byu { color: #3B82F6; font-weight: 900; letter-spacing: -1px; }
 
-    /* Styling Menu Klasik (Transaksi & Hiburan) */
+    .cuan-tag-badge {
+        display: none; /* Muncul di tablet */
+    }
+
+    /* 4. Layanan PPOB & Pembayaran (Dual Cards di Tablet & PC) */
+    .services-dual-wrapper {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        margin: 0 15px 18px 15px;
+    }
+    .service-panel-card {
+        background: white;
+        border-radius: 26px;
+        padding: 20px 14px 22px 14px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        border: 1px solid #f1f5f9;
+    }
+    .service-panel-title {
+        font-size: 15.5px;
+        font-weight: 900;
+        color: #1e293b;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 6px;
+        letter-spacing: -0.2px;
+    }
+    .service-menu-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px 6px;
+        text-align: center;
+    }
+    .action-item {
+        text-decoration: none;
+        color: #1e293b;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        transition: transform 0.15s ease;
+    }
+    .action-item:hover { transform: translateY(-2px); }
     .menu-icon {
-        width: 55px; height: 55px; background: white; border-radius: 18px;
-        display: flex; justify-content: center; align-items: center;
-        margin-bottom: 10px; color: var(--teal-main); font-size: 24px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.06); border: 1px solid rgba(0,0,0,0.02);
+        width: 52px;
+        height: 52px;
+        background: #ffffff;
+        border-radius: 17px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 7px;
+        color: #00877a;
+        font-size: 22px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        border: 1px solid #eef2f6;
+        transition: all 0.2s ease;
+    }
+    .action-item:hover .menu-icon {
+        box-shadow: 0 6px 16px rgba(0, 135, 122, 0.18);
+        border-color: #00877a;
+        background: #f0fdfa;
     }
     .menu-text {
-        font-size: 11px; font-weight: 800; line-height: 1.3; color: var(--text-dark);
+        font-size: 11px;
+        font-weight: 800;
+        line-height: 1.25;
+        color: #334155;
     }
-</style>
 
-<style>
-    /* Memaksa layout grid 5 kolom presisi tanpa scroll */
-    .cuan-scroll { 
-        display: grid !important; 
-        grid-template-columns: repeat(5, 1fr) !important; 
-        gap: 5px !important; 
-        padding: 0 10px !important; 
-        overflow: hidden !important; 
+    /* 5. Aktivitas Transaksi Terkini & Info Outlet (Anti-Dead Space di Tablet) */
+    .tablet-bottom-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        margin: 0 15px 30px 15px;
     }
-    .cuan-item { 
-        min-width: auto !important; 
+    .recent-trx-card {
+        background: white;
+        border-radius: 26px;
+        padding: 18px 18px 20px 18px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        border: 1px solid #f1f5f9;
     }
-    .cuan-icon { 
-        width: 52px !important; 
-        height: 52px !important; 
-        font-size: 20px !important; 
-        margin-bottom: 5px !important;
+    .recent-trx-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
     }
-    .cuan-text {
-        font-size: 10px !important;
+    .recent-trx-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 12px;
+        background: #f8fafc;
+        border-radius: 16px;
+        border: 1px solid #edf2f7;
+        text-decoration: none;
+        color: inherit;
+        transition: all 0.2s ease;
     }
-    .cuan-icon::after { top: 5px !important; right: 5px !important; font-size: 10px !important; }
-    .cuan-icon::before { bottom: 5px !important; left: 5px !important; font-size: 8px !important; }
-    .icon-axis { font-size: 8px !important; bottom: 5px !important; right: 5px !important; font-weight: 800 !important; }
-    .icon-xl { font-size: 16px !important; margin-right: 5px !important; }
+    .recent-trx-item:hover {
+        background: #f0fdfa;
+        border-color: #5eead4;
+        transform: translateY(-1px);
+    }
+    .trx-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    .trx-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        flex-shrink: 0;
+    }
+    .trx-details h4 {
+        margin: 0;
+        font-size: 12.5px;
+        font-weight: 800;
+        color: #0f172a;
+    }
+    .trx-details p {
+        margin: 2px 0 0 0;
+        font-size: 10.5px;
+        color: #64748b;
+        font-weight: 600;
+    }
+    .trx-right {
+        text-align: right;
+    }
+    .trx-amount {
+        font-size: 12.5px;
+        font-weight: 900;
+        color: #0f172a;
+    }
+    .trx-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 9.5px;
+        font-weight: 800;
+        margin-top: 2px;
+    }
+    .badge-success { background: #dcfce7; color: #15803d; }
+    .badge-pending { background: #fef9c3; color: #a16207; }
+    .badge-failed  { background: #fee2e2; color: #b91c1c; }
+
+    .outlet-support-card {
+        background: white;
+        border-radius: 26px;
+        padding: 18px 18px 20px 18px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        border: 1px solid #f1f5f9;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    .support-feature-box {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 10px 0;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .support-feature-box:last-child { border-bottom: none; }
+    .feature-icon-circle {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        flex-shrink: 0;
+    }
+    .feature-info h4 { margin: 0; font-size: 12px; font-weight: 800; color: #1e293b; }
+    .feature-info p { margin: 2px 0 0 0; font-size: 10.5px; color: #64748b; line-height: 1.35; }
+
+    /* ========================================================
+       MEDIA QUERIES: OPTIMALISASI TABLET 10 INCHI & DESKTOP PC
+       ======================================================== */
+    @media (min-width: 640px) {
+        .top-header {
+            padding: 38px 24px 80px 24px;
+        }
+        .main-card-wrapper {
+            margin: -58px 0 22px 0;
+            padding: 18px;
+            border-radius: 28px;
+        }
+        .bal-amount {
+            font-size: 26px;
+        }
+        .cuan-wrapper {
+            margin: 0 0 20px 0;
+            padding: 22px 20px;
+            border-radius: 28px;
+        }
+        .cuan-scroll {
+            gap: 12px;
+        }
+        .cuan-item {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 18px;
+            padding: 12px 8px;
+        }
+        .cuan-icon {
+            width: 58px;
+            height: 58px;
+            font-size: 24px;
+            background: white;
+        }
+        .cuan-text {
+            font-size: 11.5px;
+        }
+        .cuan-tag-badge {
+            display: inline-block;
+            margin-top: 6px;
+            font-size: 9.5px;
+            font-weight: 800;
+            padding: 2px 8px;
+            border-radius: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .tag-red { background: #fee2e2; color: #dc2626; }
+        .tag-green { background: #dcfce7; color: #16a34a; }
+        .tag-teal { background: #ccfbf1; color: #0d9488; }
+        .tag-orange { background: #ffedd5; color: #ea580c; }
+        .tag-blue { background: #dbeafe; color: #2563eb; }
+
+        /* Tablet Dual-Grid Layout: Berdampingan Rapi & Simetris */
+        .services-dual-wrapper {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+            margin: 0 0 22px 0;
+        }
+        .service-panel-card {
+            border-radius: 28px;
+            padding: 22px 18px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .service-menu-grid {
+            gap: 16px 8px;
+        }
+        .menu-icon {
+            width: 54px;
+            height: 54px;
+            font-size: 23px;
+        }
+        .menu-text {
+            font-size: 11.5px;
+        }
+
+        /* Tablet Bottom Grid: Mengisi Ruang Bawah */
+        .tablet-bottom-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+            margin: 0 0 35px 0;
+        }
+        .recent-trx-card, .outlet-support-card {
+            border-radius: 28px;
+            padding: 20px;
+        }
+    }
+
+    @media (min-width: 1024px) {
+        .btn-top-menu {
+            display: none !important;
+        }
+        .main-card-wrapper {
+            margin-top: -65px;
+        }
+    }
 
     /* NOTIFIKASI CLAMP & AUTO EXPAND */
     .notif-content-text {
@@ -213,7 +623,7 @@
         justify-content: space-between;
         align-items: center;
         padding: 18px 20px;
-        background: #008f81;
+        background: #00877a;
         color: white;
         border-radius: 28px 28px 0 0;
     }
@@ -292,7 +702,7 @@
     }
     .layanan-card:hover {
         background: #e6f7f5;
-        border-color: #008f81;
+        border-color: #00877a;
         transform: translateY(-1px);
     }
     .layanan-icon {
@@ -316,38 +726,12 @@
     .ic-pln { background: linear-gradient(135deg, #f59e0b, #d97706); }
     .ic-games { background: linear-gradient(135deg, #ec4899, #db2777); }
     .ic-tv { background: linear-gradient(135deg, #6366f1, #4f46e5); }
-    .ic-emoney { background: linear-gradient(135deg, #008f81, #006056); }
+    .ic-emoney { background: linear-gradient(135deg, #00877a, #006056); }
     .ic-deposit { background: linear-gradient(135deg, #14b8a6, #0d9488); }
     .ic-poin { background: linear-gradient(135deg, #eab308, #ca8a04); }
     .ic-tracker { background: linear-gradient(135deg, #059669, #047857); }
     .ic-riwayat { background: linear-gradient(135deg, #64748b, #475569); }
-    
-    .btn-top-menu {
-        background: rgba(255,255,255,0.18);
-        border: 1px solid rgba(255,255,255,0.3);
-        color: white;
-        width: 38px;
-        height: 38px;
-        border-radius: 12px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        margin-right: 8px;
-        font-size: 16px;
-        transition: 0.2s ease;
-        flex-shrink: 0;
-    }
-    .btn-top-menu:hover {
-        background: rgba(255,255,255,0.28);
-    }
-    @media (min-width: 1024px) {
-        .btn-top-menu {
-            display: none !important;
-        }
-    }
 </style>
-
 {% endblock %}
 
 {% block content %}
@@ -359,14 +743,55 @@
         if (hour >= 10 && hour < 15) sapaan = "Selamat Siang";
         else if (hour >= 15 && hour < 18) sapaan = "Selamat Sore";
         else if (hour >= 18 || hour < 4) sapaan = "Selamat Malam";
-        document.getElementById('teks-sapaan').innerHTML = sapaan + " 👋";
+        const elSapaan = document.getElementById('teks-sapaan');
+        if (elSapaan) elSapaan.innerHTML = sapaan + " 👋";
 
         const hari = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
         const bulan = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-        document.getElementById('teks-tanggal').innerText = hari[now.getDay()] + ", " + now.getDate() + " " + bulan[now.getMonth()];
+        const elTgl = document.getElementById('teks-tanggal');
+        if (elTgl) elTgl.innerText = hari[now.getDay()] + ", " + now.getDate() + " " + bulan[now.getMonth()];
+
+        // Pulihkan preferensi sembunyikan saldo jika ada
+        if (localStorage.getItem('hide_saldo_dashboard') === '1') {
+            applySaldoHidden(true);
+        }
     });
+
+    let isSaldoHidden = false;
+    const rawSaldoFormatted = '{{ "{:,.0f}".format(current_user.balance or 0).replace(",",".").strip() if current_user and current_user.is_authenticated else "0" }}';
+
+    function toggleSaldoVisibility() {
+        isSaldoHidden = !isSaldoHidden;
+        applySaldoHidden(isSaldoHidden);
+        localStorage.setItem('hide_saldo_dashboard', isSaldoHidden ? '1' : '0');
+    }
+
+    function applySaldoHidden(hide) {
+        isSaldoHidden = hide;
+        const txt = document.getElementById('balAmountText');
+        const icon = document.getElementById('iconEyeSaldo');
+        if (txt) {
+            txt.innerText = hide ? 'Rp. •••••••' : ('Rp. ' + rawSaldoFormatted);
+        }
+        if (icon) {
+            icon.className = hide ? 'fas fa-eye' : 'fas fa-eye-slash';
+        }
+    }
+
+    function refreshSaldoDashboard() {
+        const syncIcon = document.getElementById('iconSyncSaldo');
+        if (syncIcon) syncIcon.classList.add('fa-spin');
+        fetch(window.location.href, { headers: { 'Cache-Control': 'no-cache' } })
+            .then(() => {
+                setTimeout(() => { window.location.reload(); }, 400);
+            })
+            .catch(() => {
+                window.location.reload();
+            });
+    }
 </script>
 
+<!-- HEADER UTAMA -->
 <div class="top-header">
     <div class="user-profile">
         <button type="button" class="btn-top-menu" onclick="toggleSidebarDrawer(true)" title="Buka Menu Kiri">
@@ -374,7 +799,12 @@
         </button>
         <div>
             <p class="greeting" id="teks-sapaan">Selamat Datang 👋</p>
-            <h3 class="user-name">{{ (current_user.username or current_user.name) if current_user and current_user.is_authenticated else "Guest" }}</h3>
+            <div class="user-name-wrapper">
+                <h3 class="user-name">{{ (current_user.username or current_user.name) if current_user and current_user.is_authenticated else "Guest" }}</h3>
+                <span class="outlet-tier-badge">
+                    <i class="fas fa-shield-alt text-warning"></i> Mitra Resmi
+                </span>
+            </div>
         </div>
     </div>
     <div class="top-actions">
@@ -388,139 +818,296 @@
     </div>
 </div>
 
+<!-- KARTU HERO SALDO & TOMBOL AKSI CEPAT -->
 <div class="main-card-wrapper">
     <div class="balance-card">
         <div class="balance-info">
             <div class="bal-section">
-                <div class="bal-label">Saldo Utama <i class="fas fa-eye-slash"></i> <i class="fas fa-sync-alt"></i></div>
-                <h2 class="bal-amount">Rp. {{ "{:,.0f}".format(current_user.balance or 0).replace(',','.') if current_user and current_user.is_authenticated else '0' }}</h2>
+                <div class="bal-label">
+                    <span>Saldo Utama</span>
+                    <i class="fas fa-eye-slash" id="iconEyeSaldo" onclick="toggleSaldoVisibility()" title="Sembunyikan / Tampilkan Saldo"></i>
+                    <i class="fas fa-sync-alt" id="iconSyncSaldo" onclick="refreshSaldoDashboard()" title="Muat Ulang Saldo"></i>
+                </div>
+                <h2 class="bal-amount" id="balAmountText">Rp. {{ "{:,.0f}".format(current_user.balance or 0).replace(',','.') if current_user and current_user.is_authenticated else '0' }}</h2>
             </div>
             <div class="bal-divider"></div>
             <a href="/poin" class="bal-section" style="text-decoration: none; color: inherit; cursor: pointer;" title="Lihat & Klaim Poin Member">
-                <div class="bal-label">Poin Member <i class="fas fa-coins" style="color: #fbbf24;"></i> <i class="fas fa-chevron-right" style="font-size: 9px; opacity: 0.8; margin-left: 2px;"></i></div>
+                <div class="bal-label">
+                    <span>Poin Member</span>
+                    <i class="fas fa-coins" style="color: #fbbf24;"></i>
+                    <i class="fas fa-chevron-right" style="font-size: 9px; opacity: 0.8; margin-left: 2px;"></i>
+                </div>
                 <h2 class="bal-amount">{{ "{:,}".format(current_user.points or 0).replace(',', '.') if current_user and current_user.is_authenticated else '0' }} <span style="font-size: 13px; font-weight: 700; opacity: 0.9;">Pts</span></h2>
             </a>
         </div>
-        <a href="/deposit" class="scan-btn" title="Top Up / Deposit Saldo" style="text-decoration: none; color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 4px;">
-            <i class="fas fa-barcode" style="font-size: 28px;"></i>
-            <span style="font-size: 10px; font-weight: 900; letter-spacing: 0.5px; opacity: 0.95;">TOP UP</span>
+        <a href="/deposit" class="scan-btn" title="Top Up / Deposit Saldo">
+            <i class="fas fa-barcode" style="font-size: 26px;"></i>
+            <span style="font-size: 9.5px; font-weight: 900; letter-spacing: 0.5px; opacity: 0.95;">TOP UP</span>
         </a>
     </div>
 
-    <div class="action-grid">
-        </div>
+    <!-- Tombol Aksi Cepat Finansial -->
+    <div class="hero-quick-actions">
+        <a href="/deposit" class="quick-act-btn" title="Isi Saldo Kasir / Akun">
+            <div class="quick-act-icon"><i class="fas fa-wallet"></i></div>
+            <span class="quick-act-text">Isi Saldo</span>
+        </a>
+        <a href="/riwayat" class="quick-act-btn" title="Lihat Riwayat & Cetak Struk">
+            <div class="quick-act-icon"><i class="fas fa-receipt"></i></div>
+            <span class="quick-act-text">Riwayat</span>
+        </a>
+        <a href="/mutasi" class="quick-act-btn" title="Cek Aliran Mutasi Saldo">
+            <div class="quick-act-icon"><i class="fas fa-exchange-alt"></i></div>
+            <span class="quick-act-text">Mutasi</span>
+        </a>
+        <a href="/poin" class="quick-act-btn" title="Klaim Hadiah & Poin Tahunan">
+            <div class="quick-act-icon"><i class="fas fa-gift" style="color: #d97706;"></i></div>
+            <span class="quick-act-text">Poin Cuan</span>
+        </a>
+    </div>
 </div>
 
+<!-- BAGIAN PRODUK CUAN -->
 <div class="cuan-wrapper">
-    <div class="section-title"><i class="fas fa-fire" style="color:#ff9f43; font-size:22px;"></i> Produk Cuan</div>
+    <div class="section-header-row">
+        <div class="section-title">
+            <i class="fas fa-fire" style="color:#ff9f43; font-size:20px;"></i>
+            <span>Produk Cuan Operator</span>
+        </div>
+        <a href="/cuan" class="link-more-cuan">
+            <span>Semua Cuan</span> <i class="fas fa-chevron-right" style="font-size: 10px;"></i>
+        </a>
+    </div>
     
     <div class="cuan-scroll">
-        <a href="/cuan/telkomsel" class="cuan-item">
+        <a href="/cuan/telkomsel" class="cuan-item" title="Produk Cuan Telkomsel">
             <div class="cuan-icon"><span class="icon-tsel">T</span></div>
             <span class="cuan-text">Telkomsel</span>
+            <span class="cuan-tag-badge tag-red">Diskon Max</span>
         </a>
-        <a href="/cuan/xl" class="cuan-item">
+        <a href="/cuan/xl" class="cuan-item" title="Produk Cuan XL & Axis">
             <div class="cuan-icon"><span class="icon-xl">XL</span><span class="icon-axis">AXIS</span></div>
             <span class="cuan-text">XL & Axis</span>
+            <span class="cuan-tag-badge tag-green">Spesial</span>
         </a>
-        <a href="/cuan/isat" class="cuan-item">
+        <a href="/cuan/isat" class="cuan-item" title="Produk Cuan Indosat Only4U">
             <div class="cuan-icon"><span class="icon-im3">im3</span></div>
             <span class="cuan-text">Only4U</span>
+            <span class="cuan-tag-badge tag-teal">Super Cuan</span>
         </a>
-        <a href="/cuan/tri" class="cuan-item">
+        <a href="/cuan/tri" class="cuan-item" title="Produk Cuan Tri">
             <div class="cuan-icon"><span class="icon-tri">3</span></div>
             <span class="cuan-text">Tri Cuan</span>
+            <span class="cuan-tag-badge tag-orange">Hemat</span>
         </a>
-        <a href="/cuan/byu" class="cuan-item">
+        <a href="/cuan/byu" class="cuan-item" title="Produk Cuan By.U">
             <div class="cuan-icon"><span class="icon-byu" style="color: #3B82F6; font-weight: 900; font-size: 14px;">by.U</span></div>
             <span class="cuan-text">By.U Cuan</span>
+            <span class="cuan-tag-badge tag-blue">Paling Laris</span>
         </a>
     </div>
 </div>
 
-<!-- 1. Transaksi Utama & Komunikasi (Grid 4x2 - 8 Menu) -->
-<div class="cuan-wrapper" style="padding: 20px 0 25px 0; margin-bottom: 15px;">
-    <div class="section-title" style="font-size: 16px;">
-        <i class="fas fa-bolt" style="color: var(--teal-main);"></i> Transaksi Utama & Komunikasi
+<!-- ============================================================= -->
+<!-- LAYANAN PPOB & PEMBAYARAN (DUAL CARDS DI TABLET & DESKTOP) -->
+<!-- ============================================================= -->
+<div class="services-dual-wrapper">
+    <!-- PANEL 1: Transaksi Utama & Komunikasi -->
+    <div class="service-panel-card">
+        <div class="service-panel-title">
+            <i class="fas fa-bolt" style="color: #00877a;"></i>
+            <span>Transaksi Utama & Komunikasi</span>
+        </div>
+        <div class="service-menu-grid">
+            <a href="/kategori/pulsa" class="action-item" title="Pulsa Reguler All Operator">
+                <div class="menu-icon"><i class="fas fa-mobile-alt"></i></div>
+                <span class="menu-text">Pulsa<br>Reguler</span>
+            </a>
+            <a href="/kategori/data" class="action-item" title="Paket Kuota Internet">
+                <div class="menu-icon"><i class="fas fa-wifi"></i></div>
+                <span class="menu-text">Paket<br>Data</span>
+            </a>
+            <a href="/kategori/pln" class="action-item" title="Token Listrik PLN Prabayar">
+                <div class="menu-icon"><i class="fas fa-lightbulb" style="color: #f59e0b;"></i></div>
+                <span class="menu-text">Token<br>PLN</span>
+            </a>
+            <a href="/kategori/emoney" class="action-item" title="Top Up Saldo E-Wallet">
+                <div class="menu-icon"><i class="fas fa-wallet" style="color: #0d9488;"></i></div>
+                <span class="menu-text">Topup<br>E-Wallet</span>
+            </a>
+            <a href="/kategori/telpsms" class="action-item" title="Paket Nelpon & SMS">
+                <div class="menu-icon"><i class="fas fa-phone-volume" style="color: #10b981;"></i></div>
+                <span class="menu-text">Telp &<br>SMS</span>
+            </a>
+            <a href="/kategori/masaaktif" class="action-item" title="Perpanjang Masa Aktif Kartu">
+                <div class="menu-icon"><i class="fas fa-calendar-alt" style="color: #8b5cf6;"></i></div>
+                <span class="menu-text">Masa<br>Aktif</span>
+            </a>
+            <a href="/kategori/pascabayar" class="action-item" title="Tagihan Bulanan & Pascabayar">
+                <div class="menu-icon"><i class="fas fa-file-invoice-dollar" style="color: #00877a;"></i></div>
+                <span class="menu-text">Tagihan<br>PPOB</span>
+            </a>
+            <a href="/kategori/pdam" class="action-item" title="Pembayaran PDAM Air Bersih">
+                <div class="menu-icon"><i class="fas fa-faucet" style="color: #0284c7;"></i></div>
+                <span class="menu-text">PDAM<br>Air</span>
+            </a>
+        </div>
     </div>
-    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px 8px; padding: 0 15px; text-align: center;">
-        <a href="/kategori/pulsa" class="action-item" style="text-decoration:none;">
-            <div class="menu-icon"><i class="fas fa-mobile-alt"></i></div>
-            <span class="menu-text">Pulsa<br>Reguler</span>
-        </a>
-        <a href="/kategori/data" class="action-item" style="text-decoration:none;">
-            <div class="menu-icon"><i class="fas fa-wifi"></i></div>
-            <span class="menu-text">Paket<br>Data</span>
-        </a>
-        <a href="/kategori/pln" class="action-item" style="text-decoration:none;">
-            <div class="menu-icon"><i class="fas fa-lightbulb"></i></div>
-            <span class="menu-text">Token<br>PLN</span>
-        </a>
-        <a href="/kategori/emoney" class="action-item" style="text-decoration:none;">
-            <div class="menu-icon"><i class="fas fa-wallet"></i></div>
-            <span class="menu-text">Topup<br>E-Wallet</span>
-        </a>
-        <a href="/kategori/telpsms" class="action-item" style="text-decoration:none;">
-            <div class="menu-icon"><i class="fas fa-phone-volume"></i></div>
-            <span class="menu-text">Telp &<br>SMS</span>
-        </a>
-        <a href="/kategori/masaaktif" class="action-item" style="text-decoration:none;">
-            <div class="menu-icon"><i class="fas fa-calendar-alt"></i></div>
-            <span class="menu-text">Masa<br>Aktif</span>
-        </a>
-        <a href="/kategori/pascabayar" class="action-item" style="text-decoration:none;">
-            <div class="menu-icon"><i class="fas fa-file-invoice-dollar" style="color: #00877a;"></i></div>
-            <span class="menu-text">Tagihan<br>PPOB</span>
-        </a>
-        <a href="/kategori/pdam" class="action-item" style="text-decoration:none;">
-            <div class="menu-icon"><i class="fas fa-faucet" style="color: #0284c7;"></i></div>
-            <span class="menu-text">PDAM<br>Air</span>
-        </a>
+
+    <!-- PANEL 2: Hiburan, Pajak & Layanan Lainnya -->
+    <div class="service-panel-card">
+        <div class="service-panel-title">
+            <i class="fas fa-cubes" style="color: #6366f1;"></i>
+            <span>Hiburan, Pajak & Lainnya</span>
+        </div>
+        <div class="service-menu-grid">
+            <a href="/kategori/bpjs" class="action-item" title="Iuran BPJS Kesehatan">
+                <div class="menu-icon"><i class="fas fa-heartbeat" style="color: #10b981;"></i></div>
+                <span class="menu-text">BPJS<br>Kesehatan</span>
+            </a>
+            <a href="/kategori/pbb" class="action-item" title="Pajak Bumi & Bangunan">
+                <div class="menu-icon"><i class="fas fa-building" style="color: #f59e0b;"></i></div>
+                <span class="menu-text">PBB &<br>Pajak</span>
+            </a>
+            <a href="/kategori/games" class="action-item" title="Voucher & Diamond Game Online">
+                <div class="menu-icon"><i class="fas fa-headset" style="color: #ec4899;"></i></div>
+                <span class="menu-text">Voucher<br>Game</span>
+            </a>
+            <a href="/kategori/voucher" class="action-item" title="Voucher Belanja & Digital">
+                <div class="menu-icon"><i class="fas fa-ticket-alt" style="color: #be185d;"></i></div>
+                <span class="menu-text">Voucher<br>Digital</span>
+            </a>
+            <a href="/kategori/tv" class="action-item" title="TV Kabel & Parabola Berlangganan">
+                <div class="menu-icon"><i class="fas fa-tv" style="color: #6366f1;"></i></div>
+                <span class="menu-text">TV<br>Berlangganan</span>
+            </a>
+            <a href="/poin" class="action-item" title="Klaim Hadiah & Poin Reward">
+                <div class="menu-icon"><i class="fas fa-coins" style="color: #eab308;"></i></div>
+                <span class="menu-text">Poin<br>Member</span>
+            </a>
+            <a href="/muslimtrack" class="action-item" title="Moeslim Pro Daily Tracker">
+                <div class="menu-icon"><i class="fas fa-calendar-check" style="color: #008779;"></i></div>
+                <span class="menu-text">Daily<br>Tracker</span>
+            </a>
+            <a href="javascript:void(0)" onclick="bukaModalLainnya()" class="action-item" title="Semua Layanan Lengkap">
+                <div class="menu-icon"><i class="fas fa-th" style="color: #475569;"></i></div>
+                <span class="menu-text">Semua<br>Layanan</span>
+            </a>
+        </div>
     </div>
 </div>
 
-<!-- 2. Hiburan, Pajak & Lainnya (Grid 4x2 - 8 Menu) -->
-<div class="cuan-wrapper" style="padding: 20px 0 25px 0; margin-bottom: 40px;">
-    <div class="section-title" style="font-size: 16px;">
-        <i class="fas fa-cubes" style="color: #6366f1;"></i> Hiburan, Pajak & Lainnya
+<!-- ============================================================= -->
+<!-- WIDGET AKTIVITAS TRANSAKSI & STATUS OUTLET (MENGISI DEAD SPACE TABLET) -->
+<!-- ============================================================= -->
+<div class="tablet-bottom-grid">
+    <!-- KARTU 1: Transaksi Terakhir (Live Feed) -->
+    <div class="recent-trx-card">
+        <div class="section-header-row" style="margin-bottom: 12px;">
+            <div class="section-title" style="font-size: 15px;">
+                <i class="fas fa-history" style="color: #00877a;"></i>
+                <span>Transaksi Terakhir</span>
+            </div>
+            <a href="/riwayat" class="link-more-cuan">
+                <span>Semua Riwayat</span> <i class="fas fa-chevron-right" style="font-size: 10px;"></i>
+            </a>
+        </div>
+
+        <div class="recent-trx-list">
+            {% if recent_transactions and recent_transactions|length > 0 %}
+                {% for trx in recent_transactions[:4] %}
+                <a href="/riwayat" class="recent-trx-item" title="Klik untuk lihat rincian struk">
+                    <div class="trx-left">
+                        <div class="trx-icon" style="
+                            {% if 'PLN' in (trx.product_name|upper) %}background: #fef3c7; color: #d97706;
+                            {% elif 'DATA' in (trx.product_name|upper) or 'KUOTA' in (trx.product_name|upper) %}background: #e0f2fe; color: #0284c7;
+                            {% elif 'DANA' in (trx.product_name|upper) or 'OVO' in (trx.product_name|upper) or 'GOPAY' in (trx.product_name|upper) %}background: #ccfbf1; color: #0d9488;
+                            {% else %}background: #f0fdf4; color: #16a34a;{% endif %}">
+                            {% if 'PLN' in (trx.product_name|upper) %}<i class="fas fa-bolt"></i>
+                            {% elif 'DATA' in (trx.product_name|upper) or 'KUOTA' in (trx.product_name|upper) %}<i class="fas fa-wifi"></i>
+                            {% elif 'DANA' in (trx.product_name|upper) or 'OVO' in (trx.product_name|upper) or 'GOPAY' in (trx.product_name|upper) %}<i class="fas fa-wallet"></i>
+                            {% else %}<i class="fas fa-mobile-alt"></i>{% endif %}
+                        </div>
+                        <div class="trx-details">
+                            <h4>{{ trx.product_name }}</h4>
+                            <p>{{ trx.target_number }} &bull; {{ trx.created_at_wib }}</p>
+                        </div>
+                    </div>
+                    <div class="trx-right">
+                        <div class="trx-amount">Rp {{ "{:,.0f}".format(trx.amount or 0).replace(',','.') }}</div>
+                        {% if trx.status|upper in ['SUCCESS', 'SUKSES'] %}
+                        <span class="trx-badge badge-success"><i class="fas fa-check-circle"></i> Sukses</span>
+                        {% elif trx.status|upper in ['PENDING', 'MENUNGGU'] %}
+                        <span class="trx-badge badge-pending"><i class="fas fa-clock"></i> Diproses</span>
+                        {% else %}
+                        <span class="trx-badge badge-failed"><i class="fas fa-times-circle"></i> Gagal</span>
+                        {% endif %}
+                    </div>
+                </a>
+                {% endfor %}
+            {% else %}
+                <div style="text-align: center; padding: 24px 10px; color: #94a3b8; background: #f8fafc; border-radius: 16px; border: 1px dashed #cbd5e1;">
+                    <i class="fas fa-receipt" style="font-size: 32px; color: #cbd5e1; margin-bottom: 8px; display: inline-block;"></i>
+                    <div style="font-weight: 800; font-size: 13px; color: #475569;">Belum Ada Transaksi</div>
+                    <div style="font-size: 11px; margin-top: 2px;">Transaksi Pulsa, Kuota & PLN Anda akan tercatat otomatis di sini.</div>
+                </div>
+            {% endif %}
+        </div>
     </div>
-    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px 8px; padding: 0 15px; text-align: center;">
-        <a href="/kategori/bpjs" class="action-item" style="text-decoration:none;">
-            <div class="menu-icon"><i class="fas fa-heartbeat" style="color: #10b981;"></i></div>
-            <span class="menu-text">BPJS<br>Kesehatan</span>
-        </a>
-        <a href="/kategori/pbb" class="action-item" style="text-decoration:none;">
-            <div class="menu-icon"><i class="fas fa-building" style="color: #f59e0b;"></i></div>
-            <span class="menu-text">PBB &<br>Pajak</span>
-        </a>
-        <a href="/kategori/games" class="action-item" style="text-decoration:none;">
-            <div class="menu-icon"><i class="fas fa-headset"></i></div>
-            <span class="menu-text">Voucher<br>Game</span>
-        </a>
-        <a href="/kategori/voucher" class="action-item" style="text-decoration:none;">
-            <div class="menu-icon"><i class="fas fa-ticket-alt" style="color: #ec4899;"></i></div>
-            <span class="menu-text">Voucher<br>Digital</span>
-        </a>
-        <a href="/kategori/tv" class="action-item" style="text-decoration:none;">
-            <div class="menu-icon"><i class="fas fa-tv" style="color: #6366f1;"></i></div>
-            <span class="menu-text">TV<br>Berlangganan</span>
-        </a>
-        <a href="/poin" class="action-item" style="text-decoration:none;">
-            <div class="menu-icon"><i class="fas fa-coins" style="color: #eab308;"></i></div>
-            <span class="menu-text">Poin<br>Member</span>
-        </a>
-        <a href="/muslimtrack" class="action-item" style="text-decoration:none;">
-            <div class="menu-icon"><i class="fas fa-calendar-check" style="color: #008779;"></i></div>
-            <span class="menu-text">Daily<br>Tracker</span>
-        </a>
-        <a href="javascript:void(0)" onclick="bukaModalLainnya()" class="action-item" style="text-decoration:none;" title="Semua Layanan Lengkap">
-            <div class="menu-icon"><i class="fas fa-th"></i></div>
-            <span class="menu-text">Semua<br>Layanan</span>
-        </a>
+
+    <!-- KARTU 2: Status Outlet & Bantuan Kasir -->
+    <div class="outlet-support-card">
+        <div>
+            <div class="service-panel-title" style="margin-bottom: 12px; font-size: 15px;">
+                <i class="fas fa-shield-alt" style="color: #0284c7;"></i>
+                <span>Keunggulan Layanan iPay</span>
+            </div>
+
+            <div class="support-feature-box">
+                <div class="feature-icon-circle" style="background: #e6f7f5; color: #00877a;">
+                    <i class="fas fa-server"></i>
+                </div>
+                <div class="feature-info">
+                    <h4>Server H2H Real-Time 24 Jam</h4>
+                    <p>Transaksi diproses instan otomatis tanpa antre, didukung koneksi multi-jalur stabil.</p>
+                </div>
+            </div>
+
+            <div class="support-feature-box">
+                <div class="feature-icon-circle" style="background: #fef3c7; color: #d97706;">
+                    <i class="fas fa-print"></i>
+                </div>
+                <div class="feature-info">
+                    <h4>Kasir POS & Cetak Struk Bluetooth</h4>
+                    <p>Bisa cetak struk via printer thermal Bluetooth 58mm/80mm atau unduh PDF resmi.</p>
+                </div>
+            </div>
+
+            <div class="support-feature-box">
+                <div class="feature-icon-circle" style="background: #e0f2fe; color: #0284c7;">
+                    <i class="fas fa-headset"></i>
+                </div>
+                <div class="feature-info">
+                    <h4>Pusat Bantuan CS Siaga</h4>
+                    <p>Kendala saldo atau transaksi siap dibantu tim support teknis melalui Telegram & WA.</p>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top: 14px; display: flex; gap: 8px;">
+            <a href="/bantuan" style="flex: 1; padding: 10px; background: linear-gradient(135deg, #00877a, #006056); color: white; border-radius: 12px; font-size: 12px; font-weight: 800; text-decoration: none; text-align: center; box-shadow: 0 4px 12px rgba(0,135,122,0.2);">
+                <i class="fas fa-headset"></i> Chat Bantuan CS
+            </a>
+            <a href="/riwayat" style="padding: 10px 14px; background: #f1f5f9; color: #475569; border-radius: 12px; font-size: 12px; font-weight: 800; text-decoration: none; text-align: center;">
+                <i class="fas fa-print"></i> Cetak Struk
+            </a>
+        </div>
     </div>
 </div>
 
-<!-- ================= MODAL SEMUA LAYANAN (LAINNYA) ================= -->
+<!-- ============================================================= -->
+<!-- MODAL SEMUA LAYANAN LENGKAP (BOTTOM SHEET) -->
+<!-- ============================================================= -->
 <div id="modalLainnyaOverlay" class="modal-lainnya-overlay" onclick="tutupModalLainnya()"></div>
 <div id="modalLainnyaSheet" class="modal-lainnya-sheet">
     <div class="modal-lainnya-header">
@@ -613,7 +1200,7 @@
             </div>
         </div>
 
-        <!-- Grup: Tagihan Bulanan & Pascabayar -->
+        <!-- Grup 3: Tagihan Bulanan & Pascabayar -->
         <div class="layanan-group">
             <div class="group-title"><i class="fas fa-file-invoice-dollar" style="color: #00877a;"></i> Tagihan Bulanan & Pascabayar</div>
             <div class="layanan-grid">
@@ -648,7 +1235,7 @@
             </div>
         </div>
 
-        <!-- Grup 3: Keanggotaan, Poin & Super-App -->
+        <!-- Grup 4: Keanggotaan, Poin & Super-App -->
         <div class="layanan-group">
             <div class="group-title"><i class="fas fa-star" style="color: #0284c7;"></i> Keanggotaan & Super-App</div>
             <div class="layanan-grid">
@@ -700,7 +1287,7 @@
 </div>
 
 <!-- ============================================================= -->
-<!-- MODAL PUSAT NOTIFIKASI BOTTOM SHEET -->
+<!-- MODAL PUSAT NOTIFIKASI (BOTTOM SHEET) -->
 <!-- ============================================================= -->
 <div class="modal-lainnya-overlay" id="modalNotifOverlay" onclick="tutupModalNotifikasi()"></div>
 <div class="modal-lainnya-sheet" id="modalNotifSheet">
