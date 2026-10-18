@@ -45,8 +45,8 @@ def regenerate_dana_device_token():
     return new_token
 
 
-def record_device_heartbeat(battery=None, is_charging=None, client_ip=None):
-    """Mencatat sinyal ping aktif (heartbeat) dari HP Samsung J1 Ace."""
+def record_device_heartbeat(battery=None, is_charging=None, client_ip=None, listener_connected=None, app_version=None, device_id=None):
+    """Mencatat sinyal ping aktif (heartbeat) dari HP Samsung J1 Ace / PayHook."""
     now_iso = datetime.utcnow().isoformat()
     set_setting_value('dana_device_last_ping', now_iso)
     if battery is not None:
@@ -55,6 +55,12 @@ def record_device_heartbeat(battery=None, is_charging=None, client_ip=None):
         set_setting_value('dana_device_charging', '1' if is_charging else '0')
     if client_ip:
         set_setting_value('dana_device_ip', str(client_ip))
+    if listener_connected is not None:
+        set_setting_value('dana_device_listener', '1' if listener_connected else '0')
+    if app_version:
+        set_setting_value('dana_device_app_ver', str(app_version))
+    if device_id:
+        set_setting_value('dana_device_id', str(device_id))
 
 
 def get_device_status():
@@ -63,6 +69,9 @@ def get_device_status():
     battery = get_setting_value('dana_device_battery', '-')
     is_charging = get_setting_value('dana_device_charging', '0') == '1'
     client_ip = get_setting_value('dana_device_ip', '-')
+    listener_connected = get_setting_value('dana_device_listener', '1') == '1'
+    app_version = get_setting_value('dana_device_app_ver', 'PayHook')
+    device_id = get_setting_value('dana_device_id', '-')
 
     is_online = False
     minutes_ago = None
@@ -84,7 +93,10 @@ def get_device_status():
         'last_ping_str': last_ping_str,
         'battery': battery,
         'is_charging': is_charging,
-        'client_ip': client_ip
+        'client_ip': client_ip,
+        'listener_connected': listener_connected,
+        'app_version': app_version,
+        'device_id': device_id
     }
 
 
@@ -232,11 +244,22 @@ def create_dana_deposit_ticket(user_id, nominal):
     return True, "Tiket deposit DANA berhasil dibuat.", ticket_data
 
 
-def process_incoming_dana_mutation(raw_amount, sender_name="Member DANA", raw_text=""):
+def process_incoming_dana_mutation(raw_amount, sender_name="Member DANA", raw_text="", event_id=None):
     """
-    Mencocokkan transfer masuk dari HP Samsung J1 Ace ke tiket deposit pending.
+    Mencocokkan transfer masuk dari HP Samsung J1 Ace / PayHook ke tiket deposit pending.
     Eksekusi atomic dengan locking baris database untuk mencegah double-credit.
+    Mendukung idempotency via event_id PayHook.
     """
+    # 1. Cek Idempotency Key (PayHook event_id) agar tidak double-credit pada retry
+    if event_id:
+        clean_evt = str(event_id).strip()
+        existing_trx = Transaction.query.filter(
+            Transaction.sn.like(f"%evt:{clean_evt}%")
+        ).first()
+        if existing_trx:
+            logger.info(f"[DANA MUTASI IDEMPOTENT] Event {clean_evt} sudah diproses sebelumnya pada {existing_trx.ref_id}")
+            return True, "Transaksi sudah diverifikasi sebelumnya (idempoten)", existing_trx
+
     try:
         if isinstance(raw_amount, (int, float)):
             amount_int = int(raw_amount)
@@ -282,7 +305,8 @@ def process_incoming_dana_mutation(raw_amount, sender_name="Member DANA", raw_te
         
         now_wib = format_wib()
         clean_sender = str(sender_name or 'Member DANA').strip()[:50]
-        trx.sn = f"{trx.sn or ''} | SUKSES DANA AUTO via J1 Ace (Pengirim: {clean_sender} - {now_wib})"
+        evt_tag = f"evt:{event_id} " if event_id else ""
+        trx.sn = f"{trx.sn or ''} | SUKSES DANA AUTO via PayHook ({evt_tag}Pengirim: {clean_sender} - {now_wib})"
 
         db.session.commit()
         logger.info(f"[DANA MUTASI ACC] User #{user.id} ({user.name}) Saldo +Rp {credit_amount:,} -> Rp {new_balance:,} | Trx: {trx.ref_id}")

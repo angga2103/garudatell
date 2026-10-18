@@ -1839,7 +1839,8 @@ def callback_dana_mutasi():
         sender = extract_sender_from_text(combined_text)
 
     # 5. Eksekusi Pencocokan & Tambah Saldo
-    ok, msg, trx = process_incoming_dana_mutation(amount, sender_name=sender, raw_text=combined_text)
+    event_id = raw_json.get('event_id')
+    ok, msg, trx = process_incoming_dana_mutation(amount, sender_name=sender, raw_text=combined_text, event_id=event_id)
 
     if ok and trx:
         return jsonify({
@@ -1847,13 +1848,15 @@ def callback_dana_mutasi():
             'message': msg,
             'ref_id': trx.ref_id,
             'amount': trx.amount,
-            'user_id': trx.user_id
+            'user_id': trx.user_id,
+            'event_id': event_id
         }), 200
     else:
         return jsonify({
             'status': 'unmatched',
             'message': msg,
-            'amount': amount
+            'amount': amount,
+            'event_id': event_id
         }), 200
 
 
@@ -1893,8 +1896,19 @@ def callback_dana_ping():
         raw_json.get('charging') or raw_json.get('is_charging') or
         form_data.get('charging') or request.args.get('charging')
     )
+    listener_connected = raw_json.get('listener_connected')
+    app_version = raw_json.get('app_version')
+    device_id = raw_json.get('device_id')
     client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
-    record_device_heartbeat(battery=battery, is_charging=is_charging, client_ip=client_ip)
+
+    record_device_heartbeat(
+        battery=battery,
+        is_charging=is_charging,
+        client_ip=client_ip,
+        listener_connected=listener_connected,
+        app_version=app_version,
+        device_id=device_id
+    )
 
     return jsonify({
         'status': 'ok',
