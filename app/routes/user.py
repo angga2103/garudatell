@@ -1772,9 +1772,10 @@ def _render_rules_markdown(md_text):
 
 @user_bp.route('/poin')
 def poin_member():
-    """Halaman Informasi & Klaim Poin Member."""
-    from flask import redirect, url_for, flash
-    from datetime import datetime
+    """Halaman Informasi & Klaim Poin Member dengan Skema Mutasi Rapi & Paginasi Cerdas."""
+    from flask import redirect, url_for, flash, request, jsonify
+    from datetime import datetime, timedelta
+    from sqlalchemy import func
     from app.models.setting import Setting
     from app.models.point_log import PointLog
 
@@ -1815,8 +1816,125 @@ def poin_member():
     user_points = int(current_user.points or 0)
     estimated_balance = user_points * point_rate
 
-    # 4. Ambil Riwayat Poin Member
-    point_logs = PointLog.query.filter_by(user_id=current_user.id).order_by(PointLog.created_at.desc()).limit(25).all()
+    # 4. Ringkasan Statistik Akumulasi Poin Member (Index-Optimized)
+    total_earned = db.session.query(func.coalesce(func.sum(PointLog.points), 0))\
+        .filter(PointLog.user_id == current_user.id, PointLog.points > 0).scalar() or 0
+    total_claimed = db.session.query(func.coalesce(func.sum(PointLog.points), 0))\
+        .filter(PointLog.user_id == current_user.id, PointLog.points < 0).scalar() or 0
+    total_logs_count = PointLog.query.filter_by(user_id=current_user.id).count()
+
+    # 5. Pilihan Filter Bulan Dinamis (6 Bulan Terakhir)
+    indo_months = {
+        1: 'Januari', 2: 'Februari', 3: 'Maret', 4: 'April', 5: 'Mei', 6: 'Juni',
+        7: 'Juli', 8: 'Agustus', 9: 'September', 10: 'Oktober', 11: 'November', 12: 'Desember'
+    }
+    available_months = []
+    for i in range(6):
+        y = now.year
+        m = now.month - i
+        while m <= 0:
+            m += 12
+            y -= 1
+        m_val = f"{y:04d}-{m:02d}"
+        m_label = f"{indo_months.get(m, '')} {y}"
+        available_months.append({'value': m_val, 'label': m_label})
+
+    # 6. Parameter Paginasi & Filter
+    page = request.args.get('page', 1, type=int)
+    filter_type = request.args.get('type', 'all')  # all, earn, claim, adjust
+    selected_month = request.args.get('month', 'all')
+    search_q = request.args.get('q', '').strip()
+
+    query = PointLog.query.filter_by(user_id=current_user.id)
+    if filter_type == 'earn':
+        query = query.filter(PointLog.points > 0)
+    elif filter_type == 'claim':
+        query = query.filter(PointLog.points < 0)
+    elif filter_type == 'adjust':
+        query = query.filter(PointLog.type == 'ADMIN_ADJUST')
+
+    if selected_month and selected_month != 'all':
+        try:
+            from calendar import monthrange
+            sy, sm = map(int, selected_month.split('-'))
+            _, slast = monthrange(sy, sm)
+            s_dt = datetime(sy, sm, 1, 0, 0, 0)
+            e_dt = datetime(sy, sm, slast, 23, 59, 59)
+            query = query.filter(PointLog.created_at >= s_dt, PointLog.created_at <= e_dt)
+        except Exception:
+            pass
+
+    if search_q:
+        query = query.filter(PointLog.description.ilike(f'%{search_q}%'))
+
+    per_page = 15
+    pagination = query.order_by(PointLog.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    point_logs = pagination.items
+
+    # 7. Helper Format Item Mutasi & Pengelompokan Tanggal Rapi
+    def _format_item(log):
+        dt = log.created_at
+        if dt:
+            today = datetime.now().date()
+            ldate = dt.date()
+            if ldate == today:
+                date_group = "Hari Ini"
+            elif ldate == today - timedelta(days=1):
+                date_group = "Kemarin"
+            else:
+                date_group = f"{dt.day} {indo_months.get(dt.month, '')} {dt.year}"
+            time_str = dt.strftime('%H:%M')
+            full_date = f"{dt.day} {indo_months.get(dt.month, '')[:3]} {dt.year}, {time_str} WIB"
+        else:
+            date_group = "Lainnya"
+            time_str = "-"
+            full_date = "-"
+
+        type_title = "Reward Transaksi PPOB"
+        type_icon = "fa-shopping-cart"
+        type_color = "#10b981"
+        if log.type == 'CLAIM_TO_SALDO':
+            type_title = "Klaim Poin ke Saldo"
+            type_icon = "fa-gift"
+            type_color = "#0284c7"
+        elif log.type == 'ADMIN_ADJUST':
+            type_title = "Penyesuaian Admin"
+            type_icon = "fa-user-shield"
+            type_color = "#f59e0b"
+        elif log.points < 0:
+            type_title = "Penukaran Poin"
+            type_icon = "fa-arrow-down"
+            type_color = "#ef4444"
+
+        return {
+            'id': log.id,
+            'type': log.type,
+            'type_title': type_title,
+            'type_icon': type_icon,
+            'type_color': type_color,
+            'points': log.points,
+            'points_formatted': ("+" if log.points > 0 else "") + f"{log.points:,}".replace(',', '.'),
+            'description': log.description or '-',
+            'date_group': date_group,
+            'time_str': time_str,
+            'full_date': full_date,
+            'is_plus': log.points > 0
+        }
+
+    formatted_items = [_format_item(l) for l in point_logs]
+
+    # Cek jika AJAX request untuk perpindahan halaman / filter instan tanpa reload
+    if request.args.get('ajax') == '1' or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({
+            'status': 'success',
+            'items': formatted_items,
+            'page': pagination.page,
+            'total_pages': pagination.pages or 1,
+            'total_items': pagination.total,
+            'has_prev': pagination.has_prev,
+            'has_next': pagination.has_next,
+            'per_page': per_page
+        })
 
     return render_template('user/poin.html',
                            user_points=user_points,
@@ -1825,7 +1943,16 @@ def poin_member():
                            is_claim_active=is_claim_active,
                            next_claim_text=next_claim_text,
                            rules_content=rules_content,
-                           point_logs=point_logs)
+                           point_logs=point_logs,
+                           formatted_items=formatted_items,
+                           pagination=pagination,
+                           total_earned=total_earned,
+                           total_claimed_abs=abs(total_claimed),
+                           total_logs_count=total_logs_count,
+                           available_months=available_months,
+                           current_filter=filter_type,
+                           current_month=selected_month,
+                           search_q=search_q)
 
 
 @user_bp.route('/poin/claim', methods=['POST'])
