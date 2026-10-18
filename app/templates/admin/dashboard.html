@@ -203,8 +203,8 @@
             </div>
         </div>
         <div class="stat-val-row">
-            <span class="stat-val" style="font-size: 17px; text-transform: uppercase; color: {% if active_pg == 'pakasir' %}#059669{% else %}#0284c7{% endif %};">
-                {{ active_pg }}
+            <span class="stat-val" style="font-size: 15px; text-transform: uppercase; color: {% if active_pg in ['off', 'none', 'disabled'] %}#e11d48{% elif active_pg == 'pakasir' %}#059669{% else %}#0284c7{% endif %};">
+                {% if active_pg in ['off', 'none', 'disabled'] %}NONAKTIF (0% FEE){% else %}{{ active_pg }}{% endif %}
             </span>
         </div>
         <div class="stat-trend" style="color: #059669;">
@@ -562,32 +562,52 @@
                 <div style="font-weight: 800; font-size: 13.5px; color: var(--text-dark);">
                     <i class="fas fa-toggle-on" style="color: var(--teal-primary);"></i> Pengalihan Payment Gateway Aktif
                 </div>
-                <span class="badge-status-chip {% if active_pg == 'pakasir' %}chip-success{% else %}chip-info{% endif %}">
-                    AKTIF: {{ active_pg|upper }}
+                <span class="badge-status-chip {% if active_pg in ['off', 'none', 'disabled'] %}chip-danger{% elif active_pg == 'pakasir' %}chip-success{% else %}chip-info{% endif %}">
+                    {% if active_pg in ['off', 'none', 'disabled'] %}
+                        <i class="fas fa-power-off"></i> NONAKTIF (DANA 0% FEE)
+                    {% else %}
+                        <i class="fas fa-check-circle"></i> AKTIF: {{ active_pg|upper }}
+                    {% endif %}
                 </span>
             </div>
             <p style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 14px;">
-                Pilih gateway utama yang digunakan pelanggan saat checkout transaksi pulsa/data atau deposit saldo otomatis.
+                Pilih status payment gateway utama. Anda dapat <b>menonaktifkan gateway</b> untuk menghemat 100% potongan fee QRIS pada transaksi PPOB dan beralih ke <b>DANA Mutasi Otomatis (0% Fee) & Saldo Akun</b>.
             </p>
 
             <form action="{{ url_for('admin.save_config') }}" method="POST">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <input type="hidden" name="form_type" value="switch_gateway">
 
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-bottom: 14px;">
-                    <label class="gateway-switcher-card {% if active_pg != 'pakasir' %}active-gateway{% endif %}">
-                        <input type="radio" name="active_payment_gateway" value="paymentkita" {% if active_pg != 'pakasir' %}checked{% endif %} style="accent-color: var(--teal-primary);">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; margin-bottom: 14px;">
+                    <!-- OPTION 1: NONAKTIFKAN GATEWAY (DANA 0% FEE) -->
+                    <label class="gateway-switcher-card {% if active_pg in ['off', 'none', 'disabled'] %}active-gateway{% endif %}" style="{% if active_pg in ['off', 'none', 'disabled'] %}border-color: #e11d48; background: #fff1f2;{% endif %}">
+                        <input type="radio" name="active_payment_gateway" value="off" {% if active_pg in ['off', 'none', 'disabled'] %}checked{% endif %} style="accent-color: #e11d48;">
                         <div>
-                            <div style="font-weight: 800; font-size: 13px; color: #0284c7;"><i class="fas fa-credit-card"></i> PaymentKita</div>
-                            <div style="font-size: 11px; color: #64748b;">Gateway QRIS &amp; Virtual Account Instan</div>
+                            <div style="font-weight: 800; font-size: 13px; color: #e11d48; display: flex; align-items: center; gap: 6px;">
+                                <span><i class="fas fa-ban"></i> Nonaktifkan Gateway</span>
+                                <span style="background: #e11d48; color: white; font-size: 9px; padding: 1px 6px; border-radius: 4px; font-weight: 900;">0% FEE</span>
+                            </div>
+                            <div style="font-size: 11px; color: #64748b; margin-top: 3px;">
+                                Hemat biaya! Transaksi dialihkan ke DANA Otomatis (0% Fee) & Saldo Akun.
+                            </div>
                         </div>
                     </label>
 
+                    <!-- OPTION 2: PAKASIR QRIS -->
                     <label class="gateway-switcher-card {% if active_pg == 'pakasir' %}active-gateway{% endif %}">
                         <input type="radio" name="active_payment_gateway" value="pakasir" {% if active_pg == 'pakasir' %}checked{% endif %} style="accent-color: var(--teal-primary);">
                         <div>
                             <div style="font-weight: 800; font-size: 13px; color: #059669;"><i class="fas fa-wallet"></i> Pakasir</div>
-                            <div style="font-size: 11px; color: #64748b;">Gateway QRIS Dinamis &amp; Otomatis</div>
+                            <div style="font-size: 11px; color: #64748b; margin-top: 3px;">Gateway QRIS Dinamis &amp; Otomatis</div>
+                        </div>
+                    </label>
+
+                    <!-- OPTION 3: PAYMENTKITA -->
+                    <label class="gateway-switcher-card {% if active_pg == 'paymentkita' %}active-gateway{% endif %}">
+                        <input type="radio" name="active_payment_gateway" value="paymentkita" {% if active_pg == 'paymentkita' %}checked{% endif %} style="accent-color: var(--teal-primary);">
+                        <div>
+                            <div style="font-weight: 800; font-size: 13px; color: #0284c7;"><i class="fas fa-credit-card"></i> PaymentKita</div>
+                            <div style="font-size: 11px; color: #64748b; margin-top: 3px;">Gateway QRIS &amp; Virtual Account Instan</div>
                         </div>
                     </label>
                 </div>

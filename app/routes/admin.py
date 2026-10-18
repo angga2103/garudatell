@@ -131,10 +131,15 @@ def save_config():
         return redirect(url_for('admin.dashboard'))
     elif form_type == 'switch_gateway':
         target_gw = clean_str(request.form.get('active_payment_gateway', 'paymentkita')).lower()
-        if target_gw in ['paymentkita', 'pakasir']:
+        if target_gw in ['paymentkita', 'pakasir', 'off', 'none', 'disabled']:
             set_key(ENV_FILE, 'ACTIVE_PAYMENT_GATEWAY', target_gw)
-            gw_name = "PAKASIR" if target_gw == 'pakasir' else "PAYMENTKITA"
-            flash(f"✅ Payment Gateway utama berhasil dialihkan ke {gw_name}!", 'success')
+            from app.services.setting_service import set_setting_value
+            set_setting_value('active_payment_gateway', target_gw, 'Status Payment Gateway Aktif (pakasir/paymentkita/off)')
+            if target_gw in ['off', 'none', 'disabled']:
+                flash("✅ Payment Gateway QRIS berhasil DINONAKTIFKAN! Sistem beralih hemat biaya: DANA Otomatis (0% Fee) & Saldo Akun.", 'success')
+            else:
+                gw_name = "PAKASIR" if target_gw == 'pakasir' else "PAYMENTKITA"
+                flash(f"✅ Payment Gateway utama berhasil dialihkan ke {gw_name}!", 'success')
         else:
             flash("Pilihan payment gateway tidak valid!", 'danger')
         return redirect(url_for('admin.dashboard'))

@@ -431,4 +431,19 @@ def save_report_financial_settings(data):
     return True
 
 
+def get_active_payment_gateway():
+    """
+    Mengembalikan nama gateway aktif ('pakasir', 'paymentkita', atau 'off').
+    """
+    val = get_setting_value('active_payment_gateway', os.getenv('ACTIVE_PAYMENT_GATEWAY', 'paymentkita'))
+    return str(val or 'paymentkita').lower().strip()
 
+
+def is_payment_gateway_enabled():
+    """
+    Memeriksa apakah Payment Gateway QRIS dinamis (Pakasir/PaymentKita) aktif.
+    Jika ACTIVE_PAYMENT_GATEWAY bernilai 'off', 'none', 'disabled', atau '0',
+    mengembalikan False (fitur QRIS PG dinonaktifkan demi efisiensi biaya/bebas fee).
+    """
+    gw = get_active_payment_gateway()
+    return gw not in ['off', 'none', 'disabled', '0', 'nonaktif']

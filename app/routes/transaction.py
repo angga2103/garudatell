@@ -371,6 +371,14 @@ def checkout():
 
         # 5. METODE PEMBAYARAN: QRIS
         if payment_method == 'qris':
+            from app.services.setting_service import is_payment_gateway_enabled
+            if not is_payment_gateway_enabled():
+                return jsonify({
+                    'status': 'error',
+                    'error': True,
+                    'message': 'Pembayaran via barcode QRIS sedang dinonaktifkan demi efisiensi biaya. Silakan gunakan metode Saldo Akun (isi saldo via DANA Otomatis 0% Fee).'
+                }), 400
+
             new_trx = Transaction(
                 user_id=current_user.id,
                 ref_id=ref_id,
@@ -1046,6 +1054,13 @@ def trx_detail(ref_id):
 @csrf.exempt
 @login_required
 def topup_deposit():
+    from app.services.setting_service import is_payment_gateway_enabled
+    if not is_payment_gateway_enabled():
+        return jsonify({
+            'status': 'error',
+            'message': 'Metode Barcode QRIS sedang dinonaktifkan oleh admin. Silakan gunakan metode DANA Otomatis (0% Fee) yang langsung masuk dalam hitungan detik!'
+        }), 400
+
     data = request.get_json()
     amount = data.get('amount')
     

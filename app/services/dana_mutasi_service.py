@@ -156,8 +156,9 @@ def extract_sender_from_text(text):
 
 def generate_unique_code(nominal):
     """
-    Menghasilkan kode unik acak 3 digit (1 s/d 999) yang dijamin
-    TIDAK BENTROK dengan tiket deposit aktif lainnya dalam 45 menit terakhir.
+    Menghasilkan kode unik acak range 10 s/d 150 sesuai permintaan admin
+    agar tidak memberatkan pelanggan, dan dijamin TIDAK BENTROK dengan
+    tiket deposit aktif lainnya dalam 45 menit terakhir.
     """
     cutoff = datetime.utcnow() - timedelta(minutes=45)
     existing_pending = Transaction.query.filter(
@@ -168,15 +169,21 @@ def generate_unique_code(nominal):
 
     existing_amounts = {int(t.amount or 0) for t in existing_pending}
 
-    # Coba acak hingga 100 kali untuk menghindari tabrakan kode unik
+    # Coba acak dalam range 10 s/d 150 terlebih dahulu (141 kombinasi angka)
     for _ in range(100):
-        code = random.randint(1, 999)
+        code = random.randint(10, 150)
         total = int(nominal) + code
         if total not in existing_amounts:
             return code, total
 
-    # Fallback darurat jika sangat ramai (4 digit acak)
-    code = random.randint(1000, 9999)
+    # Fallback jika antrean tiket aktif sedang sangat padat
+    for _ in range(100):
+        code = random.randint(151, 300)
+        total = int(nominal) + code
+        if total not in existing_amounts:
+            return code, total
+
+    code = random.randint(301, 999)
     return code, int(nominal) + code
 
 

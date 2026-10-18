@@ -1927,8 +1927,9 @@ def deposit():
 
     from app.models.transaction import Transaction
     from dotenv import load_dotenv
-    load_dotenv(os.path.join(BASE_DIR, '.env'), override=True)
-    active_pg = os.getenv('ACTIVE_PAYMENT_GATEWAY', 'paymentkita').lower().strip()
+    from app.services.setting_service import is_payment_gateway_enabled, get_active_payment_gateway
+    active_pg = get_active_payment_gateway()
+    is_pg_active = is_payment_gateway_enabled()
     gateway_name = 'Pakasir QRIS (Instan 24 Jam)' if active_pg == 'pakasir' else 'PaymentKita QRIS (Instan 24 Jam)'
 
     # Ambil 5 riwayat deposit terakhir milik user
@@ -1992,6 +1993,7 @@ def deposit():
 
     return render_template('user/deposit.html',
                            active_pg=active_pg,
+                           is_pg_active=is_pg_active,
                            gateway_name=gateway_name,
                            recent_deposits=recent_deposits,
                            depo_settings=depo_settings,
@@ -2083,7 +2085,7 @@ def deposit_manual_action():
     if nominal < 10000:
         return jsonify({'status': 'error', 'message': 'Minimal deposit transfer manual adalah Rp 10.000.'}), 400
 
-    unique_code = random.randint(1, 99)
+    unique_code = random.randint(10, 150)
     total_transfer = nominal + unique_code
     ref_id = f"DEP-MANUAL-{int(time.time())}{random.randint(100, 999)}"
 
