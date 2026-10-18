@@ -2044,20 +2044,20 @@ def deposit_manual_action():
     from app.services.setting_service import get_store_name
     current_store = get_store_name()
 
-    # E-WALLET OTOMATIS: DANA, GOPAY, SHOPEEPAY (Verifikasi HP Samsung J1 Ace via PayHook)
-    if ewallet_type in ['DANA', 'GOPAY', 'SHOPEEPAY']:
-        from app.services.dana_mutasi_service import create_ewallet_deposit_ticket
-        success, msg, ticket_data = create_ewallet_deposit_ticket(current_user.id, nominal, ewallet_type=ewallet_type)
+    # 1. E-WALLET OTOMATIS: HANYA DANA (Verifikasi HP Samsung J1 Ace via PayHook)
+    if ewallet_type == 'DANA':
+        from app.services.dana_mutasi_service import create_dana_deposit_ticket
+        success, msg, ticket_data = create_dana_deposit_ticket(current_user.id, nominal)
         if not success:
             return jsonify({'status': 'error', 'message': msg}), 400
 
         wa_message = (
-            f"Halo Admin {current_store}, kendala tiket deposit otomatis {ewallet_type}:\n\n"
+            f"Halo Admin {current_store}, kendala tiket deposit otomatis DANA:\n\n"
             f"• Nama Akun: {user_name}\n"
             f"• No. WhatsApp: {user_phone}\n"
             f"• Ref ID: {ticket_data['ref_id']}\n"
             f"• Total Transfer: Rp {ticket_data['total_transfer']:,}\n"
-            f"• Tujuan {ewallet_type}: {ticket_data['dest_number']} a.n {ticket_data['dest_name']}\n\n"
+            f"• Tujuan DANA: {ticket_data['dest_number']} a.n {ticket_data['dest_name']}\n\n"
             f"Mohon bantuannya admin. Terima kasih!"
         )
         wa_url = f"https://wa.me/{clean_wa}?text={quote(wa_message)}"
@@ -2069,17 +2069,17 @@ def deposit_manual_action():
             'nominal': ticket_data['nominal'],
             'unique_code': ticket_data['unique_code'],
             'total_transfer': ticket_data['total_transfer'],
-            'ewallet_type': ewallet_type,
+            'ewallet_type': 'DANA',
             'ewallet_dest': ticket_data['dest_number'],
             'ewallet_owner': ticket_data['dest_name'],
             'expires_epoch': ticket_data['expires_epoch'],
             'expires_at_str': ticket_data['expires_at_str'],
             'wa_url': wa_url,
             'wa_web_url': wa_url,
-            'message': f'Tiket deposit {ewallet_type} otomatis berhasil dibuat.'
+            'message': 'Tiket deposit DANA otomatis berhasil dibuat.'
         }), 200
 
-    # METODE LAIN (SHOPEEPAY / GOPAY): Transfer Manual Konfirmasi WhatsApp
+    # 2. METODE TRANSFER MANUAL: SHOPEEPAY & GOPAY (Konfirmasi Admin via WhatsApp)
     if nominal < 10000:
         return jsonify({'status': 'error', 'message': 'Minimal deposit transfer manual adalah Rp 10.000.'}), 400
 
@@ -2091,6 +2091,7 @@ def deposit_manual_action():
         ewallet_dest = depo_settings.get('shopee_number') or "081775700114"
         ewallet_owner = depo_settings.get('shopee_name') or "GarudaTel / Kasir"
     else:
+        ewallet_type = 'GOPAY'
         ewallet_dest = depo_settings.get('gopay_number') or "081775700114"
         ewallet_owner = depo_settings.get('gopay_name') or "GarudaTel / Kasir"
 

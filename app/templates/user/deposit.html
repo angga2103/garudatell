@@ -893,42 +893,29 @@
 
         <div class="method-tabs">
             <button type="button" class="tab-btn active" id="tabDanaBtn" onclick="switchTab('dana')">
-                <i class="fas fa-bolt" style="color: #0284c7; font-size: 14px;"></i>
-                Transfer E-Wallet Otomatis (DANA / GoPay / ShopeePay)
+                <i class="fas fa-bolt" style="color: #108ee9; font-size: 13px;"></i>
+                <span>DANA (Otomatis)</span>
             </button>
             <button type="button" class="tab-btn" id="tabQrisBtn" onclick="switchTab('qris')">
-                <i class="fas fa-qrcode" style="font-size: 14px;"></i>
-                QRIS Barcode (Semua Bank)
+                <i class="fas fa-qrcode" style="color: #059669; font-size: 13px;"></i>
+                <span>QRIS Barcode</span>
+            </button>
+            <button type="button" class="tab-btn" id="tabManualBtn" onclick="switchTab('manual')">
+                <i class="fab fa-whatsapp" style="color: #10b981; font-size: 13px;"></i>
+                <span>Shopee / GoPay</span>
             </button>
         </div>
 
-        <!-- TAB 1: E-WALLET OTOMATIS (DANA, GOPAY, SHOPEEPAY) -->
+        <!-- TAB 1: DANA OTOMATIS 24 JAM -->
         <div id="danaContent" class="tab-content active">
-            <div style="font-size: 12px; font-weight: 800; color: #475569; margin-bottom: 8px;">Pilih Akun E-Wallet Tujuan (Otomatis Masuk):</div>
-            
-            <div class="ewallet-selector" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 14px;">
-                <div class="ewallet-item active" id="auto_ew_dana" onclick="selectAutoEwallet('DANA')">
-                    <span class="ewallet-logo" style="color: #108ee9;"><i class="fas fa-wallet"></i></span>
-                    <span class="ewallet-name">DANA</span>
-                </div>
-                <div class="ewallet-item" id="auto_ew_gopay" onclick="selectAutoEwallet('GOPAY')">
-                    <span class="ewallet-logo" style="color: #00aa13;"><i class="fas fa-motorcycle"></i></span>
-                    <span class="ewallet-name">GOPAY</span>
-                </div>
-                <div class="ewallet-item" id="auto_ew_shopee" onclick="selectAutoEwallet('SHOPEEPAY')">
-                    <span class="ewallet-logo" style="color: #ee4d2d;"><i class="fas fa-shopping-bag"></i></span>
-                    <span class="ewallet-name">SHOPEEPAY</span>
-                </div>
-            </div>
-
-            <div id="autoEwalletBanner" style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border: 1.5px solid #bae6fd; border-radius: 16px; padding: 16px; margin-bottom: 18px;">
+            <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border: 1.5px solid #bae6fd; border-radius: 16px; padding: 18px; margin-bottom: 18px;">
                 <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-                    <span id="autoEwalletIconWrap" style="width: 42px; height: 42px; background: #108ee9; color: white; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 4px 10px rgba(16,142,233,0.25); flex-shrink: 0; transition: all 0.3s ease;">
-                        <i id="autoEwalletIcon" class="fas fa-bolt"></i>
+                    <span style="width: 44px; height: 44px; background: #108ee9; color: white; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: 0 4px 10px rgba(16,142,233,0.25); flex-shrink: 0;">
+                        <i class="fas fa-wallet"></i>
                     </span>
                     <div>
                         <div style="font-weight: 900; font-size: 14px; color: #0369a1; display: flex; align-items: center; gap: 6px;">
-                            <span id="autoEwalletTitle">DANA Mutasi Otomatis</span>
+                            <span>DANA Mutasi Otomatis (24 Jam)</span>
                             <span style="background: #0284c7; color: white; font-size: 9px; font-weight: 900; padding: 2px 7px; border-radius: 6px;">0% FEE / GRATIS</span>
                         </div>
                         <div style="font-size: 11.5px; color: #0284c7; margin-top: 2px;">
@@ -937,20 +924,25 @@
                     </div>
                 </div>
 
-                <div style="background: white; border-radius: 12px; padding: 12px 14px; border: 1px solid #e0f2fe;">
+                <div style="background: white; border-radius: 12px; padding: 12px 14px; border: 1px solid #e0f2fe; margin-bottom: 10px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-bottom: 6px;">
-                        <span style="color: #64748b; font-weight: 700;" id="autoEwalletNumLabel">Tujuan Akun DANA:</span>
-                        <span style="font-weight: 900; color: #0f172a;" id="autoEwalletNumVal">{{ depo_settings.dana_number if depo_settings else '081775700114' }}</span>
+                        <span style="color: #64748b; font-weight: 700;">Tujuan Akun DANA:</span>
+                        <span style="font-weight: 900; color: #0f172a; font-size: 13px;">{{ depo_settings.dana_number if depo_settings else '081775700114' }}</span>
                     </div>
                     <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px;">
                         <span style="color: #64748b; font-weight: 700;">Atas Nama:</span>
-                        <span style="font-weight: 800; color: #0369a1;" id="autoEwalletNameVal">{{ depo_settings.dana_name if depo_settings else 'GarudaTel / Kasir' }}</span>
+                        <span style="font-weight: 800; color: #0369a1;">{{ depo_settings.dana_name if depo_settings else 'GarudaTel / Kasir' }}</span>
                     </div>
+                </div>
+
+                <div style="font-size: 11.5px; color: #0369a1; line-height: 1.4; display: flex; align-items: flex-start; gap: 6px;">
+                    <i class="fas fa-info-circle" style="margin-top: 2px; color: #0284c7;"></i>
+                    <span><strong>Tips Praktis:</strong> Bisa ditransfer dari aplikasi DANA langsung, maupun via transfer antar E-Wallet / Bank ke nomor DANA di atas. Saldo langsung masuk otomatis!</span>
                 </div>
             </div>
 
-            <button type="button" class="btn-main-action" id="btnProsesDanaAuto" onclick="submitEwalletAutoDeposit()" style="background: linear-gradient(135deg, #108ee9 0%, #0284c7 100%);">
-                <i class="fas fa-bolt"></i> <span id="btnProsesText">Lanjutkan Pembayaran DANA (Otomatis)</span>
+            <button type="button" class="btn-main-action" id="btnProsesDanaAuto" onclick="submitDanaAutoDeposit()" style="background: linear-gradient(135deg, #108ee9 0%, #0284c7 100%);">
+                <i class="fas fa-bolt"></i> Lanjutkan Pembayaran DANA (Otomatis)
             </button>
         </div>
 
@@ -1321,68 +1313,26 @@
     };
     const waTargetNumber = {{ (depo_settings.wa_target if depo_settings else '081775700114')|tojson }};
 
-    let selectedAutoEwallet = 'DANA';
-
-    function selectAutoEwallet(type) {
-        selectedAutoEwallet = type;
-        ['dana', 'gopay', 'shopee'].forEach(k => {
-            const el = document.getElementById('auto_ew_' + k);
-            if (el) el.classList.remove('active');
-        });
-
-        const activeMap = { 'DANA': 'dana', 'GOPAY': 'gopay', 'SHOPEEPAY': 'shopee' };
-        const activeEl = document.getElementById('auto_ew_' + (activeMap[type] || 'dana'));
-        if (activeEl) activeEl.classList.add('active');
-
-        const acc = ewalletAccounts[type] || ewalletAccounts['DANA'];
-        const iconWrap = document.getElementById('autoEwalletIconWrap');
-        const icon = document.getElementById('autoEwalletIcon');
-        const title = document.getElementById('autoEwalletTitle');
-        const numLbl = document.getElementById('autoEwalletNumLabel');
-        const numVal = document.getElementById('autoEwalletNumVal');
-        const nameVal = document.getElementById('autoEwalletNameVal');
-        const btnText = document.getElementById('btnProsesText');
-        const mainBtn = document.getElementById('btnProsesDanaAuto');
-
-        if (numLbl) numLbl.innerText = 'Tujuan Akun ' + type + ':';
-        if (numVal) numVal.innerText = acc.number;
-        if (nameVal) nameVal.innerText = acc.name;
-        if (btnText) btnText.innerText = 'Lanjutkan Pembayaran ' + type + ' (Otomatis)';
-
-        if (type === 'GOPAY') {
-            if (icon) icon.className = 'fas fa-motorcycle';
-            if (iconWrap) {
-                iconWrap.style.background = '#00aa13';
-                iconWrap.style.boxShadow = '0 4px 10px rgba(0,170,19,0.25)';
-            }
-            if (title) title.innerText = 'GoPay Mutasi Otomatis';
-            if (mainBtn) mainBtn.style.background = 'linear-gradient(135deg, #00aa13 0%, #008f10 100%)';
-        } else if (type === 'SHOPEEPAY') {
-            if (icon) icon.className = 'fas fa-shopping-bag';
-            if (iconWrap) {
-                iconWrap.style.background = '#ee4d2d';
-                iconWrap.style.boxShadow = '0 4px 10px rgba(238,77,45,0.25)';
-            }
-            if (title) title.innerText = 'ShopeePay Mutasi Otomatis';
-            if (mainBtn) mainBtn.style.background = 'linear-gradient(135deg, #ee4d2d 0%, #d03b1c 100%)';
-        } else {
-            if (icon) icon.className = 'fas fa-bolt';
-            if (iconWrap) {
-                iconWrap.style.background = '#108ee9';
-                iconWrap.style.boxShadow = '0 4px 10px rgba(16,142,233,0.25)';
-            }
-            if (title) title.innerText = 'DANA Mutasi Otomatis';
-            if (mainBtn) mainBtn.style.background = 'linear-gradient(135deg, #108ee9 0%, #0284c7 100%)';
-        }
-    }
-
     function selectEwallet(type) {
-        selectAutoEwallet(type);
+        selectedEwallet = type;
+        const shopeeEl = document.getElementById('ew_shopee');
+        const gopayEl = document.getElementById('ew_gopay');
+        if (shopeeEl) shopeeEl.classList.toggle('active', type === 'SHOPEEPAY');
+        if (gopayEl) gopayEl.classList.toggle('active', type === 'GOPAY');
+
+        const acc = ewalletAccounts[type] || ewalletAccounts['SHOPEEPAY'];
+        const nameLbl = document.getElementById('destNameLabel');
+        const infoNum = document.getElementById('destInfoNum');
+        const ownerName = document.getElementById('destOwnerName');
+
+        if (nameLbl) nameLbl.innerText = 'Nomor E-Wallet ' + (type === 'SHOPEEPAY' ? 'ShopeePay' : 'GoPay');
+        if (infoNum) infoNum.innerText = acc.number;
+        if (ownerName) ownerName.innerText = 'a.n ' + acc.name;
     }
 
     function copyCurrentEwallet() {
-        const acc = ewalletAccounts[selectedAutoEwallet] || ewalletAccounts['DANA'];
-        copyText(acc.number, 'Nomor e-wallet ' + selectedAutoEwallet + ' (' + acc.number + ') berhasil disalin!');
+        const acc = ewalletAccounts[selectedEwallet] || ewalletAccounts['SHOPEEPAY'];
+        copyText(acc.number, 'Nomor e-wallet ' + selectedEwallet + ' (' + acc.number + ') berhasil disalin!');
     }
 
     function regenerateUniqueCode() {
@@ -1403,16 +1353,16 @@
         copyText(total.toString(), 'Nominal total Rp ' + total.toLocaleString('id-ID') + ' berhasil disalin!');
     }
 
-    // PROSES DEPOSIT E-WALLET OTOMATIS (DANA / GOPAY / SHOPEEPAY)
-    function submitEwalletAutoDeposit() {
+    // PROSES DEPOSIT DANA OTOMATIS (24 JAM)
+    function submitDanaAutoDeposit() {
         if (currentNominal < 5000) {
-            alert('Minimal deposit ' + selectedAutoEwallet + ' adalah Rp 5.000');
+            alert('Minimal deposit DANA adalah Rp 5.000');
             return;
         }
 
         const btn = document.getElementById('btnProsesDanaAuto');
         const origText = btn.innerHTML;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyiapkan Tiket ' + selectedAutoEwallet + '...';
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyiapkan Tiket DANA...';
         btn.disabled = true;
 
         fetch('/deposit/manual', {
@@ -1422,7 +1372,7 @@
             },
             body: JSON.stringify({
                 nominal: currentNominal,
-                ewallet_type: selectedAutoEwallet
+                ewallet_type: 'DANA'
             })
         })
         .then(res => res.json())
@@ -1433,7 +1383,7 @@
             if (data.status === 'success' && data.is_auto) {
                 showDanaPaymentCard(data);
             } else {
-                alert(data.message || 'Gagal menyiapkan tiket deposit ' + selectedAutoEwallet);
+                alert(data.message || 'Gagal menyiapkan tiket deposit DANA');
             }
         })
         .catch(err => {
@@ -1443,40 +1393,21 @@
         });
     }
 
-    function submitDanaAutoDeposit() {
-        submitEwalletAutoDeposit();
-    }
-
     function showDanaPaymentCard(ticket) {
         danaRefId = ticket.ref_id;
         danaExpiresEpoch = ticket.expires_epoch;
         currentDanaTotal = ticket.total_transfer || ticket.amount;
-
-        const ewType = (ticket.ewallet_type || 'DANA').toUpperCase();
-        const logoText = document.getElementById('danaCardLogoText');
-        const destLbl = document.getElementById('danaCardDestLbl');
-        const badgeIcon = document.getElementById('danaCardBadgeIcon');
-        
-        if (logoText) logoText.innerText = ewType;
-        if (destLbl) destLbl.innerText = 'NOMOR TUJUAN ' + ewType + ':';
-        if (badgeIcon) {
-            if (ewType === 'GOPAY') {
-                badgeIcon.innerHTML = '<i class="fas fa-motorcycle"></i>';
-                badgeIcon.style.color = '#00aa13';
-            } else if (ewType === 'SHOPEEPAY') {
-                badgeIcon.innerHTML = '<i class="fas fa-shopping-bag"></i>';
-                badgeIcon.style.color = '#ee4d2d';
-            } else {
-                badgeIcon.innerHTML = '<i class="fas fa-wallet"></i>';
-                badgeIcon.style.color = '#108ee9';
-            }
-        }
 
         const formSection = document.getElementById('depositFormSection');
         if (formSection) formSection.style.display = 'none';
 
         const card = document.getElementById('danaPaymentCard');
         if (card) card.style.display = 'block';
+
+        const logoText = document.getElementById('danaCardLogoText');
+        const destLbl = document.getElementById('danaCardDestLbl');
+        if (logoText) logoText.innerText = 'DANA';
+        if (destLbl) destLbl.innerText = 'NOMOR TUJUAN DANA:';
 
         const totalEl = document.getElementById('danaCardTotalText');
         if (totalEl) totalEl.innerText = formatRupiah(currentDanaTotal);
