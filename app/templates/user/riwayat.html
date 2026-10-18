@@ -3,15 +3,25 @@
 
 {% block head %}
 <style>
+    @media (min-width: 1024px) {
+        .app-container {
+            max-width: 1080px !important;
+        }
+    }
+
     .riwayat-header {
         background: linear-gradient(135deg, #00877a 0%, #005f56 100%);
         border-bottom-left-radius: 28px;
         border-bottom-right-radius: 28px;
-        padding: 20px 20px 42px 20px;
-        margin: 0 0 18px 0;
+        padding: 22px 20px 42px 20px;
+        margin: 0 0 20px 0;
         color: white;
         box-shadow: 0 8px 24px rgba(0, 135, 122, 0.2);
         position: relative;
+    }
+    .riwayat-header-inner {
+        max-width: 1040px;
+        margin: 0 auto;
     }
     .header-nav-row {
         display: flex;
@@ -26,23 +36,24 @@
         color: white;
         text-decoration: none;
         font-weight: 700;
-        font-size: 15px;
-        background: rgba(255, 255, 255, 0.15);
-        padding: 6px 14px;
+        font-size: 14.5px;
+        background: rgba(255, 255, 255, 0.16);
+        padding: 7px 16px;
         border-radius: 20px;
         backdrop-filter: blur(8px);
         transition: all 0.2s ease;
     }
     .btn-header-back:hover {
-        background: rgba(255, 255, 255, 0.25);
+        background: rgba(255, 255, 255, 0.28);
         color: white;
+        transform: translateX(-2px);
     }
     .riwayat-badge-live {
         display: inline-flex;
         align-items: center;
-        gap: 6px;
+        gap: 7px;
         background: rgba(255, 255, 255, 0.2);
-        padding: 5px 12px;
+        padding: 6px 14px;
         border-radius: 20px;
         font-size: 12px;
         font-weight: 700;
@@ -63,7 +74,142 @@
         70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(52, 211, 153, 0); }
         100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
     }
+
+    .header-title-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 12px;
+    }
+    .riwayat-page-title {
+        font-size: 22px;
+        font-weight: 800;
+        margin: 0 0 4px 0;
+        letter-spacing: -0.5px;
+    }
+    .riwayat-page-desc {
+        font-size: 12px;
+        opacity: 0.9;
+        margin: 0;
+    }
+    .btn-cross-mutasi {
+        color: white;
+        font-size: 12.5px;
+        font-weight: 700;
+        text-decoration: underline;
+        opacity: 0.95;
+        transition: 0.2s;
+        white-space: nowrap;
+    }
+    @media (min-width: 768px) {
+        .riwayat-page-title { font-size: 26px; }
+        .riwayat-page-desc { font-size: 13px; }
+        .btn-cross-mutasi {
+            text-decoration: none;
+            background: rgba(255, 255, 255, 0.18);
+            padding: 7px 16px;
+            border-radius: 20px;
+            backdrop-filter: blur(8px);
+        }
+        .btn-cross-mutasi:hover {
+            background: rgba(255, 255, 255, 0.28);
+            color: white;
+            transform: translateY(-1px);
+        }
+    }
+
+    /* CONTAINER */
+    .riwayat-container {
+        max-width: 1040px;
+        margin: 0 auto;
+        padding: 0 16px 90px 16px;
+    }
+
+    /* BANNER PERIODE TRANSAKSI */
+    .banner-periode-box {
+        background: #e6f7f5;
+        border: 1.5px solid #99f6e4;
+        border-radius: 16px;
+        padding: 12px 18px;
+        margin-bottom: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        box-shadow: 0 2px 8px rgba(0, 135, 122, 0.05);
+    }
+    .banner-filter-active {
+        background: #fffbeb;
+        border-color: #fde68a;
+    }
+    .banner-left-content {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 13px;
+        color: #005f56;
+        font-weight: 700;
+    }
+    .banner-filter-active .banner-left-content {
+        color: #92400e;
+    }
+    .banner-icon-badge {
+        width: 36px;
+        height: 36px;
+        background: rgba(0, 135, 122, 0.12);
+        color: #00877a;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        flex-shrink: 0;
+    }
+    .banner-filter-active .banner-icon-badge {
+        background: #fef3c7;
+        color: #d97706;
+    }
+    .btn-date-trigger {
+        background: #00877a;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s;
+        box-shadow: 0 2px 6px rgba(0, 135, 122, 0.2);
+    }
+    .btn-date-trigger:hover {
+        background: #005f56;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 10px rgba(0, 135, 122, 0.3);
+    }
+    .btn-reset-date {
+        background: #d97706;
+        color: white;
+        padding: 8px 16px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: 800;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s;
+    }
+    .btn-reset-date:hover {
+        background: #b45309;
+        color: white;
+        transform: translateY(-1px);
+    }
     
+    /* STATISTIK */
     .stats-grid {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -72,28 +218,65 @@
     }
     .stat-card {
         border-radius: 14px;
-        padding: 10px 6px;
+        padding: 10px 8px;
         text-align: center;
         color: white;
         box-shadow: 0 3px 8px rgba(0,0,0,0.06);
         cursor: pointer;
-        transition: transform 0.15s;
+        transition: all 0.2s ease;
+        position: relative;
+        overflow: hidden;
     }
-    .stat-card:hover { transform: translateY(-2px); }
-    .stat-card.sukses { background: linear-gradient(135deg, #10b981, #059669); }
-    .stat-card.antri { background: linear-gradient(135deg, #0ea5e9, #0284c7); }
-    .stat-card.proses { background: linear-gradient(135deg, #f59e0b, #d97706); }
-    .stat-card.gagal { background: linear-gradient(135deg, #ef4444, #dc2626); }
-    .stat-card .label { font-size: 10px; font-weight: 800; opacity: 0.9; margin-bottom: 2px; }
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 18px rgba(0,0,0,0.12);
+    }
+    .stat-card.sukses { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+    .stat-card.antri { background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); }
+    .stat-card.proses { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+    .stat-card.gagal { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
+    .stat-card .label { font-size: 10px; font-weight: 800; opacity: 0.92; margin-bottom: 2px; }
     .stat-card .num { font-size: 18px; font-weight: 900; }
+    .stat-card .stat-icon { display: none; }
 
-    /* Filter Kapsul */
+    @media (min-width: 768px) {
+        .stats-grid {
+            gap: 16px;
+            margin-bottom: 22px;
+        }
+        .stat-card {
+            padding: 16px 20px;
+            border-radius: 18px;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .stat-card .label {
+            font-size: 11px;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+        .stat-card .num {
+            font-size: 26px;
+        }
+        .stat-card .stat-icon {
+            display: block;
+            font-size: 32px;
+            opacity: 0.35;
+        }
+    }
+
+    /* TOOLBAR (FILTER KAPSUL & PENCARIAN) */
+    .riwayat-toolbar {
+        margin-bottom: 16px;
+    }
     .filter-tabs {
         background: #f1f5f9;
         border-radius: 14px;
         display: flex;
         padding: 4px;
-        margin-bottom: 14px;
+        margin-bottom: 12px;
         gap: 4px;
     }
     .filter-tab {
@@ -106,14 +289,13 @@
         border-radius: 10px;
         cursor: pointer;
         transition: 0.15s;
+        user-select: none;
     }
     .filter-tab.active {
         background: white;
         color: #00877a;
         box-shadow: 0 2px 6px rgba(0,0,0,0.06);
     }
-
-    /* Search Box */
     .search-wrap {
         position: relative;
         margin-bottom: 16px;
@@ -121,39 +303,139 @@
     .search-wrap i {
         position: absolute;
         left: 14px;
-        top: 13px;
+        top: 50%;
+        transform: translateY(-50%);
         color: #94a3b8;
     }
     .search-wrap input {
         width: 100%;
-        padding: 10px 14px 10px 38px;
+        padding: 11px 14px 11px 38px;
         background: white;
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 14px;
         font-size: 13px;
         font-weight: 700;
         color: #1e293b;
         outline: none;
         box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        box-sizing: border-box;
+        transition: all 0.2s;
     }
-    .search-wrap input:focus { border-color: #00877a; }
+    .search-wrap input:focus {
+        border-color: #00877a;
+        box-shadow: 0 0 0 3px rgba(0, 135, 122, 0.12);
+    }
+
+    @media (min-width: 768px) {
+        .riwayat-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            background: white;
+            padding: 8px 12px;
+            border-radius: 18px;
+            border: 1.5px solid #e2e8f0;
+            box-shadow: 0 3px 12px rgba(0, 0, 0, 0.03);
+            margin-bottom: 22px;
+        }
+        .riwayat-toolbar .filter-tabs {
+            margin-bottom: 0;
+            background: transparent;
+            padding: 0;
+            flex: 1;
+            gap: 6px;
+        }
+        .riwayat-toolbar .filter-tab {
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-size: 13px;
+        }
+        .riwayat-toolbar .filter-tab:hover {
+            background: #f8fafc;
+            color: #1e293b;
+        }
+        .riwayat-toolbar .filter-tab.active {
+            background: #e6f7f5;
+            color: #00877a;
+            box-shadow: none;
+            font-weight: 900;
+        }
+        .riwayat-toolbar .search-wrap {
+            margin-bottom: 0;
+            width: 320px;
+            flex-shrink: 0;
+        }
+        .riwayat-toolbar .search-wrap input {
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            padding: 10px 14px 10px 38px;
+            border-radius: 12px;
+        }
+        .riwayat-toolbar .search-wrap input:focus {
+            background: white;
+            border-color: #00877a;
+        }
+    }
 
     /* Card Transaksi */
+    #containerRiwayat {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
     .trx-card {
         background: white;
         border-radius: 16px;
         padding: 15px;
-        margin-bottom: 12px;
-        border: 1px solid #e2e8f0;
+        margin-bottom: 0;
+        border: 1.5px solid #e2e8f0;
         box-shadow: 0 2px 8px rgba(0,0,0,0.02);
-        transition: transform 0.15s ease, border-color 0.15s ease;
+        transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
         overflow: hidden;
         word-wrap: break-word;
         box-sizing: border-box;
     }
     .trx-card:hover {
         border-color: #00877a;
-        transform: translateY(-1px);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 18px rgba(0, 135, 122, 0.08);
+    }
+
+    @media (min-width: 768px) {
+        #containerRiwayat {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 18px;
+            align-items: stretch;
+        }
+        .trx-card {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 18px 20px;
+            border-radius: 18px;
+        }
+        .trx-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(0, 135, 122, 0.12);
+        }
+        .trx-product-title {
+            font-size: 15px;
+        }
+        .badge-status {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+        }
+        .btn-action-sm {
+            padding: 6px 12px;
+            font-size: 11.5px;
+            border-radius: 10px;
+        }
+    }
+    #emptySearchNotice, .empty-riwayat-state {
+        grid-column: 1 / -1;
     }
     .trx-top-row {
         display: flex;
@@ -607,68 +889,79 @@
 
 <!-- HEADER RIWAYAT -->
 <div class="riwayat-header">
-    <div class="header-nav-row">
-        <a href="/" class="btn-header-back">
-            <i class="fas fa-arrow-left"></i><span>Beranda</span>
-        </a>
-        <div class="riwayat-badge-live">
-            <span class="pulse-dot"></span> Live Transaksi
+    <div class="riwayat-header-inner">
+        <div class="header-nav-row">
+            <a href="/" class="btn-header-back">
+                <i class="fas fa-arrow-left"></i><span>Beranda</span>
+            </a>
+            <div class="riwayat-badge-live">
+                <span class="pulse-dot"></span> Live Transaksi
+            </div>
         </div>
-    </div>
-    <div style="display: flex; justify-content: space-between; align-items: flex-end;">
-        <div>
-            <h1 style="font-size: 22px; font-weight: 800; margin: 0 0 4px 0; letter-spacing: -0.5px;">Riwayat Transaksi</h1>
-            <p style="font-size: 12px; opacity: 0.9; margin: 0;">Pantau status transaksi & bagikan struk pembayaran</p>
+        <div class="header-title-row">
+            <div>
+                <h1 class="riwayat-page-title">Riwayat Transaksi</h1>
+                <p class="riwayat-page-desc">Pantau status transaksi & bagikan struk pembayaran</p>
+            </div>
+            <a href="/mutasi" class="btn-cross-mutasi">
+                <i class="fas fa-wallet"></i> Mutasi Saldo &raquo;
+            </a>
         </div>
-        <a href="/mutasi" style="color: white; font-size: 12px; font-weight: 700; text-decoration: underline; opacity: 0.95;">
-            Mutasi Saldo &raquo;
-        </a>
     </div>
 </div>
 
 <!-- MODAL FILTER TANGGAL -->
-<div id="modalFilter" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center; padding: 20px;">
-    <div style="background: white; width: 100%; max-width: 400px; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
-        <div style="background: #00877a; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-weight: 800; font-size: 14px;">Filter Berdasarkan Tanggal</span>
-            <i class="fas fa-times" style="font-size: 16px; cursor: pointer;" onclick="document.getElementById('modalFilter').style.display='none'"></i>
-        </div>
-        <form action="/riwayat" method="GET" style="padding: 20px;">
-            <div style="margin-bottom: 14px;">
-                <label style="display: block; color: #475569; margin-bottom: 6px; font-size: 12px; font-weight: 700;">Dari Tanggal</label>
-                <input type="date" name="start_date" value="{{ request.args.get('start_date', '') }}" style="width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px; outline: none; font-size: 13px;">
+<div id="modalFilter" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 9999; justify-content: center; align-items: center; padding: 20px;">
+    <div style="background: white; width: 100%; max-width: 420px; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.25);">
+        <div style="background: linear-gradient(135deg, #00877a 0%, #005f56 100%); color: white; padding: 18px 22px; display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-calendar-alt"></i>
+                <span style="font-weight: 800; font-size: 15px;">Filter Berdasarkan Tanggal</span>
             </div>
-            <div style="margin-bottom: 20px;">
+            <i class="fas fa-times" style="font-size: 18px; cursor: pointer; opacity: 0.85; transition: 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'" onclick="document.getElementById('modalFilter').style.display='none'"></i>
+        </div>
+        <form action="/riwayat" method="GET" style="padding: 22px;">
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; color: #475569; margin-bottom: 6px; font-size: 12px; font-weight: 700;">Dari Tanggal</label>
+                <input type="date" name="start_date" value="{{ request.args.get('start_date', '') }}" style="width: 100%; padding: 11px 14px; border: 1.5px solid #cbd5e1; border-radius: 12px; outline: none; font-size: 13px; box-sizing: border-box; font-family: inherit;">
+            </div>
+            <div style="margin-bottom: 22px;">
                 <label style="display: block; color: #475569; margin-bottom: 6px; font-size: 12px; font-weight: 700;">Ke Tanggal</label>
-                <input type="date" name="end_date" value="{{ request.args.get('end_date', '') }}" style="width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px; outline: none; font-size: 13px;">
+                <input type="date" name="end_date" value="{{ request.args.get('end_date', '') }}" style="width: 100%; padding: 11px 14px; border: 1.5px solid #cbd5e1; border-radius: 12px; outline: none; font-size: 13px; box-sizing: border-box; font-family: inherit;">
             </div>
             <div style="display: flex; gap: 10px;">
-                <a href="/riwayat" style="flex: 1; padding: 10px; text-align: center; border: 1px solid #cbd5e1; color: #475569; border-radius: 10px; text-decoration: none; font-weight: 800; font-size: 13px;">Reset</a>
-                <button type="submit" style="flex: 1; padding: 10px; border: none; background: #00877a; color: white; border-radius: 10px; font-weight: 800; font-size: 13px; cursor: pointer;">Terapkan</button>
+                <a href="/riwayat" style="flex: 1; padding: 11px; text-align: center; border: 1.5px solid #cbd5e1; color: #475569; border-radius: 12px; text-decoration: none; font-weight: 800; font-size: 13px;">Reset</a>
+                <button type="submit" style="flex: 1.5; padding: 11px; border: none; background: #00877a; color: white; border-radius: 12px; font-weight: 800; font-size: 13px; cursor: pointer;">Terapkan Filter</button>
             </div>
         </form>
     </div>
 </div>
 
-<div style="padding: 0 15px; padding-bottom: 80px;">
+<div class="riwayat-container">
     <!-- BANNER PERIODE TRANSAKSI (DEFAULT 3 HARI) -->
     {% if is_default_range %}
-    <div style="background: #e6f7f5; border: 1.5px solid #99f6e4; border-radius: 14px; padding: 10px 14px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; box-shadow: 0 2px 8px rgba(0,135,122,0.06);">
-        <div style="display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: #005f56; font-weight: 700;">
-            <i class="fas fa-history" style="color: #00877a; font-size: 15px;"></i>
-            <span>Menampilkan riwayat transaksi <b>3 hari terakhir</b>.</span>
+    <div class="banner-periode-box">
+        <div class="banner-left-content">
+            <div class="banner-icon-badge"><i class="fas fa-history"></i></div>
+            <div>
+                <div>Menampilkan riwayat transaksi <b>3 hari terakhir</b>.</div>
+                <div style="font-size: 11px; opacity: 0.8; font-weight: 600; margin-top: 1px;">Gunakan filter tanggal untuk melihat transaksi lebih lampau</div>
+            </div>
         </div>
-        <button type="button" onclick="document.getElementById('modalFilter').style.display='flex'" style="background: #00877a; color: white; border: none; padding: 5px 12px; border-radius: 8px; font-size: 11px; font-weight: 800; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px;">
+        <button type="button" onclick="document.getElementById('modalFilter').style.display='flex'" class="btn-date-trigger">
             <i class="fas fa-calendar-alt"></i> <span>Cari Tanggal Lain</span>
         </button>
     </div>
     {% elif request.args.get('start_date') or request.args.get('end_date') %}
-    <div style="background: #f1f5f9; border: 1.5px solid #cbd5e1; border-radius: 14px; padding: 10px 14px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
-        <div style="display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: #334155; font-weight: 700;">
-            <i class="fas fa-filter" style="color: #00877a; font-size: 15px;"></i>
-            <span>Filter Tanggal: <b>{{ request.args.get('start_date') or 'Awal' }}</b> s/d <b>{{ request.args.get('end_date') or 'Sekarang' }}</b></span>
+    <div class="banner-periode-box banner-filter-active">
+        <div class="banner-left-content">
+            <div class="banner-icon-badge"><i class="fas fa-filter"></i></div>
+            <div>
+                <div>Filter Tanggal: <b>{{ request.args.get('start_date') or 'Awal' }}</b> s/d <b>{{ request.args.get('end_date') or 'Sekarang' }}</b></div>
+                <div style="font-size: 11px; opacity: 0.8; font-weight: 600; margin-top: 1px;">Data dibatasi sesuai rentang tanggal yang dipilih</div>
+            </div>
         </div>
-        <a href="/riwayat" style="background: #e2e8f0; color: #475569; padding: 5px 12px; border-radius: 8px; font-size: 11px; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 5px;">
+        <a href="/riwayat" class="btn-reset-date">
             <i class="fas fa-undo"></i> <span>Reset (3 Hari)</span>
         </a>
     </div>
@@ -676,37 +969,49 @@
 
     <!-- KOTAK STATISTIK -->
     <div class="stats-grid">
-        <div class="stat-card sukses" onclick="setFilter('SUKSES', document.getElementById('tab-SUKSES'))">
-            <div class="label">SUKSES</div>
-            <div class="num">{{ count_sukses }}</div>
+        <div class="stat-card sukses" onclick="setFilter('SUKSES', document.getElementById('tab-SUKSES'))" title="Filter Sukses">
+            <div>
+                <div class="label">SUKSES</div>
+                <div class="num">{{ count_sukses }}</div>
+            </div>
+            <i class="fas fa-check-circle stat-icon"></i>
         </div>
-        <div class="stat-card antri" onclick="setFilter('ANTRI', document.getElementById('tab-ANTRI'))">
-            <div class="label">ANTRI</div>
-            <div class="num">{{ count_antri }}</div>
+        <div class="stat-card antri" onclick="setFilter('ANTRI', document.getElementById('tab-ANTRI'))" title="Filter Antri">
+            <div>
+                <div class="label">ANTRI</div>
+                <div class="num">{{ count_antri }}</div>
+            </div>
+            <i class="fas fa-clock stat-icon"></i>
         </div>
-        <div class="stat-card proses" onclick="setFilter('PROSES', document.getElementById('tab-PROSES'))">
-            <div class="label">PROSES</div>
-            <div class="num">{{ count_proses }}</div>
+        <div class="stat-card proses" onclick="setFilter('PROSES', document.getElementById('tab-PROSES'))" title="Filter Proses">
+            <div>
+                <div class="label">PROSES</div>
+                <div class="num">{{ count_proses }}</div>
+            </div>
+            <i class="fas fa-spinner fa-spin stat-icon"></i>
         </div>
-        <div class="stat-card gagal" onclick="setFilter('GAGAL', document.getElementById('tab-GAGAL'))">
-            <div class="label">GAGAL</div>
-            <div class="num">{{ count_gagal }}</div>
+        <div class="stat-card gagal" onclick="setFilter('GAGAL', document.getElementById('tab-GAGAL'))" title="Filter Gagal">
+            <div>
+                <div class="label">GAGAL</div>
+                <div class="num">{{ count_gagal }}</div>
+            </div>
+            <i class="fas fa-times-circle stat-icon"></i>
         </div>
     </div>
 
-    <!-- FILTER TABS KAPSUL -->
-    <div class="filter-tabs">
-        <div class="filter-tab active" id="tab-SEMUA" onclick="setFilter('SEMUA', this)">Semua</div>
-        <div class="filter-tab" id="tab-SUKSES" onclick="setFilter('SUKSES', this)">Sukses</div>
-        <div class="filter-tab" id="tab-ANTRI" onclick="setFilter('ANTRI', this)">Antri</div>
-        <div class="filter-tab" id="tab-PROSES" onclick="setFilter('PROSES', this)">Proses</div>
-        <div class="filter-tab" id="tab-GAGAL" onclick="setFilter('GAGAL', this)">Gagal</div>
-    </div>
-
-    <!-- PENCARIAN REAL-TIME -->
-    <div class="search-wrap">
-        <i class="fas fa-search"></i>
-        <input type="text" id="inputSearchRiwayat" onkeyup="jalankanFilter()" placeholder="Cari Ref ID, Nomor Tujuan, atau Produk...">
+    <!-- TOOLBAR (FILTER KAPSUL & PENCARIAN REAL-TIME) -->
+    <div class="riwayat-toolbar">
+        <div class="filter-tabs">
+            <div class="filter-tab active" id="tab-SEMUA" onclick="setFilter('SEMUA', this)">Semua</div>
+            <div class="filter-tab" id="tab-SUKSES" onclick="setFilter('SUKSES', this)">Sukses</div>
+            <div class="filter-tab" id="tab-ANTRI" onclick="setFilter('ANTRI', this)">Antri</div>
+            <div class="filter-tab" id="tab-PROSES" onclick="setFilter('PROSES', this)">Proses</div>
+            <div class="filter-tab" id="tab-GAGAL" onclick="setFilter('GAGAL', this)">Gagal</div>
+        </div>
+        <div class="search-wrap">
+            <i class="fas fa-search"></i>
+            <input type="text" id="inputSearchRiwayat" onkeyup="jalankanFilter()" placeholder="Cari Ref ID, Nomor Tujuan, atau Produk...">
+        </div>
     </div>
 
     <!-- DAFTAR TRANSAKSI -->
@@ -800,7 +1105,7 @@
             </div>
             {% endfor %}
         {% else %}
-            <div style="text-align: center; padding: 60px 20px;">
+            <div class="empty-riwayat-state" style="text-align: center; padding: 60px 20px;">
                 <i class="fas fa-receipt" style="font-size: 45px; color: #cbd5e1; margin-bottom: 14px;"></i>
                 <h4 style="font-weight: 800; font-size: 15px; color: #475569; margin: 0 0 6px 0;">Belum Ada Riwayat Transaksi</h4>
                 <p style="font-size: 12px; color: #94a3b8; margin: 0 0 20px 0;">Transaksi yang Anda lakukan akan tercatat rapi di sini.</p>
