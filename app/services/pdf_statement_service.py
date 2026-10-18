@@ -58,7 +58,7 @@ def _generate_with_reportlab(user, month, year, statement_data):
             self.drawString(
                 1.2 * cm, 
                 1.0 * cm, 
-                "Dokumen Rekening Koran Resmi iPay • Diterbitkan otomatis oleh sistem PT Garuda Digital Media • https://ipay.my.id"
+                "Dokumen Rekening Koran Resmi iPay • Diterbitkan otomatis oleh sistem Garuda Digital Media • https://ipay.my.id"
             )
             page_str = f"Halaman {self._pageNumber} dari {page_count}"
             self.drawRightString(A4[0] - 1.2 * cm, 1.0 * cm, page_str)
@@ -148,7 +148,7 @@ def _generate_with_reportlab(user, month, year, statement_data):
         header_table_left_data = [[
             logo_cell,
             [
-                Paragraph("<b>PT GARUDA DIGITAL MEDIA</b>", style_company_title),
+                Paragraph("<b>GARUDA DIGITAL MEDIA</b>", style_company_title),
                 Paragraph("<b>iPay Platform</b> • Layanan Distribusi Pulsa & PPOB Terpercaya", style_company_sub),
                 Paragraph("Website: https://ipay.my.id • Layanan CS: 08:00 - 23:00 WIB", style_company_sub)
             ]
@@ -163,7 +163,7 @@ def _generate_with_reportlab(user, month, year, statement_data):
         ]))
     else:
         header_left = [
-            Paragraph("<b>PT GARUDA DIGITAL MEDIA</b>", style_company_title),
+            Paragraph("<b>GARUDA DIGITAL MEDIA</b>", style_company_title),
             Paragraph("<b>iPay Platform</b> • Layanan Distribusi Pulsa & PPOB Terpercaya", style_company_sub),
             Paragraph("Website: https://ipay.my.id • Layanan CS: 08:00 - 23:00 WIB", style_company_sub)
         ]
@@ -210,7 +210,7 @@ def _generate_with_reportlab(user, month, year, statement_data):
             Paragraph("TIPE / STATUS AKUN", style_box_label),
             Paragraph(f": <font color='#00877A'><b>{user_role}</b></font> • AKTIF", style_box_value),
             Paragraph("LEMBAGA PENYEDIA", style_box_label),
-            Paragraph(": PT Garuda Digital Media (iPay)", style_box_value),
+            Paragraph(": Garuda Digital Media (iPay)", style_box_value),
         ]
     ]
 
@@ -374,7 +374,7 @@ def _generate_with_reportlab(user, month, year, statement_data):
 
     notice_text = (
         "<b>PERNYATAAN RESMI:</b><br/>"
-        "1. Dokumen Rekening Koran ini sah dan diterbitkan secara digital oleh sistem otomatisasi iPay (PT Garuda Digital Media).<br/>"
+        "1. Dokumen Rekening Koran ini sah dan diterbitkan secara digital oleh sistem otomatisasi iPay (Garuda Digital Media).<br/>"
         "2. Seluruh catatan mutasi dan saldo di atas adalah final sesuai dengan database transaksi terverifikasi pada saat tanggal cetak.<br/>"
         "3. Apabila terdapat perbedaan atau pertanyaan terkait mutasi, silakan hubungi Layanan Pelanggan (CS) resmi iPay melalui menu Bantuan di aplikasi atau WhatsApp resmi dalam waktu maksimal 7 (tujuh) hari kerja kalender sejak tanggal terbit dokumen ini."
     )
@@ -534,7 +534,7 @@ def _generate_with_pure_python(user, month, year, statement_data):
     def draw_page_header_and_meta():
         pdf.new_page()
         # Top Header Brand
-        pdf.draw_text("PT GARUDA DIGITAL MEDIA", MARGIN, 808, font='F2', size=11, rgb=(0, 0.529, 0.478))
+        pdf.draw_text("GARUDA DIGITAL MEDIA", MARGIN, 808, font='F2', size=11, rgb=(0, 0.529, 0.478))
         pdf.draw_text("iPay Platform - Layanan Distribusi Pulsa & PPOB Terpercaya", MARGIN, 796, font='F1', size=7.5, rgb=(0.28, 0.33, 0.41))
         pdf.draw_text("Website: https://ipay.my.id - Layanan CS: 08:00 - 23:00 WIB", MARGIN, 786, font='F1', size=7, rgb=(0.39, 0.45, 0.55))
 
@@ -566,7 +566,7 @@ def _generate_with_pure_python(user, month, year, statement_data):
         pdf.draw_text(f": {user_role} - AKTIF", MARGIN + 105, box_y + 6, font='F2', size=7.5, rgb=(0, 0.529, 0.478))
 
         pdf.draw_text("LEMBAGA PENYEDIA", MARGIN + 280, box_y + 6, font='F1', size=6.5, rgb=(0.39, 0.45, 0.55))
-        pdf.draw_text(": PT Garuda Digital Media (iPay)", MARGIN + 365, box_y + 6, font='F2', size=7.5, rgb=(0.06, 0.09, 0.16))
+        pdf.draw_text(": Garuda Digital Media (iPay)", MARGIN + 365, box_y + 6, font='F2', size=7.5, rgb=(0.06, 0.09, 0.16))
 
         # Financial Summary Box (4 Columns)
         sum_y = 675
@@ -611,7 +611,7 @@ def _generate_with_pure_python(user, month, year, statement_data):
 
     def draw_page_footer(cur_page, total_pages):
         pdf.draw_line(MARGIN, 34, PAGE_W - MARGIN, 34, stroke_rgb=(0.8, 0.85, 0.9), stroke_width=0.5)
-        pdf.draw_text("Dokumen Rekening Koran Resmi iPay - PT Garuda Digital Media - https://ipay.my.id", MARGIN, 24, font='F1', size=6.5, rgb=(0.39, 0.45, 0.55))
+        pdf.draw_text("Dokumen Rekening Koran Resmi iPay - Garuda Digital Media - https://ipay.my.id", MARGIN, 24, font='F1', size=6.5, rgb=(0.39, 0.45, 0.55))
         pdf.draw_text(f"Halaman {cur_page} dari {total_pages}", PAGE_W - MARGIN, 24, font='F1', size=6.5, rgb=(0.39, 0.45, 0.55), align='right')
 
     # Draw First Page
@@ -633,7 +633,7 @@ def _generate_with_pure_python(user, month, year, statement_data):
                 # Need new page
                 pdf.new_page()
                 # Mini Header on next pages
-                pdf.draw_text("PT GARUDA DIGITAL MEDIA - REKENING KORAN", MARGIN, 810, font='F2', size=8.5, rgb=(0, 0.529, 0.478))
+                pdf.draw_text("GARUDA DIGITAL MEDIA - REKENING KORAN", MARGIN, 810, font='F2', size=8.5, rgb=(0, 0.529, 0.478))
                 pdf.draw_text(f"Periode: {period_str} | ID #{user.id}", PAGE_W - MARGIN, 810, font='F1', size=7.5, rgb=(0.39, 0.45, 0.55), align='right')
                 pdf.draw_rect(MARGIN, 804, CONTENT_W, 1, fill_rgb=(0, 0.529, 0.478))
                 cur_y = draw_table_header(800)
@@ -687,7 +687,7 @@ def _generate_with_pure_python(user, month, year, statement_data):
     notice_y = cur_y - 42
     pdf.draw_rect(MARGIN, notice_y, CONTENT_W, 36, fill_rgb=(0.95, 0.96, 0.98), stroke_rgb=(0.8, 0.85, 0.9), stroke_width=0.6)
     pdf.draw_text("PERNYATAAN RESMI:", MARGIN + 8, notice_y + 26, font='F2', size=6.5, rgb=(0.2, 0.25, 0.3))
-    pdf.draw_text("1. Dokumen Rekening Koran ini sah dan diterbitkan secara digital oleh sistem otomatisasi iPay (PT Garuda Digital Media).", MARGIN + 8, notice_y + 17, font='F1', size=5.8, rgb=(0.3, 0.35, 0.4))
+    pdf.draw_text("1. Dokumen Rekening Koran ini sah dan diterbitkan secara digital oleh sistem otomatisasi iPay (Garuda Digital Media).", MARGIN + 8, notice_y + 17, font='F1', size=5.8, rgb=(0.3, 0.35, 0.4))
     pdf.draw_text("2. Catatan mutasi di atas final sesuai database transaksi pada tanggal cetak. Pertanyaan dapat disampaikan ke CS iPay.", MARGIN + 8, notice_y + 8, font='F1', size=5.8, rgb=(0.3, 0.35, 0.4))
 
     # Add Footers to all pages
@@ -695,7 +695,7 @@ def _generate_with_pure_python(user, month, year, statement_data):
     for p_idx in range(total_pages):
         # We need to temporarily set active page
         pdf.pages[p_idx].append(f'q 0.8 0.85 0.9 RG 0.5 w {MARGIN:.2f} 34 m {PAGE_W - MARGIN:.2f} 34 l S Q')
-        pdf.pages[p_idx].append(f'BT /F1 6.5 Tf 0.39 0.45 0.55 rg 1 0 0 1 {MARGIN:.2f} 24 Tm (Dokumen Rekening Koran Resmi iPay - PT Garuda Digital Media - https://ipay.my.id) Tj ET')
+        pdf.pages[p_idx].append(f'BT /F1 6.5 Tf 0.39 0.45 0.55 rg 1 0 0 1 {MARGIN:.2f} 24 Tm (Dokumen Rekening Koran Resmi iPay - Garuda Digital Media - https://ipay.my.id) Tj ET')
         page_str = f"Halaman {p_idx + 1} dari {total_pages}"
         x_page = (PAGE_W - MARGIN) - (len(page_str) * 6.5 * 0.52)
         pdf.pages[p_idx].append(f'BT /F1 6.5 Tf 0.39 0.45 0.55 rg 1 0 0 1 {x_page:.2f} 24 Tm ({page_str}) Tj ET')
