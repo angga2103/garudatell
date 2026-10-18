@@ -861,24 +861,21 @@ function prosesInquiry(tab) {
 
             tampilkanModalTagihan(data, prodName);
         } else {
-            if (typeof Swal !== 'undefined') {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Tagihan Tidak Ditemukan',
-                    html: `<div style="font-size:13.5px; color:#475569;">${data.message || 'ID Pelanggan tidak terdaftar atau tagihan bulan ini sudah lunas.'}</div>`,
-                    confirmButtonColor: '#00877a'
-                });
-            } else {
-                alert(data.message || 'Tagihan tidak ditemukan');
-            }
+            window.showGarudaAlert({
+                title: 'Tagihan Tidak Ditemukan',
+                html: `<div style="font-size:13.5px; color:#475569;">${data.message || 'ID Pelanggan tidak terdaftar atau tagihan bulan ini sudah lunas.'}</div>`,
+                icon: 'error'
+            });
         }
     })
     .catch(err => {
         sembunyikanLoading();
         console.error('Inquiry error:', err);
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({ icon: 'error', title: 'Gangguan Koneksi', text: 'Gagal terhubung ke server pengecekan tagihan. Coba beberapa saat lagi.', confirmButtonColor: '#00877a' });
-        }
+        window.showGarudaAlert({
+            icon: 'error',
+            title: 'Gangguan Koneksi',
+            text: 'Gagal terhubung ke server pengecekan tagihan. Coba beberapa saat lagi.'
+        });
     });
 }
 
@@ -971,7 +968,11 @@ function eksekusiPembayaranTagihan() {
                 }
             });
         } else {
-            alert('Saldo tidak mencukupi');
+            window.showGarudaAlert({
+                title: 'Saldo Tidak Cukup',
+                text: 'Saldo akun Anda tidak mencukupi untuk membayar tagihan ini. Silakan isi saldo atau gunakan metode QRIS.',
+                icon: 'warning'
+            });
         }
         return;
     }
@@ -1005,7 +1006,8 @@ function eksekusiPembayaranTagihan() {
                         title: 'Pembayaran Diterima!',
                         text: 'Tagihan Anda sedang diproses oleh biller operator.',
                         timer: 2000,
-                        showConfirmButton: false
+                        showConfirmButton: false,
+                        customClass: { popup: 'garudatel-swal' }
                     }).then(() => {
                         window.location.href = data.redirect;
                     });
@@ -1016,24 +1018,21 @@ function eksekusiPembayaranTagihan() {
                 window.location.href = '/riwayat';
             }
         } else {
-            if (typeof Swal !== 'undefined') {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Pembayaran Gagal',
-                    text: data.message || 'Gagal memproses pembayaran tagihan.',
-                    confirmButtonColor: '#00877a'
-                });
-            } else {
-                alert(data.message || 'Pembayaran gagal');
-            }
+            window.showGarudaAlert({
+                icon: 'error',
+                title: 'Pembayaran Gagal',
+                text: data.message || 'Gagal memproses pembayaran tagihan.'
+            });
         }
     })
     .catch(err => {
         sembunyikanLoading();
         console.error('Checkout error:', err);
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({ icon: 'error', title: 'Kesalahan Jaringan', text: 'Terjadi kesalahan saat memproses pembayaran tagihan.' });
-        }
+        window.showGarudaAlert({
+            icon: 'error',
+            title: 'Kesalahan Jaringan',
+            text: 'Terjadi kesalahan saat memproses pembayaran tagihan.'
+        });
     });
 }
 

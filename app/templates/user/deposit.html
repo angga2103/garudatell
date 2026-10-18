@@ -1460,11 +1460,15 @@
     }
 
     function copyText(text, successMsg) {
-        navigator.clipboard.writeText(text).then(() => {
-            alert(successMsg || 'Berhasil disalin ke clipboard!');
-        }).catch(() => {
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(text).then(() => {
+                window.showToast(successMsg || 'Berhasil disalin ke clipboard!', 'success');
+            }).catch(() => {
+                prompt('Salin teks secara manual:', text);
+            });
+        } else {
             prompt('Salin teks secara manual:', text);
-        });
+        }
     }
 
     function copyTotalTransfer() {
@@ -1475,7 +1479,7 @@
     // PROSES DEPOSIT DANA OTOMATIS (24 JAM)
     function submitDanaAutoDeposit() {
         if (currentNominal < 5000) {
-            alert('Minimal deposit DANA adalah Rp 5.000');
+            window.showToast('Minimal deposit DANA adalah Rp 5.000', 'warning');
             return;
         }
 
@@ -1502,13 +1506,17 @@
             if (data.status === 'success' && data.is_auto) {
                 showDanaPaymentCard(data);
             } else {
-                alert(data.message || 'Gagal menyiapkan tiket deposit DANA');
+                window.showGarudaAlert({
+                    title: 'Gagal Menyiapkan Tiket',
+                    text: data.message || 'Gagal menyiapkan tiket deposit DANA',
+                    icon: 'error'
+                });
             }
         })
         .catch(err => {
             btn.innerHTML = origText;
             btn.disabled = false;
-            alert('Terjadi kesalahan koneksi server: ' + err);
+            window.showToast('Terjadi kesalahan koneksi server: ' + err, 'error');
         });
     }
 
@@ -1636,23 +1644,29 @@
 
     function cancelCurrentDanaTicket() {
         if (!danaRefId) return;
-        if (!confirm('Apakah Anda yakin ingin membatalkan transaksi deposit ini?')) {
-            return;
-        }
+        window.showGarudaConfirm({
+            title: 'Batalkan Tiket?',
+            text: 'Apakah Anda yakin ingin membatalkan transaksi deposit ini? Tiket akan dinonaktifkan.',
+            icon: 'warning',
+            confirmButtonText: 'Ya, Batalkan',
+            cancelButtonText: 'Kembali'
+        }).then(result => {
+            if (!result.isConfirmed) return;
 
-        fetch('/deposit/cancel/' + encodeURIComponent(danaRefId), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (danaPollingInterval) clearInterval(danaPollingInterval);
-            if (danaCountdownTimer) clearInterval(danaCountdownTimer);
-            danaRefId = null;
-            window.location.reload();
-        })
-        .catch(err => {
-            alert('Gagal membatalkan transaksi: ' + err);
+            fetch('/deposit/cancel/' + encodeURIComponent(danaRefId), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (danaPollingInterval) clearInterval(danaPollingInterval);
+                if (danaCountdownTimer) clearInterval(danaCountdownTimer);
+                danaRefId = null;
+                window.location.reload();
+            })
+            .catch(err => {
+                window.showToast('Gagal membatalkan transaksi: ' + err, 'error');
+            });
         });
     }
 
@@ -1683,7 +1697,7 @@
     // PROSES DEPOSIT QRIS OTOMATIS
     function submitQrisDeposit() {
         if (currentNominal < 10000) {
-            alert('Minimal deposit QRIS adalah Rp 10.000');
+            window.showToast('Minimal deposit QRIS adalah Rp 10.000', 'warning');
             return;
         }
 
@@ -1703,13 +1717,17 @@
             if (data.status === 'success' && data.ref_id) {
                 window.location.href = '/trx/invoice/' + data.ref_id;
             } else {
-                alert(data.message || 'Gagal menyiapkan deposit QRIS');
+                window.showGarudaAlert({
+                    title: 'Gagal Menyiapkan QRIS',
+                    text: data.message || 'Gagal menyiapkan deposit QRIS',
+                    icon: 'error'
+                });
                 btn.innerHTML = '<i class="fas fa-barcode"></i> Lanjutkan & Tampilkan Barcode QRIS';
                 btn.disabled = false;
             }
         })
         .catch(err => {
-            alert('Terjadi kesalahan koneksi server: ' + err);
+            window.showToast('Terjadi kesalahan koneksi server: ' + err, 'error');
             btn.innerHTML = '<i class="fas fa-barcode"></i> Lanjutkan & Tampilkan Barcode QRIS';
             btn.disabled = false;
         });
@@ -1718,7 +1736,7 @@
     // PROSES DEPOSIT MANUAL SHOPEEPAY / GOPAY DENGAN KODE UNIK
     function submitManualDeposit() {
         if (currentNominal < 10000) {
-            alert('Minimal deposit adalah Rp 10.000');
+            window.showToast('Minimal deposit adalah Rp 10.000', 'warning');
             return;
         }
 
@@ -1747,13 +1765,17 @@
                 document.getElementById('btnFallbackWa').href = data.wa_web_url;
                 window.location.href = data.wa_url;
             } else {
-                alert(data.message || 'Gagal mengajukan deposit manual.');
+                window.showGarudaAlert({
+                    title: 'Pengajuan Belum Berhasil',
+                    text: data.message || 'Gagal mengajukan deposit manual.',
+                    icon: 'error'
+                });
                 btn.innerHTML = '<i class="fab fa-whatsapp"></i> Ajukan & Masuk WhatsApp (' + waTargetNumber + ')';
                 btn.disabled = false;
             }
         })
         .catch(err => {
-            alert('Terjadi kesalahan jaringan: ' + err);
+            window.showToast('Terjadi kesalahan jaringan: ' + err, 'error');
             btn.innerHTML = '<i class="fab fa-whatsapp"></i> Ajukan & Masuk WhatsApp (' + waTargetNumber + ')';
             btn.disabled = false;
         });

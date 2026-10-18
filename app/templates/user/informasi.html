@@ -1143,11 +1143,15 @@ function closeDetailModalOnOutside(e) {
 function copyRefId() {
     const refText = document.getElementById('modalRefId').innerText;
     if (refText && refText !== '-') {
-        navigator.clipboard.writeText(refText).then(() => {
-            alert('Reff ID ' + refText + ' berhasil disalin!');
-        }).catch(err => {
-            console.error('Copy failed', err);
-        });
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(refText).then(() => {
+                window.showToast('Reff ID ' + refText + ' berhasil disalin!', 'success');
+            }).catch(err => {
+                prompt('Salin Reff ID:', refText);
+            });
+        } else {
+            prompt('Salin Reff ID:', refText);
+        }
     }
 }
 

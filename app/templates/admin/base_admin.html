@@ -14,6 +14,101 @@
     
     <!-- SweetAlert2 11 CDN -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        .swal2-container {
+            z-index: 100000 !important;
+            backdrop-filter: blur(8px) !important;
+            -webkit-backdrop-filter: blur(8px) !important;
+            background: rgba(15, 23, 42, 0.58) !important;
+        }
+        .swal2-popup.garudatel-swal {
+            border-radius: 24px !important;
+            font-family: 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif !important;
+            padding: 24px 22px 22px 22px !important;
+            box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25) !important;
+            background: #ffffff !important;
+            max-width: 92% !important;
+            width: 440px !important;
+        }
+        .swal2-popup.garudatel-swal .swal2-title {
+            font-size: 1.2rem !important;
+            font-weight: 900 !important;
+            color: #0f172a !important;
+            padding-top: 8px !important;
+            margin-bottom: 6px !important;
+        }
+        .swal2-popup.garudatel-swal .swal2-html-container {
+            font-size: 0.94rem !important;
+            font-weight: 600 !important;
+            color: #475569 !important;
+            line-height: 1.6 !important;
+            margin: 8px 8px 18px 8px !important;
+        }
+        .swal2-popup.garudatel-swal .swal2-confirm {
+            background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%) !important;
+            color: #ffffff !important;
+            border-radius: 12px !important;
+            padding: 10px 24px !important;
+            font-size: 0.92rem !important;
+            font-weight: 800 !important;
+            border: none !important;
+            cursor: pointer !important;
+        }
+        .swal2-popup.garudatel-swal .swal2-cancel {
+            background: #f1f5f9 !important;
+            color: #64748b !important;
+            border-radius: 12px !important;
+            padding: 10px 20px !important;
+            font-size: 0.92rem !important;
+            font-weight: 700 !important;
+            border: none !important;
+            cursor: pointer !important;
+        }
+    </style>
+    <script>
+    (function() {
+        if (!window._nativeAlert) {
+            window._nativeAlert = window.alert;
+            window.alert = function(msg) {
+                if (!msg) return;
+                var str = String(msg);
+                var lower = str.toLowerCase();
+                if (lower.includes('disalin') || lower.includes('clipboard') || lower.includes('tersalin') || lower.includes('copy')) {
+                    if (typeof showToast === 'function') {
+                        showToast(str, 'success');
+                    } else if (typeof Swal !== 'undefined') {
+                        Swal.fire({ toast: true, position: 'top', timer: 2500, showConfirmButton: false, icon: 'success', title: str });
+                    }
+                    return;
+                }
+                var icon = 'info';
+                var title = 'Informasi Admin';
+                if (lower.includes('berhasil') || lower.includes('sukses') || str.includes('✅')) {
+                    icon = 'success';
+                    title = 'Berhasil';
+                } else if (lower.includes('gagal') || lower.includes('error') || lower.includes('salah') || str.includes('🚨') || lower.includes('kendala')) {
+                    icon = 'error';
+                    title = 'Perhatian Admin';
+                } else if (lower.includes('minimal') || lower.includes('harap') || lower.includes('pilih') || lower.includes('peringatan') || str.includes('⚠️')) {
+                    icon = 'warning';
+                    title = 'Pemberitahuan';
+                }
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        title: title,
+                        text: str,
+                        icon: icon,
+                        confirmButtonText: 'Mengerti',
+                        customClass: { popup: 'garudatel-swal' },
+                        buttonsStyling: false
+                    });
+                } else {
+                    window._nativeAlert(str);
+                }
+            };
+        }
+    })();
+    </script>
     
     <!-- Modern Admin Stylesheet -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_modern.css') }}?v=2.1">

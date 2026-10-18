@@ -562,56 +562,76 @@
         const input = document.getElementById('refLinkInput');
         input.select();
         input.setSelectionRange(0, 99999);
-        navigator.clipboard.writeText(input.value).then(() => {
-            const btn = document.getElementById('btnCopyRef');
-            const orig = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-check"></i> Tersalin';
-            btn.style.background = '#10b981';
-            setTimeout(() => {
-                btn.innerHTML = orig;
-                btn.style.background = '#008f89';
-            }, 2500);
-        }).catch(() => {
-            alert('Tautan disalin: ' + input.value);
-        });
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(input.value).then(() => {
+                const btn = document.getElementById('btnCopyRef');
+                const orig = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check"></i> Tersalin';
+                btn.style.background = '#10b981';
+                window.showToast('Tautan referral berhasil disalin!', 'success');
+                setTimeout(() => {
+                    btn.innerHTML = orig;
+                    btn.style.background = '#008f89';
+                }, 2500);
+            }).catch(() => {
+                window.showToast('Tautan disalin ke clipboard!', 'success');
+            });
+        } else {
+            window.showToast('Tautan referral disalin!', 'success');
+        }
     }
 
     // Pencairan Komisi Tgl 28
     function executeClaimCommission() {
-        if (!confirm('Apakah Anda yakin ingin mencairkan seluruh saldo komisi ini ke Saldo Utama akun GarudaTel?')) {
-            return;
-        }
+        window.showGarudaConfirm({
+            title: 'Cairkan Saldo Komisi?',
+            text: 'Apakah Anda yakin ingin mencairkan seluruh saldo komisi ini ke Saldo Utama akun GarudaTel Anda?',
+            icon: 'question',
+            confirmButtonText: 'Ya, Cairkan Sekarang',
+            cancelButtonText: 'Batal'
+        }).then(result => {
+            if (!result.isConfirmed) return;
 
-        const btn = document.getElementById('btnClaim');
-        if (btn) {
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memproses Pencairan...';
-        }
-
-        fetch('/vip/downline/claim', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token() }}'
-            },
-            body: JSON.stringify({})
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.status === 'success') {
-                alert(data.message);
-                window.location.reload();
-            } else {
-                alert('Gagal: ' + data.message);
-                if (btn) {
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fas fa-hand-holding-usd"></i> Coba Lagi';
-                }
+            const btn = document.getElementById('btnClaim');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memproses Pencairan...';
             }
-        })
-        .catch(err => {
-            alert('Terjadi kesalahan jaringan: ' + err);
-            if (btn) btn.disabled = false;
+
+            fetch('/vip/downline/claim', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({})
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    window.showGarudaAlert({
+                        title: 'Pencairan Berhasil!',
+                        text: data.message,
+                        icon: 'success'
+                    }).then(() => {
+                        window.location.reload();
+                    });
+                } else {
+                    window.showGarudaAlert({
+                        title: 'Pencairan Belum Berhasil',
+                        text: data.message,
+                        icon: 'error'
+                    });
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fas fa-hand-holding-usd"></i> Coba Lagi';
+                    }
+                }
+            })
+            .catch(err => {
+                window.showToast('Terjadi kesalahan jaringan: ' + err, 'error');
+                if (btn) btn.disabled = false;
+            });
         });
     }
 

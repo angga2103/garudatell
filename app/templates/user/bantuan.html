@@ -1014,24 +1014,24 @@
                                     window.location.reload();
                                 });
                             } else {
-                                alert(`Tiket #${data.ticket_number} Diterima!\n\nBalasan CS:\n"${replyMsg}"`);
-                                window.location.href = '/bantuan#section-riwayat-tiket';
-                                window.location.reload();
+                                window.showGarudaAlert({
+                                    title: `Tiket #${data.ticket_number} Diterima`,
+                                    text: `Balasan CS: "${replyMsg}"`,
+                                    icon: 'success'
+                                }).then(() => {
+                                    window.location.href = '/bantuan#section-riwayat-tiket';
+                                    window.location.reload();
+                                });
                             }
                         }, 2000);
 
                     } else {
                         const errMsg = (data && data.message) ? data.message : 'Terjadi kesalahan saat memproses tiket.';
-                        if (hasSwal) {
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Gagal Mengirim Tiket',
-                                text: errMsg,
-                                confirmButtonColor: '#00877a'
-                            });
-                        } else {
-                            alert(errMsg);
-                        }
+                        window.showGarudaAlert({
+                            icon: 'error',
+                            title: 'Gagal Mengirim Tiket',
+                            text: errMsg
+                        });
                         if (submitBtn) {
                             submitBtn.disabled = false;
                             submitBtn.innerHTML = originalBtnHtml;
@@ -1039,16 +1039,11 @@
                     }
                 } catch (err) {
                     console.error('Submit ticket error:', err);
-                    if (hasSwal) {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Koneksi Terganggu',
-                            text: 'Gagal menghubungi server. Silakan coba kembali beberapa saat lagi.',
-                            confirmButtonColor: '#00877a'
-                        });
-                    } else {
-                        alert('Gagal menghubungi server. Silakan coba kembali.');
-                    }
+                    window.showGarudaAlert({
+                        icon: 'error',
+                        title: 'Koneksi Terganggu',
+                        text: 'Gagal menghubungi server. Silakan coba kembali beberapa saat lagi.'
+                    });
                     if (submitBtn) {
                         submitBtn.disabled = false;
                         submitBtn.innerHTML = originalBtnHtml;

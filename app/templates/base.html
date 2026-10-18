@@ -27,7 +27,9 @@
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- SweetAlert2 11 Synchronous Loaded in Head for Universal Dialog & Toast -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         :root {
             --primary: #008779; /* Warna Hijau Teal Sesuai Gambar */
@@ -37,6 +39,98 @@
             --text-muted: #888888;
             --card-bg: #ffffff;
             --radius-lg: 24px;
+        }
+
+        /* ========================================================
+           GARUDATEL LUXURY NOTIFICATION & SWEETALERT2 STYLING
+           ======================================================== */
+        .swal2-container {
+            z-index: 100000 !important;
+            backdrop-filter: blur(8px) !important;
+            -webkit-backdrop-filter: blur(8px) !important;
+            background: rgba(15, 23, 42, 0.58) !important;
+        }
+        .swal2-popup.garudatel-swal {
+            border-radius: 26px !important;
+            font-family: 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif !important;
+            padding: 26px 24px 24px 24px !important;
+            box-shadow: 0 25px 50px -12px rgba(0, 135, 122, 0.28), 0 0 0 1px rgba(0, 135, 122, 0.12) !important;
+            background: #ffffff !important;
+            max-width: 92% !important;
+            width: 440px !important;
+        }
+        .swal2-popup.garudatel-swal .swal2-title {
+            font-size: 1.2rem !important;
+            font-weight: 900 !important;
+            color: #0f172a !important;
+            padding-top: 8px !important;
+            margin-bottom: 6px !important;
+            letter-spacing: -0.2px !important;
+        }
+        .swal2-popup.garudatel-swal .swal2-html-container {
+            font-size: 0.94rem !important;
+            font-weight: 600 !important;
+            color: #475569 !important;
+            line-height: 1.6 !important;
+            margin: 8px 8px 18px 8px !important;
+        }
+        .swal2-popup.garudatel-swal .swal2-actions {
+            margin-top: 14px !important;
+            gap: 12px !important;
+            width: 100% !important;
+            justify-content: center !important;
+        }
+        .swal2-popup.garudatel-swal .swal2-confirm {
+            background: linear-gradient(135deg, #00877a 0%, #006b5f 100%) !important;
+            color: #ffffff !important;
+            border-radius: 14px !important;
+            padding: 12px 28px !important;
+            font-size: 0.95rem !important;
+            font-weight: 800 !important;
+            box-shadow: 0 4px 14px rgba(0, 135, 122, 0.35) !important;
+            border: none !important;
+            transition: all 0.2s ease !important;
+            cursor: pointer !important;
+        }
+        .swal2-popup.garudatel-swal .swal2-confirm:hover {
+            transform: translateY(-1px) !important;
+            box-shadow: 0 6px 18px rgba(0, 135, 122, 0.45) !important;
+        }
+        .swal2-popup.garudatel-swal .swal2-cancel {
+            background: #f1f5f9 !important;
+            color: #64748b !important;
+            border-radius: 14px !important;
+            padding: 12px 22px !important;
+            font-size: 0.95rem !important;
+            font-weight: 700 !important;
+            border: none !important;
+            cursor: pointer !important;
+            transition: all 0.2s ease !important;
+        }
+        .swal2-popup.garudatel-swal .swal2-cancel:hover {
+            background: #e2e8f0 !important;
+            color: #334155 !important;
+        }
+        .swal2-popup.garudatel-swal .swal2-icon {
+            margin: 6px auto 14px auto !important;
+            transform: scale(0.92) !important;
+        }
+        .swal2-popup.garudatel-swal .swal2-icon.swal2-success {
+            border-color: #00877a !important;
+            color: #00877a !important;
+        }
+        .swal2-popup.garudatel-swal .swal2-icon.swal2-success [class^='swal2-success-line'] {
+            background-color: #00877a !important;
+        }
+        .swal2-popup.garudatel-swal .swal2-icon.swal2-success .swal2-success-ring {
+            border-color: rgba(0, 135, 122, 0.3) !important;
+        }
+        .swal2-popup.garudatel-swal.swal2-toast {
+            box-shadow: 0 14px 34px -5px rgba(0, 0, 0, 0.16), 0 0 0 1px rgba(0, 135, 122, 0.16) !important;
+            border-radius: 18px !important;
+            padding: 12px 20px !important;
+            font-size: 0.92rem !important;
+            font-weight: 700 !important;
         }
         * { box-sizing: border-box; font-family: 'Nunito', sans-serif; -webkit-tap-highlight-color: transparent; }
         html, body { 
@@ -662,6 +756,138 @@
             }
         }
     </style>
+
+    <!-- ========================================================
+         GARUDATEL UNIVERSAL NOTIFICATION & DIALOG ENGINE
+         ======================================================== -->
+    <script>
+    (function() {
+        // 1. Toast Notification Floating Cantik
+        window.showToast = function(msg, type = 'info', duration = 2600) {
+            if (typeof Swal !== 'undefined') {
+                let icon = 'info';
+                if (type === 'error' || type === true) icon = 'error';
+                else if (type === 'success') icon = 'success';
+                else if (type === 'warning') icon = 'warning';
+                
+                const Toast = Swal.mixin({
+                    toast: true,
+                    position: 'top',
+                    showConfirmButton: false,
+                    timer: duration,
+                    timerProgressBar: true,
+                    customClass: { popup: 'garudatel-swal swal2-toast' },
+                    didOpen: (toast) => {
+                        toast.addEventListener('mouseenter', Swal.stopTimer);
+                        toast.addEventListener('mouseleave', Swal.resumeTimer);
+                    }
+                });
+                return Toast.fire({
+                    icon: icon,
+                    title: msg
+                });
+            } else {
+                var t = document.getElementById('garudaGlobalToast');
+                if (!t) {
+                    t = document.createElement('div');
+                    t.id = 'garudaGlobalToast';
+                    t.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#00877a;color:#fff;padding:12px 24px;border-radius:24px;z-index:999999;font-weight:700;font-size:14px;box-shadow:0 8px 25px rgba(0,0,0,0.2);transition:all 0.3s cubic-bezier(0.16, 1, 0.3, 1);';
+                    document.body.appendChild(t);
+                }
+                t.innerText = msg;
+                t.style.background = (type === 'error' || type === true) ? '#ef4444' : (type === 'warning' ? '#f59e0b' : '#00877a');
+                t.style.display = 'block';
+                t.style.opacity = '1';
+                setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.style.display = 'none', 300); }, duration);
+            }
+        };
+
+        // 2. Modal Alert Elegan GarudaTel
+        window.showGarudaAlert = function(options) {
+            if (typeof options === 'string') {
+                options = { text: options };
+            }
+            const icon = options.icon || 'info';
+            const title = options.title || (icon === 'success' ? 'Berhasil' : (icon === 'error' ? 'Pemberitahuan' : (icon === 'warning' ? 'Perhatian' : 'Informasi')));
+            
+            if (typeof Swal !== 'undefined') {
+                return Swal.fire({
+                    title: title,
+                    html: options.html || options.text,
+                    icon: icon,
+                    confirmButtonText: options.confirmButtonText || 'Mengerti',
+                    customClass: { popup: 'garudatel-swal' },
+                    buttonsStyling: false
+                });
+            } else {
+                if (window._nativeAlert) window._nativeAlert(options.text || options.title);
+                return Promise.resolve();
+            }
+        };
+
+        // 3. Modal Konfirmasi GarudaTel
+        window.showGarudaConfirm = function({ title = 'Konfirmasi', text = 'Apakah Anda yakin?', icon = 'question', confirmButtonText = 'Ya, Lanjutkan', cancelButtonText = 'Batal' }) {
+            if (typeof Swal !== 'undefined') {
+                return Swal.fire({
+                    title: title,
+                    html: text,
+                    icon: icon,
+                    showCancelButton: true,
+                    confirmButtonText: confirmButtonText,
+                    cancelButtonText: cancelButtonText,
+                    reverseButtons: true,
+                    customClass: { popup: 'garudatel-swal' },
+                    buttonsStyling: false
+                });
+            } else {
+                var res = window._nativeConfirm ? window._nativeConfirm(text) : window.confirm(text);
+                return Promise.resolve({ isConfirmed: res });
+            }
+        };
+
+        // 4. Interseptor Universal untuk window.alert agar popup kaku bawaan browser otomatis menjadi modern
+        if (!window._nativeAlert) {
+            window._nativeAlert = window.alert;
+            window.alert = function(msg) {
+                if (!msg) return;
+                var str = String(msg);
+                var lower = str.toLowerCase();
+                
+                // Jika pesan adalah penyalinan clipboard, munculkan toast floating yang halus tanpa membekukan layar
+                if (lower.includes('disalin') || lower.includes('clipboard') || lower.includes('tersalin') || lower.includes('copy')) {
+                    window.showToast(str, 'success', 2400);
+                    return;
+                }
+                
+                var icon = 'info';
+                var title = 'Informasi';
+                if (lower.includes('berhasil') || lower.includes('sukses') || str.includes('✅')) {
+                    icon = 'success';
+                    title = 'Berhasil';
+                } else if (lower.includes('gagal') || lower.includes('error') || lower.includes('salah') || str.includes('🚨') || lower.includes('kendala')) {
+                    icon = 'error';
+                    title = 'Pemberitahuan';
+                } else if (lower.includes('minimal') || lower.includes('harap') || lower.includes('pilih') || lower.includes('peringatan') || str.includes('⚠️') || lower.includes('tidak cukup') || lower.includes('belum')) {
+                    icon = 'warning';
+                    title = 'Perhatian';
+                }
+                
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        title: title,
+                        text: str,
+                        icon: icon,
+                        confirmButtonText: 'Mengerti',
+                        customClass: { popup: 'garudatel-swal' },
+                        buttonsStyling: false
+                    });
+                } else {
+                    window._nativeAlert(str);
+                }
+            };
+        }
+    })();
+    </script>
     {% block head %}{% endblock %}
 </head>
 <body class="{% if not request.path.startswith('/admin') %}with-sidebar{% endif %}">
@@ -889,7 +1115,6 @@
     {% endif %}
     {% endblock %}
 
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
     {% block scripts %}{% endblock %}
 
     <!-- Script Kontrol Sidebar Drawer (Mobile) & Slim Mode (Desktop) -->
@@ -1116,7 +1341,7 @@
         // Aksi Tombol 2: Aktifkan Notifikasi
         window.aksiAktifkanNotif = function() {
             if (typeof Notification === 'undefined') {
-                alert('Browser di perangkat ini belum mendukung fitur notifikasi web.');
+                window.showToast('Browser di perangkat ini belum mendukung fitur notifikasi web.', 'warning');
                 return;
             }
             if (Notification.permission === 'denied') {
@@ -1142,7 +1367,7 @@
         // Fungsi Tes Kirim Notifikasi & Badge ke HP Pengguna
         window.tesNotifikasiAplikasi = function(silentAlert) {
             if (typeof Notification === 'undefined') {
-                alert('Browser Anda belum mendukung fitur notifikasi.');
+                window.showToast('Browser Anda belum mendukung fitur notifikasi.', 'warning');
                 return;
             }
             if (Notification.permission === 'default') {
@@ -1185,12 +1410,13 @@
                     Swal.fire({
                         icon: 'success',
                         title: 'Sinyal Tes Terkirim!',
-                        text: 'Cek bar notifikasi di bagian atas layar HP Anda & lencana angka pada ikon aplikasi iPay.',
-                        confirmButtonColor: '#008779',
+                        text: 'Cek bar notifikasi di bagian atas layar HP Anda & lencana angka pada ikon aplikasi.',
+                        confirmButtonColor: '#00877a',
+                        customClass: { popup: 'garudatel-swal' },
                         timer: 4000
                     });
                 } else {
-                    alert('✅ Tes Notifikasi berhasil dikirim! Silakan cek bar notifikasi di atas layar HP Anda.');
+                    window.showToast('✅ Tes Notifikasi berhasil dikirim! Silakan cek bar notifikasi di atas layar HP Anda.', 'success');
                 }
             }
         };

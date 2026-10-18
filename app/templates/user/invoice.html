@@ -1020,12 +1020,16 @@ function checkPaymentStatus(isAuto = false) {
                     window.location.reload();
                 }, 800);
             } else if (!isAuto) {
-                alert('Pembayaran belum diterima sistem. Jika baru saja scan/transfer, harap tunggu beberapa saat lalu cek kembali.');
+                window.showGarudaAlert({
+                    title: 'Menunggu Pembayaran',
+                    text: 'Pembayaran belum terdeteksi sistem. Jika baru saja scan QRIS atau transfer, harap tunggu 15-30 detik lalu tekan tombol periksa kembali.',
+                    icon: 'info'
+                });
             }
         })
         .catch(error => {
             if (!isAuto) {
-                alert('Gagal mengecek status: ' + error.message);
+                window.showToast('Gagal mengecek status: ' + error.message, 'error');
             }
         });
 }
@@ -1682,7 +1686,11 @@ function printViaRawBT() {
 // 3. Web Bluetooth Direct Connect & Print ESC/POS
 async function connectAndPrintBluetooth() {
     if (!navigator.bluetooth) {
-        alert('Browser Anda belum mendukung Web Bluetooth API secara langsung. Silakan gunakan tombol "Buka di RawBT POS" atau "Cetak 58mm / PDF".');
+        window.showGarudaAlert({
+            title: 'Bluetooth Tidak Didukung',
+            text: 'Browser Anda belum mendukung Web Bluetooth API secara langsung. Silakan gunakan tombol "Buka di RawBT POS" atau "Cetak 58mm / PDF".',
+            icon: 'warning'
+        });
         return;
     }
 
@@ -1698,7 +1706,7 @@ async function connectAndPrintBluetooth() {
         });
 
         if (!device || !device.gatt) {
-            alert('Perangkat Bluetooth tidak dipilih.');
+            window.showToast('Perangkat Bluetooth tidak dipilih.', 'warning');
             return;
         }
 
@@ -1719,7 +1727,11 @@ async function connectAndPrintBluetooth() {
         }
 
         if (!targetChar) {
-            alert('Karakteristik printer tidak ditemukan pada perangkat Bluetooth ini.');
+            window.showGarudaAlert({
+                title: 'Printer Tidak Kompatibel',
+                text: 'Karakteristik printer tidak ditemukan pada perangkat Bluetooth ini. Silakan gunakan RawBT.',
+                icon: 'warning'
+            });
             return;
         }
 
@@ -1777,10 +1789,10 @@ async function connectAndPrintBluetooth() {
             }
         }
 
-        alert('Struk berhasil dicetak ke printer Bluetooth!');
+        window.showToast('Struk berhasil dicetak ke printer Bluetooth!', 'success');
     } catch (err) {
         if (err.name !== 'NotFoundError') {
-            alert('Kendala koneksi Bluetooth: ' + err.message);
+            window.showToast('Kendala koneksi Bluetooth: ' + err.message, 'error');
         }
     }
 }
