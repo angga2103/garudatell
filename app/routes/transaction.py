@@ -1787,6 +1787,9 @@ def callback_dana_mutasi():
         else:
             bearer_token = auth_header
 
+    raw_json = request.get_json(silent=True) or {}
+    form_data = request.form.to_dict() or {}
+
     candidates = [
         request.args.get('token'),
         request.args.get('key'),
@@ -1898,6 +1901,9 @@ def callback_dana_ping():
             bearer_token = auth_header[7:].strip()
         else:
             bearer_token = auth_header
+
+    raw_json = request.get_json(silent=True) or {}
+    form_data = request.form.to_dict() or {}
 
     candidates = [
         request.args.get('token'),
