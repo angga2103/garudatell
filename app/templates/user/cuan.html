@@ -846,10 +846,16 @@
     <div class="cuan-header">
         <div class="cuan-header-inner">
             <div class="cuan-top-nav">
-                <a href="/" class="btn-header-back">
-                    <i class="fas fa-arrow-left"></i>
-                    <span>Beranda</span>
-                </a>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <a href="/" class="btn-header-back" title="Kembali ke Beranda">
+                        <i class="fas fa-arrow-left"></i>
+                        <span>Beranda</span>
+                    </a>
+                    <a href="/cuan" class="btn-header-back" title="Lihat Semua Operator Cuan" style="background: rgba(255, 255, 255, 0.24);">
+                        <i class="fas fa-th-large"></i>
+                        <span>Semua Cuan</span>
+                    </a>
+                </div>
                 <div class="balance-pill" title="Saldo Akun Anda">
                     <i class="fas fa-wallet"></i>
                     <span>Rp {{ "{:,.0f}".format(current_user.balance | default(0)).replace(',', '.') }}</span>
@@ -868,6 +874,25 @@
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <!-- QUICK OPERATOR SWITCHER -->
+            <div style="display: flex; gap: 8px; overflow-x: auto; padding-top: 14px; margin-top: 14px; border-top: 1px solid rgba(255,255,255,0.18); scrollbar-width: none;">
+                <a href="/cuan/telkomsel" style="padding: 6px 14px; border-radius: 16px; font-size: 11.5px; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; {% if 'TELKOMSEL' in data.title %}background: white; color: #E11D48; box-shadow: 0 4px 10px rgba(0,0,0,0.12);{% else %}background: rgba(255,255,255,0.16); color: white;{% endif %}">
+                    <span style="font-weight: 900;">T</span> Telkomsel
+                </a>
+                <a href="/cuan/xl" style="padding: 6px 14px; border-radius: 16px; font-size: 11.5px; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; {% if 'XL' in data.title %}background: white; color: #10B981; box-shadow: 0 4px 10px rgba(0,0,0,0.12);{% else %}background: rgba(255,255,255,0.16); color: white;{% endif %}">
+                    <span style="font-weight: 900;">XL</span> XL & Axis
+                </a>
+                <a href="/cuan/isat" style="padding: 6px 14px; border-radius: 16px; font-size: 11.5px; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; {% if 'INDOSAT' in data.title %}background: white; color: #F59E0B; box-shadow: 0 4px 10px rgba(0,0,0,0.12);{% else %}background: rgba(255,255,255,0.16); color: white;{% endif %}">
+                    <span style="font-weight: 900;">im3</span> Indosat
+                </a>
+                <a href="/cuan/tri" style="padding: 6px 14px; border-radius: 16px; font-size: 11.5px; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; {% if 'TRI' in data.title %}background: white; color: #EF4444; box-shadow: 0 4px 10px rgba(0,0,0,0.12);{% else %}background: rgba(255,255,255,0.16); color: white;{% endif %}">
+                    <span style="font-weight: 900;">3</span> Tri Cuan
+                </a>
+                <a href="/cuan/byu" style="padding: 6px 14px; border-radius: 16px; font-size: 11.5px; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; {% if 'BY.U' in data.title %}background: white; color: #3B82F6; box-shadow: 0 4px 10px rgba(0,0,0,0.12);{% else %}background: rgba(255,255,255,0.16); color: white;{% endif %}">
+                    <span style="font-weight: 900;">by.U</span> by.U Cuan
+                </a>
             </div>
         </div>
     </div>

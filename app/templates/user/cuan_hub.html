@@ -1,0 +1,722 @@
+{% extends "base.html" %}
+{% block title %}Semua Produk Cuan Operator - GarudaTel{% endblock %}
+
+{% block head %}
+<style>
+    /* ========================================================
+       RESPONSIVE CONTAINER KHUSUS HUB SEMUA CUAN
+       ======================================================== */
+    :root {
+        --teal-main: #00877a;
+        --teal-dark: #006056;
+        --teal-light: #e6f7f5;
+        --bg-body: #f5f8fa;
+        --text-slate: #1e293b;
+        --text-muted: #64748b;
+    }
+
+    body { background-color: var(--bg-body); }
+
+    @media (min-width: 1024px) {
+        .app-container {
+            max-width: 1100px !important;
+        }
+    }
+
+    /* HEADER GRADIENT TEAL GARUDATEL */
+    .cuan-header {
+        background: linear-gradient(135deg, #00877a 0%, #005f56 100%);
+        padding: 24px 20px 65px 20px;
+        color: white;
+        border-bottom-left-radius: 32px;
+        border-bottom-right-radius: 32px;
+        position: relative;
+        z-index: 10;
+        box-shadow: 0 8px 25px rgba(0, 135, 122, 0.22);
+    }
+    .cuan-header-inner {
+        max-width: 1040px;
+        margin: 0 auto;
+    }
+    .cuan-top-nav {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 22px;
+    }
+    .btn-header-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: white;
+        text-decoration: none;
+        font-weight: 800;
+        font-size: 14px;
+        background: rgba(255, 255, 255, 0.18);
+        padding: 8px 18px;
+        border-radius: 20px;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        transition: all 0.2s ease;
+    }
+    .btn-header-back:hover {
+        background: rgba(255, 255, 255, 0.3);
+        color: white;
+        transform: translateX(-2px);
+    }
+    .balance-pill {
+        background: rgba(255, 255, 255, 0.18);
+        padding: 8px 18px;
+        border-radius: 20px;
+        font-size: 13.5px;
+        font-weight: 800;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+    }
+
+    .hero-title-box {
+        margin-top: 5px;
+    }
+    .hero-badge-tier {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(255, 255, 255, 0.18);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.4px;
+        color: #fef08a;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+    }
+    .hero-title-box h1 {
+        margin: 0;
+        font-size: 1.55rem;
+        font-weight: 900;
+        letter-spacing: -0.3px;
+    }
+    .hero-title-box p {
+        margin: 6px 0 0 0;
+        font-size: 0.9rem;
+        opacity: 0.94;
+        line-height: 1.45;
+        max-width: 680px;
+    }
+
+    /* KARTU PENCARIAN CERDAS (UNIVERSAL NUMBER SCANNER) */
+    .cuan-scanner-card {
+        background: white;
+        margin: -38px 16px 24px 16px;
+        padding: 22px 20px;
+        border-radius: 26px;
+        box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 135, 122, 0.08);
+        position: relative;
+        z-index: 20;
+    }
+    @media (min-width: 768px) {
+        .cuan-scanner-card {
+            max-width: 820px;
+            margin: -40px auto 30px auto;
+            padding: 26px 30px;
+        }
+    }
+    .scanner-label {
+        font-size: 0.92rem;
+        font-weight: 800;
+        color: var(--text-slate);
+        margin-bottom: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .detected-badge {
+        font-size: 11px;
+        font-weight: 800;
+        padding: 3px 10px;
+        border-radius: 12px;
+        background: #f1f5f9;
+        color: #64748b;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        transition: all 0.25s ease;
+    }
+
+    .input-wrapper-scanner {
+        position: relative;
+        margin-bottom: 14px;
+    }
+    .input-wrapper-scanner input {
+        width: 100%;
+        padding: 15px 45px 15px 46px;
+        border: 1.8px solid #e2e8f0;
+        border-radius: 16px;
+        font-size: 1.05rem;
+        outline: none;
+        background: #f8fafc;
+        color: #0f172a;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        transition: all 0.2s ease;
+    }
+    .input-wrapper-scanner input:focus {
+        border-color: #00877a;
+        background: #ffffff;
+        box-shadow: 0 0 0 4px rgba(0, 135, 122, 0.14);
+    }
+    .icon-scanner-prefix {
+        position: absolute;
+        left: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #00877a;
+        font-size: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .icon-scanner-clear {
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+        background: #e2e8f0;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    .icon-scanner-clear:hover { background: #cbd5e1; color: #475569; }
+
+    .btn-submit-scanner {
+        width: 100%;
+        background: #e2e8f0;
+        color: #94a3b8;
+        border: none;
+        padding: 15px 20px;
+        border-radius: 16px;
+        font-weight: 800;
+        font-size: 1rem;
+        transition: all 0.25s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        cursor: not-allowed;
+    }
+    .btn-submit-scanner.active {
+        background: linear-gradient(135deg, #00877a 0%, #006056 100%);
+        color: white;
+        cursor: pointer;
+        box-shadow: 0 8px 20px rgba(0, 135, 122, 0.32);
+    }
+    .btn-submit-scanner.active:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 10px 24px rgba(0, 135, 122, 0.4);
+    }
+
+    /* KONTEN UTAMA & PILIHAN OPERATOR */
+    .cuan-content-wrapper {
+        padding: 0 16px 60px 16px;
+        max-width: 1040px;
+        margin: 0 auto;
+    }
+    @media (min-width: 768px) {
+        .cuan-content-wrapper {
+            padding: 0 20px 70px 20px;
+        }
+    }
+
+    .section-title-hub {
+        font-size: 1.15rem;
+        font-weight: 900;
+        color: var(--text-slate);
+        margin: 25px 0 15px 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .section-title-hub span {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    /* GRID 5 OPERATOR CUAN */
+    .operator-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+    @media (min-width: 600px) {
+        .operator-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+    }
+    @media (min-width: 900px) {
+        .operator-grid {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 18px;
+        }
+    }
+
+    .operator-card {
+        background: white;
+        border-radius: 22px;
+        padding: 20px;
+        border: 1.5px solid #f1f5f9;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        text-decoration: none;
+        color: inherit;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        transition: all 0.25s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    .operator-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 28px -6px rgba(0, 135, 122, 0.16);
+        border-color: #00877a;
+    }
+    .op-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 14px;
+    }
+    .op-logo-badge {
+        width: 52px;
+        height: 52px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 900;
+        font-size: 1.35rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    }
+    .op-badge-promo {
+        font-size: 10px;
+        font-weight: 800;
+        padding: 4px 10px;
+        border-radius: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+    }
+
+    .op-info h3 {
+        margin: 0;
+        font-size: 1.12rem;
+        font-weight: 900;
+        color: var(--text-slate);
+    }
+    .op-info .tagline {
+        font-size: 11.5px;
+        font-weight: 700;
+        color: #00877a;
+        margin: 4px 0 8px 0;
+    }
+    .op-info p {
+        margin: 0;
+        font-size: 11.5px;
+        color: #64748b;
+        line-height: 1.4;
+    }
+    .op-btn-action {
+        margin-top: 16px;
+        padding-top: 12px;
+        border-top: 1px dashed #f1f5f9;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 12px;
+        font-weight: 800;
+        color: #00877a;
+    }
+
+    /* GRID REKOMENDASI PRODUK CUAN */
+    .featured-cuan-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+    @media (min-width: 640px) {
+        .featured-cuan-grid {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+        }
+    }
+    @media (min-width: 1024px) {
+        .featured-cuan-grid {
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+    }
+
+    .feat-card {
+        background: white;
+        border-radius: 18px;
+        padding: 16px;
+        border: 1.5px solid #f1f5f9;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        transition: all 0.2s ease;
+    }
+    .feat-card:hover {
+        border-color: #00877a;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0, 135, 122, 0.12);
+    }
+    .feat-brand-pill {
+        font-size: 9.5px;
+        font-weight: 800;
+        padding: 2px 8px;
+        border-radius: 8px;
+        background: #f1f5f9;
+        color: #475569;
+        display: inline-block;
+        margin-bottom: 6px;
+        text-transform: uppercase;
+    }
+    .feat-name {
+        font-size: 12px;
+        font-weight: 800;
+        color: #0f172a;
+        margin-bottom: 10px;
+        line-height: 1.35;
+        min-height: 32px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    .feat-price {
+        font-size: 13.5px;
+        font-weight: 900;
+        color: #00877a;
+    }
+    .feat-btn {
+        margin-top: 10px;
+        padding: 8px;
+        border-radius: 10px;
+        background: #e6f7f5;
+        color: #00877a;
+        font-size: 11px;
+        font-weight: 800;
+        text-align: center;
+        text-decoration: none;
+        display: block;
+        transition: all 0.2s ease;
+    }
+    .feat-btn:hover {
+        background: #00877a;
+        color: white;
+    }
+
+    /* TIPS CUAN MITRA */
+    .cuan-tips-wrapper {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+        margin-top: 30px;
+    }
+    @media (min-width: 768px) {
+        .cuan-tips-wrapper {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+    }
+    .tip-card {
+        background: white;
+        border-radius: 20px;
+        padding: 18px;
+        border: 1px solid #f1f5f9;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+        display: flex;
+        gap: 14px;
+        align-items: flex-start;
+    }
+    .tip-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        flex-shrink: 0;
+    }
+    .tip-info h4 { margin: 0; font-size: 12.5px; font-weight: 800; color: #1e293b; }
+    .tip-info p { margin: 3px 0 0 0; font-size: 11px; color: #64748b; line-height: 1.4; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="cuan-hub-wrapper">
+    <!-- HEADER TEAL GARUDATEL -->
+    <div class="cuan-header">
+        <div class="cuan-header-inner">
+            <div class="cuan-top-nav">
+                <a href="/" class="btn-header-back">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Beranda</span>
+                </a>
+                <div class="balance-pill" title="Saldo Akun Anda">
+                    <i class="fas fa-wallet"></i>
+                    <span>Rp {{ "{:,.0f}".format(current_user.balance | default(0)).replace(',', '.') }}</span>
+                </div>
+            </div>
+
+            <div class="hero-title-box">
+                <div class="hero-badge-tier">
+                    <i class="fas fa-certificate"></i> Jalur Promo Spesial Mitra
+                </div>
+                <h1>🔥 Semua Produk Cuan Operator</h1>
+                <p>Pusat transaksi paket kuota diskon spesial & margin keuntungan reseller tertinggi untuk seluruh operator nasional.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- UNIVERSAL SMART NUMBER SCANNER -->
+    <div class="cuan-scanner-card">
+        <div class="scanner-label">
+            <span><i class="fas fa-mobile-screen-button" style="color: #00877a;"></i> Cek Promo Cuan Semua Operator</span>
+            <span class="detected-badge" id="detectedBadge">
+                <i class="fas fa-sim-card"></i> Auto-Detect Operator
+            </span>
+        </div>
+
+        <div class="input-wrapper-scanner">
+            <div class="icon-scanner-prefix">
+                <i class="fas fa-phone"></i>
+            </div>
+            <input type="tel" id="universalNoHp" placeholder="Ketik nomor pelanggan, misal: 08123456789..." oninput="onScannerInput()" onkeydown="handleScannerEnter(event)" autocomplete="tel">
+            <div class="icon-scanner-clear" id="btnClearScanner" onclick="clearScanner()" title="Hapus Nomor">
+                <i class="fas fa-times"></i>
+            </div>
+        </div>
+
+        <button class="btn-submit-scanner" id="btnSubmitScanner" disabled onclick="executeUniversalSearch()">
+            <i class="fas fa-magnifying-glass"></i>
+            <span id="btnScannerText">Cari Promo Cuan Nomor Ini</span>
+        </button>
+    </div>
+
+    <!-- KONTEN UTAMA: PILIHAN OPERATOR -->
+    <div class="cuan-content-wrapper">
+        <div class="section-title-hub">
+            <span><i class="fas fa-fire" style="color: #ff9f43;"></i> Pilihan Operator Cuan</span>
+            <span style="font-size: 12px; color: #64748b; font-weight: 700;">5 Operator Tersedia</span>
+        </div>
+
+        <div class="operator-grid">
+            {% for op in operator_list %}
+            <a href="{{ op.url }}" class="operator-card" title="Buka Promo {{ op.name }}">
+                <div>
+                    <div class="op-top">
+                        <div class="op-logo-badge" style="background: {{ op.bg_light }}; color: {{ op.color }};">
+                            {{ op.logo }}
+                        </div>
+                        <span class="op-badge-promo" style="background: {{ op.bg_light }}; color: {{ op.color }};">
+                            {{ op.badge }}
+                        </span>
+                    </div>
+                    <div class="op-info">
+                        <h3>{{ op.name }}</h3>
+                        <div class="tagline">{{ op.tagline }}</div>
+                        <p>{{ op.desc }}</p>
+                    </div>
+                </div>
+                <div class="op-btn-action">
+                    <span>Buka Katalog Promo</span>
+                    <i class="fas fa-arrow-right"></i>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+
+        <!-- REKOMENDASI PRODUK CUAN POPULER -->
+        {% if featured_cuan and featured_cuan|length > 0 %}
+        <div class="section-title-hub" style="margin-top: 36px;">
+            <span><i class="fas fa-bolt" style="color: #00877a;"></i> Sampel Paket Cuan Unggulan</span>
+            <span style="font-size: 12px; color: #64748b; font-weight: 700;">Harga Reseller Mitra</span>
+        </div>
+
+        <div class="featured-cuan-grid">
+            {% for p in featured_cuan %}
+            <div class="feat-card">
+                <div>
+                    <span class="feat-brand-pill">{{ p.brand or 'Promo' }}</span>
+                    <div class="feat-name">{{ p.name }}</div>
+                </div>
+                <div>
+                    <div class="feat-price">Rp {{ "{:,.0f}".format(p.price or 0).replace(',','.') }}</div>
+                    <a href="/kategori/data" class="feat-btn">
+                        <i class="fas fa-cart-shopping"></i> Transaksi
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- TIPS KEUNTUNGAN MITRA -->
+        <div class="cuan-tips-wrapper">
+            <div class="tip-card">
+                <div class="tip-icon" style="background: #fef3c7; color: #d97706;">
+                    <i class="fas fa-sack-dollar"></i>
+                </div>
+                <div class="tip-info">
+                    <h4>Margin Lebih Tebal</h4>
+                    <p>Harga modal paket cuan lebih murah hingga 15%-30% dibanding paket reguler biasa.</p>
+                </div>
+            </div>
+
+            <div class="tip-card">
+                <div class="tip-icon" style="background: #e0f2fe; color: #0284c7;">
+                    <i class="fas fa-wand-magic-sparkles"></i>
+                </div>
+                <div class="tip-info">
+                    <h4>Jalur Promo Personalisasi</h4>
+                    <p>Menampilkan promo khusus nomor pelanggan yang tidak tersedia di aplikasi publik.</p>
+                </div>
+            </div>
+
+            <div class="tip-card">
+                <div class="tip-icon" style="background: #dcfce7; color: #16a34a;">
+                    <i class="fas fa-bolt-lightning"></i>
+                </div>
+                <div class="tip-info">
+                    <h4>Proses Kilat 24 Jam Nonstop</h4>
+                    <p>Sistem otomatis H2H secepat kilat dengan jaminan saldo refund jika transaksi gagal.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let detectedProvider = null;
+
+    const prefixMap = {
+        // Telkomsel
+        '0811': 'telkomsel', '0812': 'telkomsel', '0813': 'telkomsel', '0821': 'telkomsel',
+        '0822': 'telkomsel', '0823': 'telkomsel', '0852': 'telkomsel', '0853': 'telkomsel',
+        // by.U
+        '0851': 'byu',
+        // XL
+        '0817': 'xl', '0818': 'xl', '0819': 'xl', '0859': 'xl', '0877': 'xl', '0878': 'xl',
+        // Axis
+        '0831': 'xl', '0832': 'xl', '0833': 'xl', '0838': 'xl',
+        // Indosat
+        '0814': 'isat', '0815': 'isat', '0816': 'isat', '0855': 'isat', '0856': 'isat', '0857': 'isat', '0858': 'isat',
+        // Tri
+        '0895': 'tri', '0896': 'tri', '0897': 'tri', '0898': 'tri', '0899': 'tri'
+    };
+
+    const providerMeta = {
+        'telkomsel': { label: 'Telkomsel Cuan', color: '#E11D48', bg: '#ffe4e6' },
+        'byu': { label: 'by.U Cuan', color: '#3B82F6', bg: '#dbeafe' },
+        'xl': { label: 'XL & AXIS Cuan', color: '#10B981', bg: '#d1fae5' },
+        'isat': { label: 'Indosat Only4U', color: '#F59E0B', bg: '#fef3c7' },
+        'tri': { label: 'Tri Cuan', color: '#EF4444', bg: '#fee2e2' }
+    };
+
+    function onScannerInput() {
+        const input = document.getElementById('universalNoHp').value.trim();
+        const clearBtn = document.getElementById('btnClearScanner');
+        const badge = document.getElementById('detectedBadge');
+        const btn = document.getElementById('btnSubmitScanner');
+        const btnText = document.getElementById('btnScannerText');
+
+        if (input.length > 0) {
+            clearBtn.style.display = 'flex';
+        } else {
+            clearBtn.style.display = 'none';
+        }
+
+        // Deteksi operator berdasarkan 4 digit pertama
+        if (input.length >= 4) {
+            const prefix = input.substring(0, 4);
+            const prov = prefixMap[prefix];
+            if (prov && providerMeta[prov]) {
+                detectedProvider = prov;
+                const meta = providerMeta[prov];
+                badge.style.background = meta.bg;
+                badge.style.color = meta.color;
+                badge.innerHTML = `<i class="fas fa-check-circle"></i> ${meta.label}`;
+            } else {
+                detectedProvider = null;
+                badge.style.background = '#f1f5f9';
+                badge.style.color = '#64748b';
+                badge.innerHTML = `<i class="fas fa-sim-card"></i> Operator Tidak Dikenali`;
+            }
+        } else {
+            detectedProvider = null;
+            badge.style.background = '#f1f5f9';
+            badge.style.color = '#64748b';
+            badge.innerHTML = `<i class="fas fa-sim-card"></i> Auto-Detect Operator`;
+        }
+
+        // Validasi panjang nomor
+        if (input.length >= 10 && detectedProvider) {
+            btn.classList.add('active');
+            btn.removeAttribute('disabled');
+            const meta = providerMeta[detectedProvider];
+            btnText.innerText = `Cek Promo ${meta.label} (${input})`;
+        } else {
+            btn.classList.remove('active');
+            btn.setAttribute('disabled', 'true');
+            btnText.innerText = 'Cari Promo Cuan Nomor Ini';
+        }
+    }
+
+    function clearScanner() {
+        const input = document.getElementById('universalNoHp');
+        input.value = '';
+        input.focus();
+        onScannerInput();
+    }
+
+    function handleScannerEnter(e) {
+        if (e.key === 'Enter') {
+            const input = document.getElementById('universalNoHp').value.trim();
+            if (input.length >= 10 && detectedProvider) {
+                executeUniversalSearch();
+            }
+        }
+    }
+
+    function executeUniversalSearch() {
+        const input = document.getElementById('universalNoHp').value.trim();
+        if (!detectedProvider || input.length < 10) {
+            window.showToast('Masukkan nomor HP yang valid dengan minimal 10 digit.', 'warning');
+            return;
+        }
+
+        const targetUrl = `/cuan/${detectedProvider}?nohp=${encodeURIComponent(input)}`;
+        window.location.href = targetUrl;
+    }
+</script>
+{% endblock %}

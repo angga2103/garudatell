@@ -1554,7 +1554,99 @@ def download_mutasi_pdf():
 
 
 
-# --- ROUTE PRODUK CUAN DINAMIS ---
+# --- ROUTE PRODUK CUAN (SEMUA CUAN & DINAMIS PROVIDER) ---
+@user_bp.route('/cuan')
+@user_bp.route('/cuan/')
+@login_required
+def semua_cuan():
+    """Halaman Utama / Katalog Semua Produk Cuan Operator."""
+    from app.models.product import Product
+    from app.services.setting_service import is_vip_reseller_enabled
+
+    operator_list = [
+        {
+            'key': 'telkomsel',
+            'name': 'Telkomsel Cuan',
+            'logo': 'T',
+            'color': '#E11D48',
+            'bg_light': '#ffe4e6',
+            'badge': 'Margin Tinggi',
+            'tagline': 'Combo Sakti & Internet Murah',
+            'desc': 'Jalur promo kuota Telkomsel dengan margin keuntungan maksimal.',
+            'url': '/cuan/telkomsel'
+        },
+        {
+            'key': 'xl',
+            'name': 'XL & AXIS Cuan',
+            'logo': 'XL',
+            'color': '#10B981',
+            'bg_light': '#d1fae5',
+            'badge': 'Paling Laris',
+            'tagline': 'Xtra Combo Flex & AIGO Spesial',
+            'desc': 'Paket data XL dan AXIS harga spesial khusus nomor pelanggan.',
+            'url': '/cuan/xl'
+        },
+        {
+            'key': 'isat',
+            'name': 'Indosat Only4U',
+            'logo': 'im3',
+            'color': '#F59E0B',
+            'bg_light': '#fef3c7',
+            'badge': 'Super Hemat',
+            'tagline': 'Freedom Internet & Only4U',
+            'desc': 'Hot promo personalisasi kartu Indosat Ooredoo Hutchison.',
+            'url': '/cuan/isat'
+        },
+        {
+            'key': 'tri',
+            'name': 'Tri Cuan',
+            'logo': '3',
+            'color': '#EF4444',
+            'bg_light': '#fee2e2',
+            'badge': 'Promo Murah',
+            'tagline': 'Happy & AON Kuota Spesial',
+            'desc': 'Pilihan paket hemat Tri masa aktif panjang & kuota melimpah.',
+            'url': '/cuan/tri'
+        },
+        {
+            'key': 'byu',
+            'name': 'by.U Cuan',
+            'logo': 'by.U',
+            'color': '#3B82F6',
+            'bg_light': '#dbeafe',
+            'badge': 'Spesial Diskon',
+            'tagline': 'Kuota Yang Bikin Kaget',
+            'desc': 'Paket internet serba hemat provider serba digital by.U.',
+            'url': '/cuan/byu'
+        }
+    ]
+
+    featured_cuan = []
+    try:
+        cuan_q = Product.query.filter(Product.is_active == True)
+        if not is_vip_reseller_enabled():
+            cuan_q = cuan_q.filter(~Product.brand.ilike('VIP-%'), ~Product.name.ilike('%[VIP]%'))
+
+        sample_prods = cuan_q.filter(
+            Product.category.ilike('%Data%') | Product.name.ilike('%Combo%') | Product.name.ilike('%Akrab%') | Product.name.ilike('%Only%') | Product.name.ilike('%Sakti%')
+        ).filter(Product.sell_price >= 10000, Product.sell_price <= 65000).limit(8).all()
+
+        for p in sample_prods:
+            featured_cuan.append({
+                'sku': p.sku_code,
+                'name': p.name,
+                'brand': p.brand,
+                'price': get_user_product_price(current_user, p),
+                'category': p.category
+            })
+    except Exception:
+        featured_cuan = []
+
+    return render_template('user/cuan_hub.html',
+                           operator_list=operator_list,
+                           featured_cuan=featured_cuan)
+
+
 @user_bp.route('/cuan/<provider>')
 @login_required
 def produk_cuan(provider):
@@ -1565,11 +1657,10 @@ def produk_cuan(provider):
         'tri': {'title': 'TRI CUAN', 'logo': '3', 'color': '#EF4444', 'placeholder': '089612345678', 'label': 'Tri'},
         'byu': {'title': 'BY.U CUAN', 'logo': 'by.U', 'color': '#3B82F6', 'placeholder': '085112345678', 'label': 'by.U'}
     }
-    data = providers.get(provider)
+    data = providers.get(str(provider or '').lower())
     if not data:
-        from flask import flash, redirect, url_for
-        flash('Provider tidak ditemukan!', 'error')
-        return redirect(url_for('user.dashboard'))
+        from flask import redirect, url_for
+        return redirect(url_for('user.semua_cuan'))
     return render_template('user/cuan.html', data=data)
 # ---------------------------------
 
