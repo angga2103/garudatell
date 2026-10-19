@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Tagihan PPOB & Pascabayar - GarudaTel{% endblock %}
+{% block title %}Tagihan PPOB & Pascabayar - iPay{% endblock %}
 
 {% block head %}
 <style>
@@ -634,7 +634,7 @@
         <div style="display:flex; align-items:center; gap: 10px;">
             <i class="fas fa-wallet" style="font-size: 20px; color: #00877a;"></i>
             <div>
-                <div style="font-weight: 800; font-size: 13px; color: #0f172a;">Saldo Akun GarudaTel</div>
+                <div style="font-weight: 800; font-size: 13px; color: #0f172a;">Saldo Akun iPay</div>
                 <div style="font-size: 11px; color: #64748b;">Sisa: Rp {{ "{:,.0f}".format(user_balance).replace(',', '.') }}</div>
             </div>
         </div>

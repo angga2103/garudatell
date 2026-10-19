@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ title }} - GarudaTel{% endblock %}
+{% block title %}{{ title }} - iPay{% endblock %}
 
 {% block head %}
 <style>
@@ -666,7 +666,7 @@
                 {% endif %}
             </div>
             <div class="p-name">{{ p.name }}</div>
-            <div class="p-desc">{{ p.brand or 'GarudaTel Digital' }}</div>
+            <div class="p-desc">{{ p.brand or 'iPay Digital' }}</div>
         </div>
         <div class="p-price-action">
             <div class="p-price">Rp {{ "{:,.0f}".format(p.sell_price)|replace(',', '.') }}</div>

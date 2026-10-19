@@ -42,13 +42,35 @@
         }
 
         /* ========================================================
-           GARUDATEL LUXURY NOTIFICATION & SWEETALERT2 STYLING
+           IPAY LUXURY NOTIFICATION & SWEETALERT2 STYLING
            ======================================================== */
         .swal2-container {
             z-index: 100000 !important;
+        }
+        /* Modal Dialog Normal (Alert & Confirm): Ada Backdrop Blur */
+        .swal2-container:not(.swal2-no-backdrop):not(.swal2-top):not(.swal2-bottom):not(:has(.swal2-toast)) {
             backdrop-filter: blur(8px) !important;
             -webkit-backdrop-filter: blur(8px) !important;
             background: rgba(15, 23, 42, 0.58) !important;
+        }
+        /* Toast Notification: 100% BEBAS DARI BACKDROP HITAM / BLUR VERTIKAL */
+        body.swal2-toast-shown .swal2-container,
+        .swal2-container.swal2-top,
+        .swal2-container.swal2-bottom,
+        .swal2-container.swal2-no-backdrop,
+        .swal2-container:has(.swal2-toast) {
+            background: transparent !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            box-shadow: none !important;
+            pointer-events: none !important;
+        }
+        body.swal2-toast-shown .swal2-toast,
+        .swal2-container:has(.swal2-toast) .swal2-toast,
+        .swal2-container .swal2-toast {
+            pointer-events: auto !important;
+            width: auto !important;
+            max-width: 90vw !important;
         }
         .swal2-popup.garudatel-swal {
             border-radius: 26px !important;
@@ -800,6 +822,7 @@
                     showConfirmButton: false,
                     timer: duration,
                     timerProgressBar: true,
+                    backdrop: false,
                     customClass: { popup: 'garudatel-swal swal2-toast' },
                     didOpen: (toast) => {
                         toast.addEventListener('mouseenter', Swal.stopTimer);

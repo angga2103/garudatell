@@ -1623,21 +1623,49 @@ def semua_cuan():
 
     featured_cuan = []
     try:
+        from sqlalchemy import or_
         cuan_q = Product.query.filter(Product.is_active == True)
         if not is_vip_reseller_enabled():
             cuan_q = cuan_q.filter(~Product.brand.ilike('VIP-%'), ~Product.name.ilike('%[VIP]%'))
 
-        sample_prods = cuan_q.filter(
-            Product.category.ilike('%Data%') | Product.name.ilike('%Combo%') | Product.name.ilike('%Akrab%') | Product.name.ilike('%Only%') | Product.name.ilike('%Sakti%')
-        ).filter(Product.sell_price >= 10000, Product.sell_price <= 65000).limit(8).all()
+        # Hanya ambil dari 5 provider yang memiliki jalur promo cuan resmi
+        cuan_prov_conds = [
+            Product.brand.ilike('%Telkomsel%'), Product.brand.ilike('%Tsel%'),
+            Product.brand.ilike('%XL%'), Product.brand.ilike('%Axis%'),
+            Product.brand.ilike('%Indosat%'), Product.brand.ilike('%Isat%'), Product.brand.ilike('%IM3%'),
+            Product.brand.ilike('%Tri%'), Product.brand.ilike('%Three%'),
+            Product.brand.ilike('%By.U%'), Product.brand.ilike('%Byu%')
+        ]
+
+        sample_prods = cuan_q.filter(or_(*cuan_prov_conds))\
+            .filter(Product.category.ilike('%Data%') | Product.name.ilike('%Combo%') | Product.name.ilike('%Akrab%') | Product.name.ilike('%Only%') | Product.name.ilike('%Sakti%'))\
+            .filter(Product.sell_price >= 10000, Product.sell_price <= 65000)\
+            .limit(8).all()
+
+        def _resolve_cuan_target(brand, name):
+            combo = (str(brand or '') + ' ' + str(name or '')).upper()
+            if any(x in combo for x in ['BY.U', 'BYU']):
+                return '/cuan/byu', 'by.U'
+            elif any(x in combo for x in ['TELKOMSEL', 'TSEL', 'SIMPATI', 'AS', 'LOOP']):
+                return '/cuan/telkomsel', 'Telkomsel'
+            elif any(x in combo for x in ['XL', 'AXIS', 'AIGO']):
+                return '/cuan/xl', 'XL & Axis'
+            elif any(x in combo for x in ['INDOSAT', 'ISAT', 'IM3', 'MENTARI']):
+                return '/cuan/isat', 'Indosat'
+            elif any(x in combo for x in ['TRI', 'THREE']):
+                return '/cuan/tri', 'Tri'
+            return '/cuan', 'Operator'
 
         for p in sample_prods:
+            cuan_url, prov_label = _resolve_cuan_target(p.brand, p.name)
             featured_cuan.append({
                 'sku': p.sku_code,
                 'name': p.name,
                 'brand': p.brand,
                 'price': get_user_product_price(current_user, p),
-                'category': p.category
+                'category': p.category,
+                'cuan_url': cuan_url,
+                'provider_label': prov_label
             })
     except Exception:
         featured_cuan = []

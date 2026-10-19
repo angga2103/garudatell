@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}GarudaTel - Deposit Saldo{% endblock %}
+{% block title %}Deposit Saldo - iPay{% endblock %}
 
 {% block head %}
 <style>
@@ -1006,7 +1006,7 @@
                     </div>
                     <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px;">
                         <span style="color: #64748b; font-weight: 700;">Atas Nama:</span>
-                        <span style="font-weight: 800; color: #0369a1;">{{ depo_settings.dana_name if depo_settings else 'GarudaTel / Kasir' }}</span>
+                        <span style="font-weight: 800; color: #0369a1;">{{ depo_settings.dana_name if depo_settings else 'iPay / Kasir' }}</span>
                     </div>
                 </div>
 
@@ -1070,7 +1070,7 @@
                 <div>
                     <span style="font-size: 11px; color: #64748b; font-weight: 700; display: block;" id="destNameLabel">Nomor E-Wallet ShopeePay</span>
                     <div class="dest-info-num" id="destInfoNum">{{ (depo_settings.shopee_number if depo_settings else '081775700114') }}</div>
-                    <span style="font-size: 11px; color: #059669; font-weight: 800;" id="destOwnerName">a.n {{ (depo_settings.shopee_name if depo_settings else 'GarudaTel / Kasir') }}</span>
+                    <span style="font-size: 11px; color: #059669; font-weight: 800;" id="destOwnerName">a.n {{ (depo_settings.shopee_name if depo_settings else 'iPay / Kasir') }}</span>
                 </div>
                 <button type="button" class="copy-btn" id="btnCopyEwallet" onclick="copyCurrentEwallet()">
                     <i class="fas fa-copy"></i> Salin Nomor
@@ -1199,7 +1199,7 @@
                             {% if active_dana_ticket %}
                                 A/N {{ active_dana_ticket.dest_name }}
                             {% else %}
-                                A/N {{ depo_settings.dana_name if depo_settings else 'GARUDATEL / KASIR' }}
+                                A/N {{ depo_settings.dana_name if depo_settings else 'IPAY / KASIR' }}
                             {% endif %}
                         </div>
                     </div>
@@ -1419,15 +1419,15 @@
     const ewalletAccounts = {
         'DANA': {
             number: {{ (depo_settings.dana_number if depo_settings else '081775700114')|tojson }},
-            name: {{ (depo_settings.dana_name if depo_settings else 'GarudaTel / Kasir')|tojson }}
+            name: {{ (depo_settings.dana_name if depo_settings else 'iPay / Kasir')|tojson }}
         },
         'SHOPEEPAY': {
             number: {{ (depo_settings.shopee_number if depo_settings else '081775700114')|tojson }},
-            name: {{ (depo_settings.shopee_name if depo_settings else 'GarudaTel / Kasir')|tojson }}
+            name: {{ (depo_settings.shopee_name if depo_settings else 'iPay / Kasir')|tojson }}
         },
         'GOPAY': {
             number: {{ (depo_settings.gopay_number if depo_settings else '081775700114')|tojson }},
-            name: {{ (depo_settings.gopay_name if depo_settings else 'GarudaTel / Kasir')|tojson }}
+            name: {{ (depo_settings.gopay_name if depo_settings else 'iPay / Kasir')|tojson }}
         }
     };
     const waTargetNumber = {{ (depo_settings.wa_target if depo_settings else '081775700114')|tojson }};
@@ -1543,7 +1543,7 @@
         if (destNumEl) destNumEl.innerText = ticket.ewallet_dest || ticket.dest_number || '081775700114';
 
         const destNameEl = document.getElementById('danaCardDestName');
-        if (destNameEl) destNameEl.innerText = 'A/N ' + (ticket.ewallet_owner || ticket.dest_name || 'GARUDATEL / KASIR').toUpperCase();
+        if (destNameEl) destNameEl.innerText = 'A/N ' + (ticket.ewallet_owner || ticket.dest_name || 'IPAY / KASIR').toUpperCase();
 
         const btnWa = document.getElementById('danaBtnWaAdmin');
         if (btnWa && (ticket.wa_url || ticket.wa_web_url)) {
@@ -1614,7 +1614,7 @@
                     const successCard = document.getElementById('danaSuccessCard');
                     const msgEl = document.getElementById('danaSuccessMsg');
                     if (msgEl) {
-                        msgEl.innerText = 'Saldo sebesar ' + formatRupiah(data.amount || currentDanaTotal) + ' telah berhasil ditambahkan ke akun GarudaTel Anda.';
+                        msgEl.innerText = 'Saldo sebesar ' + formatRupiah(data.amount || currentDanaTotal) + ' telah berhasil ditambahkan ke akun iPay Anda.';
                     }
                     if (successCard) successCard.style.display = 'block';
 
