@@ -88,16 +88,19 @@ class TestQrisRoutes(unittest.TestCase):
         data = res.get_json()
         self.assertEqual(data.get("status"), "success")
         self.assertEqual(data.get("gateway"), "dana")
+        self.assertEqual(data.get("mode"), "transfer")
         self.assertEqual(data.get("fee"), 0)
-        self.assertTrue(data.get("qr_string", "").startswith("000201010212"))
-        self.assertIn("15123", data.get("qr_string"))
+        self.assertEqual(data.get("total_payment"), 15123)
+        self.assertTrue(data.get("dest_number"))
+        self.assertTrue(data.get("dest_name"))
 
         # Panggil invoice
         res_inv = self.client.get(f"/trx/invoice/{ref_id}")
         self.assertEqual(res_inv.status_code, 200)
         html = res_inv.get_data(as_text=True)
         self.assertIn("DANA", html)
-        self.assertIn("0% Fee", html)
+        self.assertIn("0% FEE", html.upper())
+        self.assertIn("TRANSFER DANA OTOMATIS", html)
 
         # Bersihkan
         db.session.delete(trx)

@@ -4,7 +4,7 @@ from app.extensions import db, csrf, limiter
 from app.models.transaction import Transaction
 from app.models.product import Product
 from app.models.user import User
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import time
 import random
 import os
@@ -381,6 +381,7 @@ def checkout():
 
             active_pg = get_active_payment_gateway()
             final_amount = amount
+            sn_initial = None
             if active_pg in ['dana', 'dana_inhouse', 'inhouse']:
                 from app.services.dana_mutasi_service import generate_unique_code
                 cutoff_collision = datetime.utcnow() - timedelta(minutes=45)
@@ -396,7 +397,7 @@ def checkout():
                     if not collision:
                         break
                 final_amount = float(total_with_code)
-                sn_initial = f"Pokok: Rp {int(amount):,} | Unik: {unique_code:03d} | Total: Rp {total_with_code:,} | DANA QRIS"
+                sn_initial = f"Pokok: Rp {int(amount):,} | Unik: {unique_code:03d} | Total: Rp {total_with_code:,} | DANA Otomatis"
 
             new_trx = Transaction(
                 user_id=current_user.id,
@@ -694,8 +695,9 @@ def invoice(ref_id):
         pass
 
     # Hitung estimasi / real fee payment gateway jika metode bayar QRIS
-    from app.services.setting_service import get_active_payment_gateway
+    from app.services.setting_service import get_active_payment_gateway, get_manual_deposit_settings
     active_pg = get_active_payment_gateway()
+    depo_settings = get_manual_deposit_settings()
     pg_fee = 0
     total_with_fee = trx.amount
     if trx.payment_method and trx.payment_method.upper() == 'QRIS':
@@ -709,7 +711,8 @@ def invoice(ref_id):
         trx=trx,
         pg_fee=pg_fee,
         total_with_fee=total_with_fee,
-        active_pg=active_pg
+        active_pg=active_pg,
+        depo_settings=depo_settings
     )
 
 @trx_bp.route('/generate_qris/<ref_id>', methods=['GET'])
@@ -730,22 +733,30 @@ def generate_qris(ref_id):
     from app.services.setting_service import get_active_payment_gateway
     active_pg = get_active_payment_gateway()
 
-    # 1. JIKA PAYMENT GATEWAY AKTIF ADALAH DANA (IN-HOUSE DIRECT QRIS 0% FEE)
+    # 1. JIKA PAYMENT GATEWAY AKTIF ADALAH DANA (IN-HOUSE DIRECT DANA TRANSFER 0% FEE)
     if active_pg in ['dana', 'dana_inhouse', 'inhouse']:
-        from app.utils.qris import generate_dynamic_qris, get_base_qris_string
-        import urllib.parse
-        base_qris = get_base_qris_string()
+        from app.services.setting_service import get_manual_deposit_settings
+        depo_settings = get_manual_deposit_settings()
         amount_int = int(trx.amount)
-        dynamic_qris = generate_dynamic_qris(base_qris, amount_int)
-        qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=350x350&margin=10&data={urllib.parse.quote(dynamic_qris)}"
+        # Sediakan juga QR URL statis DANA orisinil jika pelanggan ingin scan langsung di aplikasi DANA
+        dana_qris = depo_settings.get('dana_qris_string')
+        qr_url = None
+        if dana_qris:
+            import urllib.parse
+            qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=350x350&margin=10&data={urllib.parse.quote(dana_qris)}"
+
         return jsonify({
             'status': 'success',
             'gateway': 'dana',
-            'qr_url': qr_url,
-            'qr_string': dynamic_qris,
+            'mode': 'transfer',
             'fee': 0,
             'total_payment': amount_int,
-            'amount': amount_int
+            'amount': amount_int,
+            'dest_number': depo_settings.get('dana_number', '081775700114'),
+            'dest_name': depo_settings.get('dana_name', 'ANGGA DIAN PRATAMA'),
+            'wa_target': depo_settings.get('wa_target', '081775700114'),
+            'qr_url': qr_url,
+            'qr_string': dana_qris
         })
 
     # 2. JIKA PAYMENT GATEWAY AKTIF ADALAH PAKASIR

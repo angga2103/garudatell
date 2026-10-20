@@ -112,6 +112,229 @@
         font-weight: 700;
         margin-top: 3px;
     }
+
+    /* DANA AUTOMATED PAYMENT CARD (0% FEE VIA PAYHOOK HP) */
+    .dana-pay-card {
+        background: #ffffff;
+        border-radius: 20px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+        border: 1px solid rgba(226, 232, 240, 0.9);
+        overflow: hidden;
+        margin-bottom: 22px;
+        animation: fadeIn 0.3s ease-out;
+    }
+    .dana-time-banner {
+        background: #fff1f2;
+        border-bottom: 1px solid #ffe4e6;
+        padding: 12px 18px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .dana-time-label {
+        font-size: 12px;
+        font-weight: 900;
+        color: #e11d48;
+        letter-spacing: 0.5px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .dana-time-val {
+        font-size: 14px;
+        font-weight: 900;
+        color: #e11d48;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .dana-card-body {
+        padding: 20px 18px;
+    }
+    .dana-section-sub {
+        font-size: 11.5px;
+        font-weight: 800;
+        color: #00877a;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 6px;
+    }
+    .dana-total-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 14px;
+    }
+    .dana-total-amount {
+        font-size: 26px;
+        font-weight: 900;
+        color: #00877a;
+        letter-spacing: -0.5px;
+    }
+    .dana-btn-salin {
+        background: #ffffff;
+        border: 1.5px solid #a7f3d0;
+        color: #00877a;
+        padding: 6px 14px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s;
+    }
+    .dana-btn-salin:hover {
+        background: #ecfdf5;
+        border-color: #00877a;
+    }
+    .dana-divider-dashed {
+        border-top: 1.5px dashed #cbd5e1;
+        margin: 14px 0 16px 0;
+    }
+    .dana-dest-box {
+        background: #ffffff;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 14px 16px;
+        margin-bottom: 16px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+    }
+    .dana-logo-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .dana-badge-icon {
+        width: 28px;
+        height: 28px;
+        background: #108ee9;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+    }
+    .dana-logo-text {
+        font-size: 14px;
+        font-weight: 900;
+        color: #108ee9;
+        letter-spacing: 0.5px;
+    }
+    .dana-dest-divider {
+        border-top: 1px dashed #e2e8f0;
+        margin: 10px 0;
+    }
+    .dana-dest-details {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .dana-dest-lbl {
+        font-size: 11px;
+        font-weight: 800;
+        color: #64748b;
+        letter-spacing: 0.3px;
+    }
+    .dana-dest-num {
+        font-size: 18px;
+        font-weight: 900;
+        color: #00877a;
+        letter-spacing: 0.5px;
+        margin: 2px 0;
+    }
+    .dana-dest-owner {
+        font-size: 11px;
+        font-weight: 800;
+        color: #64748b;
+        text-transform: uppercase;
+    }
+    .dana-alert-box {
+        background: #fffbeb;
+        border: 1.5px solid #fed7aa;
+        border-left: 4px solid #f97316;
+        border-radius: 12px;
+        padding: 12px 14px;
+        margin-bottom: 18px;
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+    }
+    .dana-alert-icon {
+        color: #ea580c;
+        font-size: 16px;
+        margin-top: 2px;
+        flex-shrink: 0;
+    }
+    .dana-alert-title {
+        font-size: 11.5px;
+        font-weight: 900;
+        color: #c2410c;
+        margin-bottom: 3px;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    .dana-alert-desc {
+        font-size: 11px;
+        color: #9a3412;
+        line-height: 1.45;
+        font-weight: 600;
+    }
+    .dana-status-polling {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        margin-bottom: 16px;
+        font-size: 12.5px;
+        font-weight: 800;
+        color: #475569;
+        background: #f8fafc;
+        padding: 10px 14px;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+    }
+    .dana-spinner-ring {
+        width: 16px;
+        height: 16px;
+        border: 2px solid #cbd5e1;
+        border-top-color: #00877a;
+        border-radius: 50%;
+        animation: spinDana 0.8s linear infinite;
+        flex-shrink: 0;
+    }
+    @keyframes spinDana {
+        to { transform: rotate(360deg); }
+    }
+    .dana-success-box {
+        background: #ecfdf5;
+        border: 1.5px solid #a7f3d0;
+        border-radius: 16px;
+        padding: 24px 20px;
+        text-align: center;
+        margin-bottom: 20px;
+        animation: fadeIn 0.3s ease-out;
+    }
+    .dana-success-icon {
+        color: #10b981;
+        font-size: 44px;
+        margin-bottom: 8px;
+    }
+    .dana-success-title {
+        margin: 0;
+        font-size: 17px;
+        font-weight: 900;
+        color: #065f46;
+    }
+    .dana-success-msg {
+        font-size: 12.5px;
+        color: #047857;
+        margin: 6px 0 0 0;
+        line-height: 1.45;
+        font-weight: 600;
+    }
     
     /* DETAIL ROWS */
     .detail-section { margin-bottom: 22px; }
@@ -648,60 +871,150 @@
 <div class="inv-card-wrapper">
     <div class="inv-card">
         
-        <!-- QRIS DISPLAY (Muncul jika UNPAID dan metode bayar QRIS / qris) -->
+        <!-- QRIS / DANA DISPLAY (Muncul jika UNPAID dan metode bayar QRIS / qris) -->
         {% if trx.payment_status == 'UNPAID' and trx.payment_method and trx.payment_method|upper == 'QRIS' %}
-        <div class="qris-container">
-            <div class="qris-title">
-                <i class="fas fa-qrcode" style="color: #00877a;"></i> Pindai Barcode QRIS untuk Bayar
-            </div>
-            
-            <div class="qris-img-wrapper" id="qrisWrapper">
-                <div class="qris-loading" id="qrisLoading">
-                    <i class="fas fa-spinner"></i>
-                    <p style="margin-top: 10px; font-size: 13px; color: #64748b; font-weight: 700;">Menyiapkan Barcode QRIS...</p>
+        {% if active_pg in ['dana', 'dana_inhouse', 'inhouse'] %}
+            <!-- KARTU PEMBAYARAN TRANSFER DANA OTOMATIS (0% FEE VIA PAYHOOK HP) -->
+            <div id="danaPaymentCard" class="dana-pay-card">
+                <!-- BANNER BATAS WAKTU (PINK / SOFT RED) -->
+                <div class="dana-time-banner">
+                    <span class="dana-time-label">
+                        <i class="fas fa-hourglass-half"></i> BATAS WAKTU:
+                    </span>
+                    <div class="dana-time-val">
+                        <i class="far fa-clock"></i>
+                        <span id="countdown">15:00</span>
+                    </div>
                 </div>
-                <img id="qrisImage" style="display: none;" alt="QRIS Code">
-            </div>
-            
-            <div class="qris-hint">
-                <i class="fas fa-mobile-alt" style="color: #00877a;"></i> Buka BCA / Mandiri / BRI / GoPay / ShopeePay / OVO &rarr; Scan kode di atas
-            </div>
 
-            <!-- INFORMASI NOMINAL BAYAR QRIS -->
-            {% if active_pg in ['dana', 'dana_inhouse', 'inhouse'] %}
-            <div class="qris-fee-alert" id="qrisFeeAlert" style="background: #f0fdf4; border-color: #bbf7d0;">
-                <div class="qris-fee-alert-header" style="color: #166534;">
-                    <i class="fas fa-check-circle" style="color: #16a34a;"></i>
-                    <span>DANA QRIS Dinamis (Bebas Biaya Admin / 0% Fee)</span>
-                </div>
-                <div class="qris-fee-alert-body" style="color: #14532d;">
-                    Nominal scan terkunci otomatis: <strong style="color: #15803d; font-size: 13.5px;">Rp <span id="alertTotalPayment">{{ "{:,.0f}".format(total_with_fee|default(trx.amount)).replace(',', '.') }}</span></strong>.
-                    <div style="margin-top: 5px; font-size: 11.5px; opacity: 0.95; padding-top: 5px; border-top: 1px dashed #bbf7d0;">
-                        Termasuk kode verifikasi unik. Transaksi Anda langsung diproses otomatis tanpa potongan fee!
+                <div class="dana-card-body">
+                    <!-- TOTAL PEMBAYARAN -->
+                    <div class="dana-section-sub">TOTAL PEMBAYARAN (0% FEE)</div>
+                    <div class="dana-total-row">
+                        <div class="dana-total-amount" id="danaCardTotalText">
+                            Rp {{ "{:,.0f}".format(trx.amount).replace(',', '.') }}
+                        </div>
+                        <button type="button" class="dana-btn-salin" onclick="copyDanaCardTotal()">
+                            <i class="far fa-clone"></i> Salin Nominal
+                        </button>
+                    </div>
+
+                    <div class="dana-divider-dashed"></div>
+
+                    <!-- KIRIM PEMBAYARAN KE -->
+                    <div class="dana-section-sub">KIRIM PEMBAYARAN KE:</div>
+                    
+                    <div class="dana-dest-box" id="danaDestBox">
+                        <div class="dana-logo-header">
+                            <span class="dana-badge-icon"><i class="fas fa-wallet"></i></span>
+                            <span class="dana-logo-text">TRANSFER DANA OTOMATIS</span>
+                        </div>
+                        
+                        <div class="dana-dest-divider"></div>
+
+                        <div class="dana-dest-details">
+                            <div>
+                                <div class="dana-dest-lbl">NOMOR TUJUAN DANA:</div>
+                                <div class="dana-dest-num" id="danaCardDestNum">
+                                    {{ depo_settings.dana_number if depo_settings else '081775700114' }}
+                                </div>
+                                <div class="dana-dest-owner" id="danaCardDestName">
+                                    A/N {{ depo_settings.dana_name if depo_settings else 'ANGGA DIAN PRATAMA' }}
+                                </div>
+                            </div>
+                            <button type="button" class="dana-btn-salin" onclick="copyDanaCardNumber()">
+                                <i class="far fa-clone"></i> Salin Nomor
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- PERINGATAN PENTING -->
+                    <div class="dana-alert-box">
+                        <div class="dana-alert-icon">
+                            <i class="fas fa-info-circle"></i>
+                        </div>
+                        <div>
+                            <div class="dana-alert-title">PENTING: TRANSFER TEPAT NOMINAL</div>
+                            <div class="dana-alert-desc">
+                                Pastikan transfer <strong>SAMA PERSIS</strong> hingga 3 digit terakhir (<strong>Rp {{ "{:,.0f}".format(trx.amount).replace(',', '.') }}</strong>). Termasuk kode unik verifikasi agar pesanan langsung diproses otomatis tanpa perlu konfirmasi admin!
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- STATUS POLLING ANIMASI -->
+                    <div id="danaPollingStatus" class="dana-status-polling">
+                        <div class="dana-spinner-ring"></div>
+                        <span id="danaStatusLabel">Menunggu sistem mendeteksi transfer DANA Anda...</span>
+                    </div>
+
+                    <!-- PANDUAN CARA TRANSFER & QR OPSIONAL -->
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; font-size: 11.5px; color: #475569;">
+                        <div style="font-weight: 800; color: #1e293b; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                            <i class="fas fa-lightbulb" style="color: #f59e0b;"></i> Petunjuk Transfer:
+                        </div>
+                        <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
+                            <li><strong>Dari DANA:</strong> Buka aplikasi DANA &rarr; Kirim Uang &rarr; Ke Nomor Telepon <strong>{{ depo_settings.dana_number if depo_settings else '081775700114' }}</strong> &rarr; Masukkan nominal <strong>Rp {{ "{:,.0f}".format(trx.amount).replace(',', '.') }}</strong>.</li>
+                            <li><strong>Dari Bank / E-Wallet Lain:</strong> Transfer Bank ke Virtual Account DANA (CIMB Niaga kode <code>8059 + Nomor HP</code> atau Permata kode <code>8528 + Nomor HP</code>).</li>
+                        </ul>
+                        {% if depo_settings and depo_settings.dana_qris_string %}
+                        <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed #cbd5e1; text-align: center;">
+                            <button type="button" onclick="toggleDanaQr()" style="background: none; border: none; font-size: 11.5px; font-weight: 800; color: #00877a; cursor: pointer; text-decoration: underline;">
+                                <i class="fas fa-qrcode"></i> Atau Scan QR DANA (Khusus Aplikasi DANA)
+                            </button>
+                            <div id="boxDanaQr" style="display: none; margin-top: 10px; text-align: center;">
+                                <div style="display: inline-block; padding: 10px; background: white; border-radius: 12px; border: 1.5px solid #a7f3d0; box-shadow: 0 4px 12px rgba(0,0,0,0.04);">
+                                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&data={{ depo_settings.dana_qris_string|urlencode }}" alt="DANA QR Code" style="max-width: 200px; width: 100%; border-radius: 8px; display: block; margin: 0 auto;">
+                                </div>
+                                <div style="font-size: 11px; color: #059669; font-weight: 700; margin-top: 6px;">
+                                    *Khusus scan di aplikasi DANA & masukkan nominal manual sama persis: <strong>Rp {{ "{:,.0f}".format(trx.amount).replace(',', '.') }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
-            {% elif active_pg == 'pakasir' %}
-            <div class="qris-fee-alert" id="qrisFeeAlert">
-                <div class="qris-fee-alert-header">
-                    <i class="fas fa-info-circle"></i>
-                    <span>Informasi Nominal Bayar Scan QRIS</span>
+        {% else %}
+            <!-- QRIS GATEWAY STANDARD (PAKASIR / PAYMENTKITA) -->
+            <div class="qris-container">
+                <div class="qris-title">
+                    <i class="fas fa-qrcode" style="color: #00877a;"></i> Pindai Barcode QRIS untuk Bayar
                 </div>
-                <div class="qris-fee-alert-body">
-                    Saat Anda scan QRIS di <strong>GoPay, BCA, Mandiri, ShopeePay, DANA, OVO</strong>, dll., nominal bayar pada aplikasi adalah <strong style="color: #0284c7; font-size: 13.5px;">Rp <span id="alertTotalPayment">{{ "{:,.0f}".format(total_with_fee|default(trx.amount)).replace(',', '.') }}</span></strong>.
-                    <div style="margin-top: 5px; font-size: 11.5px; opacity: 0.95; padding-top: 5px; border-top: 1px dashed #bae6fd;">
-                        Rincian: Harga Produk <strong>Rp {{ "{:,.0f}".format(trx.amount).replace(',', '.') }}</strong> + Fee Gateway <strong id="alertPgFee">Rp {{ "{:,.0f}".format(pg_fee|default(0)).replace(',', '.') }}</strong> <span class="qris-fee-badge">Tarif Pakasir (0.7% + Rp 310)</span>.
+                
+                <div class="qris-img-wrapper" id="qrisWrapper">
+                    <div class="qris-loading" id="qrisLoading">
+                        <i class="fas fa-spinner"></i>
+                        <p style="margin-top: 10px; font-size: 13px; color: #64748b; font-weight: 700;">Menyiapkan Barcode QRIS...</p>
+                    </div>
+                    <img id="qrisImage" style="display: none;" alt="QRIS Code">
+                </div>
+                
+                <div class="qris-hint">
+                    <i class="fas fa-mobile-alt" style="color: #00877a;"></i> Buka BCA / Mandiri / BRI / GoPay / ShopeePay / OVO &rarr; Scan kode di atas
+                </div>
+
+                {% if active_pg == 'pakasir' %}
+                <div class="qris-fee-alert" id="qrisFeeAlert">
+                    <div class="qris-fee-alert-header">
+                        <i class="fas fa-info-circle"></i>
+                        <span>Informasi Nominal Bayar Scan QRIS</span>
+                    </div>
+                    <div class="qris-fee-alert-body">
+                        Saat Anda scan QRIS di <strong>GoPay, BCA, Mandiri, ShopeePay, DANA, OVO</strong>, dll., nominal bayar pada aplikasi adalah <strong style="color: #0284c7; font-size: 13.5px;">Rp <span id="alertTotalPayment">{{ "{:,.0f}".format(total_with_fee|default(trx.amount)).replace(',', '.') }}</span></strong>.
+                        <div style="margin-top: 5px; font-size: 11.5px; opacity: 0.95; padding-top: 5px; border-top: 1px dashed #bae6fd;">
+                            Rincian: Harga Produk <strong>Rp {{ "{:,.0f}".format(trx.amount).replace(',', '.') }}</strong> + Fee Gateway <strong id="alertPgFee">Rp {{ "{:,.0f}".format(pg_fee|default(0)).replace(',', '.') }}</strong> <span class="qris-fee-badge">Tarif Pakasir (0.7% + Rp 310)</span>.
+                        </div>
                     </div>
                 </div>
+                {% endif %}
+                
+                <!-- COUNTDOWN TIMER -->
+                <div class="timer-box" id="timerBox">
+                    <div class="timer-text"><i class="fas fa-hourglass-half"></i> Sisa Waktu Pembayaran</div>
+                    <div class="timer-countdown" id="countdown">15:00</div>
+                </div>
             </div>
-            {% endif %}
-            
-            <!-- COUNTDOWN TIMER -->
-            <div class="timer-box" id="timerBox">
-                <div class="timer-text"><i class="fas fa-hourglass-half"></i> Sisa Waktu Pembayaran</div>
-                <div class="timer-countdown" id="countdown">15:00</div>
-            </div>
-        </div>
+        {% endif %}
         {% endif %}
         
         <!-- DETAIL TRANSAKSI -->
@@ -733,7 +1046,7 @@
                 <span class="detail-value" id="detailProdPrice">Rp {{ "{:,.0f}".format(trx.amount).replace(',', '.') }}</span>
             </div>
 
-            {% if trx.payment_method and trx.payment_method|upper == 'QRIS' %}
+            {% if trx.payment_method and trx.payment_method|upper == 'QRIS' and (pg_fee|default(0)) > 0 %}
             <div class="detail-row" id="rowPgFee" style="background: #f0fdfa; margin: 3px -8px; padding: 9px 8px; border-radius: 8px; border: 1px dashed #ccfbf1;">
                 <span class="detail-label" style="display: flex; align-items: center; gap: 4px; color: #0f766e; font-weight: 700;">
                     <i class="fas fa-receipt" style="font-size: 11px;"></i> Biaya Gateway (QRIS)
@@ -933,8 +1246,41 @@
 </div>
 
 <script>
-// Load QRIS Image & Auto-detect Status
+// Helper functions untuk Salin Data DANA
+function copyDanaCardTotal() {
+    const rawVal = {{ trx.amount|int }};
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(rawVal.toString()).then(function() {
+            showToast('Nominal Rp ' + Number(rawVal).toLocaleString('id-ID') + ' tersalin!');
+        }).catch(function() {
+            copyText(rawVal.toString());
+        });
+    } else {
+        copyText(rawVal.toString());
+    }
+}
+function copyDanaCardNumber() {
+    const num = {{ (depo_settings.dana_number if depo_settings else '081775700114')|tojson }};
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(num).then(function() {
+            showToast('Nomor DANA ' + num + ' tersalin!');
+        }).catch(function() {
+            copyText(num);
+        });
+    } else {
+        copyText(num);
+    }
+}
+function toggleDanaQr() {
+    const box = document.getElementById('boxDanaQr');
+    if (box) {
+        box.style.display = (box.style.display === 'none' || box.style.display === '') ? 'block' : 'none';
+    }
+}
+
+// Load QRIS Image (Hanya jika Gateway Luar Pakasir / PaymentKita)
 {% if trx.payment_status == 'UNPAID' and trx.payment_method and trx.payment_method|upper == 'QRIS' %}
+{% if active_pg not in ['dana', 'dana_inhouse', 'inhouse'] %}
 window.addEventListener('DOMContentLoaded', function() {
     fetch('/trx/generate_qris/{{ trx.ref_id }}')
         .then(response => response.json())
@@ -984,6 +1330,7 @@ window.addEventListener('DOMContentLoaded', function() {
             document.getElementById('qrisLoading').innerHTML = '<p style="color: #ef4444; font-weight: 800;">Error: ' + error.message + '</p>';
         });
 });
+{% endif %}
 
 // Countdown Timer (15 menit)
 let timeLeft = 15 * 60;
@@ -992,11 +1339,13 @@ const countdownEl = document.getElementById('countdown');
 function updateCountdown() {
     const minutes = Math.floor(timeLeft / 60);
     const seconds = timeLeft % 60;
-    countdownEl.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    if (countdownEl) {
+        countdownEl.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
     
     if (timeLeft <= 0) {
         clearInterval(countdownInterval);
-        countdownEl.textContent = 'EXPIRED';
+        if (countdownEl) countdownEl.textContent = 'EXPIRED';
         const tb = document.getElementById('timerBox');
         if (tb) {
             tb.style.background = '#fee2e2';
@@ -1020,7 +1369,7 @@ function checkPaymentStatus(isAuto = false) {
                 if (pollInterval) clearInterval(pollInterval);
                 if (typeof countdownInterval !== 'undefined') clearInterval(countdownInterval);
                 
-                const qrisBox = document.querySelector('.qris-container');
+                const qrisBox = document.querySelector('.qris-container') || document.getElementById('danaPaymentCard');
                 if (qrisBox) {
                     qrisBox.innerHTML = `
                         <div style="padding: 24px 16px; background: #ecfdf5; border-radius: 20px; border: 2px solid #10b981; color: #065f46; text-align: center; margin-bottom: 10px;">
@@ -1037,7 +1386,7 @@ function checkPaymentStatus(isAuto = false) {
             } else if (!isAuto) {
                 window.showGarudaAlert({
                     title: 'Menunggu Pembayaran',
-                    text: 'Pembayaran belum terdeteksi sistem. Jika baru saja scan QRIS atau transfer, harap tunggu 15-30 detik lalu tekan tombol periksa kembali.',
+                    text: 'Pembayaran belum terdeteksi sistem. Jika baru saja transfer ke DANA atau scan QRIS, harap tunggu 15-30 detik lalu tekan tombol periksa kembali.',
                     icon: 'info'
                 });
             }
