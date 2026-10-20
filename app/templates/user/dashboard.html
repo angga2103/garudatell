@@ -568,6 +568,71 @@
         }
     }
 
+    /* Optimalisasi Tablet & Monitor Desktop Portrait (min-width: 768px dan portrait) */
+    @media screen and (min-width: 768px) and (orientation: portrait) {
+        .top-header {
+            padding: 28px 20px 68px 20px;
+        }
+        .main-card-wrapper {
+            margin-top: -50px;
+        }
+        .cuan-scroll {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+        }
+        .services-dual-wrapper {
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        .tablet-bottom-grid {
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        .action-item {
+            min-height: 70px;
+        }
+        .menu-icon {
+            width: 52px;
+            height: 52px;
+        }
+    }
+
+    /* Optimalisasi Laptop 1366x768 (Area Bersih Layar ~640px, Anti Below-The-Fold) */
+    @media screen and (max-height: 800px) and (min-width: 1024px) {
+        .top-header {
+            padding: 22px 24px 58px 24px;
+        }
+        .main-card-wrapper {
+            margin-top: -44px;
+            padding: 14px 16px;
+        }
+        .cuan-wrapper {
+            padding: 14px 16px;
+            margin-bottom: 16px;
+        }
+        .services-dual-wrapper {
+            margin-bottom: 16px;
+            gap: 14px;
+        }
+        .service-panel-card {
+            padding: 16px 14px;
+        }
+        .service-panel-title {
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+        .service-menu-grid {
+            gap: 12px 6px;
+        }
+        .menu-icon {
+            width: 46px;
+            height: 46px;
+            font-size: 20px;
+            margin-bottom: 4px;
+        }
+    }
+
     /* NOTIFIKASI CLAMP & AUTO EXPAND */
     .notif-content-text {
         font-size: 11px;
