@@ -469,12 +469,99 @@
     /* ========================================================
        MEDIA QUERIES: OPTIMALISASI TABLET 10 INCHI & DESKTOP PC
        ======================================================== */
-    @media (min-width: 640px) {
+    /* ========================================================
+       TAMPILAN PORTRAIT (HP & TABLET 10 INCI PORTRAIT)
+       Full-width 100% ke tepi kanan-kiri, selaras dengan navbar,
+       dan kartu layanan 1 kolom penuh agar ikon tidak terpotong.
+       ======================================================== */
+    @media (orientation: portrait), (max-width: 1023px) {
+        .top-header {
+            width: 100% !important;
+            padding: 30px 18px 75px 18px;
+            box-sizing: border-box !important;
+            border-top-left-radius: 0 !important;
+            border-top-right-radius: 0 !important;
+        }
+        .main-card-wrapper {
+            margin: -55px 16px 18px 16px !important;
+            padding: 16px;
+            border-radius: 26px;
+            box-sizing: border-box !important;
+        }
+        .cuan-wrapper {
+            margin: 0 16px 18px 16px !important;
+            padding: 16px 14px 18px 14px;
+            border-radius: 26px;
+            box-sizing: border-box !important;
+        }
+        .cuan-scroll {
+            display: flex !important;
+            gap: 10px !important;
+            overflow-x: auto !important;
+            padding-bottom: 4px;
+        }
+        /* Layanan PPOB: 1 Kolom Menurun Penuh Seperti di HP */
+        .services-dual-wrapper {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 16px !important;
+            margin: 0 16px 20px 16px !important;
+        }
+        .service-panel-card {
+            width: 100% !important;
+            box-sizing: border-box !important;
+            border-radius: 26px !important;
+            padding: 20px 16px 22px 16px !important;
+        }
+        .service-panel-title {
+            font-size: 15.5px !important;
+            font-weight: 900 !important;
+            margin-bottom: 16px !important;
+            white-space: normal !important;
+            word-break: normal !important;
+        }
+        .service-menu-grid {
+            display: grid !important;
+            grid-template-columns: repeat(4, 1fr) !important;
+            gap: 16px 8px !important;
+            width: 100% !important;
+        }
+        .action-item {
+            min-height: 68px;
+        }
+        .menu-icon {
+            width: 52px;
+            height: 52px;
+            font-size: 22px;
+        }
+        /* Bottom Grid: 1 Kolom Menurun Penuh Seperti di HP */
+        .tablet-bottom-grid {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 16px !important;
+            margin: 0 16px 35px 16px !important;
+        }
+        .recent-trx-card, .outlet-support-card {
+            width: 100% !important;
+            box-sizing: border-box !important;
+            border-radius: 26px !important;
+            padding: 20px 18px !important;
+        }
+    }
+
+    /* ========================================================
+       DESKTOP PC LANDSCAPE (>= 1024px & Landscape)
+       Mode 2 Kolom Berdampingan Hanya untuk Monitor Lebar PC
+       ======================================================== */
+    @media (min-width: 1024px) and (orientation: landscape) {
+        .btn-top-menu {
+            display: none !important;
+        }
         .top-header {
             padding: 38px 24px 80px 24px;
         }
         .main-card-wrapper {
-            margin: -58px 0 22px 0;
+            margin: -65px 0 22px 0;
             padding: 18px;
             border-radius: 28px;
         }
@@ -520,7 +607,7 @@
         .tag-orange { background: #ffedd5; color: #ea580c; }
         .tag-blue { background: #dbeafe; color: #2563eb; }
 
-        /* Tablet Dual-Grid Layout: Berdampingan Rapi & Simetris */
+        /* Layanan 2 Kolom di Monitor PC */
         .services-dual-wrapper {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -546,7 +633,7 @@
             font-size: 11.5px;
         }
 
-        /* Tablet Bottom Grid: Mengisi Ruang Bawah */
+        /* Bottom Grid 2 Kolom di Monitor PC */
         .tablet-bottom-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -556,45 +643,6 @@
         .recent-trx-card, .outlet-support-card {
             border-radius: 28px;
             padding: 20px;
-        }
-    }
-
-    @media (min-width: 1024px) {
-        .btn-top-menu {
-            display: none !important;
-        }
-        .main-card-wrapper {
-            margin-top: -65px;
-        }
-    }
-
-    /* Optimalisasi Tablet & Monitor Desktop Portrait (min-width: 768px dan portrait) */
-    @media screen and (min-width: 768px) and (orientation: portrait) {
-        .top-header {
-            padding: 28px 20px 68px 20px;
-        }
-        .main-card-wrapper {
-            margin-top: -50px;
-        }
-        .cuan-scroll {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 10px;
-        }
-        .services-dual-wrapper {
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-        }
-        .tablet-bottom-grid {
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-        }
-        .action-item {
-            min-height: 70px;
-        }
-        .menu-icon {
-            width: 52px;
-            height: 52px;
         }
     }
 
