@@ -494,19 +494,22 @@ def execute_cashier_provider_order(trx_id, device_id, owner_id, amount, sku_code
                     award_transaction_points(owner.id, ref_id)
                     db.session.commit()
                 elif 'gagal' in digi_status or rc in ['01', '41', '42', '50', '52']:
-                    locked_device.branch_balance += amount
-                    mut_ref = BranchMutation(
-                        device_id=locked_device.id,
-                        user_id=owner.id,
-                        type='REFUND',
-                        amount=amount,
-                        balance_before=bal_after,
-                        balance_after=bal_after + amount,
-                        description=f"Refund tagihan ditolak biller ({raw_msg})",
-                        shift_name=shift_name,
-                        created_at=datetime.utcnow()
-                    )
-                    db.session.add(mut_ref)
+                    dev_ref = db.session.query(TrustedDevice).filter_by(id=device_id).with_for_update().first()
+                    if dev_ref:
+                        b_prev = float(dev_ref.branch_balance or 0.0)
+                        dev_ref.branch_balance = b_prev + amount
+                        mut_ref = BranchMutation(
+                            device_id=dev_ref.id,
+                            user_id=owner.id,
+                            type='REFUND',
+                            amount=amount,
+                            balance_before=b_prev,
+                            balance_after=dev_ref.branch_balance,
+                            description=f"Refund tagihan ditolak biller ({raw_msg})",
+                            shift_name=shift_name,
+                            created_at=datetime.utcnow()
+                        )
+                        db.session.add(mut_ref)
                     trx.status = 'FAILED'
                     trx.sn = sanitize_public_sn_message(raw_msg, rc=rc)
                     db.session.commit()
@@ -531,19 +534,22 @@ def execute_cashier_provider_order(trx_id, device_id, owner_id, amount, sku_code
                 db.session.commit()
             else:
                 raw_msg = str(order_res.get('message', 'Ditolak API Provider'))
-                locked_device.branch_balance += amount
-                mut_ref = BranchMutation(
-                    device_id=locked_device.id,
-                    user_id=owner.id,
-                    type='REFUND',
-                    amount=amount,
-                    balance_before=bal_after,
-                    balance_after=bal_after + amount,
-                    description=f"Refund transaksi gagal ({raw_msg})",
-                    shift_name=shift_name,
-                    created_at=datetime.utcnow()
-                )
-                db.session.add(mut_ref)
+                dev_ref = db.session.query(TrustedDevice).filter_by(id=device_id).with_for_update().first()
+                if dev_ref:
+                    b_prev = float(dev_ref.branch_balance or 0.0)
+                    dev_ref.branch_balance = b_prev + amount
+                    mut_ref = BranchMutation(
+                        device_id=dev_ref.id,
+                        user_id=owner.id,
+                        type='REFUND',
+                        amount=amount,
+                        balance_before=b_prev,
+                        balance_after=dev_ref.branch_balance,
+                        description=f"Refund transaksi gagal ({raw_msg})",
+                        shift_name=shift_name,
+                        created_at=datetime.utcnow()
+                    )
+                    db.session.add(mut_ref)
                 trx.status = 'FAILED'
                 from app.services.provider_helper import sanitize_public_sn_message
                 trx.sn = sanitize_public_sn_message(raw_msg)
@@ -566,19 +572,22 @@ def execute_cashier_provider_order(trx_id, device_id, owner_id, amount, sku_code
                     award_transaction_points(owner.id, ref_id)
                     db.session.commit()
                 elif 'gagal' in digi_status or 'failed' in digi_status or rc in ['01', '41', '42', '50', '52']:
-                    locked_device.branch_balance += amount
-                    mut_ref = BranchMutation(
-                        device_id=locked_device.id,
-                        user_id=owner.id,
-                        type='REFUND',
-                        amount=amount,
-                        balance_before=bal_after,
-                        balance_after=bal_after + amount,
-                        description=f"Refund transaksi ditolak operator ({raw_msg})",
-                        shift_name=shift_name,
-                        created_at=datetime.utcnow()
-                    )
-                    db.session.add(mut_ref)
+                    dev_ref = db.session.query(TrustedDevice).filter_by(id=device_id).with_for_update().first()
+                    if dev_ref:
+                        b_prev = float(dev_ref.branch_balance or 0.0)
+                        dev_ref.branch_balance = b_prev + amount
+                        mut_ref = BranchMutation(
+                            device_id=dev_ref.id,
+                            user_id=owner.id,
+                            type='REFUND',
+                            amount=amount,
+                            balance_before=b_prev,
+                            balance_after=dev_ref.branch_balance,
+                            description=f"Refund transaksi ditolak operator ({raw_msg})",
+                            shift_name=shift_name,
+                            created_at=datetime.utcnow()
+                        )
+                        db.session.add(mut_ref)
                     trx.status = 'FAILED'
                     trx.sn = sanitize_public_sn_message(raw_msg, rc=rc)
                     db.session.commit()

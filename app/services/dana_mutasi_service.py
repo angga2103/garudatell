@@ -338,6 +338,39 @@ def process_incoming_dana_mutation(raw_amount, sender_name="Member DANA", raw_te
             is_direct_qris = True
 
     if not trx:
+        # 3. Prioritas Ketiga: CEK PESANAN QRIS YANG SUDAH TERLANJUR DIBATALKAN OLEH USER
+        # (Pelanggan terlanjur klik "Batalkan" tapi ternyata tetap transfer/scan QRIS via M-Banking)
+        # Amankan dana pelanggan: Otomatis masukkan uang masuk ke Saldo Akun User!
+        trx_cancelled = Transaction.query.filter(
+            Transaction.sku_code != 'DEPOSIT_MANUAL',
+            Transaction.payment_method == 'QRIS',
+            Transaction.amount == amount_int,
+            Transaction.status == 'CANCELLED',
+            Transaction.created_at >= cutoff
+        ).order_by(Transaction.id.desc()).first()
+
+        if trx_cancelled and trx_cancelled.user_id:
+            user = db.session.query(User).filter_by(id=trx_cancelled.user_id).with_for_update().first()
+            if user:
+                old_bal = float(user.balance or 0.0)
+                user.balance = round(old_bal + float(amount_int), 2)
+                trx_cancelled.payment_status = 'PAID'
+                if event_id:
+                    clean_evt = str(event_id).strip()
+                    trx_cancelled.provider_ref = f"DANA:{clean_evt}"[:100]
+                now_wib = format_wib()
+                clean_sender = str(sender_name or 'Member DANA').strip()[:50]
+                evt_tag = f"evt:{event_id} " if event_id else ""
+                trx_cancelled.sn = f"{trx_cancelled.sn or ''} | DANA QRIS DITERIMA (Pesanan dibatalkan -> Dana Rp {amount_int:,} masuk Saldo Akun [{evt_tag}Pengirim: {clean_sender} - {now_wib}])"[:255]
+                db.session.commit()
+
+                logger.info(f"[QRIS CANCELLED RECOVERY] User #{user.id} ({user.name}) saldo +Rp {amount_int:,} karena scan QR pesanan dibatalkan ({trx_cancelled.ref_id})")
+                try:
+                    _send_dana_success_telegram_alert(trx_cancelled, user, amount_int, user.balance, clean_sender, ew_label="QRIS (RECOVERY BATAL)")
+                except Exception:
+                    pass
+                return True, f"Pembayaran QRIS Rp {amount_int:,} untuk pesanan yang dibatalkan ({trx_cancelled.ref_id}) berhasil diamankan dan dimasukkan ke Saldo Akun {user.name}!", trx_cancelled
+
         logger.warning(f"[DANA MUTASI] Tidak ditemukan tiket deposit atau pesanan QRIS pending untuk nominal Rp {amount_int:,}. Pengirim: {sender_name}")
         return False, f"Tidak ada tiket deposit atau pesanan QRIS pending dengan nominal Rp {amount_int:,}", None
 

@@ -381,10 +381,20 @@ def checkout():
 
             active_pg = get_active_payment_gateway()
             final_amount = amount
-            sn_initial = None
             if active_pg in ['dana', 'dana_inhouse', 'inhouse']:
                 from app.services.dana_mutasi_service import generate_unique_code
-                unique_code, total_with_code = generate_unique_code(int(amount))
+                cutoff_collision = datetime.utcnow() - timedelta(minutes=45)
+                # Loop anti-tabrakan database untuk mencegah race condition transaksi konkuren
+                for _ in range(15):
+                    unique_code, total_with_code = generate_unique_code(int(amount))
+                    collision = Transaction.query.filter(
+                        Transaction.amount == float(total_with_code),
+                        Transaction.payment_status == 'UNPAID',
+                        Transaction.status.in_(['UNPAID', 'PENDING']),
+                        Transaction.created_at >= cutoff_collision
+                    ).first()
+                    if not collision:
+                        break
                 final_amount = float(total_with_code)
                 sn_initial = f"Pokok: Rp {int(amount):,} | Unik: {unique_code:03d} | Total: Rp {total_with_code:,} | DANA QRIS"
 
@@ -924,33 +934,39 @@ def sync_single_transaction(trx):
                     changed = True
                 elif v_status in ['error', 'failed', 'gagal']:
                     from app.services.provider_helper import sanitize_public_sn_message, is_provider_balance_error
-                    if old_status != 'FAILED' and trx.payment_status == 'PAID' and trx.payment_method in ['SALDO', 'API_GATEWAY']:
-                        if trx.device_id:
-                            from app.models.trusted_device import TrustedDevice
-                            from app.models.branch_mutation import BranchMutation
-                            b_dev = TrustedDevice.query.filter_by(id=trx.device_id).first()
-                            if b_dev:
-                                b_before = float(b_dev.branch_balance or 0.0)
-                                b_dev.branch_balance = b_before + float(trx.amount or 0.0)
-                                mut_rf = BranchMutation(
-                                    device_id=b_dev.id,
-                                    user_id=trx.user_id,
-                                    type='REFUND',
-                                    amount=float(trx.amount or 0.0),
-                                    balance_before=b_before,
-                                    balance_after=b_dev.branch_balance,
-                                    description=f"Refund transaksi gagal ({trx.ref_id})",
-                                    shift_name="Sistem Sync",
-                                    created_at=datetime.utcnow()
-                                )
-                                db.session.add(mut_rf)
-                        else:
-                            user = User.query.filter_by(id=trx.user_id).first()
-                            if user:
-                                user.balance += trx.amount
+                    paid_methods_for_refund = ['SALDO', 'API_GATEWAY', 'QRIS', 'DANA_INHOUSE', 'PAKASIR', 'PAYMENTKITA', 'DANA']
+                    if old_status != 'FAILED' and trx.payment_status == 'PAID' and (trx.payment_method or '').upper() in paid_methods_for_refund:
+                        if "Refund" not in (trx.sn or ""):
+                            if trx.device_id:
+                                from app.models.trusted_device import TrustedDevice
+                                from app.models.branch_mutation import BranchMutation
+                                b_dev = db.session.query(TrustedDevice).filter_by(id=trx.device_id).with_for_update().first()
+                                if b_dev:
+                                    b_before = float(b_dev.branch_balance or 0.0)
+                                    b_dev.branch_balance = b_before + float(trx.amount or 0.0)
+                                    mut_rf = BranchMutation(
+                                        device_id=b_dev.id,
+                                        user_id=trx.user_id,
+                                        type='REFUND',
+                                        amount=float(trx.amount or 0.0),
+                                        balance_before=b_before,
+                                        balance_after=b_dev.branch_balance,
+                                        description=f"Refund transaksi gagal ({trx.ref_id})",
+                                        shift_name="Sistem Sync",
+                                        created_at=datetime.utcnow()
+                                    )
+                                    db.session.add(mut_rf)
+                            else:
+                                user = db.session.query(User).filter_by(id=trx.user_id).with_for_update().first()
+                                if user:
+                                    user.balance = (user.balance or 0.0) + float(trx.amount or 0.0)
                     trx.status = 'FAILED'
                     raw_v_note = v_data.get('note', 'Gagal di server VIP')
-                    trx.sn = sanitize_public_sn_message(raw_v_note)
+                    clean_v_sn = sanitize_public_sn_message(raw_v_note)
+                    if (trx.payment_method or '').upper() in ['QRIS', 'DANA_INHOUSE', 'PAKASIR', 'PAYMENTKITA', 'DANA']:
+                        trx.sn = f"{clean_v_sn} (Refund Rp {trx.amount:,.0f} telah dikembalikan ke Saldo Akun)"[:255]
+                    else:
+                        trx.sn = clean_v_sn
                     changed = True
                 db.session.commit()
                 if changed:
@@ -980,33 +996,39 @@ def sync_single_transaction(trx):
                     changed = True
                 elif 'gagal' in d_status or 'failed' in d_status or rc in ['01', '41', '42', '50', '52']:
                     from app.services.provider_helper import sanitize_public_sn_message
-                    if old_status != 'FAILED' and trx.payment_status == 'PAID' and trx.payment_method in ['SALDO', 'API_GATEWAY']:
-                        if trx.device_id:
-                            from app.models.trusted_device import TrustedDevice
-                            from app.models.branch_mutation import BranchMutation
-                            b_dev = TrustedDevice.query.filter_by(id=trx.device_id).first()
-                            if b_dev:
-                                b_before = float(b_dev.branch_balance or 0.0)
-                                b_dev.branch_balance = b_before + float(trx.amount or 0.0)
-                                mut_rf = BranchMutation(
-                                    device_id=b_dev.id,
-                                    user_id=trx.user_id,
-                                    type='REFUND',
-                                    amount=float(trx.amount or 0.0),
-                                    balance_before=b_before,
-                                    balance_after=b_dev.branch_balance,
-                                    description=f"Refund transaksi gagal ({trx.ref_id})",
-                                    shift_name="Sistem Sync",
-                                    created_at=datetime.utcnow()
-                                )
-                                db.session.add(mut_rf)
-                        else:
-                            user = User.query.filter_by(id=trx.user_id).first()
-                            if user:
-                                user.balance += trx.amount
+                    paid_methods_for_refund = ['SALDO', 'API_GATEWAY', 'QRIS', 'DANA_INHOUSE', 'PAKASIR', 'PAYMENTKITA', 'DANA']
+                    if old_status != 'FAILED' and trx.payment_status == 'PAID' and (trx.payment_method or '').upper() in paid_methods_for_refund:
+                        if "Refund" not in (trx.sn or ""):
+                            if trx.device_id:
+                                from app.models.trusted_device import TrustedDevice
+                                from app.models.branch_mutation import BranchMutation
+                                b_dev = db.session.query(TrustedDevice).filter_by(id=trx.device_id).with_for_update().first()
+                                if b_dev:
+                                    b_before = float(b_dev.branch_balance or 0.0)
+                                    b_dev.branch_balance = b_before + float(trx.amount or 0.0)
+                                    mut_rf = BranchMutation(
+                                        device_id=b_dev.id,
+                                        user_id=trx.user_id,
+                                        type='REFUND',
+                                        amount=float(trx.amount or 0.0),
+                                        balance_before=b_before,
+                                        balance_after=b_dev.branch_balance,
+                                        description=f"Refund transaksi gagal ({trx.ref_id})",
+                                        shift_name="Sistem Sync",
+                                        created_at=datetime.utcnow()
+                                    )
+                                    db.session.add(mut_rf)
+                            else:
+                                user = db.session.query(User).filter_by(id=trx.user_id).with_for_update().first()
+                                if user:
+                                    user.balance = (user.balance or 0.0) + float(trx.amount or 0.0)
                     trx.status = 'FAILED'
                     raw_d_msg = sn or d_data.get('message', msg)
-                    trx.sn = sanitize_public_sn_message(raw_d_msg, rc=rc)
+                    clean_d_sn = sanitize_public_sn_message(raw_d_msg, rc=rc)
+                    if (trx.payment_method or '').upper() in ['QRIS', 'DANA_INHOUSE', 'PAKASIR', 'PAYMENTKITA', 'DANA']:
+                        trx.sn = f"{clean_d_sn} (Refund Rp {trx.amount:,.0f} telah dikembalikan ke Saldo Akun)"[:255]
+                    else:
+                        trx.sn = clean_d_sn
                     changed = True
 
                     # DETEKSI OTOMATIS GANGGUAN DIGIFLAZZ (RC 41: Gangguan, 55: Pasca Gangguan, atau keyword)
@@ -1287,36 +1309,42 @@ def callback_digiflazz():
             trx.sn = sn or trx.sn
             award_transaction_points(trx.user_id, ref_id)
         elif 'gagal' in status or 'failed' in status or 'error' in status or rc in ['01', '41', '42', '50', '52', '55', '62']:
-            # AUTO-REFUND hanya jika status sebelumnya belum FAILED (mencegah double refund)
-            if old_status != 'FAILED' and trx.payment_status == 'PAID' and trx.payment_method in ['SALDO', 'API_GATEWAY']:
-                if trx.device_id:
-                    from app.models.trusted_device import TrustedDevice
-                    from app.models.branch_mutation import BranchMutation
-                    b_dev = db.session.query(TrustedDevice).filter_by(id=trx.device_id).with_for_update().first()
-                    if b_dev:
-                        b_before = float(b_dev.branch_balance or 0.0)
-                        b_dev.branch_balance = b_before + float(trx.amount or 0.0)
-                        mut_rf = BranchMutation(
-                            device_id=b_dev.id,
-                            user_id=trx.user_id,
-                            type='REFUND',
-                            amount=float(trx.amount or 0.0),
-                            balance_before=b_before,
-                            balance_after=b_dev.branch_balance,
-                            description=f"Refund transaksi gagal ({trx.ref_id})",
-                            shift_name="Webhook Digiflazz",
-                            created_at=datetime.utcnow()
-                        )
-                        db.session.add(mut_rf)
-                        print(f"[REFUND KASIR] Branch {b_dev.id} ({b_dev.device_name}) refunded Rp {trx.amount} for failed trx {ref_id}")
-                else:
-                    user = User.query.filter_by(id=trx.user_id).with_for_update().first()
-                    if user:
-                        user.balance += trx.amount
-                        print(f"[REFUND] User {user.id} refunded Rp {trx.amount} for failed trx {ref_id}")
+            # AUTO-REFUND hanya jika status sebelumnya belum FAILED dan belum pernah di-refund
+            paid_methods_for_refund = ['SALDO', 'API_GATEWAY', 'QRIS', 'DANA_INHOUSE', 'PAKASIR', 'PAYMENTKITA', 'DANA']
+            if old_status != 'FAILED' and trx.payment_status == 'PAID' and (trx.payment_method or '').upper() in paid_methods_for_refund:
+                if "Refund" not in (trx.sn or ""):
+                    if trx.device_id:
+                        from app.models.trusted_device import TrustedDevice
+                        from app.models.branch_mutation import BranchMutation
+                        b_dev = db.session.query(TrustedDevice).filter_by(id=trx.device_id).with_for_update().first()
+                        if b_dev:
+                            b_before = float(b_dev.branch_balance or 0.0)
+                            b_dev.branch_balance = b_before + float(trx.amount or 0.0)
+                            mut_rf = BranchMutation(
+                                device_id=b_dev.id,
+                                user_id=trx.user_id,
+                                type='REFUND',
+                                amount=float(trx.amount or 0.0),
+                                balance_before=b_before,
+                                balance_after=b_dev.branch_balance,
+                                description=f"Refund transaksi gagal ({trx.ref_id})",
+                                shift_name="Webhook Digiflazz",
+                                created_at=datetime.utcnow()
+                            )
+                            db.session.add(mut_rf)
+                            print(f"[REFUND KASIR] Branch {b_dev.id} ({b_dev.device_name}) refunded Rp {trx.amount} for failed trx {ref_id}")
+                    else:
+                        user = db.session.query(User).filter_by(id=trx.user_id).with_for_update().first()
+                        if user:
+                            user.balance = (user.balance or 0.0) + float(trx.amount or 0.0)
+                            print(f"[REFUND] User {user.id} refunded Rp {trx.amount} for failed trx {ref_id}")
             trx.status = 'FAILED'
             from app.services.provider_helper import sanitize_public_sn_message
-            trx.sn = sanitize_public_sn_message(sn or message, rc=rc)
+            clean_digi_sn = sanitize_public_sn_message(sn or message, rc=rc)
+            if (trx.payment_method or '').upper() in ['QRIS', 'DANA_INHOUSE', 'PAKASIR', 'PAYMENTKITA', 'DANA']:
+                trx.sn = f"{clean_digi_sn} (Refund Rp {trx.amount:,.0f} telah dikembalikan ke Saldo Akun)"[:255]
+            else:
+                trx.sn = clean_digi_sn
 
             # DETEKSI OTOMATIS GANGGUAN DIGIFLAZZ (RC 41: Gangguan, 42: Cut-Off, 55: Pasca Gangguan, 62: Seller Gangguan)
             if rc in ['41', '42', '55', '62'] or 'gangguan' in str(sn or message).lower() or 'cut off' in str(sn or message).lower():
@@ -1449,8 +1477,8 @@ def callback_paymentkita():
         data = request.get_json() or request.form.to_dict()
         
         # Validasi signature untuk keamanan
-        merchant_id = os.getenv('PAYMENTKITA_MERCHANT_ID', '')
-        secret = os.getenv('PAYMENTKITA_SECRET', '')
+        merchant_id = os.getenv('PAYMENTKITA_MERCHANT_ID', '').strip()
+        secret = os.getenv('PAYMENTKITA_SECRET', '').strip()
         
         ref_id = data.get('ref_id') or data.get('reference_id') or data.get('order_id')
         status = data.get('status', '').lower()
@@ -1458,16 +1486,16 @@ def callback_paymentkita():
         if not ref_id:
             return jsonify({'status': 'error', 'message': 'Missing ref_id'}), 400
         
-        # Generate expected signature (sesuaikan dengan dokumentasi PaymentKita)
-        amount = str(data.get('amount', ''))
-        signature_string = f"{merchant_id}{secret}{ref_id}{amount}{status}"
-        expected_sign = hashlib.md5(signature_string.encode()).hexdigest()
-        received_sign = data.get('signature') or data.get('sign', '')
-        
         # Validasi signature (CRITICAL SECURITY)
         is_pk_valid = False
-        if received_sign and received_sign == expected_sign:
-            is_pk_valid = True
+        import hmac
+        if merchant_id and secret:
+            amount = str(data.get('amount', ''))
+            signature_string = f"{merchant_id}{secret}{ref_id}{amount}{status}"
+            expected_sign = hashlib.md5(signature_string.encode()).hexdigest()
+            received_sign = data.get('signature') or data.get('sign', '')
+            if received_sign and hmac.compare_digest(str(received_sign).lower(), str(expected_sign).lower()):
+                is_pk_valid = True
         else:
             # Re-verifikasi Server-to-Server langsung ke API PaymentKita jika signature tidak sesuai
             try:

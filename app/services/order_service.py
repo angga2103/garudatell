@@ -202,9 +202,15 @@ def _auto_refund_on_failure(trx):
     """
     Jika transaksi berbayar QRIS/Gateway gagal di level provider,
     kembalikan uang ke saldo akun user secara otomatis agar dana pelanggan 100% aman.
+    Dilindungi guard idempotensi untuk mencegah double-refund.
     """
     try:
-        if (trx.payment_method or "").upper() in ["QRIS", "DANA_INHOUSE", "PAKASIR", "PAYMENTKITA"]:
+        # CEGAH DOUBLE-REFUND: Jika sudah ada catatan refund di SN, lewati proses
+        if "Refund" in (trx.sn or ""):
+            logger.info(f"[AUTO-REFUND SKIP] Ref: {trx.ref_id} sudah pernah di-refund sebelumnya.")
+            return
+
+        if (trx.payment_method or "").upper() in ["QRIS", "DANA_INHOUSE", "PAKASIR", "PAYMENTKITA", "DANA"]:
             user = User.query.filter_by(id=trx.user_id).with_for_update().first()
             if user:
                 user.balance = (user.balance or 0.0) + float(trx.amount or 0.0)
