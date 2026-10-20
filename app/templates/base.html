@@ -1351,7 +1351,7 @@
         // 1. Registrasi Service Worker PWA
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
-                navigator.serviceWorker.register('/sw.js?v=1.4.0', { scope: '/' })
+                navigator.serviceWorker.register('/sw.js?v=1.5.0', { scope: '/' })
                     .then(function(reg) {
                         console.log('[PWA] Service Worker aktif di scope:', reg.scope);
                     })

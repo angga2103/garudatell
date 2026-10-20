@@ -8,7 +8,7 @@
  * 3. Transaksi Finansial, Saldo, Callback, dan Admin -> NETWORK-ONLY (Keamanan 100% Bebas Stale Data)
  */
 
-const CACHE_NAME = 'ipay-pwa-v1.4.0';
+const CACHE_NAME = 'ipay-pwa-v1.5.0';
 
 // Aset Inti yang di-precache saat instalasi
 const PRECACHE_ASSETS = [
