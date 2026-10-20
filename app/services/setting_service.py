@@ -251,9 +251,10 @@ DEFAULT_MANUAL_DEPO = {
 
 def get_manual_deposit_settings():
     """
-    Mengambil data nomor rekening dan pemilik akun E-Wallet untuk deposit transfer manual.
+    Mengambil data nomor rekening, pemilik akun E-Wallet, dan template QRIS.
     Jika belum ada di database Setting, menggunakan nilai default.
     """
+    from app.utils.qris import DEFAULT_DANA_QRIS_STRING
     return {
         'dana_number': get_setting_value('manual_depo_dana_number', DEFAULT_MANUAL_DEPO['dana_number']),
         'dana_name': get_setting_value('manual_depo_dana_name', DEFAULT_MANUAL_DEPO['dana_name']),
@@ -263,7 +264,9 @@ def get_manual_deposit_settings():
         'gopay_name': get_setting_value('manual_depo_gopay_name', DEFAULT_MANUAL_DEPO['gopay_name']),
         'wa_target': get_setting_value('manual_depo_wa_target', DEFAULT_MANUAL_DEPO['wa_target']),
         'is_active': get_setting_value('manual_depo_active', DEFAULT_MANUAL_DEPO['is_active']),
-        'instructions': get_setting_value('manual_depo_instructions', DEFAULT_MANUAL_DEPO['instructions'])
+        'instructions': get_setting_value('manual_depo_instructions', DEFAULT_MANUAL_DEPO['instructions']),
+        'dana_qris_string': get_setting_value('dana_qris_string', DEFAULT_DANA_QRIS_STRING),
+        'inhouse_qris_active': get_setting_value('inhouse_qris_active', '1')
     }
 
 def save_manual_deposit_settings(form_data):
@@ -300,6 +303,14 @@ def save_manual_deposit_settings(form_data):
     custom_token = form_data.get('dana_device_token', '').strip()
     if custom_token and len(custom_token) >= 8:
         mapping['dana_device_token'] = (custom_token, 'Secret Token Autentikasi HP DANA Mutasi')
+
+    custom_qris = form_data.get('dana_qris_string', '').strip()
+    if custom_qris and len(custom_qris) >= 30:
+        mapping['dana_qris_string'] = (custom_qris, 'String Template DANA QRIS Dinamis')
+
+    inhouse_qris_act = form_data.get('inhouse_qris_active')
+    if inhouse_qris_act is not None:
+        mapping['inhouse_qris_active'] = ('1' if inhouse_qris_act in ['1', 'on', 'true', True] else '0', 'Status Fitur In-House DANA QRIS (1=ON, 0=OFF)')
 
     for k, (val, desc) in mapping.items():
         s = Setting.query.filter_by(key=k).first()
@@ -447,3 +458,18 @@ def is_payment_gateway_enabled():
     """
     gw = get_active_payment_gateway()
     return gw not in ['off', 'none', 'disabled', '0', 'nonaktif']
+
+
+def is_inhouse_qris_enabled():
+    """
+    Memeriksa apakah fitur In-House Direct DANA QRIS aktif (0% MDR fee via PayHook).
+    """
+    val = get_setting_value('inhouse_qris_active', '1')
+    return val in ['1', 'true', 'on', True]
+
+
+def is_qris_enabled():
+    """
+    Memeriksa apakah setidaknya salah satu metode QRIS (In-House atau Gateway) aktif untuk pembayaran transaksi.
+    """
+    return is_inhouse_qris_enabled() or is_payment_gateway_enabled()

@@ -103,9 +103,11 @@ def dashboard():
 
     env_data['server_public_ip'] = server_public_ip
     env_data['vip_callback_url'] = vip_callback_url
-    from app.services.setting_service import is_vip_reseller_enabled, get_manual_deposit_settings
+    from app.services.setting_service import is_vip_reseller_enabled, get_manual_deposit_settings, get_active_payment_gateway
     vip_reseller_enabled = is_vip_reseller_enabled()
     manual_depo = get_manual_deposit_settings()
+    env_data['active_pg'] = get_active_payment_gateway()
+    env_data['dana_qris_string'] = manual_depo.get('dana_qris_string', '')
 
     return render_template('admin/dashboard.html',
                            total_users=total_users,
@@ -130,18 +132,37 @@ def save_config():
             return redirect(url_for('admin.store_settings'))
         return redirect(url_for('admin.dashboard'))
     elif form_type == 'switch_gateway':
-        target_gw = clean_str(request.form.get('active_payment_gateway', 'paymentkita')).lower()
-        if target_gw in ['paymentkita', 'pakasir', 'off', 'none', 'disabled']:
+        target_gw = clean_str(request.form.get('active_payment_gateway', 'dana')).lower()
+        if target_gw in ['dana', 'paymentkita', 'pakasir', 'off', 'none', 'disabled']:
             set_key(ENV_FILE, 'ACTIVE_PAYMENT_GATEWAY', target_gw)
             from app.services.setting_service import set_setting_value
-            set_setting_value('active_payment_gateway', target_gw, 'Status Payment Gateway Aktif (pakasir/paymentkita/off)')
+            set_setting_value('active_payment_gateway', target_gw, 'Status Payment Gateway Aktif (dana/pakasir/paymentkita/off)')
             if target_gw in ['off', 'none', 'disabled']:
-                flash("✅ Payment Gateway QRIS berhasil DINONAKTIFKAN! Sistem beralih hemat biaya: DANA Otomatis (0% Fee) & Saldo Akun.", 'success')
+                flash("✅ Semua Gateway QRIS berhasil DINONAKTIFKAN! Pembayaran beralih ke Saldo Akun.", 'success')
+            elif target_gw == 'dana':
+                flash("✅ QRIS In-House DANA (0% MDR Fee via PayHook) berhasil diaktifkan sebagai metode pembayaran utama!", 'success')
             else:
                 gw_name = "PAKASIR" if target_gw == 'pakasir' else "PAYMENTKITA"
                 flash(f"✅ Payment Gateway utama berhasil dialihkan ke {gw_name}!", 'success')
         else:
             flash("Pilihan payment gateway tidak valid!", 'danger')
+        return redirect(url_for('admin.dashboard'))
+    elif form_type == 'dana_qris':
+        qris_str = clean_str(request.form.get('dana_qris_string'))
+        if qris_str:
+            from app.utils.qris import validate_qris
+            is_valid, msg = validate_qris(qris_str)
+            if not is_valid:
+                flash(f"⚠️ Peringatan: Format string QRIS mungkin tidak valid ({msg}), namun tetap disimpan.", 'warning')
+            from app.services.setting_service import set_setting_value
+            set_setting_value('dana_qris_string', qris_str, 'String Template DANA QRIS Dinamis')
+        if request.form.get('set_active') == '1':
+            set_key(ENV_FILE, 'ACTIVE_PAYMENT_GATEWAY', 'dana')
+            from app.services.setting_service import set_setting_value
+            set_setting_value('active_payment_gateway', 'dana')
+            flash('✅ String QRIS DANA disimpan & dijadikan Gateway Pembayaran Aktif (0% Fee)!', 'success')
+        else:
+            flash('✅ String Template QRIS DANA berhasil disimpan!', 'success')
         return redirect(url_for('admin.dashboard'))
     elif form_type == 'digiflazz':
         set_key(ENV_FILE, 'DIGI_USER', clean_str(request.form.get('digi_user')))

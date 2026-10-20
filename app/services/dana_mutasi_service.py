@@ -161,9 +161,12 @@ def generate_unique_code(nominal):
     tiket deposit aktif lainnya dalam 45 menit terakhir.
     """
     cutoff = datetime.utcnow() - timedelta(minutes=45)
+    from sqlalchemy import or_
     existing_pending = Transaction.query.filter(
-        Transaction.sku_code == 'DEPOSIT_MANUAL',
-        Transaction.status == 'PENDING',
+        or_(
+            (Transaction.sku_code == 'DEPOSIT_MANUAL') & (Transaction.status == 'PENDING'),
+            (Transaction.payment_method == 'QRIS') & (Transaction.payment_status == 'UNPAID') & (Transaction.status.in_(['UNPAID', 'PENDING']))
+        ),
         Transaction.created_at >= cutoff
     ).all()
 
@@ -286,7 +289,11 @@ def process_incoming_dana_mutation(raw_amount, sender_name="Member DANA", raw_te
     if event_id:
         clean_evt = str(event_id).strip()
         existing_trx = Transaction.query.filter(
-            Transaction.sn.like(f"%evt:{clean_evt}%")
+            db.or_(
+                Transaction.sn.like(f"%evt:{clean_evt}%"),
+                Transaction.provider_ref == f"DANA:{clean_evt}",
+                Transaction.provider_ref == clean_evt,
+            )
         ).first()
         if existing_trx:
             logger.info(f"[DANA MUTASI IDEMPOTENT] Event {clean_evt} sudah diproses sebelumnya pada {existing_trx.ref_id}")
@@ -307,7 +314,7 @@ def process_incoming_dana_mutation(raw_amount, sender_name="Member DANA", raw_te
 
     cutoff = datetime.utcnow() - timedelta(minutes=45)
 
-    # Cari transaksi pending dengan nominal yang sama persis
+    # 1. Prioritas Utama: Cari tiket deposit manual pending
     trx = Transaction.query.filter(
         Transaction.sku_code == 'DEPOSIT_MANUAL',
         Transaction.amount == amount_int,
@@ -316,10 +323,59 @@ def process_incoming_dana_mutation(raw_amount, sender_name="Member DANA", raw_te
         Transaction.created_at >= cutoff
     ).order_by(Transaction.id.desc()).first()
 
+    # 2. Prioritas Kedua: Cari pesanan produk langsung via QRIS pending
+    is_direct_qris = False
     if not trx:
-        logger.warning(f"[DANA MUTASI] Tidak ditemukan tiket deposit pending untuk nominal Rp {amount_int:,}. Pengirim: {sender_name}")
-        return False, f"Tidak ada tiket deposit pending dengan nominal Rp {amount_int:,}", None
+        trx = Transaction.query.filter(
+            Transaction.sku_code != 'DEPOSIT_MANUAL',
+            Transaction.payment_method == 'QRIS',
+            Transaction.amount == amount_int,
+            Transaction.payment_status == 'UNPAID',
+            Transaction.status.in_(['UNPAID', 'PENDING']),
+            Transaction.created_at >= cutoff
+        ).order_by(Transaction.id.desc()).first()
+        if trx:
+            is_direct_qris = True
 
+    if not trx:
+        logger.warning(f"[DANA MUTASI] Tidak ditemukan tiket deposit atau pesanan QRIS pending untuk nominal Rp {amount_int:,}. Pengirim: {sender_name}")
+        return False, f"Tidak ada tiket deposit atau pesanan QRIS pending dengan nominal Rp {amount_int:,}", None
+
+    now_wib = format_wib()
+    clean_sender = str(sender_name or 'Member DANA').strip()[:50]
+    evt_tag = f"evt:{event_id} " if event_id else ""
+
+    # KASUS A: TRANSAKSI PRODUK LANGSUNG VIA QRIS
+    if is_direct_qris:
+        try:
+            user = User.query.get(trx.user_id) if trx.user_id else None
+            trx.payment_status = 'PAID'
+            prev_sn = (trx.sn or '').strip()
+            trx.sn = f"{prev_sn} | DANA QRIS AUTO ({evt_tag}Pengirim: {clean_sender} - {now_wib})"[:255]
+            if event_id:
+                trx.provider_ref = f"DANA:{clean_evt}"[:100]
+            db.session.commit()
+
+            # Proses eksekusi ke provider (Digiflazz)
+            from app.services.order_service import process_paid_order
+            process_paid_order(trx)
+
+            logger.info(f"[QRIS DANA AUTO SUCCESS] Trx {trx.ref_id} ({trx.product_name}) diproses otomatis untuk User #{trx.user_id}. Pengirim: {clean_sender}")
+
+            # Kirim Telegram Alert khusus Pembayaran Produk QRIS
+            try:
+                _send_dana_qris_product_telegram_alert(trx, user, amount_int, clean_sender)
+            except Exception as e_tg:
+                logger.error(f"[DANA QRIS TELEGRAM ERR] {e_tg}")
+
+            return True, f"Pembayaran QRIS Rp {amount_int:,} untuk {trx.product_name} ({trx.ref_id}) berhasil disetujui otomatis!", trx
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"[DANA QRIS ERROR] Gagal proses pesanan {amount_int}: {e}")
+            return False, f"Terjadi kesalahan saat memproses pesanan QRIS: {str(e)}", None
+
+    # KASUS B: TIKET DEPOSIT MANUAL (TAMBAH SALDO AKUN)
     try:
         # Lock user row untuk update saldo aman
         user = db.session.query(User).filter_by(id=trx.user_id).with_for_update().first()
@@ -335,10 +391,6 @@ def process_incoming_dana_mutation(raw_amount, sender_name="Member DANA", raw_te
         trx.status = 'SUCCESS'
         trx.payment_status = 'PAID'
         
-        now_wib = format_wib()
-        clean_sender = str(sender_name or 'Member E-Wallet').strip()[:50]
-        evt_tag = f"evt:{event_id} " if event_id else ""
-        
         ew_label = "DANA"
         if trx.product_name:
             if "GOPAY" in trx.product_name.upper():
@@ -352,6 +404,8 @@ def process_incoming_dana_mutation(raw_amount, sender_name="Member DANA", raw_te
                 ew_label = "SHOPEEPAY"
 
         trx.sn = f"{trx.sn or ''} | SUKSES {ew_label} AUTO via PayHook ({evt_tag}Pengirim: {clean_sender} - {now_wib})"
+        if event_id:
+            trx.provider_ref = f"DANA:{clean_evt}"[:100]
 
         db.session.commit()
         logger.info(f"[{ew_label} MUTASI ACC] User #{user.id} ({user.name}) Saldo +Rp {credit_amount:,} -> Rp {new_balance:,} | Trx: {trx.ref_id}")
@@ -419,7 +473,8 @@ def check_deposit_ticket_status(ref_id, user_id=None):
 
 
 def _send_dana_success_telegram_alert(trx, user, amount, new_balance, sender_name, ew_label="DANA"):
-    """Mengirim pesan notifikasi instan ke Bot Telegram Admin."""
+    """Mengirim pesan notifikasi instan ke Bot Telegram Admin (Asynchronous)."""
+    import threading
     from app.services.telegram_service import get_bot_notif_credentials, get_bot_admin_credentials, call_telegram_api
     token, chat_id = get_bot_notif_credentials()
     if not token or not chat_id:
@@ -449,4 +504,54 @@ def _send_dana_success_telegram_alert(trx, user, amount, new_balance, sender_nam
         "parse_mode": "HTML",
         "disable_web_page_preview": True
     }
-    call_telegram_api('post', f"bot{token}/sendMessage", json=payload, timeout=(10, 20))
+    threading.Thread(
+        target=call_telegram_api,
+        args=('post', f"bot{token}/sendMessage"),
+        kwargs={"json": payload, "timeout": (5, 10)},
+        daemon=True
+    ).start()
+
+
+def _send_dana_qris_product_telegram_alert(trx, user, amount, sender_name):
+    """Mengirim pesan notifikasi instan pembayaran produk via QRIS ke Bot Telegram Admin (Asynchronous)."""
+    import threading
+    from app.services.telegram_service import get_bot_notif_credentials, get_bot_admin_credentials, call_telegram_api
+    token, chat_id = get_bot_notif_credentials()
+    if not token or not chat_id:
+        token, chat_id = get_bot_admin_credentials()
+    if not token or not chat_id:
+        return
+
+    wib_now = format_wib()
+    user_name = user.name if user else "Pembeli"
+    user_phone = user.phone if user else "-"
+    user_id_str = f"#{user.id}" if user else "-"
+
+    lines = [
+        "⚡ <b>PEMBAYARAN QRIS PRODUK DITERIMA (AUTO DANA)</b>",
+        "━━━━━━━━━━━━━━━━━━━━━━",
+        f"📋 <b>Ref ID:</b> <code>{trx.ref_id}</code>",
+        f"📦 <b>Produk:</b> <b>{trx.product_name}</b>",
+        f"🎯 <b>Tujuan:</b> <code>{trx.target_number}</code>",
+        f"👤 <b>Member:</b> <b>{user_name}</b> (<code>{user_id_str}</code>)",
+        f"📱 <b>WhatsApp:</b> <code>{user_phone}</code>",
+        f"💰 <b>Nominal Masuk:</b> <b>Rp {amount:,.0f}</b>",
+        f"👤 <b>Pengirim DANA:</b> <b>{sender_name}</b>",
+        f"📊 <b>Status Provider:</b> <b>{trx.status}</b>",
+        f"📱 <b>Alat Verifikasi:</b> Samsung J1 Ace / PayHook",
+        f"⏰ <b>Waktu:</b> {wib_now}",
+        "━━━━━━━━━━━━━━━━━━━━━━",
+        "✅ <i>Transaksi produk langsung diproses tanpa potongan fee gateway (0% MDR).</i>"
+    ]
+    payload = {
+        "chat_id": chat_id,
+        "text": "\n".join(lines),
+        "parse_mode": "HTML",
+        "disable_web_page_preview": True
+    }
+    threading.Thread(
+        target=call_telegram_api,
+        args=('post', f"bot{token}/sendMessage"),
+        kwargs={"json": payload, "timeout": (5, 10)},
+        daemon=True
+    ).start()

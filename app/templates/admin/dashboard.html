@@ -562,33 +562,35 @@
                 <div style="font-weight: 800; font-size: 13.5px; color: var(--text-dark);">
                     <i class="fas fa-toggle-on" style="color: var(--teal-primary);"></i> Pengalihan Payment Gateway Aktif
                 </div>
-                <span class="badge-status-chip {% if active_pg in ['off', 'none', 'disabled'] %}chip-danger{% elif active_pg == 'pakasir' %}chip-success{% else %}chip-info{% endif %}">
+                <span class="badge-status-chip {% if active_pg in ['off', 'none', 'disabled'] %}chip-danger{% elif active_pg in ['dana', 'dana_inhouse', 'inhouse'] %}chip-success{% elif active_pg == 'pakasir' %}chip-success{% else %}chip-info{% endif %}">
                     {% if active_pg in ['off', 'none', 'disabled'] %}
-                        <i class="fas fa-power-off"></i> NONAKTIF (DANA 0% FEE)
+                        <i class="fas fa-power-off"></i> SEMUA QRIS NONAKTIF (HANYA SALDO)
+                    {% elif active_pg in ['dana', 'dana_inhouse', 'inhouse'] %}
+                        <i class="fas fa-qrcode"></i> AKTIF: DANA IN-HOUSE (0% FEE)
                     {% else %}
                         <i class="fas fa-check-circle"></i> AKTIF: {{ active_pg|upper }}
                     {% endif %}
                 </span>
             </div>
             <p style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 14px;">
-                Pilih status payment gateway utama. Anda dapat <b>menonaktifkan gateway</b> untuk menghemat 100% potongan fee QRIS pada transaksi PPOB dan beralih ke <b>DANA Mutasi Otomatis (0% Fee) & Saldo Akun</b>.
+                Pilih status payment gateway utama. Anda dapat memilih <b>DANA In-House (0% MDR Fee)</b> via PayHook HP, <b>Pakasir</b>, <b>PaymentKita</b>, atau <b>Menonaktifkan QRIS</b> agar pelanggan hanya bertransaksi via Saldo Akun.
             </p>
 
             <form action="{{ url_for('admin.save_config') }}" method="POST">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <input type="hidden" name="form_type" value="switch_gateway">
 
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; margin-bottom: 14px;">
-                    <!-- OPTION 1: NONAKTIFKAN GATEWAY (DANA 0% FEE) -->
-                    <label class="gateway-switcher-card {% if active_pg in ['off', 'none', 'disabled'] %}active-gateway{% endif %}" style="{% if active_pg in ['off', 'none', 'disabled'] %}border-color: #e11d48; background: #fff1f2;{% endif %}">
-                        <input type="radio" name="active_payment_gateway" value="off" {% if active_pg in ['off', 'none', 'disabled'] %}checked{% endif %} style="accent-color: #e11d48;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; margin-bottom: 14px;">
+                    <!-- OPTION 1: DANA QRIS IN-HOUSE (0% FEE) -->
+                    <label class="gateway-switcher-card {% if active_pg in ['dana', 'dana_inhouse', 'inhouse'] %}active-gateway{% endif %}" style="{% if active_pg in ['dana', 'dana_inhouse', 'inhouse'] %}border-color: #108ee9; background: #f0f9ff;{% endif %}">
+                        <input type="radio" name="active_payment_gateway" value="dana" {% if active_pg in ['dana', 'dana_inhouse', 'inhouse'] %}checked{% endif %} style="accent-color: #108ee9;">
                         <div>
-                            <div style="font-weight: 800; font-size: 13px; color: #e11d48; display: flex; align-items: center; gap: 6px;">
-                                <span><i class="fas fa-ban"></i> Nonaktifkan Gateway</span>
-                                <span style="background: #e11d48; color: white; font-size: 9px; padding: 1px 6px; border-radius: 4px; font-weight: 900;">0% FEE</span>
+                            <div style="font-weight: 800; font-size: 13px; color: #0284c7; display: flex; align-items: center; gap: 6px;">
+                                <span><i class="fas fa-qrcode"></i> DANA In-House QRIS</span>
+                                <span style="background: #10b981; color: white; font-size: 9px; padding: 1px 6px; border-radius: 4px; font-weight: 900;">0% FEE / UTAMA</span>
                             </div>
                             <div style="font-size: 11px; color: #64748b; margin-top: 3px;">
-                                Hemat biaya! Transaksi dialihkan ke DANA Otomatis (0% Fee) & Saldo Akun.
+                                Bebas potongan fee! Scan dari Semua Bank & E-Wallet, verifikasi instan via HP Samsung J1 Ace (PayHook).
                             </div>
                         </div>
                     </label>
@@ -598,7 +600,7 @@
                         <input type="radio" name="active_payment_gateway" value="pakasir" {% if active_pg == 'pakasir' %}checked{% endif %} style="accent-color: var(--teal-primary);">
                         <div>
                             <div style="font-weight: 800; font-size: 13px; color: #059669;"><i class="fas fa-wallet"></i> Pakasir</div>
-                            <div style="font-size: 11px; color: #64748b; margin-top: 3px;">Gateway QRIS Dinamis &amp; Otomatis</div>
+                            <div style="font-size: 11px; color: #64748b; margin-top: 3px;">Gateway QRIS Dinamis &amp; Otomatis (MDR Fee)</div>
                         </div>
                     </label>
 
@@ -607,7 +609,20 @@
                         <input type="radio" name="active_payment_gateway" value="paymentkita" {% if active_pg == 'paymentkita' %}checked{% endif %} style="accent-color: var(--teal-primary);">
                         <div>
                             <div style="font-weight: 800; font-size: 13px; color: #0284c7;"><i class="fas fa-credit-card"></i> PaymentKita</div>
-                            <div style="font-size: 11px; color: #64748b; margin-top: 3px;">Gateway QRIS &amp; Virtual Account Instan</div>
+                            <div style="font-size: 11px; color: #64748b; margin-top: 3px;">Gateway QRIS &amp; Virtual Account (MDR Fee)</div>
+                        </div>
+                    </label>
+
+                    <!-- OPTION 4: NONAKTIFKAN SEMUA GATEWAY -->
+                    <label class="gateway-switcher-card {% if active_pg in ['off', 'none', 'disabled'] %}active-gateway{% endif %}" style="{% if active_pg in ['off', 'none', 'disabled'] %}border-color: #e11d48; background: #fff1f2;{% endif %}">
+                        <input type="radio" name="active_payment_gateway" value="off" {% if active_pg in ['off', 'none', 'disabled'] %}checked{% endif %} style="accent-color: #e11d48;">
+                        <div>
+                            <div style="font-weight: 800; font-size: 13px; color: #e11d48; display: flex; align-items: center; gap: 6px;">
+                                <span><i class="fas fa-ban"></i> Nonaktifkan Semua QRIS</span>
+                            </div>
+                            <div style="font-size: 11px; color: #64748b; margin-top: 3px;">
+                                Tutup opsi bayar QRIS. Transaksi pelanggan hanya menggunakan Saldo Akun.
+                            </div>
                         </div>
                     </label>
                 </div>
@@ -618,8 +633,48 @@
             </form>
         </div>
 
-        <!-- 2 KOLOM KREDENSIAL: PAYMENTKITA & PAKASIR -->
+        <!-- 3 KOLOM KREDENSIAL: DANA IN-HOUSE, PAYMENTKITA & PAKASIR -->
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
+            <!-- FORM DANA IN-HOUSE QRIS -->
+            <div style="background: white; border: 1.5px solid {% if active_pg in ['dana', 'dana_inhouse', 'inhouse'] %}#0284c7{% else %}var(--border-color){% endif %}; border-radius: 12px; padding: 18px; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.04);">
+                <form action="{{ url_for('admin.save_config') }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <input type="hidden" name="form_type" value="dana_qris">
+                    <div style="font-size: 13px; font-weight: 800; color: #0284c7; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between;">
+                        <span><i class="fas fa-qrcode"></i> Parameter DANA In-House (0% Fee)</span>
+                        {% if active_pg in ['dana', 'dana_inhouse', 'inhouse'] %}
+                        <span class="badge-status-chip chip-success">AKTIF UTAMA</span>
+                        {% endif %}
+                    </div>
+                    <div class="form-group-modern">
+                        <label>String Template QRIS DANA (EMVCo Payload)</label>
+                        <textarea name="dana_qris_string" class="form-control-modern" rows="3" style="font-family: monospace; font-size: 11px; resize: vertical;" placeholder="00020101021240560011ID.DANA.WWW...">{{ dana_qris_string or manual_depo.dana_qris_string }}</textarea>
+                        <div style="font-size: 10.5px; color: #64748b; margin-top: 4px;">
+                            Didapat dari menu <em>DANA &rarr; Minta &rarr; Atur Jumlah / Bagikan Kode QR</em>. Nominal &amp; CRC otomatis diinjeksi dinamis oleh sistem.
+                        </div>
+                    </div>
+                    <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; font-size: 11px; color: #166534;">
+                        <div style="font-weight: 800; margin-bottom: 4px;"><i class="fas fa-shield-alt"></i> Info Merchant Terdeteksi:</div>
+                        <div>• Pemilik Akun: <b>{{ manual_depo.dana_name or 'ANGGA DIAN PRATAMA PUTRA' }}</b></div>
+                        <div>• No. DANA: <b>{{ manual_depo.dana_number or '081775700114' }}</b></div>
+                        <div>• Verifikator: <b>Samsung J1 Ace (PayHook APK)</b></div>
+                    </div>
+                    <div style="background: #f8fafc; padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; font-size: 11px; color: #475569;">
+                        <i class="fas fa-link"></i> Webhook Callback HP (PayHook):<br>
+                        <code style="color: #0284c7; font-weight: 800; word-break: break-all;">{{ request.host_url }}trx/callback/dana-mutasi</code>
+                    </div>
+                    <label style="font-size: 11px; font-weight: 700; color: #475569; display: flex; align-items: center; gap: 6px; cursor: pointer; margin-bottom: 14px;">
+                        <input type="checkbox" name="set_active" value="1" {% if active_pg in ['dana', 'dana_inhouse', 'inhouse'] %}checked{% endif %} style="accent-color: #0284c7;">
+                        Jadikan DANA In-House sebagai metode QRIS aktif (0% Fee)
+                    </label>
+                    <div class="btn-action-group">
+                        <button type="submit" class="btn-topbar-action" style="background: #0284c7;">
+                            <i class="fas fa-save"></i> Simpan DANA QRIS
+                        </button>
+                    </div>
+                </form>
+            </div>
+
             <!-- FORM PAYMENTKITA -->
             <div style="background: white; border: 1px solid var(--border-color); border-radius: 12px; padding: 18px;">
                 <form action="{{ url_for('admin.save_config') }}" method="POST">
@@ -627,7 +682,7 @@
                     <input type="hidden" name="form_type" value="paymentkita">
                     <div style="font-size: 13px; font-weight: 800; color: #0284c7; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between;">
                         <span><i class="fas fa-credit-card"></i> Parameter PaymentKita</span>
-                        {% if active_pg != 'pakasir' %}
+                        {% if active_pg == 'paymentkita' %}
                         <span class="badge-status-chip chip-info">AKTIF</span>
                         {% endif %}
                     </div>

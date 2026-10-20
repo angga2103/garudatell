@@ -371,13 +371,22 @@ def checkout():
 
         # 5. METODE PEMBAYARAN: QRIS
         if payment_method == 'qris':
-            from app.services.setting_service import is_payment_gateway_enabled
+            from app.services.setting_service import is_payment_gateway_enabled, get_active_payment_gateway
             if not is_payment_gateway_enabled():
                 return jsonify({
                     'status': 'error',
                     'error': True,
-                    'message': 'Pembayaran via barcode QRIS sedang dinonaktifkan demi efisiensi biaya. Silakan gunakan metode Saldo Akun (isi saldo via DANA Otomatis 0% Fee).'
+                    'message': 'Pembayaran via barcode QRIS sedang dinonaktifkan. Silakan gunakan metode Saldo Akun (isi saldo via DANA Otomatis 0% Fee).'
                 }), 400
+
+            active_pg = get_active_payment_gateway()
+            final_amount = amount
+            sn_initial = None
+            if active_pg in ['dana', 'dana_inhouse', 'inhouse']:
+                from app.services.dana_mutasi_service import generate_unique_code
+                unique_code, total_with_code = generate_unique_code(int(amount))
+                final_amount = float(total_with_code)
+                sn_initial = f"Pokok: Rp {int(amount):,} | Unik: {unique_code:03d} | Total: Rp {total_with_code:,} | DANA QRIS"
 
             new_trx = Transaction(
                 user_id=current_user.id,
@@ -385,11 +394,12 @@ def checkout():
                 product_name=product_name,
                 sku_code=sku_code,
                 target_number=target_number,
-                amount=amount,
+                amount=final_amount,
                 payment_method='QRIS',
                 payment_status='UNPAID',
                 status='UNPAID',
                 is_prepaid=is_prepaid_flow,
+                sn=sn_initial,
                 seller_name=getattr(target_prod, 'seller_name', None) if target_prod else None,
                 base_price=float(getattr(target_prod, 'base_price', 0.0) or 0.0) if target_prod else 0.0
             )
@@ -674,10 +684,8 @@ def invoice(ref_id):
         pass
 
     # Hitung estimasi / real fee payment gateway jika metode bayar QRIS
-    if not current_app.config.get('TESTING'):
-        from dotenv import load_dotenv
-        load_dotenv(os.path.join(BASE_DIR, '.env'), override=True)
-    active_pg = os.getenv('ACTIVE_PAYMENT_GATEWAY', 'paymentkita').lower().strip()
+    from app.services.setting_service import get_active_payment_gateway
+    active_pg = get_active_payment_gateway()
     pg_fee = 0
     total_with_fee = trx.amount
     if trx.payment_method and trx.payment_method.upper() == 'QRIS':
@@ -709,13 +717,28 @@ def generate_qris(ref_id):
             'message': 'Pembayaran telah selesai dan transaksi diproses.'
         })
 
-    if not current_app.config.get('TESTING'):
-        from dotenv import load_dotenv
-        load_dotenv(os.path.join(BASE_DIR, '.env'), override=True)
-    
-    active_pg = os.getenv('ACTIVE_PAYMENT_GATEWAY', 'paymentkita').lower().strip()
-    
-    # 1. JIKA PAYMENT GATEWAY AKTIF ADALAH PAKASIR
+    from app.services.setting_service import get_active_payment_gateway
+    active_pg = get_active_payment_gateway()
+
+    # 1. JIKA PAYMENT GATEWAY AKTIF ADALAH DANA (IN-HOUSE DIRECT QRIS 0% FEE)
+    if active_pg in ['dana', 'dana_inhouse', 'inhouse']:
+        from app.utils.qris import generate_dynamic_qris, get_base_qris_string
+        import urllib.parse
+        base_qris = get_base_qris_string()
+        amount_int = int(trx.amount)
+        dynamic_qris = generate_dynamic_qris(base_qris, amount_int)
+        qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=350x350&margin=10&data={urllib.parse.quote(dynamic_qris)}"
+        return jsonify({
+            'status': 'success',
+            'gateway': 'dana',
+            'qr_url': qr_url,
+            'qr_string': dynamic_qris,
+            'fee': 0,
+            'total_payment': amount_int,
+            'amount': amount_int
+        })
+
+    # 2. JIKA PAYMENT GATEWAY AKTIF ADALAH PAKASIR
     if active_pg == 'pakasir':
         from app.services.pakasir_service import PakasirService
         pakasir = PakasirService()
@@ -829,12 +852,14 @@ def check_status(ref_id):
         })
 
     try:
-        from dotenv import load_dotenv
-        load_dotenv(os.path.join(BASE_DIR, '.env'), override=True)
-        active_pg = os.getenv('ACTIVE_PAYMENT_GATEWAY', 'paymentkita').lower().strip()
+        from app.services.setting_service import get_active_payment_gateway
+        active_pg = get_active_payment_gateway()
         is_paid = False
 
-        if active_pg == 'pakasir':
+        if active_pg in ['dana', 'dana_inhouse', 'inhouse']:
+            # Verifikasi status DANA dihandle secara real-time via webhook PayHook HP
+            pass
+        elif active_pg == 'pakasir':
             from app.services.pakasir_service import PakasirService
             pakasir = PakasirService()
             res = pakasir.check_transaction(trx.ref_id, amount=trx.amount)
@@ -1406,76 +1431,10 @@ def award_transaction_points(user_id, trx_ref_id):
 def process_paid_order(trx):
     """
     Menjalankan pemrosesan otomatis setelah transaksi berstatus PAID.
-    Berlaku seragam dan idempoten untuk seluruh gateway pembayaran.
+    Berlaku seragam dan idempoten untuk seluruh gateway pembayaran dan In-House DANA QRIS.
     """
-    trx.payment_status = 'PAID'
-    
-    # 1. Jika ini transaksi deposit saldo
-    if trx.sku_code in ['DEPOSIT_SALDO', 'DEPOSIT_MANUAL']:
-        user = User.query.filter_by(id=trx.user_id).with_for_update().first()
-        if user and trx.status != 'SUCCESS':
-            old_bal = float(user.balance or 0.0)
-            user.balance += trx.amount
-            trx.status = 'SUCCESS'
-            print(f"[DEPOSIT] User {user.id} balance +Rp {trx.amount}")
-            try:
-                from app.services.balance_notification_service import check_and_notify_low_balance
-                check_and_notify_low_balance(user.id, old_bal, user.balance)
-            except Exception:
-                pass
-            
-    # 2. Jika transaksi produk pascabayar / prabayar, trigger Digiflazz
-    elif trx.status in ['UNPAID', 'PENDING', 'PROCESSING']:
-        try:
-            bebas_sku_list = ['post685480', 'post685481', 'post685482', 'post685483', 'post685485', 'post706873']
-            is_pasca_flow = (trx.is_prepaid is False) or (trx.sku_code in bebas_sku_list)
-
-            if is_pasca_flow:
-                from app.services.digiflazz import pay_pasca, apply_digiflazz_seller_metadata
-                ok_pay, res_pay, msg_pay = pay_pasca(trx.sku_code, trx.target_number, trx.ref_id)
-                apply_digiflazz_seller_metadata(trx, res_pay)
-                if ok_pay:
-                    rc_pay = str(res_pay.get('rc', '')).strip()
-                    if rc_pay == '00':
-                        trx.status = 'SUCCESS'
-                        trx.sn = res_pay.get('sn', '')
-                        award_transaction_points(trx.user_id, trx.ref_id)
-                    else:
-                        trx.status = 'PROCESSING'
-                else:
-                    trx.status = 'FAILED'
-                    from app.services.provider_helper import sanitize_public_sn_message
-                    trx.sn = sanitize_public_sn_message(msg_pay)
-            else:
-                from app.services.digiflazz import create_transaction, apply_digiflazz_seller_metadata
-                from app.services.provider_helper import sanitize_public_sn_message
-                product = Product.query.filter_by(sku_code=trx.sku_code).first()
-                sku_to_order = product.sku_code if product else trx.sku_code
-                digi_res = create_transaction(sku_to_order, trx.target_number, trx.ref_id)
-                d_data = digi_res.get('data') if isinstance(digi_res, dict) and isinstance(digi_res.get('data'), dict) else {}
-                apply_digiflazz_seller_metadata(trx, d_data, product)
-                digi_status = str(d_data.get('status', '')).lower()
-                rc = str(d_data.get('rc', '')).strip()
-                
-                if 'sukses' in digi_status or 'success' in digi_status or rc == '00':
-                    trx.status = 'SUCCESS'
-                    trx.sn = d_data.get('sn', '')
-                    award_transaction_points(trx.user_id, trx.ref_id)
-                elif 'gagal' in digi_status or 'failed' in digi_status or rc in ['01', '41', '42', '50', '52']:
-                    trx.status = 'FAILED'
-                    raw_msg = d_data.get('message', 'Gagal dari provider')
-                    trx.sn = sanitize_public_sn_message(raw_msg, rc=rc)
-                else:
-                    trx.status = 'PROCESSING'
-        except Exception as e:
-            print(f"[ERROR] Digiflazz trigger after payment: {str(e)}")
-            trx.status = 'PENDING'
-
-    trx.updated_at = db.func.now()
-    db.session.commit()
-    from app.services.telegram_service import async_send_trx_notification
-    title_status = "PEMBAYARAN DITERIMA & SUKSES" if trx.status == 'SUCCESS' else "PEMBAYARAN DITERIMA (DIPROSES)"
-    async_send_trx_notification(trx, title=title_status)
+    from app.services.order_service import process_paid_order as svc_process_paid_order
+    return svc_process_paid_order(trx)
 
 
 @trx_bp.route('/callback/paymentkita', methods=['POST'])
