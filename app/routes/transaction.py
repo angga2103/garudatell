@@ -1939,12 +1939,61 @@ def callback_dana_mutasi():
             'event_id': event_id
         }), 200
     else:
+        # Fallback Otomatis: Jika mutasi tidak cocok di web iPay, otomatis teruskan ke Bot PPOB (port 3000)
+        try:
+            import requests
+            bot_payload = raw_json or form_data or {
+                'amount': amount,
+                'sender': sender,
+                'text': combined_text,
+                'event_id': event_id
+            }
+            bot_headers = {'Content-Type': 'application/json', 'X-Forwarded-From': 'ipay_gateway'}
+            if auth_header:
+                bot_headers['Authorization'] = auth_header
+            bot_resp = requests.post('http://127.0.0.1:3000/callback/dana-mutasi', json=bot_payload, headers=bot_headers, timeout=5)
+            if bot_resp.status_code == 200:
+                b_data = bot_resp.json()
+                if b_data.get('success'):
+                    print(f"[DANA FORWARD TO BOT PPOB SUCCESS] {b_data}")
+                    return jsonify({
+                        'status': 'success',
+                        'message': 'Mutasi berhasil diverifikasi dan dieksekusi oleh Bot PPOB',
+                        'target': 'bot_ppob',
+                        'result': b_data
+                    }), 200
+        except Exception as e_fwd:
+            print(f"[DANA FORWARD TO BOT PPOB ERROR] {e_fwd}")
+
         return jsonify({
             'status': 'unmatched',
             'message': msg,
             'amount': amount,
             'event_id': event_id
         }), 200
+
+
+@trx_bp.route('/callback/bot-dana-mutasi', methods=['POST', 'GET'])
+@trx_bp.route('/api/callback/bot-dana-mutasi', methods=['POST', 'GET'])
+@csrf.exempt
+def callback_bot_dana_mutasi():
+    """Proxy dedicated PayHook untuk meneruskan webhook langsung ke Bot PPOB (port 3000)."""
+    import requests
+    payload = request.get_json(silent=True) or request.form.to_dict() or dict(request.args)
+    headers = {'Content-Type': 'application/json', 'X-Forwarded-From': 'ipay_gateway'}
+    auth = request.headers.get('Authorization') or request.headers.get('authorization') or ''
+    if auth:
+        headers['Authorization'] = auth
+    token = request.headers.get('X-Device-Token') or request.args.get('token')
+    if token:
+        headers['X-Device-Token'] = token
+
+    try:
+        r = requests.post('http://127.0.0.1:3000/callback/dana-mutasi', json=payload, headers=headers, timeout=10)
+        return jsonify(r.json()), r.status_code
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': f'Gagal menghubungi Bot PPOB: {e}'}), 502
+
 
 
 @trx_bp.route('/callback/dana-ping', methods=['POST', 'GET'])
