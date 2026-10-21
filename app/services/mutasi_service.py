@@ -355,6 +355,11 @@ def get_user_mutations(user_id, days=30, limit=None, month=None, year=None):
 
     return {
         'mutations': mutations,
+        'starting_balance': starting_balance,
+        'ending_balance': ending_balance,
+        'total_pemasukan': total_pemasukan,
+        'total_pengeluaran': total_pengeluaran,
+        'total_refund': total_refund,
         'stats': {
             'current_balance': current_balance,
             'starting_balance': starting_balance,

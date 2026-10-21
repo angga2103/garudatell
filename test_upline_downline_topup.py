@@ -129,5 +129,44 @@ class TestUplineDownlineTopup(unittest.TestCase):
         self.assertEqual(t2.payment_status, 'CANCELLED')
         self.assertIn('AUTO_CANCELLED', t2.sn)
 
+    def test_upline_topup_8_hours_flexibility(self):
+        from datetime import datetime, timedelta
+        from app.services.balance_notification_service import get_wib_now
+
+        # 1. Pastikan waktu kedaluwarsa dihitung 8 jam ke depan
+        expected_expiry_str = (get_wib_now() + timedelta(hours=8)).strftime('%H.%M WIB')
+        msg = _build_low_balance_message_upline(
+            store_name="Ipay",
+            upline_name=self.upline.name,
+            user_name=self.downline.name,
+            user_phone=self.downline.phone,
+            current_balance=47442.0,
+            option1=250112,
+            option2=500099,
+            dana_number="081775700114",
+            dana_name="ANGGA DIAN PRATAMA PUTRA"
+        )
+        self.assertIn(f"Sebelum pukul *{expected_expiry_str}*", msg)
+
+        # 2. Uji transaksi tiket upline topup yang dibuat 3 jam lalu (melebihi 45 menit biasa)
+        opt1, opt2, d_num, d_name = create_upline_downline_deposit_tickets(self.downline, self.upline)
+        t1 = Transaction.query.filter_by(amount=opt1, user_id=self.downline.id, status='PENDING').first()
+        self.assertIsNotNone(t1)
+
+        # Simulasikan t1 dibuat 3 jam yang lalu
+        t1.created_at = datetime.utcnow() - timedelta(hours=3)
+        db.session.commit()
+
+        # Mutasi masuk setelah 3 jam: harus tetap berhasil dicocokkan karena batas 8 jam
+        ok, res_msg, res_trx = process_incoming_dana_mutation(
+            raw_amount=opt1,
+            sender_name="Saudi Upline Flex",
+            raw_text=f"Transfer berhasil sebesar Rp {opt1} dari Saudi",
+            event_id=f"evt_upline_8h_{opt1}_{int(datetime.utcnow().timestamp())}"
+        )
+        self.assertTrue(ok)
+        self.assertEqual(res_trx.id, t1.id)
+        self.assertEqual(res_trx.status, 'SUCCESS')
+
 if __name__ == '__main__':
     unittest.main()

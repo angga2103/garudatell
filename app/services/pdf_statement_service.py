@@ -18,6 +18,69 @@ def format_rupiah(val):
         return "Rp 0"
 
 
+def _extract_statement_summary(statement_data):
+    """
+    Mengekstrak data ringkasan finansial (Saldo Awal, Saldo Akhir, Total Masuk, Total Keluar, Refund)
+    secara presisi baik dari dict `stats`, key level-root, maupun kalkulasi langsung dari `mutations`.
+    """
+    stats = statement_data.get('stats') if isinstance(statement_data.get('stats'), dict) else {}
+    mutations = statement_data.get('mutations', [])
+
+    starting_bal = stats.get('starting_balance')
+    ending_bal = stats.get('ending_balance')
+    tot_in = stats.get('total_pemasukan')
+    tot_out = stats.get('total_pengeluaran')
+    tot_ref = stats.get('total_refund')
+
+    if starting_bal is None:
+        starting_bal = statement_data.get('starting_balance')
+    if ending_bal is None:
+        ending_bal = statement_data.get('ending_balance')
+    if tot_in is None:
+        tot_in = statement_data.get('total_pemasukan')
+    if tot_out is None:
+        tot_out = statement_data.get('total_pengeluaran')
+    if tot_ref is None:
+        tot_ref = statement_data.get('total_refund')
+
+    # Jika stats 0 atau kosong padahal ada data mutasi di tabel, hitung langsung dari mutations
+    if mutations:
+        sorted_m = sorted(mutations, key=lambda x: x.get('date_str', ''))
+        calc_starting = sorted_m[0].get('balance_before', 0.0)
+        calc_ending = sorted_m[-1].get('balance_after', 0.0)
+        calc_in = sum(float(m.get('amount', 0.0) or 0.0) for m in sorted_m if m.get('type') == 'pemasukan')
+        calc_out = sum(float(m.get('amount', 0.0) or 0.0) for m in sorted_m if m.get('type') == 'pengeluaran')
+        calc_ref = sum(float(m.get('amount', 0.0) or 0.0) for m in sorted_m if m.get('type') == 'refund')
+
+        if starting_bal is None or (starting_bal == 0.0 and ending_bal == 0.0 and (calc_ending != 0.0 or calc_in != 0.0 or calc_out != 0.0)):
+            starting_bal = calc_starting
+        if ending_bal is None or (ending_bal == 0.0 and calc_ending != 0.0):
+            ending_bal = calc_ending
+        if tot_in is None or (tot_in == 0.0 and calc_in != 0.0):
+            tot_in = calc_in
+        if tot_out is None or (tot_out == 0.0 and calc_out != 0.0):
+            tot_out = calc_out
+        if tot_ref is None or (tot_ref == 0.0 and calc_ref != 0.0):
+            tot_ref = calc_ref
+
+    starting_bal = float(starting_bal or 0.0)
+    ending_bal = float(ending_bal or 0.0)
+    tot_in = float(tot_in or 0.0)
+    tot_out = float(tot_out or 0.0)
+    tot_ref = float(tot_ref or 0.0)
+    tot_kredit = tot_in + tot_ref
+
+    return {
+        'starting_bal': starting_bal,
+        'ending_bal': ending_bal,
+        'tot_in': tot_in,
+        'tot_out': tot_out,
+        'tot_ref': tot_ref,
+        'tot_kredit': tot_kredit,
+        'mutations': mutations
+    }
+
+
 # =====================================================================
 # ENGINE 1: REPORTLAB (PRIMARY ENGINE BILA LIBRARY TERPASANG)
 # =====================================================================
@@ -229,12 +292,14 @@ def _generate_with_reportlab(user, month, year, statement_data):
     story.append(Spacer(1, 8))
 
     # Financial Summary Box
-    starting_bal = statement_data.get('starting_balance', 0.0)
-    ending_bal = statement_data.get('ending_balance', 0.0)
-    tot_in = statement_data.get('total_pemasukan', 0.0)
-    tot_out = statement_data.get('total_pengeluaran', 0.0)
-    tot_ref = statement_data.get('total_refund', 0.0)
-    tot_kredit = tot_in + tot_ref
+    summary_info = _extract_statement_summary(statement_data)
+    starting_bal = summary_info['starting_bal']
+    ending_bal = summary_info['ending_bal']
+    tot_in = summary_info['tot_in']
+    tot_out = summary_info['tot_out']
+    tot_ref = summary_info['tot_ref']
+    tot_kredit = summary_info['tot_kredit']
+    mutations = summary_info['mutations']
 
     summary_cells = [
         [
@@ -518,13 +583,14 @@ def _generate_with_pure_python(user, month, year, statement_data):
     user_phone = getattr(user, 'phone', '-') or '-'
     user_role = (getattr(user, 'role', 'MEMBER') or 'MEMBER').upper()
 
-    starting_bal = statement_data.get('starting_balance', 0.0)
-    ending_bal = statement_data.get('ending_balance', 0.0)
-    tot_in = statement_data.get('total_pemasukan', 0.0)
-    tot_out = statement_data.get('total_pengeluaran', 0.0)
-    tot_ref = statement_data.get('total_refund', 0.0)
-    tot_kredit = tot_in + tot_ref
-    mutations = statement_data.get('mutations', [])
+    summary_info = _extract_statement_summary(statement_data)
+    starting_bal = summary_info['starting_bal']
+    ending_bal = summary_info['ending_bal']
+    tot_in = summary_info['tot_in']
+    tot_out = summary_info['tot_out']
+    tot_ref = summary_info['tot_ref']
+    tot_kredit = summary_info['tot_kredit']
+    mutations = summary_info['mutations']
 
     PAGE_W = 595.28
     PAGE_H = 841.89
@@ -583,7 +649,8 @@ def _generate_with_pure_python(user, month, year, statement_data):
         pdf.draw_line(MARGIN + col_w, sum_y, MARGIN + col_w, sum_y + sum_h, stroke_rgb=(0.8, 0.85, 0.9), stroke_width=0.5)
         pdf.draw_text("TOTAL KREDIT (+)", MARGIN + col_w + 10, sum_y + 28, font='F2', size=7, rgb=(0.09, 0.64, 0.29))
         pdf.draw_text(f"+ {format_rupiah(tot_kredit)}", MARGIN + col_w + 10, sum_y + 14, font='F2', size=9, rgb=(0.09, 0.64, 0.29))
-        pdf.draw_text(f"Topup: {format_rupiah(tot_in)}", MARGIN + col_w + 10, sum_y + 4, font='F1', size=6, rgb=(0.09, 0.64, 0.29))
+        sub_kredit = f"Topup: {format_rupiah(tot_in)}" if tot_ref == 0.0 else f"Topup: {format_rupiah(tot_in)} | Ref: {format_rupiah(tot_ref)}"
+        pdf.draw_text(sub_kredit, MARGIN + col_w + 10, sum_y + 4, font='F1', size=6, rgb=(0.09, 0.64, 0.29))
 
         # Total Debit
         pdf.draw_line(MARGIN + col_w * 2, sum_y, MARGIN + col_w * 2, sum_y + sum_h, stroke_rgb=(0.8, 0.85, 0.9), stroke_width=0.5)

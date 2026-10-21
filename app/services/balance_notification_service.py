@@ -221,7 +221,7 @@ def _build_low_balance_message_upline(store_name, upline_name, user_name, user_p
         opt2_str = format_rupiah(option2)
         target_name = dana_name or "ANGGA DIAN PRATAMA PUTRA"
         if not expiry_time_str:
-            expiry_dt = get_wib_now() + timedelta(hours=2)
+            expiry_dt = get_wib_now() + timedelta(hours=8)
             expiry_time_str = expiry_dt.strftime('%H.%M WIB')
 
         topup_section = (
@@ -264,8 +264,8 @@ def create_upline_downline_deposit_tickets(downline_user, upline_user, amounts=(
         dest_number = depo_settings.get('dana_number') or "081775700114"
         dest_name = depo_settings.get('dana_name') or "ANGGA DIAN PRATAMA PUTRA"
 
-        # Cek apakah sudah ada tiket pending aktif dalam 45 menit terakhir untuk upline-downline ini
-        cutoff_active = datetime.utcnow() - timedelta(minutes=45)
+        # Cek apakah sudah ada tiket pending aktif dalam 8 jam terakhir untuk upline-downline ini
+        cutoff_active = datetime.utcnow() - timedelta(hours=8)
         existing_tickets = Transaction.query.filter(
             Transaction.sku_code == 'DEPOSIT_MANUAL',
             Transaction.user_id == downline_user.id,

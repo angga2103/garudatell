@@ -161,13 +161,25 @@ def generate_unique_code(nominal):
     tiket deposit aktif lainnya dalam 45 menit terakhir.
     """
     cutoff = datetime.utcnow() - timedelta(minutes=45)
-    from sqlalchemy import or_
+    cutoff_upline = datetime.utcnow() - timedelta(hours=8)
+    from sqlalchemy import or_, and_
     existing_pending = Transaction.query.filter(
         or_(
-            (Transaction.sku_code == 'DEPOSIT_MANUAL') & (Transaction.status == 'PENDING'),
-            (Transaction.payment_method.in_(['QRIS', 'DANA', 'TRANSFER DANA', 'TRANSFER_DANA'])) & (Transaction.payment_status == 'UNPAID') & (Transaction.status.in_(['UNPAID', 'PENDING']))
-        ),
-        Transaction.created_at >= cutoff
+            and_(
+                Transaction.sku_code == 'DEPOSIT_MANUAL',
+                Transaction.status == 'PENDING',
+                or_(
+                    Transaction.created_at >= cutoff,
+                    and_(Transaction.sn.like("%UPLINE_TOPUP:%"), Transaction.created_at >= cutoff_upline)
+                )
+            ),
+            and_(
+                Transaction.payment_method.in_(['QRIS', 'DANA', 'TRANSFER DANA', 'TRANSFER_DANA']),
+                Transaction.payment_status == 'UNPAID',
+                Transaction.status.in_(['UNPAID', 'PENDING']),
+                Transaction.created_at >= cutoff
+            )
+        )
     ).all()
 
     existing_amounts = {int(t.amount or 0) for t in existing_pending}
@@ -313,14 +325,22 @@ def process_incoming_dana_mutation(raw_amount, sender_name="Member DANA", raw_te
         return False, f"Nominal mutasi tidak valid: {raw_amount}", None
 
     cutoff = datetime.utcnow() - timedelta(minutes=45)
+    cutoff_upline = datetime.utcnow() - timedelta(hours=8)
+    from sqlalchemy import or_, and_
 
-    # 1. Prioritas Utama: Cari tiket deposit manual pending
+    # 1. Prioritas Utama: Cari tiket deposit manual pending (mendukung deposit biasa 45m & upline topup 8 jam)
     trx = Transaction.query.filter(
         Transaction.sku_code == 'DEPOSIT_MANUAL',
         Transaction.amount == amount_int,
         Transaction.status == 'PENDING',
         Transaction.payment_status == 'UNPAID',
-        Transaction.created_at >= cutoff
+        or_(
+            Transaction.created_at >= cutoff,
+            and_(
+                Transaction.sn.like("%UPLINE_TOPUP:%"),
+                Transaction.created_at >= cutoff_upline
+            )
+        )
     ).order_by(Transaction.id.desc()).first()
 
     # 2. Prioritas Kedua: Cari pesanan produk langsung via QRIS/DANA pending
