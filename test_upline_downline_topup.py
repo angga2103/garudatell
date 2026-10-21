@@ -71,7 +71,7 @@ class TestUplineDownlineTopup(unittest.TestCase):
             option1=250112,
             option2=500099,
             dana_number="081775700114",
-            dana_name="GarudaTel / Kasir"
+            dana_name="ANGGA DIAN PRATAMA PUTRA"
         )
         self.assertIn("Halo Kak *Saudi*", msg)
         self.assertIn("Pemberitahuan kemitraan dari *Ipay*:", msg)
@@ -79,11 +79,15 @@ class TestUplineDownlineTopup(unittest.TestCase):
         self.assertIn("📱 No. WhatsApp: `085185773471`", msg)
         self.assertIn("💰 *Sisa Saldo:* *Rp 47.442*", msg)
         self.assertIn("Demi menjaga kelancaran transaksi penjualan toko mitra Anda", msg)
-        self.assertIn("Transfer Tunai DANA Otomatis", msg)
-        self.assertIn("📱 No. DANA: `081775700114`", msg)
+        self.assertIn("Transfer Tunai *DANA* Otomatis", msg)
+        self.assertIn("📱 No. *DANA*: `081775700114`", msg)
+        self.assertIn("👤 A/N: *ANGGA DIAN PRATAMA PUTRA*", msg)
         self.assertIn("🔹 Pilihan 1: *Rp 250.112*", msg)
         self.assertIn("🔹 Pilihan 2: *Rp 500.099*", msg)
-        self.assertIn("3 digit angka terakhir", msg)
+        self.assertIn("⚡ *SISTEM AUTO OTOMATIS AKTIF:*", msg)
+        self.assertIn("tanpa harus kirim bukti transfer", msg)
+        self.assertIn("sama persis sampai 3 digit angka terakhir", msg)
+        self.assertIn("⏰ *Batas Waktu:* Sebelum pukul *", msg)
         self.assertIn("Terima kasih atas peran aktif Kakak dalam membimbing jaringan kemitraan! 🚀🤝", msg)
 
     def test_ticket_creation_and_auto_mutation_matching(self):

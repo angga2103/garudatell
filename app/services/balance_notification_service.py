@@ -211,7 +211,7 @@ def _build_low_balance_message_user(store_name, user_name, current_balance):
         f"Terima kasih banyak atas perhatiannya, semoga rezeki dan penjualan toko Kakak semakin berkah & melimpah! 🙏✨"
     )
 
-def _build_low_balance_message_upline(store_name, upline_name, user_name, user_phone, current_balance, option1=None, option2=None, dana_number=None, dana_name=None):
+def _build_low_balance_message_upline(store_name, upline_name, user_name, user_phone, current_balance, option1=None, option2=None, dana_number=None, dana_name=None, expiry_time_str=None):
     bal_str = format_rupiah(current_balance)
     store_from = f" dari *{store_name}*" if store_name else ""
     
@@ -219,14 +219,21 @@ def _build_low_balance_message_upline(store_name, upline_name, user_name, user_p
     if option1 and option2 and dana_number:
         opt1_str = format_rupiah(option1)
         opt2_str = format_rupiah(option2)
+        target_name = dana_name or "ANGGA DIAN PRATAMA PUTRA"
+        if not expiry_time_str:
+            expiry_dt = get_wib_now() + timedelta(hours=2)
+            expiry_time_str = expiry_dt.strftime('%H.%M WIB')
+
         topup_section = (
-            f"\n\nAtau Kakak dapat langsung membantu melakukan isi saldo (Top-up) untuk mitra tersebut via Transfer Tunai DANA Otomatis ke:\n"
-            f"📱 No. DANA: `{dana_number}`\n"
-            f"👤 A/N: *{dana_name or 'GarudaTel / Kasir'}*\n\n"
+            f"\n\nAtau Kakak dapat langsung membantu melakukan pengisian saldo (Top-Up) untuk mitra tersebut via Transfer Tunai *DANA* Otomatis ke:\n"
+            f"📱 No. *DANA*: `{dana_number}`\n"
+            f"👤 A/N: *{target_name}*\n\n"
             f"Pilih salah satu nominal berikut:\n"
             f"🔹 Pilihan 1: *Rp {opt1_str}*\n"
             f"🔹 Pilihan 2: *Rp {opt2_str}*\n\n"
-            f"⚠️ *Penting:* Pastikan nominal transfer sesuai persis sampai 3 digit angka terakhir agar saldo otomatis masuk ke akun mitra Anda tanpa perlu konfirmasi manual (berlaku 2 jam)."
+            f"⚡ *SISTEM AUTO OTOMATIS AKTIF:*\n"
+            f"Saldo akan *langsung otomatis masuk* ke akun mitra Anda dalam hitungan detik *tanpa harus kirim bukti transfer*, asalkan nominal yang Kakak transfer *sama persis sampai 3 digit angka terakhir*.\n\n"
+            f"⏰ *Batas Waktu:* Sebelum pukul *{expiry_time_str}* (nominal tiket otomatis diperbarui setelah batas waktu)."
         )
 
     return (
@@ -255,7 +262,7 @@ def create_upline_downline_deposit_tickets(downline_user, upline_user, amounts=(
 
         depo_settings = get_manual_deposit_settings()
         dest_number = depo_settings.get('dana_number') or "081775700114"
-        dest_name = depo_settings.get('dana_name') or "GarudaTel / Kasir"
+        dest_name = depo_settings.get('dana_name') or "ANGGA DIAN PRATAMA PUTRA"
 
         # Cek apakah sudah ada tiket pending aktif dalam 45 menit terakhir untuk upline-downline ini
         cutoff_active = datetime.utcnow() - timedelta(minutes=45)

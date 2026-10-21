@@ -239,7 +239,7 @@ def set_vip_reseller_status(enabled: bool):
 # =====================================================================
 DEFAULT_MANUAL_DEPO = {
     'dana_number': '081775700114',
-    'dana_name': 'GarudaTel / Kasir',
+    'dana_name': 'ANGGA DIAN PRATAMA PUTRA',
     'shopee_number': '081775700114',
     'shopee_name': 'GarudaTel / Kasir',
     'gopay_number': '081775700114',
