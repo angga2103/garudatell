@@ -132,7 +132,11 @@ def create_app(test_config=None):
     app.register_blueprint(merchant_api_bp, url_prefix='/api/v1')
 
     # Daftarkan Alias Route Webhook Callback (/api/callback/... & /callback/...)
-    from app.routes.transaction import callback_digiflazz, callback_paymentkita, callback_pakasir, callback_vipreseller, callback_dana_mutasi, callback_dana_ping
+    from app.routes.transaction import (
+        callback_digiflazz, callback_paymentkita, callback_pakasir, 
+        callback_vipreseller, callback_dana_mutasi, callback_dana_ping,
+        callback_bot_dana_mutasi, callback_bot_dana_ping
+    )
     webhook_routes = [
         ('/api/callback/vipreseller', callback_vipreseller),
         ('/callback/vipreseller', callback_vipreseller),
@@ -148,6 +152,10 @@ def create_app(test_config=None):
         ('/callback/dana', callback_dana_mutasi),
         ('/api/callback/dana-ping', callback_dana_ping),
         ('/callback/dana-ping', callback_dana_ping),
+        ('/api/callback/bot-dana-mutasi', callback_bot_dana_mutasi),
+        ('/callback/bot-dana-mutasi', callback_bot_dana_mutasi),
+        ('/api/callback/bot-dana-ping', callback_bot_dana_ping),
+        ('/callback/bot-dana-ping', callback_bot_dana_ping),
     ]
     for path, handler in webhook_routes:
         endpoint_name = 'alias_' + path.replace('/', '_').strip('_')
