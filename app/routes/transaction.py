@@ -1939,9 +1939,10 @@ def callback_dana_mutasi():
             'event_id': event_id
         }), 200
     else:
-        # Fallback Otomatis: Jika mutasi tidak cocok di web iPay, otomatis teruskan ke Bot PPOB (port 3000)
+        # Fallback Otomatis: Jika mutasi tidak cocok di web iPay, otomatis teruskan ke Bot PPOB (43.106.131.96:3000)
         try:
-            import requests
+            import os, requests
+            bot_target = os.getenv('BOT_PPOB_URL', 'http://43.106.131.96:3000').rstrip('/') + '/callback/dana-mutasi'
             bot_payload = raw_json or form_data or {
                 'amount': amount,
                 'sender': sender,
@@ -1951,7 +1952,7 @@ def callback_dana_mutasi():
             bot_headers = {'Content-Type': 'application/json', 'X-Forwarded-From': 'ipay_gateway'}
             if auth_header:
                 bot_headers['Authorization'] = auth_header
-            bot_resp = requests.post('http://127.0.0.1:3000/callback/dana-mutasi', json=bot_payload, headers=bot_headers, timeout=5)
+            bot_resp = requests.post(bot_target, json=bot_payload, headers=bot_headers, timeout=8)
             if bot_resp.status_code == 200:
                 b_data = bot_resp.json()
                 if b_data.get('success'):
@@ -1977,8 +1978,8 @@ def callback_dana_mutasi():
 @trx_bp.route('/api/callback/bot-dana-mutasi', methods=['POST', 'GET'])
 @csrf.exempt
 def callback_bot_dana_mutasi():
-    """Proxy dedicated PayHook untuk meneruskan webhook langsung ke Bot PPOB (port 3000)."""
-    import requests
+    """Proxy dedicated PayHook untuk meneruskan webhook langsung ke Bot PPOB (43.106.131.96:3000)."""
+    import os, requests
     payload = request.get_json(silent=True) or request.form.to_dict() or dict(request.args)
     headers = {'Content-Type': 'application/json', 'X-Forwarded-From': 'ipay_gateway'}
     auth = request.headers.get('Authorization') or request.headers.get('authorization') or ''
@@ -1988,11 +1989,36 @@ def callback_bot_dana_mutasi():
     if token:
         headers['X-Device-Token'] = token
 
+    bot_target = os.getenv('BOT_PPOB_URL', 'http://43.106.131.96:3000').rstrip('/') + '/callback/dana-mutasi'
     try:
-        r = requests.post('http://127.0.0.1:3000/callback/dana-mutasi', json=payload, headers=headers, timeout=10)
+        r = requests.post(bot_target, json=payload, headers=headers, timeout=10)
         return jsonify(r.json()), r.status_code
     except Exception as e:
         return jsonify({'status': 'error', 'message': f'Gagal menghubungi Bot PPOB: {e}'}), 502
+
+
+@trx_bp.route('/callback/bot-dana-ping', methods=['POST', 'GET'])
+@trx_bp.route('/api/callback/bot-dana-ping', methods=['POST', 'GET'])
+@csrf.exempt
+def callback_bot_dana_ping():
+    """Proxy dedicated PayHook untuk meneruskan heartbeat ping ke Bot PPOB (43.106.131.96:3000)."""
+    import os, requests
+    payload = request.get_json(silent=True) or request.form.to_dict() or dict(request.args)
+    headers = {'Content-Type': 'application/json', 'X-Forwarded-From': 'ipay_gateway'}
+    auth = request.headers.get('Authorization') or request.headers.get('authorization') or ''
+    if auth:
+        headers['Authorization'] = auth
+    token = request.headers.get('X-Device-Token') or request.args.get('token')
+    if token:
+        headers['X-Device-Token'] = token
+
+    bot_target = os.getenv('BOT_PPOB_URL', 'http://43.106.131.96:3000').rstrip('/') + '/callback/dana-ping'
+    try:
+        r = requests.post(bot_target, json=payload, headers=headers, timeout=10)
+        return jsonify(r.json()), r.status_code
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': f'Gagal menghubungi Bot PPOB: {e}'}), 502
+
 
 
 
