@@ -165,7 +165,7 @@ def generate_unique_code(nominal):
     existing_pending = Transaction.query.filter(
         or_(
             (Transaction.sku_code == 'DEPOSIT_MANUAL') & (Transaction.status == 'PENDING'),
-            (Transaction.payment_method == 'QRIS') & (Transaction.payment_status == 'UNPAID') & (Transaction.status.in_(['UNPAID', 'PENDING']))
+            (Transaction.payment_method.in_(['QRIS', 'DANA', 'TRANSFER DANA', 'TRANSFER_DANA'])) & (Transaction.payment_status == 'UNPAID') & (Transaction.status.in_(['UNPAID', 'PENDING']))
         ),
         Transaction.created_at >= cutoff
     ).all()
@@ -323,12 +323,12 @@ def process_incoming_dana_mutation(raw_amount, sender_name="Member DANA", raw_te
         Transaction.created_at >= cutoff
     ).order_by(Transaction.id.desc()).first()
 
-    # 2. Prioritas Kedua: Cari pesanan produk langsung via QRIS pending
+    # 2. Prioritas Kedua: Cari pesanan produk langsung via QRIS/DANA pending
     is_direct_qris = False
     if not trx:
         trx = Transaction.query.filter(
             Transaction.sku_code != 'DEPOSIT_MANUAL',
-            Transaction.payment_method == 'QRIS',
+            Transaction.payment_method.in_(['QRIS', 'DANA', 'TRANSFER DANA', 'TRANSFER_DANA']),
             Transaction.amount == amount_int,
             Transaction.payment_status == 'UNPAID',
             Transaction.status.in_(['UNPAID', 'PENDING']),
@@ -338,12 +338,12 @@ def process_incoming_dana_mutation(raw_amount, sender_name="Member DANA", raw_te
             is_direct_qris = True
 
     if not trx:
-        # 3. Prioritas Ketiga: CEK PESANAN QRIS YANG SUDAH TERLANJUR DIBATALKAN OLEH USER
+        # 3. Prioritas Ketiga: CEK PESANAN QRIS/DANA YANG SUDAH TERLANJUR DIBATALKAN OLEH USER
         # (Pelanggan terlanjur klik "Batalkan" tapi ternyata tetap transfer/scan QRIS via M-Banking)
         # Amankan dana pelanggan: Otomatis masukkan uang masuk ke Saldo Akun User!
         trx_cancelled = Transaction.query.filter(
             Transaction.sku_code != 'DEPOSIT_MANUAL',
-            Transaction.payment_method == 'QRIS',
+            Transaction.payment_method.in_(['QRIS', 'DANA', 'TRANSFER DANA', 'TRANSFER_DANA']),
             Transaction.amount == amount_int,
             Transaction.status == 'CANCELLED',
             Transaction.created_at >= cutoff

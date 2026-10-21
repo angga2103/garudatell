@@ -843,7 +843,11 @@
         <div class="inv-status-wrapper">
             <div class="inv-icon">
                 {% if trx.payment_status == 'UNPAID' %}
-                    <i class="fas fa-qrcode"></i>
+                    {% if trx.payment_method|upper in ['DANA', 'TRANSFER DANA', 'TRANSFER_DANA'] or (active_pg in ['dana', 'dana_inhouse', 'inhouse'] and trx.payment_method|upper == 'QRIS') %}
+                        <i class="fas fa-wallet"></i>
+                    {% else %}
+                        <i class="fas fa-qrcode"></i>
+                    {% endif %}
                 {% elif trx.status == 'SUCCESS' %}
                     <i class="fas fa-check-circle"></i>
                 {% elif trx.status in ['PENDING', 'PROCESSING', 'PROSES'] %}
@@ -871,9 +875,9 @@
 <div class="inv-card-wrapper">
     <div class="inv-card">
         
-        <!-- QRIS / DANA DISPLAY (Muncul jika UNPAID dan metode bayar QRIS / qris) -->
-        {% if trx.payment_status == 'UNPAID' and trx.payment_method and trx.payment_method|upper == 'QRIS' %}
-        {% if active_pg in ['dana', 'dana_inhouse', 'inhouse'] %}
+        <!-- QRIS / DANA DISPLAY (Muncul jika UNPAID dan metode bayar QRIS / DANA) -->
+        {% if trx.payment_status == 'UNPAID' and trx.payment_method and (trx.payment_method|upper in ['QRIS', 'DANA', 'TRANSFER DANA', 'TRANSFER_DANA']) %}
+        {% if active_pg in ['dana', 'dana_inhouse', 'inhouse'] or trx.payment_method|upper in ['DANA', 'TRANSFER DANA', 'TRANSFER_DANA'] %}
             <!-- KARTU PEMBAYARAN TRANSFER DANA OTOMATIS (0% FEE VIA PAYHOOK HP) -->
             <div id="danaPaymentCard" class="dana-pay-card">
                 <!-- BANNER BATAS WAKTU (PINK / SOFT RED) -->
@@ -1038,7 +1042,23 @@
             
             <div class="detail-row">
                 <span class="detail-label">Metode Bayar</span>
-                <span class="detail-value" style="text-transform: uppercase;">{{ trx.payment_method }}</span>
+                <span class="detail-value" style="font-weight: 800;">
+                    {% if trx.payment_method|upper in ['DANA', 'TRANSFER DANA', 'TRANSFER_DANA'] or (active_pg in ['dana', 'dana_inhouse', 'inhouse'] and trx.payment_method|upper == 'QRIS') %}
+                        <span style="color: #0284c7; display: inline-flex; align-items: center; gap: 5px;">
+                            <i class="fas fa-wallet"></i> Transfer Tunai DANA Otomatis
+                        </span>
+                    {% elif trx.payment_method|upper == 'QRIS' %}
+                        <span style="color: #0d9488; display: inline-flex; align-items: center; gap: 5px;">
+                            <i class="fas fa-qrcode"></i> QRIS (Scan Otomatis)
+                        </span>
+                    {% elif trx.payment_method|upper == 'SALDO' %}
+                        <span style="display: inline-flex; align-items: center; gap: 5px;">
+                            <i class="fas fa-wallet"></i> Saldo Akun
+                        </span>
+                    {% else %}
+                        {{ trx.payment_method|upper }}
+                    {% endif %}
+                </span>
             </div>
 
             <div class="detail-row">

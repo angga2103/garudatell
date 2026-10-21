@@ -369,20 +369,22 @@ def checkout():
         else:
             ref_id = f"GT-{int(time.time()*1000)}{random.randint(10,99)}"
 
-        # 5. METODE PEMBAYARAN: QRIS
-        if payment_method == 'qris':
+        # 5. METODE PEMBAYARAN: QRIS / DANA / PAYMENT GATEWAY
+        if payment_method in ['qris', 'dana', 'transfer', 'transfer_dana']:
             from app.services.setting_service import is_payment_gateway_enabled, get_active_payment_gateway
             if not is_payment_gateway_enabled():
                 return jsonify({
                     'status': 'error',
                     'error': True,
-                    'message': 'Pembayaran via barcode QRIS sedang dinonaktifkan. Silakan gunakan metode Saldo Akun (isi saldo via DANA Otomatis 0% Fee).'
+                    'message': 'Pembayaran via Payment Gateway sedang dinonaktifkan. Silakan gunakan metode Saldo Akun (isi saldo via DANA Otomatis 0% Fee).'
                 }), 400
 
             active_pg = get_active_payment_gateway()
             final_amount = amount
             sn_initial = None
-            if active_pg in ['dana', 'dana_inhouse', 'inhouse']:
+            is_dana_active = active_pg in ['dana', 'dana_inhouse', 'inhouse']
+            trx_payment_method = 'DANA' if is_dana_active else 'QRIS'
+            if is_dana_active:
                 from app.services.dana_mutasi_service import generate_unique_code
                 cutoff_collision = datetime.utcnow() - timedelta(minutes=45)
                 # Loop anti-tabrakan database untuk mencegah race condition transaksi konkuren
@@ -406,7 +408,7 @@ def checkout():
                 sku_code=sku_code,
                 target_number=target_number,
                 amount=final_amount,
-                payment_method='QRIS',
+                payment_method=trx_payment_method,
                 payment_status='UNPAID',
                 status='UNPAID',
                 is_prepaid=is_prepaid_flow,
@@ -417,10 +419,10 @@ def checkout():
             db.session.add(new_trx)
             db.session.commit()
             from app.services.telegram_service import async_send_trx_notification
-            async_send_trx_notification(new_trx, title="TRANSAKSI BARU (QRIS UNPAID)")
+            async_send_trx_notification(new_trx, title=f"TRANSAKSI BARU ({trx_payment_method} UNPAID)")
             return jsonify({
                 'status': 'success',
-                'message': 'QRIS berhasil dibuat',
+                'message': 'Pesanan berhasil dibuat',
                 'ref_id': ref_id,
                 'redirect': f'/trx/invoice/{ref_id}'
             }), 200
@@ -700,7 +702,7 @@ def invoice(ref_id):
     depo_settings = get_manual_deposit_settings()
     pg_fee = 0
     total_with_fee = trx.amount
-    if trx.payment_method and trx.payment_method.upper() == 'QRIS':
+    if trx.payment_method and trx.payment_method.upper() in ['QRIS', 'DANA', 'TRANSFER DANA', 'TRANSFER_DANA']:
         if active_pg == 'pakasir':
             from app.services.pakasir_service import calculate_pakasir_fee
             pg_fee = calculate_pakasir_fee(trx.amount, 'qris')

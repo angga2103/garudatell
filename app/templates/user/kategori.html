@@ -711,13 +711,26 @@
                 <input type="radio" name="pay_opt" checked>
                 <div>Saldo Akun (Rp {{ "{:,.0f}".format(current_user.balance if current_user.is_authenticated else 0)|replace(',', '.') }})</div>
             </label>
+            {% if is_payment_gateway_enabled %}
             <label class="pay-option" id="optQris" onclick="selectPay('qris')">
                 <input type="radio" name="pay_opt">
                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                    <span>QRIS Instan (Scan & Bayar)</span>
-                    <span style="font-size: 10px; background: #dcfce7; color: #15803d; padding: 2px 6px; border-radius: 6px; font-weight: 800;">0% Fee / Semua Bank</span>
+                    {% if active_payment_gateway in ['dana', 'dana_inhouse', 'inhouse'] %}
+                    <span style="display: flex; align-items: center; gap: 6px;">
+                        <i class="fas fa-wallet" style="color: #108ee9;"></i>
+                        <span>Transfer Tunai DANA Otomatis</span>
+                    </span>
+                    <span style="font-size: 10px; background: #e0f2fe; color: #0284c7; padding: 2px 6px; border-radius: 6px; font-weight: 800;">0% Fee / Instan</span>
+                    {% else %}
+                    <span style="display: flex; align-items: center; gap: 6px;">
+                        <i class="fas fa-qrcode" style="color: #0284c7;"></i>
+                        <span>QRIS Instan (Scan & Bayar)</span>
+                    </span>
+                    <span style="font-size: 10px; background: #dcfce7; color: #15803d; padding: 2px 6px; border-radius: 6px; font-weight: 800;">Semua E-Wallet & Bank</span>
+                    {% endif %}
                 </div>
             </label>
+            {% endif %}
         </div>
         <button type="button" class="btn-bayar" id="btnProsesBayar" onclick="prosesBayarModal()">
             Bayar Sekarang
@@ -846,9 +859,18 @@
 
     function selectPay(m) {
         selectedMetode = m;
-        document.getElementById('optSaldo').classList.toggle('selected', m === 'saldo');
-        document.getElementById('optQris').classList.toggle('selected', m === 'qris');
-        document.getElementById('mPayMethod').innerText = (m === 'saldo') ? 'Saldo Akun' : 'QRIS Instan';
+        const optSaldo = document.getElementById('optSaldo');
+        const optQris = document.getElementById('optQris');
+        const mPayMethod = document.getElementById('mPayMethod');
+        if (optSaldo) optSaldo.classList.toggle('selected', m === 'saldo');
+        if (optQris) optQris.classList.toggle('selected', m === 'qris');
+        if (mPayMethod) {
+            if (m === 'saldo') {
+                mPayMethod.innerText = 'Saldo Akun';
+            } else {
+                mPayMethod.innerText = {{ ('Transfer Tunai DANA Otomatis' if active_payment_gateway in ['dana', 'dana_inhouse', 'inhouse'] else 'QRIS Instan')|tojson }};
+            }
+        }
     }
 
     function prosesBayarModal() {

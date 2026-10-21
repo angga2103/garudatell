@@ -641,16 +641,26 @@
         <i class="fas fa-check-circle" id="checkSaldo" style="color: #00877a; font-size: 18px;"></i>
     </div>
 
+    {% if is_payment_gateway_enabled %}
     <div class="pay-opt-card" id="optQris" onclick="selectPaymentMethod('qris')">
         <div style="display:flex; align-items:center; gap: 10px;">
+            {% if active_payment_gateway in ['dana', 'dana_inhouse', 'inhouse'] %}
+            <i class="fas fa-wallet" style="font-size: 20px; color: #108ee9;"></i>
+            <div>
+                <div style="font-weight: 800; font-size: 13px; color: #0f172a;">Transfer Tunai DANA Otomatis</div>
+                <div style="font-size: 11px; color: #64748b;">0% Fee &bull; Verifikasi instan via aplikasi DANA</div>
+            </div>
+            {% else %}
             <i class="fas fa-qrcode" style="font-size: 20px; color: #6366f1;"></i>
             <div>
                 <div style="font-weight: 800; font-size: 13px; color: #0f172a;">QRIS Instan (Semua Bank / E-Wallet)</div>
                 <div style="font-size: 11px; color: #64748b;">Scan langsung dari BCA, Mandiri, Dana, GoPay, dll.</div>
             </div>
+            {% endif %}
         </div>
         <i class="far fa-circle" id="checkQris" style="color: #cbd5e1; font-size: 18px;"></i>
     </div>
+    {% endif %}
 
     <button type="button" id="btnKonfirmasiBayar" class="btn-cek-tagihan" style="margin-top: 16px;" onclick="eksekusiPembayaranTagihan()">
         <i class="fas fa-lock"></i> Bayar Tagihan Sekarang
@@ -927,19 +937,15 @@ function selectPaymentMethod(m) {
     const checkQris = document.getElementById('checkQris');
 
     if (m === 'saldo') {
-        optSaldo.classList.add('selected');
-        optQris.classList.remove('selected');
-        checkSaldo.className = 'fas fa-check-circle';
-        checkSaldo.style.color = '#00877a';
-        checkQris.className = 'far fa-circle';
-        checkQris.style.color = '#cbd5e1';
+        if (optSaldo) optSaldo.classList.add('selected');
+        if (optQris) optQris.classList.remove('selected');
+        if (checkSaldo) { checkSaldo.className = 'fas fa-check-circle'; checkSaldo.style.color = '#00877a'; }
+        if (checkQris) { checkQris.className = 'far fa-circle'; checkQris.style.color = '#cbd5e1'; }
     } else {
-        optQris.classList.add('selected');
-        optSaldo.classList.remove('selected');
-        checkQris.className = 'fas fa-check-circle';
-        checkQris.style.color = '#00877a';
-        checkSaldo.className = 'far fa-circle';
-        checkSaldo.style.color = '#cbd5e1';
+        if (optQris) optQris.classList.add('selected');
+        if (optSaldo) optSaldo.classList.remove('selected');
+        if (checkQris) { checkQris.className = 'fas fa-check-circle'; checkQris.style.color = '#00877a'; }
+        if (checkSaldo) { checkSaldo.className = 'far fa-circle'; checkSaldo.style.color = '#cbd5e1'; }
     }
 }
 

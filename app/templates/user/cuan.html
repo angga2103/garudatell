@@ -1027,17 +1027,27 @@
                 <div class="check-circle"><i class="fas fa-check"></i></div>
             </div>
             
-            <!-- Opsi 2: QRIS -->
+            {% if is_payment_gateway_enabled %}
+            <!-- Opsi 2: QRIS / DANA -->
             <div class="pay-card" id="payQris" onclick="selectPayment('qris')">
                 <div class="pay-left">
+                    {% if active_payment_gateway in ['dana', 'dana_inhouse', 'inhouse'] %}
+                    <div class="pay-icon" style="color: #108ee9; background: #e0f2fe;"><i class="fas fa-wallet"></i></div>
+                    <div>
+                        <div class="pay-name">Transfer Tunai DANA Otomatis</div>
+                        <div class="pay-desc">0% Fee &bull; Verifikasi instan via aplikasi DANA</div>
+                    </div>
+                    {% else %}
                     <div class="pay-icon"><i class="fas fa-qrcode"></i></div>
                     <div>
                         <div class="pay-name">QRIS (Scan Barcode)</div>
                         <div class="pay-desc">Bayar instan via BCA, DANA, GoPay, OVO, dll</div>
                     </div>
+                    {% endif %}
                 </div>
                 <div class="check-circle"><i class="fas fa-check"></i></div>
             </div>
+            {% endif %}
         </div>
         
         <div class="bs-footer">
@@ -1312,12 +1322,14 @@ function handleOutsideCheckout(e) {
 
 function selectPayment(method) {
     currentPayMethod = method;
-    document.getElementById('paySaldo').classList.remove('active');
-    document.getElementById('payQris').classList.remove('active');
+    const elSaldo = document.getElementById('paySaldo');
+    const elQris = document.getElementById('payQris');
+    if (elSaldo) elSaldo.classList.remove('active');
+    if (elQris) elQris.classList.remove('active');
     if (method === 'saldo') {
-        document.getElementById('paySaldo').classList.add('active');
+        if (elSaldo) elSaldo.classList.add('active');
     } else {
-        document.getElementById('payQris').classList.add('active');
+        if (elQris) elQris.classList.add('active');
     }
 }
 

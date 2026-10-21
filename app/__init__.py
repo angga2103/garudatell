@@ -448,6 +448,25 @@ def create_app(test_config=None):
         except Exception:
             return dict(global_unread_notif_count=0)
 
+    # Global Context Processor: Status & Nama Payment Gateway Aktif (DANA / Pakasir / PaymentKita / Off)
+    @app.context_processor
+    def inject_payment_gateway():
+        try:
+            from app.services.setting_service import get_active_payment_gateway, is_payment_gateway_enabled
+            active_pg = get_active_payment_gateway()
+            pg_enabled = is_payment_gateway_enabled()
+            return dict(
+                active_payment_gateway=active_pg,
+                active_pg=active_pg,
+                is_payment_gateway_enabled=pg_enabled
+            )
+        except Exception:
+            return dict(
+                active_payment_gateway='paymentkita',
+                active_pg='paymentkita',
+                is_payment_gateway_enabled=True
+            )
+
     # Template Filter: Format SN / Keterangan Bersih untuk Pengguna
     @app.template_filter('format_sn')
     def format_sn(sn_val, status=None):

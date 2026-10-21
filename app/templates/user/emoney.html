@@ -905,13 +905,26 @@
                 <input type="radio" name="payMethod" value="saldo" checked onchange="selectPay('saldo')">
                 <div><i class="fas fa-wallet" style="color: #00877a; margin-right: 6px;"></i> Saldo Akun (Rp {{ "{:,.0f}".format(current_user.balance)|replace(',', '.') if current_user.is_authenticated else '0' }})</div>
             </label>
+            {% if is_payment_gateway_enabled %}
             <label class="pay-option" id="optQris">
                 <input type="radio" name="payMethod" value="qris" onchange="selectPay('qris')">
                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                    <span><i class="fas fa-qrcode" style="color: #0284c7; margin-right: 6px;"></i> QRIS (Scan Otomatis 24 Jam)</span>
-                    <span style="font-size: 10px; background: #dcfce7; color: #15803d; padding: 2px 6px; border-radius: 6px; font-weight: 800;">0% Fee / Semua Bank</span>
+                    {% if active_payment_gateway in ['dana', 'dana_inhouse', 'inhouse'] %}
+                    <span style="display: flex; align-items: center; gap: 6px;">
+                        <i class="fas fa-wallet" style="color: #108ee9;"></i>
+                        <span>Transfer Tunai DANA Otomatis</span>
+                    </span>
+                    <span style="font-size: 10px; background: #e0f2fe; color: #0284c7; padding: 2px 6px; border-radius: 6px; font-weight: 800;">0% Fee / Instan</span>
+                    {% else %}
+                    <span style="display: flex; align-items: center; gap: 6px;">
+                        <i class="fas fa-qrcode" style="color: #0284c7;"></i>
+                        <span>QRIS (Scan Otomatis 24 Jam)</span>
+                    </span>
+                    <span style="font-size: 10px; background: #dcfce7; color: #15803d; padding: 2px 6px; border-radius: 6px; font-weight: 800;">Semua E-Wallet & Bank</span>
+                    {% endif %}
                 </div>
             </label>
+            {% endif %}
         </div>
 
         <div class="sheet-footer">
@@ -1260,12 +1273,13 @@
         const optSaldo = document.getElementById('optSaldo');
         const optQris = document.getElementById('optQris');
 
+        if (optSaldo) optSaldo.classList.remove('selected');
+        if (optQris) optQris.classList.remove('selected');
+
         if (metode === 'saldo') {
-            optSaldo.classList.add('selected');
-            optQris.classList.remove('selected');
+            if (optSaldo) optSaldo.classList.add('selected');
         } else {
-            optQris.classList.add('selected');
-            optSaldo.classList.remove('selected');
+            if (optQris) optQris.classList.add('selected');
         }
     }
 

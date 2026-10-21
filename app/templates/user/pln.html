@@ -846,13 +846,26 @@
                 <input type="radio" name="payMethod" value="saldo" checked onchange="selectPay('saldo')">
                 <div><i class="fas fa-wallet" style="color: #00877a; margin-right: 6px;"></i> Saldo Akun</div>
             </label>
+            {% if is_payment_gateway_enabled %}
             <label class="pay-option" id="optQris">
                 <input type="radio" name="payMethod" value="qris" onchange="selectPay('qris')">
                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                    <span><i class="fas fa-qrcode" style="color: #0284c7; margin-right: 6px;"></i> QRIS (Scan Otomatis)</span>
-                    <span style="font-size: 10px; background: #dcfce7; color: #15803d; padding: 2px 6px; border-radius: 6px; font-weight: 800;">0% Fee / Semua Bank</span>
+                    {% if active_payment_gateway in ['dana', 'dana_inhouse', 'inhouse'] %}
+                    <span style="display: flex; align-items: center; gap: 6px;">
+                        <i class="fas fa-wallet" style="color: #108ee9;"></i>
+                        <span>Transfer Tunai DANA Otomatis</span>
+                    </span>
+                    <span style="font-size: 10px; background: #e0f2fe; color: #0284c7; padding: 2px 6px; border-radius: 6px; font-weight: 800;">0% Fee / Instan</span>
+                    {% else %}
+                    <span style="display: flex; align-items: center; gap: 6px;">
+                        <i class="fas fa-qrcode" style="color: #0284c7;"></i>
+                        <span>QRIS (Scan Otomatis)</span>
+                    </span>
+                    <span style="font-size: 10px; background: #dcfce7; color: #15803d; padding: 2px 6px; border-radius: 6px; font-weight: 800;">Semua E-Wallet & Bank</span>
+                    {% endif %}
                 </div>
             </label>
+            {% endif %}
         </div>
 
         <div class="sheet-footer">
@@ -926,13 +939,26 @@
                     {% endif %}
                 </div>
             </label>
+            {% if is_payment_gateway_enabled %}
             <label class="pay-option" id="pascaOptQris">
                 <input type="radio" name="pascaPayMethod" value="qris" onchange="selectPascaPay('qris')">
                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                    <span><i class="fas fa-qrcode" style="color: #0284c7; margin-right: 6px;"></i> QRIS (Scan Otomatis)</span>
-                    <span style="font-size: 10px; background: #dcfce7; color: #15803d; padding: 2px 6px; border-radius: 6px; font-weight: 800;">0% Fee / Semua Bank</span>
+                    {% if active_payment_gateway in ['dana', 'dana_inhouse', 'inhouse'] %}
+                    <span style="display: flex; align-items: center; gap: 6px;">
+                        <i class="fas fa-wallet" style="color: #108ee9;"></i>
+                        <span>Transfer Tunai DANA Otomatis</span>
+                    </span>
+                    <span style="font-size: 10px; background: #e0f2fe; color: #0284c7; padding: 2px 6px; border-radius: 6px; font-weight: 800;">0% Fee / Instan</span>
+                    {% else %}
+                    <span style="display: flex; align-items: center; gap: 6px;">
+                        <i class="fas fa-qrcode" style="color: #0284c7;"></i>
+                        <span>QRIS (Scan Otomatis)</span>
+                    </span>
+                    <span style="font-size: 10px; background: #dcfce7; color: #15803d; padding: 2px 6px; border-radius: 6px; font-weight: 800;">Semua E-Wallet & Bank</span>
+                    {% endif %}
                 </div>
             </label>
+            {% endif %}
         </div>
 
         <!-- Tombol Aksi: Batal vs Bayar Sekarang -->
@@ -1213,10 +1239,12 @@
     }
 
     function selectPay(method) {
-        document.getElementById('optSaldo').classList.remove('selected');
-        document.getElementById('optQris').classList.remove('selected');
-        if (method === 'saldo') document.getElementById('optSaldo').classList.add('selected');
-        if (method === 'qris') document.getElementById('optQris').classList.add('selected');
+        const elSaldo = document.getElementById('optSaldo');
+        const elQris = document.getElementById('optQris');
+        if (elSaldo) elSaldo.classList.remove('selected');
+        if (elQris) elQris.classList.remove('selected');
+        if (method === 'saldo' && elSaldo) elSaldo.classList.add('selected');
+        if ((method === 'qris' || method === 'dana') && elQris) elQris.classList.add('selected');
     }
 
     function prosesBayarModal() {
@@ -1446,10 +1474,12 @@
     }
 
     function selectPascaPay(method) {
-        document.getElementById('pascaOptSaldo').classList.remove('selected');
-        document.getElementById('pascaOptQris').classList.remove('selected');
-        if (method === 'saldo') document.getElementById('pascaOptSaldo').classList.add('selected');
-        if (method === 'qris') document.getElementById('pascaOptQris').classList.add('selected');
+        const elSaldo = document.getElementById('pascaOptSaldo');
+        const elQris = document.getElementById('pascaOptQris');
+        if (elSaldo) elSaldo.classList.remove('selected');
+        if (elQris) elQris.classList.remove('selected');
+        if (method === 'saldo' && elSaldo) elSaldo.classList.add('selected');
+        if ((method === 'qris' || method === 'dana') && elQris) elQris.classList.add('selected');
     }
 
     function eksekusiBayarPasca() {
