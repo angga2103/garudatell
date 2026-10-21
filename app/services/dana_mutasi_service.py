@@ -443,6 +443,38 @@ def process_incoming_dana_mutation(raw_amount, sender_name="Member DANA", raw_te
         db.session.commit()
         logger.info(f"[{ew_label} MUTASI ACC] User #{user.id} ({user.name}) Saldo +Rp {credit_amount:,} -> Rp {new_balance:,} | Trx: {trx.ref_id}")
 
+        # Cek apakah tiket ini merupakan Upline Top-up untuk Downline
+        if trx.sn and 'UPLINE_TOPUP:' in trx.sn:
+            try:
+                m_topup = re.search(r'UPLINE_TOPUP:(\d+):([a-zA-Z0-9]+)', trx.sn)
+                if m_topup:
+                    u_id = int(m_topup.group(1))
+                    p_id = m_topup.group(2)
+
+                    # 1. Batalkan tiket pasangan (sibling) yang tidak dibayar agar kode unik bebas
+                    siblings = Transaction.query.filter(
+                        Transaction.sku_code == 'DEPOSIT_MANUAL',
+                        Transaction.status == 'PENDING',
+                        Transaction.id != trx.id,
+                        Transaction.sn.like(f"%UPLINE_TOPUP:%:{p_id}%")
+                    ).all()
+                    for sib in siblings:
+                        sib.status = 'CANCELLED'
+                        sib.payment_status = 'CANCELLED'
+                        sib.sn = f"{sib.sn or ''} | AUTO_CANCELLED (Pasangan #{trx.id} sudah dibayar)"
+                    db.session.commit()
+
+                    # 2. Kirim notifikasi WhatsApp ke Upline dan Downline
+                    from app.services.balance_notification_service import send_upline_topup_success_notifications
+                    send_upline_topup_success_notifications(
+                        upline_id=u_id,
+                        downline_user=user,
+                        amount=credit_amount,
+                        new_balance=new_balance
+                    )
+            except Exception as e_up_topup:
+                logger.error(f"[UPLINE TOPUP PROCESSING ERR] {e_up_topup}")
+
         # Kirim notifikasi keberhasilan ke Bot Notifikasi Telegram Admin
         try:
             _send_dana_success_telegram_alert(trx, user, credit_amount, new_balance, clean_sender, ew_label)

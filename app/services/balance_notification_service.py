@@ -211,9 +211,24 @@ def _build_low_balance_message_user(store_name, user_name, current_balance):
         f"Terima kasih banyak atas perhatiannya, semoga rezeki dan penjualan toko Kakak semakin berkah & melimpah! 🙏✨"
     )
 
-def _build_low_balance_message_upline(store_name, upline_name, user_name, user_phone, current_balance):
+def _build_low_balance_message_upline(store_name, upline_name, user_name, user_phone, current_balance, option1=None, option2=None, dana_number=None, dana_name=None):
     bal_str = format_rupiah(current_balance)
     store_from = f" dari *{store_name}*" if store_name else ""
+    
+    topup_section = ""
+    if option1 and option2 and dana_number:
+        opt1_str = format_rupiah(option1)
+        opt2_str = format_rupiah(option2)
+        topup_section = (
+            f"\n\nAtau Kakak dapat langsung membantu melakukan isi saldo (Top-up) untuk mitra tersebut via Transfer Tunai DANA Otomatis ke:\n"
+            f"📱 No. DANA: `{dana_number}`\n"
+            f"👤 A/N: *{dana_name or 'GarudaTel / Kasir'}*\n\n"
+            f"Pilih salah satu nominal berikut:\n"
+            f"🔹 Pilihan 1: *Rp {opt1_str}*\n"
+            f"🔹 Pilihan 2: *Rp {opt2_str}*\n\n"
+            f"⚠️ *Penting:* Pastikan nominal transfer sesuai persis sampai 3 digit angka terakhir agar saldo otomatis masuk ke akun mitra Anda tanpa perlu konfirmasi manual (berlaku 2 jam)."
+        )
+
     return (
         f"Halo Kak *{upline_name}*, 😊\n\n"
         f"Pemberitahuan kemitraan{store_from}:\n\n"
@@ -221,9 +236,125 @@ def _build_low_balance_message_upline(store_name, upline_name, user_name, user_p
         f"👤 Nama: *{user_name}*\n"
         f"📱 No. WhatsApp: `{user_phone}`\n"
         f"💰 *Sisa Saldo:* *Rp {bal_str}* (di bawah batas Rp 100.000)\n\n"
-        f"Demi menjaga kelancaran transaksi penjualan toko mitra Anda serta kelangsungan bonus komisi kemitraan Anda, Kakak dapat mengingatkan mitra tersebut untuk segera melakukan isi saldo.\n\n"
+        f"Demi menjaga kelancaran transaksi penjualan toko mitra Anda serta kelangsungan bonus komisi kemitraan Anda, Kakak dapat mengingatkan mitra tersebut untuk segera melakukan isi saldo."
+        f"{topup_section}\n\n"
         f"Terima kasih atas peran aktif Kakak dalam membimbing jaringan kemitraan! 🚀🤝"
     )
+
+def create_upline_downline_deposit_tickets(downline_user, upline_user, amounts=(250000, 500000)):
+    """
+    Membuat 2 tiket deposit DANA otomatis atas nama Downline agar Upline
+    bisa memilih salah satu nominal transfer langsung dari WhatsApp.
+    Ketika salah satu tiket dibayar, tiket pasangannya otomatis dibatalkan.
+    """
+    try:
+        from app.services.dana_mutasi_service import generate_unique_code
+        from app.services.setting_service import get_manual_deposit_settings
+        from app.models.transaction import Transaction
+        import uuid, time, random
+
+        depo_settings = get_manual_deposit_settings()
+        dest_number = depo_settings.get('dana_number') or "081775700114"
+        dest_name = depo_settings.get('dana_name') or "GarudaTel / Kasir"
+
+        # Cek apakah sudah ada tiket pending aktif dalam 45 menit terakhir untuk upline-downline ini
+        cutoff_active = datetime.utcnow() - timedelta(minutes=45)
+        existing_tickets = Transaction.query.filter(
+            Transaction.sku_code == 'DEPOSIT_MANUAL',
+            Transaction.user_id == downline_user.id,
+            Transaction.status == 'PENDING',
+            Transaction.payment_status == 'UNPAID',
+            Transaction.created_at >= cutoff_active,
+            Transaction.sn.like(f"%UPLINE_TOPUP:{upline_user.id}:%")
+        ).order_by(Transaction.id.asc()).all()
+
+        if len(existing_tickets) >= 2:
+            return int(existing_tickets[0].amount), int(existing_tickets[1].amount), dest_number, dest_name
+
+        # Jika ada sisa tiket lama yang tidak lengkap, batalkan
+        for old in existing_tickets:
+            old.status = 'CANCELLED'
+            old.payment_status = 'CANCELLED'
+        if existing_tickets:
+            db.session.commit()
+
+        pair_id = uuid.uuid4().hex[:8]
+        tickets = []
+
+        for nominal in amounts:
+            unique_code, total_transfer = generate_unique_code(nominal)
+            ref_id = f"DEP-DANA-{int(time.time())}{random.randint(100, 999)}"
+
+            trx = Transaction(
+                ref_id=ref_id,
+                user_id=downline_user.id,
+                sku_code='DEPOSIT_MANUAL',
+                product_name=f"Deposit DANA Otomatis (Topup Upline #{upline_user.id})",
+                target_number=dest_number,
+                amount=float(total_transfer),
+                base_price=0.0,
+                payment_method='dana_auto',
+                payment_status='UNPAID',
+                status='PENDING',
+                is_prepaid=True,
+                sn=f"UPLINE_TOPUP:{upline_user.id}:{pair_id} | Nominal Pokok: Rp {int(nominal):,} | Kode Unik: {unique_code:03d} | Total: Rp {total_transfer:,} | Rek: {dest_number} a.n {dest_name} (DANA)"
+            )
+            db.session.add(trx)
+            tickets.append(total_transfer)
+
+        db.session.commit()
+        return tickets[0], tickets[1], dest_number, dest_name
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"[UPLINE TOPUP] Gagal membuat tiket deposit: {e}")
+        return None, None, None, None
+
+def send_upline_topup_success_notifications(upline_id, downline_user, amount, new_balance):
+    """
+    Mengirim notifikasi WhatsApp keberhasilan Top-up:
+    1. Ke Upline (konfirmasi transfer diterima & saldo downline telah bertambah)
+    2. Ke Downline (kabar gembira saldo telah diisikan oleh upline)
+    """
+    try:
+        amt_str = format_rupiah(amount)
+        new_bal_str = format_rupiah(new_balance)
+        wib_str = format_wib()
+
+        upline = db.session.get(User, int(upline_id)) if upline_id else None
+
+        # 1. Kirim ke Upline
+        if upline and upline.phone:
+            msg_upline = (
+                f"✅ *TOP-UP DOWNLINE BERHASIL*\n\n"
+                f"Terima kasih Kak *{upline.name}*, 😊\n"
+                f"Pembayaran sebesar *Rp {amt_str}* via Transfer Tunai DANA telah kami terima.\n\n"
+                f"📥 Saldo sebesar *Rp {amt_str}* telah otomatis ditambahkan ke akun mitra / downline Anda:\n"
+                f"👤 Nama: *{downline_user.name}*\n"
+                f"📱 No. WhatsApp: `{downline_user.phone}`\n"
+                f"💰 *Sisa Saldo Baru Mitra:* *Rp {new_bal_str}*\n"
+                f"⏰ Waktu: {wib_str} WIB\n\n"
+                f"Transaksi mitra kini dapat berjalan lancar kembali dan bonus komisi Kakak terus mengalir. Sukses selalu untuk kemitraan Anda! 🚀🤝"
+            )
+            kirim_wa(upline.phone, msg_upline)
+            logger.info(f"[UPLINE TOPUP SUCCESS] Notif WA terkirim ke Upline #{upline.id} ({upline.phone})")
+
+        # 2. Kirim ke Downline
+        if downline_user and downline_user.phone:
+            upline_name_str = upline.name if upline else "Upline Anda"
+            msg_downline = (
+                f"🎁 *SALDO MASUK DARI UPLINE*\n\n"
+                f"Halo Kak *{downline_user.name}*, 😊\n"
+                f"Kabar gembira! Upline Anda (*{upline_name_str}*) baru saja membantu melakukan pengisian saldo akun Anda:\n\n"
+                f"💵 *Nominal Masuk:* *+Rp {amt_str}*\n"
+                f"💳 *Sisa Saldo Anda Sekarang:* *Rp {new_bal_str}*\n"
+                f"⏰ Waktu: {wib_str} WIB\n\n"
+                f"Saldo sudah aktif dan siap digunakan untuk bertransaksi kembali di toko Anda. Selamat bertransaksi dan semoga penjualan semakin laris & berkah! ✨🙏"
+            )
+            kirim_wa(downline_user.phone, msg_downline)
+            logger.info(f"[UPLINE TOPUP SUCCESS] Notif WA terkirim ke Downline #{downline_user.id} ({downline_user.phone})")
+
+    except Exception as e:
+        logger.error(f"[UPLINE TOPUP NOTIF ERR] {e}")
 
 def _dispatch_low_balance_worker(app, user_id, current_balance):
     """Worker background untuk mengirim alert saldo minim via WA."""
@@ -238,7 +369,7 @@ def _dispatch_low_balance_worker(app, user_id, current_balance):
             u_phone = user.phone
             upline_id = getattr(user, 'upline_id', None)
 
-            # 1. Kirim ke User
+            # 1. Kirim ke User (Downline)
             if u_phone:
                 msg_user = _build_low_balance_message_user(store_name, u_name, current_balance)
                 ok_user = kirim_wa(u_phone, msg_user)
@@ -248,7 +379,11 @@ def _dispatch_low_balance_worker(app, user_id, current_balance):
             if upline_id:
                 upline = db.session.get(User, int(upline_id))
                 if upline and upline.phone:
-                    msg_upline = _build_low_balance_message_upline(store_name, upline.name, u_name, u_phone, current_balance)
+                    opt1, opt2, d_num, d_name = create_upline_downline_deposit_tickets(user, upline)
+                    msg_upline = _build_low_balance_message_upline(
+                        store_name, upline.name, u_name, u_phone, current_balance,
+                        option1=opt1, option2=opt2, dana_number=d_num, dana_name=d_name
+                    )
                     ok_upline = kirim_wa(upline.phone, msg_upline)
                     logger.info(f"[WA LOW BAL ALERT] Kirim ke Upline #{upline.id} ({upline.phone}): {'Sukses' if ok_upline else 'Gagal'}")
 
@@ -380,7 +515,11 @@ def scan_and_notify_all_low_balance_users(force_all=False):
             # 2. Kirim WA ke Upline jika ada
             if u.upline and u.upline.phone:
                 try:
-                    msg_upline = _build_low_balance_message_upline(store_name, u.upline.name, u.name, u.phone, cur_bal)
+                    opt1, opt2, d_num, d_name = create_upline_downline_deposit_tickets(u, u.upline)
+                    msg_upline = _build_low_balance_message_upline(
+                        store_name, u.upline.name, u.name, u.phone, cur_bal,
+                        option1=opt1, option2=opt2, dana_number=d_num, dana_name=d_name
+                    )
                     ok_upline = kirim_wa(u.upline.phone, msg_upline)
                     if ok_upline:
                         notified_uplines += 1
