@@ -969,7 +969,7 @@
                 <i class="fas fa-bolt" style="color: #108ee9; font-size: 13px;"></i>
                 <span>DANA (Otomatis)</span>
             </button>
-            {% if is_pg_active %}
+            {% if is_qris_pg_active %}
             <button type="button" class="tab-btn" id="tabQrisBtn" onclick="switchTab('qris')">
                 <i class="fas fa-qrcode" style="color: #059669; font-size: 13px;"></i>
                 <span>QRIS Barcode</span>
@@ -1022,7 +1022,7 @@
         </div>
 
         <!-- TAB 2: QRIS OTOMATIS -->
-        {% if is_pg_active %}
+        {% if is_qris_pg_active %}
         <div id="qrisContent" class="tab-content">
             <div class="qris-badge-info">
                 <div class="qris-icon-wrap">

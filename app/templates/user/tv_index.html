@@ -1054,6 +1054,13 @@
                     window.location.href = '/riwayat';
                 }
             } else {
+                if (data.min_limit && window.handleMinLimitNotice) {
+                    btn.disabled = false;
+                    btn.innerHTML = 'Bayar Sekarang';
+                    window.handleMinLimitNotice(data, closeModal);
+                    return;
+                }
+
                 if (data.is_gangguan && typeof Swal !== 'undefined') {
                     closeModal();
                     Swal.fire({

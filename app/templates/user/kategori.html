@@ -905,6 +905,12 @@
                 }
             } else {
                 closeModal();
+                if (data.min_limit && window.handleMinLimitNotice) {
+                    btn.disabled = false;
+                    btn.innerHTML = 'Bayar Sekarang';
+                    window.handleMinLimitNotice(data);
+                    return;
+                }
                 if (typeof Swal !== 'undefined') {
                     Swal.fire({
                         icon: 'error',

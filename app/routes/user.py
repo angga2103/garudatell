@@ -2176,6 +2176,8 @@ def deposit():
     from app.services.setting_service import is_payment_gateway_enabled, get_active_payment_gateway
     active_pg = get_active_payment_gateway()
     is_pg_active = is_payment_gateway_enabled()
+    # QRIS Barcode (Pakasir / PaymentKita) hanya aktif jika gateway aktif adalah pakasir atau paymentkita
+    is_qris_pg_active = is_pg_active and (active_pg in ['pakasir', 'paymentkita'])
     gateway_name = 'Pakasir QRIS (Instan 24 Jam)' if active_pg == 'pakasir' else 'PaymentKita QRIS (Instan 24 Jam)'
 
     # Ambil 5 riwayat deposit terakhir milik user
@@ -2240,6 +2242,7 @@ def deposit():
     return render_template('user/deposit.html',
                            active_pg=active_pg,
                            is_pg_active=is_pg_active,
+                           is_qris_pg_active=is_qris_pg_active,
                            gateway_name=gateway_name,
                            recent_deposits=recent_deposits,
                            depo_settings=depo_settings,

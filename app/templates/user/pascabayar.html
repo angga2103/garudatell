@@ -1024,6 +1024,10 @@ function eksekusiPembayaranTagihan() {
                 window.location.href = '/riwayat';
             }
         } else {
+            if (data.min_limit && window.handleMinLimitNotice) {
+                window.handleMinLimitNotice(data);
+                return;
+            }
             window.showGarudaAlert({
                 icon: 'error',
                 title: 'Pembayaran Gagal',

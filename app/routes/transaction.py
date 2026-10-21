@@ -384,6 +384,23 @@ def checkout():
             sn_initial = None
             is_dana_active = active_pg in ['dana', 'dana_inhouse', 'inhouse']
             trx_payment_method = 'DANA' if is_dana_active else 'QRIS'
+
+            # Validasi aturan minimal transfer e-wallet (Min. Rp 10.000 untuk Transfer DANA)
+            if is_dana_active and float(amount) < 10000:
+                return jsonify({
+                    'status': 'error',
+                    'error': True,
+                    'min_limit': True,
+                    'is_below_minimum': True,
+                    'redirect': '/deposit',
+                    'message': (
+                        'Halo Kak, mohon maaf atas ketidaknyamanannya. '
+                        'Sesuai ketentuan dari pihak e-wallet & perbankan, batas minimum pengiriman/transfer adalah Rp 10.000, '
+                        'sehingga pembelian produk di bawah Rp 10.000 belum dapat menggunakan metode Transfer Tunai DANA Otomatis secara langsung. '
+                        'Silakan gunakan Saldo Akun Anda atau lakukan pengisian Saldo Akun (Deposit) terlebih dahulu agar pesanan dapat langsung diproses otomatis. Terima kasih!'
+                    )
+                }), 400
+
             if is_dana_active:
                 from app.services.dana_mutasi_service import generate_unique_code
                 cutoff_collision = datetime.utcnow() - timedelta(minutes=45)
@@ -689,6 +706,19 @@ def invoice(ref_id):
     if not trx:
         return "Transaksi tidak ditemukan", 404
         
+    # Cek batas waktu pembayaran (15 menit = 900 detik) untuk transaksi UNPAID
+    time_left = 900
+    if trx.payment_status == 'UNPAID':
+        if trx.created_at:
+            elapsed = (datetime.utcnow() - trx.created_at).total_seconds()
+            if elapsed >= 900:
+                trx.status = 'CANCELLED'
+                trx.payment_status = 'CANCELLED'
+                db.session.commit()
+                time_left = 0
+            else:
+                time_left = max(0, int(900 - elapsed))
+
     try:
         from app.services.provider_helper import format_display_sn
         if trx.sn and getattr(trx, 'status', '') in ['FAILED', 'CANCELLED', 'GAGAL']:
@@ -714,7 +744,8 @@ def invoice(ref_id):
         pg_fee=pg_fee,
         total_with_fee=total_with_fee,
         active_pg=active_pg,
-        depo_settings=depo_settings
+        depo_settings=depo_settings,
+        time_left=time_left
     )
 
 @trx_bp.route('/generate_qris/<ref_id>', methods=['GET'])
@@ -836,9 +867,9 @@ def cancel_trx(ref_id):
         trx.payment_status = 'CANCELLED'
         db.session.commit()
         from app.services.telegram_service import async_send_trx_notification
-        async_send_trx_notification(trx, title="TRANSAKSI DIBATALKAN")
-        return jsonify({'status': 'success', 'message': 'Transaksi dibatalkan'})
-    return jsonify({'status': 'error', 'message': 'Gagal membatalkan transaksi'})
+        async_send_trx_notification(trx, title="TRANSAKSI DIBATALKAN (USER/TIMEOUT)")
+        return jsonify({'status': 'success', 'message': 'Transaksi berhasil dibatalkan'})
+    return jsonify({'status': 'error', 'message': 'Transaksi tidak dapat dibatalkan atau sudah selesai'}), 400
 
 def _extract_pakasir_status(res_dict):
     """Mengekstrak status pembayaran dari respons Pakasir secara aman tanpa TypeError/AttributeError."""
@@ -859,6 +890,27 @@ def check_status(ref_id):
     trx = Transaction.query.filter_by(ref_id=ref_id, user_id=current_user.id).first()
     if not trx:
         return jsonify({'status': 'error', 'message': 'Not found'}), 404
+
+    # Jika transaksi sudah dibatalkan atau kadaluarsa
+    if trx.payment_status in ['CANCELLED', 'EXPIRED'] or trx.status in ['CANCELLED', 'EXPIRED']:
+        return jsonify({
+            'status': 'cancelled',
+            'payment_status': 'CANCELLED',
+            'trx_status': trx.status,
+            'message': 'Pesanan telah dibatalkan atau batas waktu pembayaran habis.'
+        })
+
+    # Cek apakah sudah lewat 15 menit (auto-cancel timeout)
+    if trx.payment_status == 'UNPAID' and trx.created_at and (datetime.utcnow() - trx.created_at).total_seconds() >= 900:
+        trx.status = 'CANCELLED'
+        trx.payment_status = 'CANCELLED'
+        db.session.commit()
+        return jsonify({
+            'status': 'cancelled',
+            'payment_status': 'CANCELLED',
+            'trx_status': 'CANCELLED',
+            'message': 'Batas waktu pembayaran 15 menit telah habis. Pesanan otomatis dibatalkan.'
+        })
 
     if trx.payment_status == 'PAID':
         # Jika payment sudah PAID, sinkronkan status produk jika masih proses

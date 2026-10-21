@@ -842,7 +842,9 @@
         
         <div class="inv-status-wrapper">
             <div class="inv-icon">
-                {% if trx.payment_status == 'UNPAID' %}
+                {% if trx.payment_status in ['CANCELLED', 'EXPIRED'] or trx.status in ['CANCELLED', 'EXPIRED'] %}
+                    <i class="fas fa-ban" style="color: #fca5a5;"></i>
+                {% elif trx.payment_status == 'UNPAID' %}
                     {% if trx.payment_method|upper in ['DANA', 'TRANSFER DANA', 'TRANSFER_DANA'] or (active_pg in ['dana', 'dana_inhouse', 'inhouse'] and trx.payment_method|upper == 'QRIS') %}
                         <i class="fas fa-wallet"></i>
                     {% else %}
@@ -857,7 +859,9 @@
                 {% endif %}
             </div>
             <div class="inv-status-text">
-                {% if trx.payment_status == 'UNPAID' %}
+                {% if trx.payment_status in ['CANCELLED', 'EXPIRED'] or trx.status in ['CANCELLED', 'EXPIRED'] %}
+                    Pesanan Dibatalkan
+                {% elif trx.payment_status == 'UNPAID' %}
                     Menunggu Pembayaran
                 {% elif trx.status == 'SUCCESS' %}
                     Transaksi Berhasil
@@ -875,8 +879,21 @@
 <div class="inv-card-wrapper">
     <div class="inv-card">
         
+        <!-- JIKA TRANSAKSI DIBATALKAN / KADALUARSA -->
+        {% if trx.payment_status in ['CANCELLED', 'EXPIRED'] or trx.status in ['CANCELLED', 'EXPIRED'] %}
+        <div style="background: #fff1f2; border: 1.5px solid #fecdd3; border-radius: 18px; padding: 20px 16px; text-align: center; margin-bottom: 22px;">
+            <div style="width: 48px; height: 48px; background: #ffe4e6; color: #e11d48; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; margin: 0 auto 10px;">
+                <i class="fas fa-ban"></i>
+            </div>
+            <h3 style="margin: 0 0 6px 0; font-size: 16px; font-weight: 900; color: #9f1239;">Pesanan Telah Dibatalkan</h3>
+            <p style="margin: 0; font-size: 12px; color: #be123c; line-height: 1.5;">
+                Batas waktu pembayaran telah habis atau pesanan dibatalkan. Antrean nominal pembayaran telah dibersihkan secara tuntas sehingga Anda dapat melakukan pemesanan ulang kapan saja.
+            </p>
+        </div>
+        {% endif %}
+
         <!-- QRIS / DANA DISPLAY (Muncul jika UNPAID dan metode bayar QRIS / DANA) -->
-        {% if trx.payment_status == 'UNPAID' and trx.payment_method and (trx.payment_method|upper in ['QRIS', 'DANA', 'TRANSFER DANA', 'TRANSFER_DANA']) %}
+        {% if trx.payment_status == 'UNPAID' and trx.status not in ['CANCELLED', 'EXPIRED'] and trx.payment_method and (trx.payment_method|upper in ['QRIS', 'DANA', 'TRANSFER DANA', 'TRANSFER_DANA']) %}
         {% if active_pg in ['dana', 'dana_inhouse', 'inhouse'] or trx.payment_method|upper in ['DANA', 'TRANSFER DANA', 'TRANSFER_DANA'] %}
             <!-- KARTU PEMBAYARAN TRANSFER DANA OTOMATIS (0% FEE VIA PAYHOOK HP) -->
             <div id="danaPaymentCard" class="dana-pay-card">
@@ -960,21 +977,6 @@
                             <li><strong>Dari DANA:</strong> Buka aplikasi DANA &rarr; Kirim Uang &rarr; Ke Nomor Telepon <strong>{{ depo_settings.dana_number if depo_settings else '081775700114' }}</strong> &rarr; Masukkan nominal <strong>Rp {{ "{:,.0f}".format(trx.amount).replace(',', '.') }}</strong>.</li>
                             <li><strong>Dari Bank / E-Wallet Lain:</strong> Transfer Bank ke Virtual Account DANA (CIMB Niaga kode <code>8059 + Nomor HP</code> atau Permata kode <code>8528 + Nomor HP</code>).</li>
                         </ul>
-                        {% if depo_settings and depo_settings.dana_qris_string %}
-                        <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed #cbd5e1; text-align: center;">
-                            <button type="button" onclick="toggleDanaQr()" style="background: none; border: none; font-size: 11.5px; font-weight: 800; color: #00877a; cursor: pointer; text-decoration: underline;">
-                                <i class="fas fa-qrcode"></i> Atau Scan QR DANA (Khusus Aplikasi DANA)
-                            </button>
-                            <div id="boxDanaQr" style="display: none; margin-top: 10px; text-align: center;">
-                                <div style="display: inline-block; padding: 10px; background: white; border-radius: 12px; border: 1.5px solid #a7f3d0; box-shadow: 0 4px 12px rgba(0,0,0,0.04);">
-                                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&data={{ depo_settings.dana_qris_string|urlencode }}" alt="DANA QR Code" style="max-width: 200px; width: 100%; border-radius: 8px; display: block; margin: 0 auto;">
-                                </div>
-                                <div style="font-size: 11px; color: #059669; font-weight: 700; margin-top: 6px;">
-                                    *Khusus scan di aplikasi DANA & masukkan nominal manual sama persis: <strong>Rp {{ "{:,.0f}".format(trx.amount).replace(',', '.') }}</strong>
-                                </div>
-                            </div>
-                        </div>
-                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -1132,9 +1134,12 @@
         
         <!-- TOMBOL AKSI UTAMA -->
         <div class="action-btns">
-            {% if trx.payment_status == 'UNPAID' %}
-                <a href="/riwayat" class="btn-secondary">Batalkan</a>
-                <button class="btn-primary" onclick="checkPaymentStatus()"><i class="fas fa-sync-alt"></i> Cek Status</button>
+            {% if trx.payment_status == 'UNPAID' and trx.status not in ['CANCELLED', 'EXPIRED'] %}
+                <button type="button" class="btn-secondary" onclick="confirmCancelTrx()"><i class="fas fa-times-circle"></i> Batalkan</button>
+                <button type="button" class="btn-primary" onclick="checkPaymentStatus()"><i class="fas fa-sync-alt"></i> Cek Status</button>
+            {% elif trx.status in ['CANCELLED', 'EXPIRED'] or trx.payment_status in ['CANCELLED', 'EXPIRED'] %}
+                <a href="/" class="btn-primary"><i class="fas fa-redo"></i> Pesan Ulang</a>
+                <a href="/riwayat" class="btn-secondary">Lihat Riwayat</a>
             {% else %}
                 <a href="/" class="btn-secondary">Kembali</a>
                 <a href="/riwayat" class="btn-primary">Lihat Riwayat</a>
@@ -1291,16 +1296,9 @@ function copyDanaCardNumber() {
         copyText(num);
     }
 }
-function toggleDanaQr() {
-    const box = document.getElementById('boxDanaQr');
-    if (box) {
-        box.style.display = (box.style.display === 'none' || box.style.display === '') ? 'block' : 'none';
-    }
-}
 
 // Load QRIS Image (Hanya jika Gateway Luar Pakasir / PaymentKita)
-{% if trx.payment_status == 'UNPAID' and trx.payment_method and trx.payment_method|upper == 'QRIS' %}
-{% if active_pg not in ['dana', 'dana_inhouse', 'inhouse'] %}
+{% if trx.payment_status == 'UNPAID' and trx.status not in ['CANCELLED', 'EXPIRED'] and trx.payment_method and trx.payment_method|upper == 'QRIS' and active_pg not in ['dana', 'dana_inhouse', 'inhouse'] %}
 window.addEventListener('DOMContentLoaded', function() {
     fetch('/trx/generate_qris/{{ trx.ref_id }}')
         .then(response => response.json())
@@ -1352,8 +1350,9 @@ window.addEventListener('DOMContentLoaded', function() {
 });
 {% endif %}
 
+{% if trx.payment_status == 'UNPAID' and trx.status not in ['CANCELLED', 'EXPIRED'] %}
 // Countdown Timer (15 menit)
-let timeLeft = 15 * 60;
+let timeLeft = {{ time_left|default(900) }};
 const countdownEl = document.getElementById('countdown');
 
 function updateCountdown() {
@@ -1364,13 +1363,16 @@ function updateCountdown() {
     }
     
     if (timeLeft <= 0) {
-        clearInterval(countdownInterval);
+        if (typeof countdownInterval !== 'undefined') clearInterval(countdownInterval);
+        if (typeof pollInterval !== 'undefined' && pollInterval) clearInterval(pollInterval);
         if (countdownEl) countdownEl.textContent = 'EXPIRED';
         const tb = document.getElementById('timerBox');
         if (tb) {
             tb.style.background = '#fee2e2';
             tb.style.borderColor = '#fecaca';
         }
+        executeCancelTrx(true);
+        return;
     }
     timeLeft--;
 }
@@ -1403,6 +1405,10 @@ function checkPaymentStatus(isAuto = false) {
                 setTimeout(function() {
                     window.location.reload();
                 }, 800);
+            } else if (data.status === 'cancelled' || data.payment_status === 'CANCELLED') {
+                if (pollInterval) clearInterval(pollInterval);
+                if (typeof countdownInterval !== 'undefined') clearInterval(countdownInterval);
+                window.location.reload();
             } else if (!isAuto) {
                 window.showGarudaAlert({
                     title: 'Menunggu Pembayaran',
@@ -1422,6 +1428,64 @@ function checkPaymentStatus(isAuto = false) {
 pollInterval = setInterval(function() {
     checkPaymentStatus(true);
 }, 3500);
+
+// Batalkan Pesanan (Konfirmasi Manual)
+function confirmCancelTrx() {
+    window.showGarudaConfirm({
+        title: 'Batalkan Pesanan?',
+        text: 'Pesanan akan dibatalkan dan antrean nominal pembayaran akan dibebaskan sehingga Anda dapat memesan ulang kapan saja.',
+        icon: 'warning',
+        confirmButtonText: 'Ya, Batalkan',
+        cancelButtonText: 'Kembali'
+    }).then(result => {
+        if (result && result.isConfirmed) {
+            executeCancelTrx(false);
+        }
+    });
+}
+
+let isCancelling = false;
+function executeCancelTrx(isTimeout = false) {
+    if (isCancelling) return;
+    isCancelling = true;
+
+    if (pollInterval) clearInterval(pollInterval);
+    if (typeof countdownInterval !== 'undefined') clearInterval(countdownInterval);
+
+    fetch('/trx/cancel/{{ trx.ref_id }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.status === 'success') {
+            if (isTimeout) {
+                window.showGarudaAlert({
+                    title: 'Batas Waktu Habis',
+                    text: 'Batas waktu pembayaran (15 menit) telah berakhir. Pesanan otomatis dibatalkan dan antrean pembayaran telah dibersihkan.',
+                    icon: 'warning'
+                }).then(() => {
+                    window.location.reload();
+                });
+            } else {
+                window.showGarudaAlert({
+                    title: 'Pesanan Dibatalkan',
+                    text: 'Pesanan Anda berhasil dibatalkan. Antrean nominal telah dibebaskan dan Anda dapat melakukan pemesanan ulang.',
+                    icon: 'success'
+                }).then(() => {
+                    window.location.reload();
+                });
+            }
+        } else {
+            window.location.reload();
+        }
+    })
+    .catch(() => {
+        window.location.reload();
+    });
+}
 {% endif %}
 
 // Auto-Sync status produk jika sudah PAID tapi masih dalam proses provider

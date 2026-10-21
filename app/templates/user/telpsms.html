@@ -1282,6 +1282,11 @@
                 btn.innerText = 'Bayar Sekarang';
                 btn.disabled = false;
 
+                if (data.min_limit && window.handleMinLimitNotice) {
+                    window.handleMinLimitNotice(data, closeModal);
+                    return;
+                }
+
                 if (data.is_gangguan && typeof Swal !== 'undefined') {
                     closeModal();
                     Swal.fire({

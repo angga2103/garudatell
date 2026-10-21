@@ -1368,6 +1368,11 @@ function submitCheckout() {
             btn.innerHTML = originalText;
             btn.disabled = false;
             
+            if (data.min_limit && window.handleMinLimitNotice) {
+                window.handleMinLimitNotice(data, closeCheckout);
+                return;
+            }
+
             window.showGarudaAlert({
                 title: 'Transaksi Belum Berhasil',
                 text: data.message || 'Gagal memproses transaksi paket promo.',

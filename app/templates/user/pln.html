@@ -1305,6 +1305,11 @@
                 btn.innerText = 'Bayar Sekarang';
                 btn.disabled = false;
 
+                if (data.min_limit && window.handleMinLimitNotice) {
+                    window.handleMinLimitNotice(data, closeModal);
+                    return;
+                }
+
                 if (data.is_gangguan && typeof Swal !== 'undefined') {
                     closeModal();
                     Swal.fire({
@@ -1536,6 +1541,11 @@
             } else {
                 btn.innerHTML = '<i class="fas fa-check-circle"></i> Bayar Tagihan Sekarang (' + formatRupiah(currentPascaData.total_bayar) + ')';
                 btn.disabled = false;
+
+                if (data.min_limit && window.handleMinLimitNotice) {
+                    window.handleMinLimitNotice(data, closePascaModal);
+                    return;
+                }
 
                 if (data.is_cutoff) {
                     showToast(data.message || cutoffMessage);
