@@ -127,11 +127,33 @@ def member_sync_pos():
     ).first()
 
     if not user:
-        return jsonify({
-            "status": "not_found",
-            "is_member": False,
-            "message": f"Nomor WhatsApp {phone} belum terdaftar sebagai member di ipay.my.id"
-        }), 404
+        auto_create = data.get("auto_create", False) or data.get("create_if_missing", False)
+        if auto_create:
+            clean_name = str(data.get("name") or store_name_input or f"Member {norm_phone[-4:]}").strip()
+            default_pass = f"user{norm_phone[-4:]}"
+            init_balance = float(data.get("initial_balance", 0.0) or 0.0)
+            user = User(
+                name=clean_name,
+                phone=norm_phone,
+                role='user',
+                balance=init_balance,
+                is_active=True
+            )
+            user.set_password(default_pass)
+            user.set_pin("1234")
+            db.session.add(user)
+            db.session.commit()
+            try:
+                from app.routes.user import ensure_user_referral_code
+                ensure_user_referral_code(user)
+            except Exception:
+                pass
+        else:
+            return jsonify({
+                "status": "not_found",
+                "is_member": False,
+                "message": f"Nomor WhatsApp {phone} belum terdaftar sebagai member di ipay.my.id"
+            }), 404
 
     # Validasi kata sandi jika user mencoba login via password
     password_valid = None
@@ -214,6 +236,86 @@ def member_sync_pos():
         },
         "message": f"Member ipay.my.id terverifikasi! Toko '{mch.name}' (ID: {tenant_id}) tersinkron dengan saldo Rp {float(user.balance or 0.0):,.0f}."
     }), 200
+
+
+# =====================================================================
+# 0C. PENYESUAIAN SALDO MEMBER DARI BOT WA (POST /api/v1/member/adjust-balance)
+# =====================================================================
+@merchant_api_bp.route("/member/adjust-balance", methods=["POST"])
+def adjust_member_balance():
+    """
+    Menyesuaikan saldo akun member dari Bot WA (Deposit / Pengurangan Belanja / Refund).
+    Hanya dapat dipanggil oleh Merchant API terotentikasi.
+    """
+    merchant, err = authenticate_merchant(request)
+    if err:
+        return jsonify({"status": "failed", "message": err[0]}), err[1]
+
+    data = request.get_json(silent=True) or request.form.to_dict() or {}
+    phone = str(data.get("phone") or "").strip()
+    action = str(data.get("action") or "add").lower().strip() # 'add', 'deduct', 'set'
+    amount = float(data.get("amount", 0.0) or 0.0)
+    reason = str(data.get("reason") or "Penyesuaian Bot WA").strip()
+
+    if not phone:
+        return jsonify({"status": "failed", "message": "Parameter phone wajib diisi"}), 400
+
+    from app.services.merchant_service import normalize_phone_08
+    norm_phone = normalize_phone_08(phone)
+
+    user = User.query.filter(
+        (User.phone == norm_phone) |
+        (User.phone == phone)
+    ).first()
+
+    if not user:
+        clean_name = str(data.get("name") or f"Member {norm_phone[-4:]}").strip()
+        user = User(
+            name=clean_name,
+            phone=norm_phone,
+            role='user',
+            balance=0.0,
+            is_active=True
+        )
+        user.set_password(f"user{norm_phone[-4:]}")
+        user.set_pin("1234")
+        db.session.add(user)
+        db.session.commit()
+
+    old_balance = float(user.balance or 0.0)
+
+    if action == "add":
+        new_balance = old_balance + amount
+    elif action == "deduct":
+        if old_balance < amount:
+            return jsonify({
+                "status": "failed",
+                "message": f"Saldo member tidak mencukupi (Saldo: Rp {old_balance:,.0f}, Diperlukan: Rp {amount:,.0f})",
+                "current_balance": old_balance
+            }), 400
+        new_balance = old_balance - amount
+    elif action == "set":
+        new_balance = amount
+    else:
+        return jsonify({"status": "failed", "message": "Action tidak valid (add/deduct/set)"}), 400
+
+    user.balance = round(new_balance, 2)
+    db.session.commit()
+
+    logger.info(f"[MEMBER BALANCE ADJUST] Merchant {merchant.merchant_id} adjusted user {user.phone}: {old_balance} -> {user.balance} ({action} {amount}) [{reason}]")
+
+    return jsonify({
+        "status": "success",
+        "phone": user.phone,
+        "name": user.name,
+        "old_balance": old_balance,
+        "new_balance": user.balance,
+        "difference": round(user.balance - old_balance, 2),
+        "action": action,
+        "reason": reason,
+        "message": f"Saldo member {user.phone} berhasil diubah menjadi Rp {user.balance:,.0f}"
+    }), 200
+
 
 
 # =====================================================================
