@@ -45,21 +45,93 @@ def format_product_dict(prod, user, provider_tag=None, extra=None):
 
 def get_user_notifications(user_id=None):
     from app.models.notification import Notification, NotificationRead
+    from app.models.support_ticket import SupportTicket
+    from sqlalchemy import or_
+    from datetime import datetime, timedelta
+    from flask import session
+    import re
+
+    # 1. Batas umur notifikasi: HANYA yang berumur kurang dari 5 hari (< 5 hari)
+    cutoff_5d = datetime.utcnow() - timedelta(days=5)
+
+    base_query = Notification.query.filter(Notification.created_at >= cutoff_5d)
+
     if user_id:
-        notifs = Notification.query.filter(
+        raw_notifs = base_query.filter(
             or_(Notification.target_user_id == None, Notification.target_user_id == user_id)
-        ).order_by(Notification.created_at.desc()).limit(25).all()
+        ).order_by(Notification.created_at.desc()).limit(100).all()
         read_ids = {r.notification_id for r in NotificationRead.query.filter_by(user_id=user_id).all()}
-        unread_count = sum(1 for n in notifs if n.id not in read_ids)
-        return notifs, unread_count, read_ids
     else:
-        notifs = Notification.query.filter(
+        raw_notifs = base_query.filter(
             Notification.target_user_id == None
-        ).order_by(Notification.created_at.desc()).limit(25).all()
+        ).order_by(Notification.created_at.desc()).limit(100).all()
         guest_read_list = session.get('guest_read_notif_ids', [])
         read_ids = set(guest_read_list) if isinstance(guest_read_list, list) else set()
-        unread_count = sum(1 for n in notifs if n.id not in read_ids)
-        return notifs, unread_count, read_ids
+
+    # 2. Filter khusus Balasan CS & Notifikasi Tiket Bantuan:
+    # Hanya tampilkan jika tiket terkait masih berstatus OPEN atau PROCESS (sedang diproses).
+    # Tiket yang berstatus RESOLVED, CLOSED, atau selesai TIDAK ditampilkan.
+    ticket_notifs_map = {}  # notif.id -> ticket_number
+    ticket_numbers_to_fetch = set()
+
+    for n in raw_notifs:
+        title_text = n.title or ''
+        title_lower = title_text.lower()
+        link_lower = (n.link or '').lower()
+        msg_text = n.message or ''
+
+        is_ticket_notif = (
+            'tiket' in title_lower or 
+            'balasan cs' in title_lower or 
+            'update tiket' in title_lower or 
+            'bantuan' in link_lower
+        )
+
+        if is_ticket_notif:
+            # Cari nomor tiket di judul, link, atau pesan
+            combined_search_str = f"{title_text} {link_lower} {msg_text[:100]}"
+            m = re.search(r'(CS-\d{8}-\d+)', combined_search_str, re.IGNORECASE)
+            if not m:
+                m = re.search(r'#([A-Za-z0-9_-]+)', title_text)
+            if m:
+                t_num = m.group(1).strip().upper()
+                ticket_notifs_map[n.id] = t_num
+                ticket_numbers_to_fetch.add(t_num)
+                ticket_numbers_to_fetch.add(t_num.lstrip('#'))
+            else:
+                ticket_notifs_map[n.id] = None
+
+    active_ticket_status_map = {}
+    if ticket_numbers_to_fetch:
+        tickets = SupportTicket.query.filter(
+            or_(
+                SupportTicket.ticket_number.in_(list(ticket_numbers_to_fetch)),
+                SupportTicket.ticket_number.in_([num.lstrip('#') for num in ticket_numbers_to_fetch])
+            )
+        ).all()
+        allowed_statuses = {'OPEN', 'PROCESS', 'PROSES', 'DIPROSES'}
+        for t in tickets:
+            st_clean = (t.status or '').strip().upper()
+            if st_clean in allowed_statuses:
+                num_clean = (t.ticket_number or '').strip().upper()
+                active_ticket_status_map[num_clean] = st_clean
+                active_ticket_status_map[num_clean.lstrip('#')] = st_clean
+
+    notifs = []
+    for n in raw_notifs:
+        if n.id in ticket_notifs_map:
+            t_num = ticket_notifs_map[n.id]
+            # Jika tiket teridentifikasi dan statusnya masih aktif (OPEN atau PROCESS), sertakan
+            if t_num and (t_num in active_ticket_status_map or t_num.lstrip('#') in active_ticket_status_map):
+                n.ticket_status = active_ticket_status_map.get(t_num) or active_ticket_status_map.get(t_num.lstrip('#'))
+                notifs.append(n)
+            # Jika tiket sudah selesai (RESOLVED / CLOSED) atau tidak aktif, abaikan / jangan tampilkan
+        else:
+            # Notifikasi non-tiket (promo, pengumuman, sistem), sertakan jika lolos batas 5 hari
+            notifs.append(n)
+
+    unread_count = sum(1 for n in notifs if n.id not in read_ids)
+    return notifs, unread_count, read_ids
 
 @user_bp.route('/')
 @user_bp.route('/dashboard')
@@ -2713,21 +2785,17 @@ def notifikasi_unread_count():
 @user_bp.route('/api/notifikasi/read-all', methods=['POST'])
 @csrf.exempt
 def notifikasi_read_all():
-    """Menandai semua notifikasi telah dibaca untuk menghilangkan titik/angka badge."""
-    from app.models.notification import Notification, NotificationRead
+    """Menandai semua notifikasi aktif telah dibaca untuk menghilangkan titik/angka badge."""
+    from app.models.notification import NotificationRead
     if not current_user.is_authenticated:
-        broadcast_notifs = Notification.query.filter_by(target_user_id=None).all()
-        session['guest_read_notif_ids'] = [n.id for n in broadcast_notifs]
+        visible_notifs, _, _ = get_user_notifications(None)
+        session['guest_read_notif_ids'] = [n.id for n in visible_notifs]
         session.modified = True
         return jsonify({'success': True, 'unread_count': 0})
 
-    notifs = Notification.query.filter(
-        or_(Notification.target_user_id == None, Notification.target_user_id == current_user.id)
-    ).all()
-    existing_reads = {r.notification_id for r in NotificationRead.query.filter_by(user_id=current_user.id).all()}
-
-    for n in notifs:
-        if n.id not in existing_reads:
+    visible_notifs, _, read_ids = get_user_notifications(current_user.id)
+    for n in visible_notifs:
+        if n.id not in read_ids:
             nr = NotificationRead(user_id=current_user.id, notification_id=n.id)
             db.session.add(nr)
 
