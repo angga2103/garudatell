@@ -184,21 +184,21 @@ def generate_unique_code(nominal):
 
     existing_amounts = {int(t.amount or 0) for t in existing_pending}
 
-    # Coba acak dalam range 10 s/d 150 terlebih dahulu (141 kombinasi angka)
-    for _ in range(100):
-        code = random.randint(10, 150)
+    # Coba acak dalam range 10 s/d 500 (491 kombinasi angka unik)
+    for _ in range(250):
+        code = random.randint(10, 500)
         total = int(nominal) + code
         if total not in existing_amounts:
             return code, total
 
     # Fallback jika antrean tiket aktif sedang sangat padat
     for _ in range(100):
-        code = random.randint(151, 300)
+        code = random.randint(501, 999)
         total = int(nominal) + code
         if total not in existing_amounts:
             return code, total
 
-    code = random.randint(301, 999)
+    code = random.randint(10, 500)
     return code, int(nominal) + code
 
 

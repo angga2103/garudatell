@@ -248,6 +248,36 @@ def _build_low_balance_message_upline(store_name, upline_name, user_name, user_p
         f"Terima kasih atas peran aktif Kakak dalam membimbing jaringan kemitraan! 🚀🤝"
     )
 
+def cleanup_expired_upline_tickets(max_hours=8):
+    """
+    Membatalkan seluruh tiket UPLINE_TOPUP yang masih PENDING tetapi sudah
+    melewati batas waktu (default 8 jam) agar tidak menggantung di sistem.
+    """
+    try:
+        from app.models.transaction import Transaction
+        from app.extensions import db
+        from datetime import datetime, timedelta
+
+        cutoff = datetime.utcnow() - timedelta(hours=max_hours)
+        expired_tickets = Transaction.query.filter(
+            Transaction.sku_code == 'DEPOSIT_MANUAL',
+            Transaction.status == 'PENDING',
+            Transaction.sn.like('%UPLINE_TOPUP:%'),
+            Transaction.created_at < cutoff
+        ).all()
+
+        if expired_tickets:
+            for t in expired_tickets:
+                t.status = 'CANCELLED'
+                t.payment_status = 'CANCELLED'
+                t.sn = f"{t.sn or ''} | EXPIRED (Batas waktu {max_hours} jam habis)"
+            db.session.commit()
+            logger.info(f"[EXPIRED TICKETS] {len(expired_tickets)} tiket upline topup kadaluarsa berhasil dibatalkan.")
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"[CLEANUP EXPIRED TICKETS ERR]: {e}")
+
+
 def create_upline_downline_deposit_tickets(downline_user, upline_user, amounts=(250000, 500000)):
     """
     Membuat 2 tiket deposit DANA otomatis atas nama Downline agar Upline
@@ -259,6 +289,9 @@ def create_upline_downline_deposit_tickets(downline_user, upline_user, amounts=(
         from app.services.setting_service import get_manual_deposit_settings
         from app.models.transaction import Transaction
         import uuid, time, random
+
+        # Bersihkan tiket-tiket lama yang sudah melewati batas 8 jam
+        cleanup_expired_upline_tickets(max_hours=8)
 
         depo_settings = get_manual_deposit_settings()
         dest_number = depo_settings.get('dana_number') or "081775700114"
@@ -292,11 +325,12 @@ def create_upline_downline_deposit_tickets(downline_user, upline_user, amounts=(
             unique_code, total_transfer = generate_unique_code(nominal)
             ref_id = f"DEP-DANA-{int(time.time())}{random.randint(100, 999)}"
 
+            downline_label = getattr(downline_user, 'name', '') or f"#{downline_user.id}"
             trx = Transaction(
                 ref_id=ref_id,
                 user_id=downline_user.id,
                 sku_code='DEPOSIT_MANUAL',
-                product_name=f"Deposit DANA Otomatis (Topup Upline #{upline_user.id})",
+                product_name=f"Top-up DANA Mitra ({downline_label})",
                 target_number=dest_number,
                 amount=float(total_transfer),
                 base_price=0.0,

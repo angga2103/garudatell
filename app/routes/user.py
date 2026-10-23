@@ -597,7 +597,20 @@ def riwayat():
         if not current_user.is_authenticated:
             return render_template('user/riwayat.html', transactions=[], count_sukses=0, count_antri=0, count_proses=0, count_gagal=0, title='Riwayat (Harap Login)')
             
-        query = Transaction.query.filter_by(user_id=current_user.id)
+        from sqlalchemy import or_, and_, not_
+        from app.services.balance_notification_service import cleanup_expired_upline_tickets
+        cleanup_expired_upline_tickets(max_hours=8)
+
+        upline_pattern = f"%UPLINE_TOPUP:{current_user.id}:%"
+        downline_condition = and_(
+            Transaction.user_id == current_user.id,
+            or_(
+                not_(Transaction.sn.like("%UPLINE_TOPUP:%")),
+                Transaction.status == 'SUCCESS'
+            )
+        )
+        upline_condition = Transaction.sn.like(upline_pattern)
+        query = Transaction.query.filter(or_(downline_condition, upline_condition))
         
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
@@ -640,6 +653,13 @@ def riwayat():
         try:
             from app.services.provider_helper import format_display_sn
             for t in transactions:
+                if t.sn and 'UPLINE_TOPUP:' in t.sn:
+                    if t.user_id == current_user.id:
+                        t.product_name = "Deposit DANA Otomatis (Top-up dari Upline)"
+                    else:
+                        if not t.product_name or "Topup Upline" in t.product_name:
+                            t.product_name = "Top-up Saldo Mitra via DANA"
+
                 if t.sn and getattr(t, 'status', '') in ['FAILED', 'CANCELLED', 'GAGAL']:
                     t.sn = format_display_sn(t.sn, t.status)
         except Exception:

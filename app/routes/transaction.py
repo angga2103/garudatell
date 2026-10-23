@@ -702,22 +702,37 @@ def checkout():
 @trx_bp.route('/invoice/<ref_id>')
 @login_required
 def invoice(ref_id):
-    trx = Transaction.query.filter_by(ref_id=ref_id, user_id=current_user.id).first()
+    from sqlalchemy import or_
+    upline_pattern = f"%UPLINE_TOPUP:{current_user.id}:%"
+    trx = Transaction.query.filter(
+        Transaction.ref_id == ref_id,
+        or_(
+            Transaction.user_id == current_user.id,
+            Transaction.sn.like(upline_pattern)
+        )
+    ).first()
     if not trx:
         return "Transaksi tidak ditemukan", 404
+
+    is_upline_topup = bool(trx.sn and 'UPLINE_TOPUP:' in trx.sn)
+    # Proteksi: Tiket Upline Top-up yang belum lunas HANYA boleh diakses oleh Upline
+    if is_upline_topup and trx.status != 'SUCCESS':
+        if not (trx.sn and f"UPLINE_TOPUP:{current_user.id}:" in trx.sn):
+            return "Akses tidak diizinkan. Tiket ini merupakan inisiatif pengisian saldo oleh Upline Anda.", 403
         
-    # Cek batas waktu pembayaran (15 menit = 900 detik) untuk transaksi UNPAID
-    time_left = 900
+    # Cek batas waktu pembayaran: 8 jam (28800s) untuk Upline Top-up, 15 menit (900s) untuk umum
+    max_seconds = 28800 if is_upline_topup else 900
+    time_left = max_seconds
     if trx.payment_status == 'UNPAID':
         if trx.created_at:
             elapsed = (datetime.utcnow() - trx.created_at).total_seconds()
-            if elapsed >= 900:
+            if elapsed >= max_seconds:
                 trx.status = 'CANCELLED'
                 trx.payment_status = 'CANCELLED'
                 db.session.commit()
                 time_left = 0
             else:
-                time_left = max(0, int(900 - elapsed))
+                time_left = max(0, int(max_seconds - elapsed))
 
     try:
         from app.services.provider_helper import format_display_sn

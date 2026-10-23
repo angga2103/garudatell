@@ -95,8 +95,12 @@ def get_user_mutations(user_id, days=30, limit=None, month=None, year=None):
                     t_title = "Pencairan Komisi Downline"
                     t_sub = "Bonus Kemitraan VIP ke Saldo Utama"
                 elif is_manual_admin:
-                    t_title = "Topup Saldo oleh Admin"
-                    t_sub = sn_val if sn_val and sn_val != '-' else "Penambahan saldo oleh Admin"
+                    if sn_val and 'UPLINE_TOPUP:' in sn_val:
+                        t_title = "Top-up Saldo dari Upline"
+                        t_sub = "Pengisian saldo via Transfer Tunai DANA oleh Upline"
+                    else:
+                        t_title = "Topup Saldo oleh Admin"
+                        t_sub = sn_val if sn_val and sn_val != '-' else "Penambahan saldo oleh Admin"
                 else:
                     t_title = f"Topup {ref_id}"
                     t_sub = f"Deposit Saldo via {pay_method or 'QRIS'}"

@@ -59,6 +59,7 @@ class TestUplineDownlineTopup(unittest.TestCase):
             db.session.commit()
 
     def tearDown(self):
+        db.session.rollback()
         self.app_context.pop()
 
     def test_message_formatting_with_topup_options(self):
@@ -167,6 +168,73 @@ class TestUplineDownlineTopup(unittest.TestCase):
         self.assertTrue(ok)
         self.assertEqual(res_trx.id, t1.id)
         self.assertEqual(res_trx.status, 'SUCCESS')
+
+    def test_unique_code_range_10_to_500(self):
+        from app.services.dana_mutasi_service import generate_unique_code
+        for _ in range(50):
+            code, total = generate_unique_code(250000)
+            self.assertGreaterEqual(code, 10)
+            self.assertLessEqual(code, 500)
+            self.assertEqual(total, 250000 + code)
+
+    def test_cleanup_expired_upline_tickets(self):
+        from datetime import datetime, timedelta
+        from app.services.balance_notification_service import cleanup_expired_upline_tickets
+        # Buat tiket yang usianya 9 jam lalu
+        t = Transaction(
+            ref_id=f"DEP-EXP-{int(datetime.utcnow().timestamp())}",
+            user_id=self.downline.id,
+            sku_code='DEPOSIT_MANUAL',
+            product_name="Top-up DANA Mitra",
+            target_number="081775700114",
+            payment_method='DANA',
+            amount=250123.0,
+            payment_status='UNPAID',
+            status='PENDING',
+            sn=f"UPLINE_TOPUP:{self.upline.id}:testexp | Total: 250123",
+            created_at=datetime.utcnow() - timedelta(hours=9)
+        )
+        db.session.add(t)
+        db.session.commit()
+
+        cleanup_expired_upline_tickets(max_hours=8)
+        db.session.refresh(t)
+        self.assertEqual(t.status, 'CANCELLED')
+        self.assertEqual(t.payment_status, 'CANCELLED')
+        self.assertIn('EXPIRED', t.sn)
+
+    def test_riwayat_visibility_downline_vs_upline(self):
+        # 1. Tiket Pending: tidak boleh tampil untuk Downline, tapi harus tampil untuk Upline
+        opt1, opt2, d_num, d_name = create_upline_downline_deposit_tickets(self.downline, self.upline)
+        t_pending = Transaction.query.filter_by(amount=opt1, user_id=self.downline.id, status='PENDING').first()
+        self.assertIsNotNone(t_pending)
+
+        # Simulasikan login Downline dengan client terisolasi
+        client_downline = self.app.test_client()
+        with client_downline.session_transaction() as sess:
+            sess['_user_id'] = str(self.downline.id)
+            sess['_fresh'] = True
+
+        res_downline = client_downline.get('/riwayat')
+        self.assertEqual(res_downline.status_code, 200)
+        # Downline TIDAK boleh melihat Ref ID tiket pending ini
+        self.assertNotIn(t_pending.ref_id, res_downline.get_data(as_text=True))
+
+        # Reset cached user in Flask g agar client_upline mengautentikasi pengguna baru
+        from flask import g
+        if hasattr(g, '_login_user'):
+            delattr(g, '_login_user')
+
+        # Simulasikan login Upline dengan client terisolasi
+        client_upline = self.app.test_client()
+        with client_upline.session_transaction() as sess:
+            sess['_user_id'] = str(self.upline.id)
+            sess['_fresh'] = True
+
+        res_upline = client_upline.get('/riwayat')
+        self.assertEqual(res_upline.status_code, 200)
+        # Upline HARUS melihat Ref ID tiket pending ini di riwayatnya
+        self.assertIn(t_pending.ref_id, res_upline.get_data(as_text=True))
 
 if __name__ == '__main__':
     unittest.main()
