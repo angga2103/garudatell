@@ -773,7 +773,7 @@ def create_transaction():
         db.session.rollback()
         return jsonify({
             "status": "failed",
-            "message": f"Saldo deposit akun iPay tidak mencukupi! Sisa: Rp {current_bal:,.0f}, Diperlukan: Rp {price_to_deduct:,.0f}"
+            "message": f"Saldo deposit akun merchant iPay tidak mencukupi! Sisa modal toko: Rp {current_bal:,.0f}, Diperlukan: Rp {price_to_deduct:,.0f}"
         }), 400
 
     # Potong saldo user
