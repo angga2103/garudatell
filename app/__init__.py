@@ -355,6 +355,58 @@ def create_app(test_config=None):
     uploads_dir = os.path.join(basedir, 'static', 'uploads')
     os.makedirs(uploads_dir, exist_ok=True)
 
+    # Middleware: Mode Maintenance Website (Pemeliharaan Sistem)
+    @app.before_request
+    def handle_maintenance_mode():
+        # 1. Bypass aset statis, favicon, health check, webhook callback, cron job
+        if not request.endpoint or request.endpoint == 'static' or request.path.startswith('/static') or request.path in ['/health', '/api/health', '/favicon.ico'] or request.path.startswith('/callback') or request.path.startswith('/api/callback') or request.path.startswith('/api/cron'):
+            return
+
+        from flask import session, render_template, make_response, jsonify
+        from app.services.setting_service import is_maintenance_mode, get_maintenance_info, get_store_settings
+
+        # 2. Rute Admin selalu diizinkan agar admin bisa login dan mengelola sistem
+        if request.path.startswith('/admin'):
+            return
+
+        # 3. Fitur Pratinjau Khusus Admin (?preview_maintenance=1)
+        is_preview = request.args.get('preview_maintenance') == '1'
+        if is_preview and session.get('admin_logged_in'):
+            maintenance = get_maintenance_info()
+            store = get_store_settings()
+            return render_template('maintenance.html', maintenance=maintenance, store=store, is_admin_preview=True)
+
+        # 4. Jika Admin sedang login, izinkan akses normal untuk pengecekan web publik
+        if session.get('admin_logged_in'):
+            return
+
+        # 5. Cek apakah Mode Maintenance sedang aktif
+        if is_maintenance_mode():
+            maintenance = get_maintenance_info()
+            
+            # Jika request berupa API / AJAX JSON
+            if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.path.startswith('/api/'):
+                return jsonify({
+                    'status': 'maintenance',
+                    'error': 'maintenance_mode',
+                    'title': maintenance.get('title'),
+                    'message': maintenance.get('message'),
+                    'estimated_end': maintenance.get('estimated_end')
+                }), 503
+
+            # Render Halaman HTML Pemeliharaan dengan Header 503 & Retry-After
+            store = get_store_settings()
+            response = make_response(render_template('maintenance.html', maintenance=maintenance, store=store), 503)
+            response.headers['Retry-After'] = '300'
+            return response
+
+    @app.route('/maintenance')
+    def maintenance_preview_route():
+        from flask import session, render_template
+        from app.services.setting_service import get_maintenance_info, get_store_settings
+        is_admin = bool(session.get('admin_logged_in'))
+        return render_template('maintenance.html', maintenance=get_maintenance_info(), store=get_store_settings(), is_admin_preview=is_admin)
+
     # Middleware: Validasi 1 Akun 1 Login Aktif & Inaktivitas 23 Jam
     @app.before_request
     def validate_single_session():
@@ -443,6 +495,21 @@ def create_app(test_config=None):
                 'logo': '',
                 'logo_url': ''
             })
+
+    # Global Context Processor: Status Mode Maintenance Website
+    @app.context_processor
+    def inject_maintenance():
+        try:
+            from app.services.setting_service import is_maintenance_mode, get_maintenance_info
+            return dict(
+                is_maintenance_active=is_maintenance_mode(),
+                maintenance_info=get_maintenance_info()
+            )
+        except Exception:
+            return dict(
+                is_maintenance_active=False,
+                maintenance_info={'is_active': False}
+            )
 
     # Global Context Processor: Hitung Notifikasi Belum Dibaca untuk App Badging PWA
     @app.context_processor

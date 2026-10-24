@@ -473,3 +473,47 @@ def is_qris_enabled():
     Memeriksa apakah setidaknya salah satu metode QRIS (In-House atau Gateway) aktif untuk pembayaran transaksi.
     """
     return is_inhouse_qris_enabled() or is_payment_gateway_enabled()
+
+
+# =====================================================================
+# PENGATURAN MODE MAINTENANCE SISTEM (PEMELIHARAAN WEBSITE)
+# =====================================================================
+
+def is_maintenance_mode():
+    """Memeriksa apakah situs web sedang dalam status mode maintenance."""
+    val = get_setting_value('maintenance_mode', '0')
+    return val in ['1', 'true', 'True', 'on', True]
+
+
+def get_maintenance_info():
+    """Mengambil informasi detail mengenai maintenance sistem."""
+    wa_fallback = get_setting_value('manual_depo_wa_target', '081775700114')
+    contact_wa = get_setting_value('maintenance_contact_wa', wa_fallback)
+    return {
+        'is_active': is_maintenance_mode(),
+        'title': get_setting_value('maintenance_title', 'Pemeliharaan Sistem Sedang Berlangsung'),
+        'message': get_setting_value(
+            'maintenance_message',
+            'Kami sedang melakukan peningkatan performa dan pemeliharaan server berkala untuk memberikan layanan transaksi yang lebih cepat, aman, dan stabil. Website akan segera kembali aktif dalam beberapa menit ke depan.'
+        ),
+        'estimated_end': get_setting_value('maintenance_estimated_end', '15 - 30 Menit ke Depan'),
+        'contact_wa': contact_wa,
+        'allow_admin': get_setting_value('maintenance_allow_admin', '1') in ['1', 'true', 'True', True]
+    }
+
+
+def set_maintenance_mode(is_active, title=None, message=None, estimated_end=None, contact_wa=None):
+    """Mengubah status dan informasi mode maintenance."""
+    val_str = '1' if is_active else '0'
+    set_setting_value('maintenance_mode', val_str, 'Status Mode Maintenance (1=Aktif, 0=Nonaktif)')
+    if title is not None:
+        set_setting_value('maintenance_title', str(title).strip(), 'Judul Halaman Maintenance')
+    if message is not None:
+        set_setting_value('maintenance_message', str(message).strip(), 'Pesan Halaman Maintenance')
+    if estimated_end is not None:
+        set_setting_value('maintenance_estimated_end', str(estimated_end).strip(), 'Estimasi Waktu Selesai Maintenance')
+    if contact_wa is not None:
+        set_setting_value('maintenance_contact_wa', str(contact_wa).strip(), 'Nomor WhatsApp Kontak CS saat Maintenance')
+    invalidate_setting_cache()
+    return True
+

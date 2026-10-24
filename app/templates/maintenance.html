@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>{{ maintenance.title or "Sistem Dalam Pemeliharaan" }} - {{ store.name }}</title>
+    <meta name="description" content="Website {{ store.name }} sedang dalam pemeliharaan sistem berkala. Kami akan segera kembali online.">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <meta name="theme-color" content="#0B0F19">
+    
+    <!-- Google Fonts & Font Awesome Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --primary: #00877a;
+            --primary-glow: rgba(0, 135, 122, 0.45);
+            --accent: #38bdf8;
+            --accent-purple: #818cf8;
+            --bg-dark: #0B0F19;
+            --card-bg: rgba(17, 24, 39, 0.78);
+            --card-border: rgba(255, 255, 255, 0.1);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px 16px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Ambient Glowing Background Orbs */
+        .ambient-glow {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(100px);
+            z-index: 0;
+            pointer-events: none;
+            opacity: 0.65;
+            animation: floatGlow 12s ease-in-out infinite alternate;
+        }
+
+        .glow-1 {
+            width: 380px;
+            height: 380px;
+            background: radial-gradient(circle, rgba(0, 135, 122, 0.4) 0%, rgba(0, 135, 122, 0) 70%);
+            top: -60px;
+            left: -60px;
+        }
+
+        .glow-2 {
+            width: 440px;
+            height: 440px;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.3) 0%, rgba(99, 102, 241, 0) 70%);
+            bottom: -80px;
+            right: -80px;
+            animation-duration: 16s;
+        }
+
+        .glow-3 {
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(56, 189, 248, 0.25) 0%, rgba(56, 189, 248, 0) 70%);
+            top: 45%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            animation-duration: 20s;
+        }
+
+        @keyframes floatGlow {
+            0% { transform: scale(1) translate(0, 0); }
+            50% { transform: scale(1.15) translate(25px, -20px); }
+            100% { transform: scale(0.95) translate(-20px, 25px); }
+        }
+
+        /* Subtle Geometric Background Grid */
+        .bg-grid {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: 
+                radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+            background-size: 32px 32px;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* Glassmorphic Container */
+        .maintenance-container {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            max-width: 580px;
+            background: var(--card-bg);
+            backdrop-filter: blur(28px);
+            -webkit-backdrop-filter: blur(28px);
+            border: 1px solid var(--card-border);
+            border-radius: 28px;
+            padding: 44px 36px;
+            text-align: center;
+            box-shadow: 
+                0 25px 60px -15px rgba(0, 0, 0, 0.7),
+                0 0 50px -10px var(--primary-glow);
+            animation: cardAppear 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes cardAppear {
+            from {
+                opacity: 0;
+                transform: translateY(24px) scale(0.97);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        /* Header Brand & Badge */
+        .brand-header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .brand-logo-wrap {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 6px 16px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .brand-logo-img {
+            max-height: 28px;
+            max-width: 100px;
+            object-fit: contain;
+            border-radius: 4px;
+        }
+
+        .brand-logo-icon {
+            font-size: 16px;
+            color: #38bdf8;
+        }
+
+        .brand-title {
+            font-size: 13.5px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            color: #e2e8f0;
+            text-transform: uppercase;
+        }
+
+        /* Status Pill with Pulsing Dot */
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(234, 179, 8, 0.12);
+            color: #facc15;
+            border: 1px solid rgba(234, 179, 8, 0.35);
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #facc15;
+            box-shadow: 0 0 10px #facc15;
+            animation: pulseDot 1.8s infinite ease-in-out;
+        }
+
+        @keyframes pulseDot {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.4); opacity: 0.6; }
+        }
+
+        /* Animated Illustration Area */
+        .illustration-wrap {
+            position: relative;
+            width: 160px;
+            height: 160px;
+            margin: 0 auto 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .outer-orbit {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 2px dashed rgba(56, 189, 248, 0.3);
+            animation: rotateClockwise 25s linear infinite;
+        }
+
+        .middle-orbit {
+            position: absolute;
+            width: 78%;
+            height: 78%;
+            border-radius: 50%;
+            border: 1.5px solid rgba(0, 135, 122, 0.35);
+            animation: rotateCounterClockwise 18s linear infinite;
+        }
+
+        .center-core {
+            width: 82px;
+            height: 82px;
+            border-radius: 24px;
+            background: linear-gradient(135deg, rgba(0, 135, 122, 0.35) 0%, rgba(14, 165, 233, 0.2) 100%);
+            border: 1.5px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 10px 25px -5px rgba(0, 135, 122, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #38bdf8;
+            font-size: 34px;
+            animation: floatCore 4s ease-in-out infinite alternate;
+        }
+
+        .orbiting-gear {
+            position: absolute;
+            top: 4px;
+            right: 18px;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #1e293b;
+            border: 1.5px solid #38bdf8;
+            color: #38bdf8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+            animation: rotateClockwise 8s linear infinite;
+        }
+
+        .orbiting-tool {
+            position: absolute;
+            bottom: 8px;
+            left: 14px;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #1e293b;
+            border: 1.5px solid #00877a;
+            color: #34d399;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            box-shadow: 0 0 12px rgba(0, 135, 122, 0.4);
+            animation: rotateCounterClockwise 10s linear infinite;
+        }
+
+        @keyframes rotateClockwise {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes rotateCounterClockwise {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(-360deg); }
+        }
+
+        @keyframes floatCore {
+            0% { transform: translateY(0px) rotate(0deg); }
+            100% { transform: translateY(-8px) rotate(3deg); }
+        }
+
+        /* Typography */
+        h1.main-title {
+            font-size: clamp(20px, 4.5vw, 26px);
+            font-weight: 900;
+            line-height: 1.3;
+            margin-bottom: 14px;
+            background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 75%, #94a3b8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+
+        p.main-desc {
+            font-size: 14px;
+            color: var(--text-muted);
+            line-height: 1.65;
+            margin-bottom: 28px;
+            font-weight: 500;
+        }
+
+        /* Highlights / Info Grid */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 28px;
+        }
+
+        .info-card {
+            background: rgba(255, 255, 255, 0.035);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 14px 12px;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .info-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255, 255, 255, 0.18);
+        }
+
+        .info-icon-wrap {
+            width: 38px;
+            height: 38px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .icon-time {
+            background: rgba(56, 189, 248, 0.12);
+            color: #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.25);
+        }
+
+        .icon-security {
+            background: rgba(52, 211, 153, 0.12);
+            color: #34d399;
+            border: 1px solid rgba(52, 211, 153, 0.25);
+        }
+
+        .info-content {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .info-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            margin-bottom: 2px;
+        }
+
+        .info-val {
+            font-size: 13px;
+            font-weight: 800;
+            color: #f1f5f9;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Countdown & Auto-Reload Progress Bar */
+        .countdown-box {
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 16px;
+            padding: 14px 18px;
+            margin-bottom: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .countdown-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            font-weight: 700;
+            color: #cbd5e1;
+        }
+
+        .countdown-bar-wrap {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 999px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .countdown-bar-fill {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, #00877a 0%, #38bdf8 100%);
+            border-radius: 999px;
+            transition: width 1s linear;
+        }
+
+        /* Action Buttons */
+        .btn-action-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .btn-refresh {
+            width: 100%;
+            background: linear-gradient(135deg, #00877a 0%, #005f56 100%);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 14px 20px;
+            border-radius: 16px;
+            font-size: 14px;
+            font-weight: 800;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 16px rgba(0, 135, 122, 0.35);
+            transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+        }
+
+        .btn-refresh:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 135, 122, 0.5);
+            filter: brightness(1.08);
+        }
+
+        .btn-refresh:active {
+            transform: translateY(0);
+        }
+
+        .btn-sub-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-sub {
+            flex: 1;
+            padding: 12px 14px;
+            border-radius: 14px;
+            font-size: 12.5px;
+            font-weight: 700;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+            box-sizing: border-box;
+        }
+
+        .btn-whatsapp {
+            background: rgba(37, 211, 102, 0.12);
+            color: #4ade80;
+            border: 1px solid rgba(37, 211, 102, 0.3);
+        }
+
+        .btn-whatsapp:hover {
+            background: rgba(37, 211, 102, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .btn-community {
+            background: rgba(56, 189, 248, 0.12);
+            color: #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+        }
+
+        .btn-community:hover {
+            background: rgba(56, 189, 248, 0.2);
+            transform: translateY(-1px);
+        }
+
+        /* Footer */
+        .footer-note {
+            margin-top: 24px;
+            font-size: 11.5px;
+            color: #64748b;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .footer-note a {
+            color: #94a3b8;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .footer-note a:hover {
+            color: #e2e8f0;
+            text-decoration: underline;
+        }
+
+        /* Admin Preview Ribbon / Sticky Pill */
+        .admin-preview-banner {
+            position: fixed;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            background: linear-gradient(90deg, #ea580c 0%, #dc2626 100%);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 800;
+            box-shadow: 0 4px 15px rgba(220, 38, 38, 0.4);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            letter-spacing: 0.3px;
+        }
+
+        .admin-preview-banner a {
+            color: #fef08a;
+            text-decoration: underline;
+            margin-left: 6px;
+        }
+
+        @media (max-width: 480px) {
+            .maintenance-container {
+                padding: 32px 20px;
+                border-radius: 24px;
+            }
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+            .btn-sub-row {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Ambient Glow Blobs -->
+    <div class="ambient-glow glow-1"></div>
+    <div class="ambient-glow glow-2"></div>
+    <div class="ambient-glow glow-3"></div>
+    <div class="bg-grid"></div>
+
+    <!-- Admin Preview Notification (If Previewed by Admin) -->
+    {% if is_admin_preview or (session and session.get('admin_logged_in')) %}
+    <div class="admin-preview-banner">
+        <i class="fas fa-shield-alt"></i>
+        <span>Mode Admin: Anda sedang melihat pratinjau halaman pemeliharaan.</span>
+        <a href="/admin">Kembali ke Panel Admin &rarr;</a>
+    </div>
+    {% endif %}
+
+    <div class="maintenance-container">
+        
+        <!-- Brand Header -->
+        <div class="brand-header">
+            <div class="brand-logo-wrap">
+                {% if store and store.logo_url %}
+                    <img src="{{ store.logo_url }}" alt="{{ store.name }}" class="brand-logo-img">
+                {% else %}
+                    <i class="fas fa-bolt brand-logo-icon"></i>
+                {% endif %}
+                <span class="brand-title">{{ store.name or "GarudaTel" }}</span>
+            </div>
+            
+            <div class="status-pill">
+                <span class="pulse-dot"></span>
+                <span>Peningkatan Sistem Sedang Berjalan</span>
+            </div>
+        </div>
+
+        <!-- Modern Animated SVG Core Illustration -->
+        <div class="illustration-wrap">
+            <div class="outer-orbit"></div>
+            <div class="middle-orbit"></div>
+            
+            <div class="center-core">
+                <i class="fas fa-server"></i>
+            </div>
+            
+            <div class="orbiting-gear" title="Mengoptimalkan Database & Server">
+                <i class="fas fa-gear"></i>
+            </div>
+            
+            <div class="orbiting-tool" title="Peningkatan Performa & Keamanan">
+                <i class="fas fa-wrench"></i>
+            </div>
+        </div>
+
+        <!-- Main Title & Reassuring Message -->
+        <h1 class="main-title">
+            {{ maintenance.title or "Sistem Sedang Dalam Pemeliharaan" }}
+        </h1>
+        
+        <p class="main-desc">
+            {{ maintenance.message or "Kami sedang melakukan peningkatan performa dan pemeliharaan server berkala untuk memberikan layanan transaksi yang lebih cepat, aman, dan stabil. Website akan segera kembali aktif dalam beberapa menit ke depan." }}
+        </p>
+
+        <!-- Highlights Info Grid -->
+        <div class="info-grid">
+            <div class="info-card">
+                <div class="info-icon-wrap icon-time">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="info-content">
+                    <span class="info-label">Estimasi Waktu</span>
+                    <span class="info-val" title="{{ maintenance.estimated_end or '15 - 30 Menit ke Depan' }}">
+                        {{ maintenance.estimated_end or "15 - 30 Menit ke Depan" }}
+                    </span>
+                </div>
+            </div>
+
+            <div class="info-card">
+                <div class="info-icon-wrap icon-security">
+                    <i class="fas fa-shield-check"></i>
+                </div>
+                <div class="info-content">
+                    <span class="info-label">Saldo &amp; Transaksi</span>
+                    <span class="info-val">100% Aman Terproteksi</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Auto Countdown & Status Reload Box -->
+        <div class="countdown-box">
+            <div class="countdown-header">
+                <span><i class="fas fa-satellite-dish" style="color: #38bdf8; margin-right: 4px;"></i> Memeriksa status otomatis dalam:</span>
+                <span id="countdownText" style="color: #facc15; font-weight: 800;"><span id="timerVal">30</span> Detik</span>
+            </div>
+            <div class="countdown-bar-wrap">
+                <div class="countdown-bar-fill" id="countdownBar" style="width: 100%;"></div>
+            </div>
+        </div>
+
+        <!-- Action Button Group -->
+        <div class="btn-action-group">
+            <button type="button" class="btn-refresh" id="btnReload" onclick="triggerManualCheck()">
+                <i class="fas fa-rotate" id="reloadIcon"></i>
+                <span id="reloadBtnText">Cek Status &amp; Muat Ulang</span>
+            </button>
+
+            <div class="btn-sub-row">
+                {% set wa_num = maintenance.contact_wa or (manual_depo and manual_depo.wa_target) or '081775700114' %}
+                <a href="https://wa.me/{{ wa_num|replace('+', '')|replace('-', '')|replace(' ', '') }}?text=Halo%20Admin%20CS%20{{ (store.name or 'iPay')|urlencode }}%2C%20saya%20ingin%20menanyakan%20status%20pemeliharaan%20sistem." 
+                   target="_blank" 
+                   rel="noopener noreferrer" 
+                   class="btn-sub btn-whatsapp">
+                    <i class="fab fa-whatsapp"></i> Hubungi CS
+                </a>
+
+                {% if store and store.whatsapp_group %}
+                <a href="{{ store.whatsapp_group }}" 
+                   target="_blank" 
+                   rel="noopener noreferrer" 
+                   class="btn-sub btn-community">
+                    <i class="fas fa-users"></i> Info Komunitas
+                </a>
+                {% else %}
+                <a href="/admin/login" 
+                   class="btn-sub btn-community">
+                    <i class="fas fa-lock"></i> Akses Admin
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Footer Note -->
+        <div class="footer-note">
+            <span>&copy; {{ now_year or '2026' }} {{ store.name or "GarudaTel" }}. Seluruh hak cipta dilindungi.</span>
+            {% if not (session and session.get('admin_logged_in')) %}
+            <span>&bull;</span>
+            <a href="/admin/login">Login Admin</a>
+            {% endif %}
+        </div>
+
+    </div>
+
+    <!-- Client Script: Smart Background Health Checker -->
+    <script>
+        const TOTAL_SECONDS = 30;
+        let currentSeconds = TOTAL_SECONDS;
+        let countdownTimer = null;
+        let isChecking = false;
+
+        function updateCountdownUI() {
+            const timerElem = document.getElementById('timerVal');
+            const barElem = document.getElementById('countdownBar');
+            if (timerElem) timerElem.innerText = currentSeconds;
+            if (barElem) {
+                const pct = (currentSeconds / TOTAL_SECONDS) * 100;
+                barElem.style.width = pct + '%';
+            }
+        }
+
+        function startCountdown() {
+            if (countdownTimer) clearInterval(countdownTimer);
+            currentSeconds = TOTAL_SECONDS;
+            updateCountdownUI();
+
+            countdownTimer = setInterval(() => {
+                currentSeconds--;
+                updateCountdownUI();
+
+                if (currentSeconds <= 0) {
+                    clearInterval(countdownTimer);
+                    checkServerStatus(true);
+                }
+            }, 1000);
+        }
+
+        function checkServerStatus(autoTrigger = false) {
+            if (isChecking) return;
+            isChecking = true;
+
+            const btnText = document.getElementById('reloadBtnText');
+            const reloadIcon = document.getElementById('reloadIcon');
+            if (reloadIcon) reloadIcon.classList.add('fa-spin');
+            if (btnText) btnText.innerText = 'Menghubungi Server...';
+
+            // Panggil root URL dengan cache-busting timestamp
+            fetch('/?check_ts=' + new Date().getTime(), {
+                method: 'GET',
+                headers: {
+                    'Accept': 'text/html,application/xhtml+xml',
+                    'Cache-Control': 'no-cache'
+                }
+            })
+            .then(response => {
+                // Jika status bukan 503 Service Unavailable, artinya maintenance selesai!
+                if (response.status === 200) {
+                    if (btnText) btnText.innerText = 'Selesai! Memuat Halaman...';
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 500);
+                } else {
+                    // Server masih dalam status 503 maintenance
+                    resetCheckingUI('Sistem Masih Dalam Pemeliharaan');
+                }
+            })
+            .catch(err => {
+                resetCheckingUI('Mencoba Menghubungkan Kembali...');
+            });
+        }
+
+        function resetCheckingUI(temporaryMsg) {
+            const btnText = document.getElementById('reloadBtnText');
+            const reloadIcon = document.getElementById('reloadIcon');
+            if (btnText) btnText.innerText = temporaryMsg;
+
+            setTimeout(() => {
+                if (reloadIcon) reloadIcon.classList.remove('fa-spin');
+                if (btnText) btnText.innerText = 'Cek Status & Muat Ulang';
+                isChecking = false;
+                startCountdown();
+            }, 1600);
+        }
+
+        function triggerManualCheck() {
+            if (countdownTimer) clearInterval(countdownTimer);
+            checkServerStatus(false);
+        }
+
+        // Jalankan timer saat halaman dibuka
+        window.addEventListener('DOMContentLoaded', () => {
+            startCountdown();
+        });
+    </script>
+</body>
+</html>

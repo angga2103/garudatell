@@ -217,6 +217,49 @@
 
 
 <!-- ==========================================================================
+     KONTROL CEPAT MODE MAINTENANCE WEBSITE
+     ========================================================================== -->
+<div style="background: white; border: 1.5px solid {% if is_maintenance_active %}#f59e0b{% else %}#e2e8f0{% endif %}; border-radius: 14px; padding: 14px 20px; margin-bottom: 22px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; box-shadow: var(--shadow-card);">
+    <div style="display: flex; align-items: center; gap: 14px;">
+        <div style="width: 40px; height: 40px; border-radius: 10px; background: {% if is_maintenance_active %}#fef3c7{% else %}#f1f5f9{% endif %}; color: {% if is_maintenance_active %}#d97706{% else %}#64748b{% endif %}; display: flex; align-items: center; justify-content: center; font-size: 18px;">
+            <i class="fas fa-tools"></i>
+        </div>
+        <div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 13.5px; font-weight: 800; color: #0f172a;">Status Pemeliharaan Website</span>
+                <span style="font-size: 11px; font-weight: 800; color: {% if is_maintenance_active %}#b45309{% else %}#059669{% endif %}; background: {% if is_maintenance_active %}#fef3c7{% else %}#dcfce7{% endif %}; padding: 3px 8px; border-radius: 6px;">
+                    {% if is_maintenance_active %}⚠️ SEDANG DALAM MAINTENANCE{% else %}🟢 WEB NORMAL AKTIF{% endif %}
+                </span>
+            </div>
+            <div style="font-size: 11.5px; color: #64748b; margin-top: 2px;">
+                {% if is_maintenance_active %}
+                    Pengunjung publik dialihkan ke halaman pemeliharaan. Estimasi: <b>{{ maintenance_info.estimated_end }}</b>
+                {% else %}
+                    Semua modul web dapat diakses normal oleh pelanggan dan pengunjung umum.
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px;">
+        <a href="/?preview_maintenance=1" target="_blank" style="font-size: 11.5px; padding: 7px 12px; text-decoration: none; border-radius: 8px; font-weight: 700; background: #f8fafc; border: 1px solid #cbd5e1; color: #334155; display: inline-flex; align-items: center; gap: 5px;">
+            <i class="fas fa-eye" style="color: #0284c7;"></i> Pratinjau
+        </a>
+        <a href="{{ url_for('admin.store_settings') }}#maintCard" style="font-size: 11.5px; padding: 7px 12px; text-decoration: none; border-radius: 8px; font-weight: 700; background: #f8fafc; border: 1px solid #cbd5e1; color: #334155; display: inline-flex; align-items: center; gap: 5px;">
+            <i class="fas fa-gear" style="color: #475569;"></i> Pengaturan
+        </a>
+        <form action="{{ url_for('admin.toggle_maintenance_action') }}" method="POST" style="margin: 0; display: inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="{% if is_maintenance_active %}disable{% else %}enable{% endif %}">
+            <button type="submit" style="background: {% if is_maintenance_active %}#dc2626{% else %}#00877a{% endif %}; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-size: 12px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.15);">
+                <i class="fas fa-{% if is_maintenance_active %}power-off{% else %}wrench{% endif %}"></i>
+                {% if is_maintenance_active %}Matikan Maintenance{% else %}Aktifkan Maintenance{% endif %}
+            </button>
+        </form>
+    </div>
+</div>
+
+
+<!-- ==========================================================================
      2. QUICK LAUNCHER KE MODUL-MODUL OPERASIONAL
      ========================================================================== -->
 <div class="quick-launcher-grid">

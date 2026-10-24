@@ -3579,13 +3579,27 @@ def update_ticket_status(id):
 @admin_bp.route('/store_settings', methods=['GET', 'POST'])
 def store_settings():
     """Halaman Pengaturan Profil Toko Dinamis & Upload Logo Struk Thermal"""
-    from app.services.setting_service import get_store_settings, save_store_settings, get_manual_deposit_settings, save_manual_deposit_settings
+    from app.services.setting_service import (
+        get_store_settings, save_store_settings, get_manual_deposit_settings,
+        save_manual_deposit_settings, get_maintenance_info, set_maintenance_mode
+    )
     
     if request.method == 'POST':
         form_type = request.form.get('form_type')
         if form_type == 'manual_deposit':
             save_manual_deposit_settings(request.form)
             flash('✅ Informasi rekening deposit transfer manual berhasil disimpan!', 'success')
+            return redirect(url_for('admin.store_settings'))
+
+        if form_type == 'maintenance':
+            is_active = request.form.get('maintenance_active') == '1'
+            title = request.form.get('maintenance_title')
+            msg = request.form.get('maintenance_message')
+            est = request.form.get('maintenance_estimated_end')
+            wa = request.form.get('maintenance_contact_wa')
+            set_maintenance_mode(is_active, title=title, message=msg, estimated_end=est, contact_wa=wa)
+            status_badge = "DIAKTIFKAN (Pengunjung dialihkan ke halaman pemeliharaan)" if is_active else "DINONAKTIFKAN (Web Beroperasi Normal)"
+            flash(f'✅ Konfigurasi mode maintenance berhasil disimpan! Status saat ini: {status_badge}', 'warning' if is_active else 'success')
             return redirect(url_for('admin.store_settings'))
 
         logo_file = request.files.get('store_logo')
@@ -3598,6 +3612,7 @@ def store_settings():
         
     store = get_store_settings()
     manual_depo = get_manual_deposit_settings()
+    maintenance = get_maintenance_info()
     
     from app.services.dana_mutasi_service import get_device_status, get_dana_device_token
     dana_device_status = get_device_status()
@@ -3607,10 +3622,44 @@ def store_settings():
     return render_template('admin/store_settings.html',
                            store=store,
                            manual_depo=manual_depo,
+                           maintenance=maintenance,
                            dana_device_status=dana_device_status,
                            dana_device_token=dana_device_token,
                            dana_webhook_url=dana_webhook_url,
                            page_title='Pengaturan Toko & Logo Struk')
+
+
+@admin_bp.route('/maintenance/toggle', methods=['POST'])
+def toggle_maintenance_action():
+    """Toggle cepat mode maintenance (ON/OFF) via Admin."""
+    if not session.get('admin_logged_in'):
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'status': 'error', 'message': 'Akses ditolak.'}), 403
+        return redirect(url_for('admin.login'))
+
+    from app.services.setting_service import is_maintenance_mode, set_maintenance_mode
+    action = request.form.get('action') or (request.json.get('action') if request.is_json else None)
+    
+    if action == 'enable':
+        new_state = True
+    elif action == 'disable':
+        new_state = False
+    else:
+        new_state = not is_maintenance_mode()
+
+    set_maintenance_mode(new_state)
+    state_str = "DIAKTIFKAN (Pengunjung publik dialihkan ke halaman pemeliharaan)" if new_state else "DINONAKTIFKAN (Web beroperasi normal)"
+
+    if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({
+            'status': 'success',
+            'is_active': new_state,
+            'message': f'Mode maintenance berhasil {state_str}.'
+        })
+
+    flash(f'Mode maintenance berhasil {state_str}!', 'warning' if new_state else 'success')
+    return_url = request.referrer or url_for('admin.store_settings')
+    return redirect(return_url)
 
 
 @admin_bp.route('/store_settings/regenerate_dana_token', methods=['POST'])
