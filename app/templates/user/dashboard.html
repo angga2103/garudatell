@@ -910,6 +910,71 @@
     .ic-poin { background: linear-gradient(135deg, #eab308, #ca8a04); }
     .ic-tracker { background: linear-gradient(135deg, #059669, #047857); }
     .ic-riwayat { background: linear-gradient(135deg, #64748b, #475569); }
+
+    /* PROMO BANNER CAROUSEL */
+    .banner-carousel-container {
+        margin: 0 15px 18px 15px;
+        position: relative;
+    }
+    .banner-carousel-track {
+        display: flex;
+        gap: 12px;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        border-radius: 16px;
+    }
+    .banner-carousel-track::-webkit-scrollbar { display: none; }
+    .banner-slide {
+        flex: 0 0 100%;
+        scroll-snap-align: center;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+        background: #F1F5F9;
+        aspect-ratio: 16 / 7;
+    }
+    @media (min-width: 768px) {
+        .banner-slide {
+            aspect-ratio: 21 / 7;
+        }
+    }
+    .banner-slide-link {
+        display: block;
+        width: 100%;
+        height: 100%;
+        text-decoration: none;
+    }
+    .banner-slide-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        transition: transform 0.25s ease;
+    }
+    .banner-slide-link:hover .banner-slide-img {
+        transform: scale(1.02);
+    }
+    .banner-dots {
+        display: flex;
+        justify-content: center;
+        gap: 6px;
+        margin-top: 8px;
+    }
+    .banner-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #CBD5E1;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    .banner-dot.active {
+        width: 18px;
+        border-radius: 4px;
+        background: #00877A;
+    }
 </style>
 {% endblock %}
 
@@ -1045,6 +1110,34 @@
         </a>
     </div>
 </div>
+
+{% if banners and banners|length > 0 %}
+<!-- BANNER PROMOSI CAROUSEL -->
+<div class="banner-carousel-container">
+    <div class="banner-carousel-track" id="bannerCarouselTrack">
+        {% for b in banners %}
+        <div class="banner-slide">
+            {% if b.link_url %}
+            <a href="{{ b.link_url }}" class="banner-slide-link" title="{{ b.title }}">
+                <img src="{{ b.image_url }}" alt="{{ b.title }}" class="banner-slide-img" loading="lazy">
+            </a>
+            {% else %}
+            <div class="banner-slide-link" title="{{ b.title }}">
+                <img src="{{ b.image_url }}" alt="{{ b.title }}" class="banner-slide-img" loading="lazy">
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% if banners|length > 1 %}
+    <div class="banner-dots" id="bannerCarouselDots">
+        {% for b in banners %}
+        <span class="banner-dot {% if loop.first %}active{% endif %}" onclick="scrollToBannerSlide({{ loop.index0 }})"></span>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endif %}
 
 <!-- BAGIAN PRODUK CUAN -->
 <div class="cuan-wrapper">
@@ -1606,6 +1699,55 @@
             raw = raw.replace(/[━─]{8,}/g, '<hr style="border:none; border-top:1px dashed #cbd5e1; margin:6px 0;">');
             el.innerHTML = raw;
         });
+
+        // Banner Carousel Interactive Auto-Scroll
+        (function() {
+            var track = document.getElementById('bannerCarouselTrack');
+            var dots = document.querySelectorAll('.banner-dot');
+            if (!track || dots.length <= 1) return;
+
+            var autoScrollTimer = null;
+            var currentIndex = 0;
+
+            function updateDots(index) {
+                dots.forEach(function(d, i) {
+                    if (i === index) d.classList.add('active');
+                    else d.classList.remove('active');
+                });
+            }
+
+            window.scrollToBannerSlide = function(index) {
+                var slideWidth = track.clientWidth;
+                track.scrollTo({ left: index * slideWidth, behavior: 'smooth' });
+                updateDots(index);
+                currentIndex = index;
+            };
+
+            track.addEventListener('scroll', function() {
+                var slideWidth = track.clientWidth;
+                if (!slideWidth) return;
+                var index = Math.round(track.scrollLeft / slideWidth);
+                if (index !== currentIndex && index < dots.length) {
+                    currentIndex = index;
+                    updateDots(currentIndex);
+                }
+            }, { passive: true });
+
+            function startAutoScroll() {
+                if (autoScrollTimer) clearInterval(autoScrollTimer);
+                autoScrollTimer = setInterval(function() {
+                    currentIndex = (currentIndex + 1) % dots.length;
+                    window.scrollToBannerSlide(currentIndex);
+                }, 5000);
+            }
+
+            track.addEventListener('mouseenter', function() { if (autoScrollTimer) clearInterval(autoScrollTimer); });
+            track.addEventListener('mouseleave', startAutoScroll);
+            track.addEventListener('touchstart', function() { if (autoScrollTimer) clearInterval(autoScrollTimer); }, { passive: true });
+            track.addEventListener('touchend', startAutoScroll, { passive: true });
+
+            startAutoScroll();
+        })();
     });
 </script>
 {% endblock %}

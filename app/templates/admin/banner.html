@@ -154,6 +154,178 @@
         background: #F8FAFC; 
     }
 
+    /* Modern Upload Dropzone */
+    .banner-upload-box {
+        border: 2px dashed #CBD5E1;
+        border-radius: 12px;
+        background: #F8FAFC;
+        padding: 24px 18px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        position: relative;
+    }
+    .banner-upload-box:hover, .banner-upload-box.dragover {
+        border-color: #3A827F;
+        background: #F0FDFA;
+    }
+    .upload-icon-circle {
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        background: #E6FFFA;
+        color: #0D9488;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        margin-bottom: 10px;
+        box-shadow: 0 2px 8px rgba(13, 148, 136, 0.15);
+    }
+    .upload-main-text {
+        font-size: 13px;
+        font-weight: 800;
+        color: #1E293B;
+        margin-bottom: 4px;
+    }
+    .upload-sub-text {
+        font-size: 11px;
+        color: #64748B;
+        margin-bottom: 12px;
+    }
+    .btn-browse-banner {
+        background: white;
+        border: 1px solid #CBD5E1;
+        color: #334155;
+        padding: 7px 16px;
+        border-radius: 8px;
+        font-size: 11px;
+        font-weight: 800;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    }
+    .btn-browse-banner:hover {
+        border-color: #3A827F;
+        color: #3A827F;
+        background: #F8FAFC;
+    }
+
+    /* Selected File Preview Card */
+    .file-preview-card {
+        display: flex;
+        align-items: center;
+        background: white;
+        border: 1.5px solid #3A827F;
+        border-radius: 10px;
+        padding: 10px 14px;
+        gap: 14px;
+        text-align: left;
+        box-shadow: 0 4px 12px rgba(58, 130, 127, 0.08);
+    }
+    .file-preview-thumb {
+        width: 100px;
+        height: 52px;
+        object-fit: cover;
+        border-radius: 6px;
+        border: 1px solid #E2E8F0;
+        background: #F1F5F9;
+        flex-shrink: 0;
+    }
+    .file-preview-details {
+        flex: 1;
+        min-width: 0;
+    }
+    .file-preview-name {
+        font-size: 12px;
+        font-weight: 800;
+        color: #1E293B;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .file-preview-meta {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 4px;
+        flex-wrap: wrap;
+    }
+    .file-preview-size {
+        font-size: 11px;
+        color: #64748B;
+        font-weight: 700;
+    }
+    .file-preview-badge {
+        font-size: 10px;
+        font-weight: 800;
+        background: #D1FAE5;
+        color: #065F46;
+        padding: 2px 7px;
+        border-radius: 4px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .btn-clear-file {
+        background: #FEE2E2;
+        border: 1px solid #FECACA;
+        color: #DC2626;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 800;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        transition: all 0.15s ease;
+        flex-shrink: 0;
+    }
+    .btn-clear-file:hover {
+        background: #FCA5A5;
+        color: #991B1B;
+    }
+
+    .btn-toggle-manual-url {
+        background: none;
+        border: none;
+        color: #0284C7;
+        font-size: 11px;
+        font-weight: 800;
+        cursor: pointer;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .btn-toggle-manual-url:hover {
+        text-decoration: underline;
+    }
+
+    .badge-source {
+        font-size: 10px;
+        font-weight: 800;
+        padding: 2px 7px;
+        border-radius: 4px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .badge-source.server {
+        background: #E0F2FE;
+        color: #0284C7;
+        border: 1px solid #BAE6FD;
+    }
+    .badge-source.cdn {
+        background: #FEF3C7;
+        color: #B45309;
+        border: 1px solid #FDE68A;
+    }
+
     .badge-status {
         display: inline-flex;
         align-items: center;
@@ -201,6 +373,8 @@
     @media (max-width: 768px) {
         .banner-stats-grid { grid-template-columns: 1fr; }
         .form-grid-2 { grid-template-columns: 1fr; }
+        .file-preview-card { flex-direction: column; align-items: flex-start; }
+        .file-preview-thumb { width: 100%; height: 80px; }
     }
 </style>
 {% endblock %}
@@ -232,24 +406,73 @@
 <!-- FORM TAMBAH BANNER -->
 <div class="modern-card" id="formBanner">
     <div class="card-title">
-        <i class="fas fa-plus-circle" style="color: #3A827F;"></i>
+        <i class="fas fa-cloud-upload-alt" style="color: #3A827F;"></i>
         <span>Tambah Banner Promosi Baru</span>
     </div>
 
-    <form method="POST" action="{{ url_for('admin.add_banner') }}">
+    <form method="POST" action="{{ url_for('admin.add_banner') }}" enctype="multipart/form-data" id="bannerUploadForm">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         
-        <div class="form-grid-2">
-            <div class="form-group">
-                <label>Judul Promo / Label Banner <span style="color:#EF4444;">*</span></label>
-                <input type="text" name="title" required placeholder="Contoh: Promo Cashback Merdeka 50%" class="form-ctrl">
-                <span style="font-size: 10px; color: #64748B; margin-top: 4px; display: block;">Judul akan muncul sebagai alt text dan referensi internal promosi.</span>
+        <div class="form-group">
+            <label>Judul Promo / Label Banner <span style="color:#EF4444;">*</span></label>
+            <input type="text" name="title" required placeholder="Contoh: Promo Cashback Merdeka 50% All Operator" class="form-ctrl">
+            <span style="font-size: 10px; color: #64748B; margin-top: 4px; display: block;">Judul akan muncul sebagai alt text gambar dan referensi kampanye promosi.</span>
+        </div>
+
+        <div class="form-group">
+            <label>Gambar Banner Promo <span style="color:#EF4444;">*</span></label>
+            
+            <!-- UPLOAD DROPZONE -->
+            <div class="banner-upload-box" id="dropZoneBanner" onclick="triggerBannerFileInput()" ondragover="handleBannerDragOver(event)" ondragleave="handleBannerDragLeave(event)" ondrop="handleBannerDrop(event)">
+                <input type="file" name="banner_file" id="inputBannerFile" accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,image/svg+xml" style="display: none;" onchange="handleBannerFileSelect(this)">
+                
+                <div id="dropZonePrompt">
+                    <div class="upload-icon-circle">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                    </div>
+                    <div class="upload-main-text">Klik untuk Pilih Gambar dari HP / Laptop</div>
+                    <div class="upload-sub-text">Atau seret dan lepas file gambar ke area ini (PNG, JPG, WEBP, GIF maks 5MB)</div>
+                    <button type="button" class="btn-browse-banner" onclick="event.stopPropagation(); triggerBannerFileInput();">
+                        <i class="fas fa-folder-open"></i> Pilih File Gambar
+                    </button>
+                </div>
+
+                <!-- PREVIEW SETELAH FILE DIPILIH -->
+                <div id="dropZonePreview" style="display: none;">
+                    <div class="file-preview-card" onclick="event.stopPropagation();">
+                        <img id="filePreviewThumb" src="" alt="Preview Banner" class="file-preview-thumb">
+                        <div class="file-preview-details">
+                            <div class="file-preview-name" id="filePreviewName">nama_gambar.jpg</div>
+                            <div class="file-preview-meta">
+                                <span class="file-preview-size" id="filePreviewSize">0 KB</span>
+                                <span class="file-preview-badge"><i class="fas fa-check-circle"></i> Siap Diunggah</span>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-clear-file" onclick="clearSelectedBannerFile(event)" title="Ganti atau Hapus File">
+                            <i class="fas fa-trash-alt"></i> Ganti
+                        </button>
+                    </div>
+                </div>
             </div>
 
-            <div class="form-group">
-                <label>URL Gambar Banner (Image CDN / Cloud Link) <span style="color:#EF4444;">*</span></label>
-                <input type="url" name="image_url" id="inputImageUrl" required placeholder="https://domain.com/banner-promo.jpg" class="form-ctrl" oninput="previewLiveImage(this.value)">
-                <span style="font-size: 10px; color: #64748B; margin-top: 4px; display: block;">Rekomendasi rasio gambar: 16:9 atau 2:1 (Landscape) resolusi tinggi.</span>
+            <!-- TOGGLE OPTIONAL EXTERNAL URL -->
+            <div style="margin-top: 10px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                <span style="font-size: 11px; color: #64748B;">Rasio disarankan: <strong>16:9</strong> atau <strong>2:1</strong> (Landscape, misal: 1200x500 px) agar rapi di HP & PC.</span>
+                <button type="button" class="btn-toggle-manual-url" onclick="toggleManualUrlInput()">
+                    <i class="fas fa-link"></i> <span id="toggleUrlText">Gunakan URL Gambar Luar (Opsional)</span>
+                </button>
+            </div>
+
+            <!-- MANUAL EXTERNAL URL INPUT (COLLAPSIBLE) -->
+            <div id="manualUrlGroup" style="display: none; margin-top: 12px; padding: 14px; background: #F8FAFC; border-radius: 10px; border: 1px solid #E2E8F0;">
+                <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; margin-bottom: 6px;">URL GAMBAR EKSTERNAL (CDN / CLOUD)</label>
+                <input type="url" name="image_url" id="inputImageUrl" placeholder="https://domain.com/banner-promo.jpg" class="form-ctrl" oninput="previewManualUrl(this.value)">
+                <span style="font-size: 10px; color: #64748B; margin-top: 4px; display: block;">Gunakan opsi ini hanya jika gambar disimpan di CDN/Cloud eksternal dan tidak diupload dari perangkat.</span>
+                
+                <div id="liveUrlPreviewContainer" style="display: none; margin-top: 10px; padding: 8px; background: white; border-radius: 6px; border: 1px dashed #CBD5E1;">
+                    <div style="font-size: 10px; font-weight: 800; color: #64748B; margin-bottom: 4px;">Live URL Preview:</div>
+                    <img id="liveUrlPreviewImg" src="" alt="URL Preview" style="max-height: 70px; border-radius: 6px; border: 1px solid #E2E8F0;" onerror="this.src='https://placehold.co/140x64?text=URL+Tidak+Valid';">
+                </div>
             </div>
         </div>
 
@@ -269,15 +492,9 @@
             </div>
         </div>
 
-        <!-- LIVE IMAGE PREVIEW HELPER -->
-        <div id="livePreviewContainer" style="display: none; margin-bottom: 16px; padding: 12px; background: #F8FAFC; border-radius: 8px; border: 1px dashed #CBD5E1;">
-            <div style="font-size: 11px; font-weight: 800; color: #475569; margin-bottom: 6px;">Live Preview Thumbnail:</div>
-            <img id="livePreviewImg" src="" alt="Preview" style="max-height: 80px; border-radius: 6px; border: 1px solid #E2E8F0;" onerror="this.src='https://placehold.co/140x64?text=URL+Tidak+Valid';">
-        </div>
-
         <div style="margin-top: 8px;">
-            <button type="submit" class="adm-btn adm-btn-primary" style="padding: 10px 22px;">
-                <i class="fas fa-save"></i> Simpan & Terbitkan Banner
+            <button type="submit" class="adm-btn adm-btn-primary" style="padding: 10px 24px; font-weight: 800; font-size: 13px;">
+                <i class="fas fa-cloud-upload-alt"></i> Unggah & Simpan Banner
             </button>
         </div>
     </form>
@@ -293,17 +510,20 @@
                 {{ banners|length }} Banner
             </span>
         </div>
+        <div style="font-size: 11px; color: #64748B;">
+            <i class="fas fa-info-circle" style="color: #0284C7;"></i> Menghapus banner akan sekaligus menghapus file gambarnya dari server.
+        </div>
     </div>
 
     <div style="overflow-x: auto;">
         <table class="modern-table">
             <thead>
                 <tr>
-                    <th style="width: 150px;">Preview</th>
-                    <th>Judul Banner & ID</th>
+                    <th style="width: 160px;">Preview</th>
+                    <th>Judul Banner & Info</th>
                     <th>Tautan Tujuan</th>
                     <th>Status</th>
-                    <th style="text-align: right; width: 180px;">Aksi</th>
+                    <th style="text-align: right; width: 190px;">Aksi</th>
                 </tr>
             </thead>
             <tbody>
@@ -311,22 +531,29 @@
                 <tr>
                     <td>
                         <div class="banner-thumb-box">
-                            <img src="{{ b.image_url }}" alt="{{ b.title }}" class="banner-thumb" loading="lazy" onerror="this.src='https://placehold.co/140x64?text=Gambar+Rusak';">
+                            <a href="{{ b.image_url }}" target="_blank" title="Klik untuk lihat gambar resolusi penuh">
+                                <img src="{{ b.image_url }}" alt="{{ b.title }}" class="banner-thumb" loading="lazy" onerror="this.src='https://placehold.co/140x64?text=Gambar+Rusak';">
+                            </a>
                         </div>
                     </td>
                     <td>
                         <div style="font-weight: 800; color: #1E293B; font-size: 13px;">{{ b.title }}</div>
-                        <div style="font-size: 11px; color: #64748B; margin-top: 2px;">
-                            <span style="font-family: monospace; background: #F1F5F9; padding: 2px 6px; border-radius: 4px;">ID: #{{ b.id }}</span>
+                        <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px; flex-wrap: wrap;">
+                            <span style="font-family: monospace; background: #F1F5F9; color: #475569; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700;">ID: #{{ b.id }}</span>
+                            {% if 'static/uploads/banners/' in b.image_url %}
+                                <span class="badge-source server" title="Gambar disimpan secara lokal di server"><i class="fas fa-hdd"></i> File Server</span>
+                            {% else %}
+                                <span class="badge-source cdn" title="Gambar diambil dari tautan URL luar"><i class="fas fa-globe"></i> Link URL</span>
+                            {% endif %}
                         </div>
                     </td>
                     <td>
                         {% if b.link_url %}
                             <a href="{{ b.link_url }}" target="_blank" style="color: #0284C7; text-decoration: none; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;">
-                                <i class="fas fa-external-link-alt"></i> {{ b.link_url[:40] }}{% if b.link_url|length > 40 %}...{% endif %}
+                                <i class="fas fa-external-link-alt"></i> {{ b.link_url[:35] }}{% if b.link_url|length > 35 %}...{% endif %}
                             </a>
                         {% else %}
-                            <span style="color: #94A3B8; font-size: 11px; font-style: italic;">Tidak ada tautan (Hanya Display)</span>
+                            <span style="color: #94A3B8; font-size: 11px; font-style: italic;">Hanya Display (Tanpa Tautan)</span>
                         {% endif %}
                     </td>
                     <td>
@@ -344,9 +571,9 @@
                                     <i class="fas fa-power-off"></i> {% if b.is_active %}Nonaktifkan{% else %}Aktifkan{% endif %}
                                 </button>
                             </form>
-                            <form method="POST" action="{{ url_for('admin.delete_banner', id=b.id) }}" style="display: inline;" onsubmit="return confirm('Apakah Anda yakin ingin menghapus banner ini secara permanen?');">
+                            <form method="POST" action="{{ url_for('admin.delete_banner', id=b.id) }}" style="display: inline;" onsubmit="return confirm('Apakah Anda yakin ingin menghapus banner ini secara permanen?\n\nFile gambar fisik di server juga akan langsung dihapus.');">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                <button type="submit" class="btn-action-delete" title="Hapus Banner">
+                                <button type="submit" class="btn-action-delete" title="Hapus Banner & Hapus File Fisik Server">
                                     <i class="fas fa-trash-alt"></i> Hapus
                                 </button>
                             </form>
@@ -356,9 +583,9 @@
                 {% else %}
                 <tr>
                     <td colspan="5" style="text-align: center; padding: 40px 20px; color: #64748B;">
-                        <i class="fas fa-image" style="font-size: 36px; color: #CBD5E1; display: block; margin-bottom: 12px;"></i>
+                        <i class="fas fa-images" style="font-size: 36px; color: #CBD5E1; display: block; margin-bottom: 12px;"></i>
                         <div style="font-weight: 800; font-size: 14px; color: #334155;">Belum Ada Banner Promo</div>
-                        <div style="font-size: 12px; color: #94A3B8; margin-top: 4px;">Tambahkan banner promo pertama Anda menggunakan formulir di atas.</div>
+                        <div style="font-size: 12px; color: #94A3B8; margin-top: 4px;">Unggah banner promo pertama Anda menggunakan formulir di atas.</div>
                     </td>
                 </tr>
                 {% endfor %}
@@ -368,15 +595,103 @@
 </div>
 
 <script>
-    function previewLiveImage(url) {
-        const container = document.getElementById('livePreviewContainer');
-        const img = document.getElementById('livePreviewImg');
+    function triggerBannerFileInput() {
+        document.getElementById('inputBannerFile').click();
+    }
+
+    function handleBannerFileSelect(input) {
+        if (!input.files || !input.files[0]) return;
+        const file = input.files[0];
+        
+        // Cek ekstensi file
+        const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif', 'image/svg+xml'];
+        if (!validTypes.includes(file.type)) {
+            alert('Format file tidak didukung! Silakan gunakan file gambar JPG, PNG, WEBP, atau GIF.');
+            input.value = '';
+            return;
+        }
+
+        // Tampilkan preview
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('filePreviewThumb').src = e.target.result;
+            document.getElementById('filePreviewName').textContent = file.name;
+            document.getElementById('filePreviewSize').textContent = formatBytes(file.size);
+            
+            document.getElementById('dropZonePrompt').style.display = 'none';
+            document.getElementById('dropZonePreview').style.display = 'block';
+            
+            // Bersihkan input URL manual jika ada
+            const manualInput = document.getElementById('inputImageUrl');
+            if (manualInput) manualInput.value = '';
+            const liveUrlBox = document.getElementById('liveUrlPreviewContainer');
+            if (liveUrlBox) liveUrlBox.style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function clearSelectedBannerFile(e) {
+        if (e) e.stopPropagation();
+        const input = document.getElementById('inputBannerFile');
+        if (input) input.value = '';
+        document.getElementById('filePreviewThumb').src = '';
+        document.getElementById('dropZonePreview').style.display = 'none';
+        document.getElementById('dropZonePrompt').style.display = 'block';
+    }
+
+    function handleBannerDragOver(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        document.getElementById('dropZoneBanner').classList.add('dragover');
+    }
+
+    function handleBannerDragLeave(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        document.getElementById('dropZoneBanner').classList.remove('dragover');
+    }
+
+    function handleBannerDrop(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        document.getElementById('dropZoneBanner').classList.remove('dragover');
+        
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            const input = document.getElementById('inputBannerFile');
+            input.files = e.dataTransfer.files;
+            handleBannerFileSelect(input);
+        }
+    }
+
+    function toggleManualUrlInput() {
+        const group = document.getElementById('manualUrlGroup');
+        const text = document.getElementById('toggleUrlText');
+        if (group.style.display === 'none' || !group.style.display) {
+            group.style.display = 'block';
+            text.textContent = 'Sembunyikan URL Eksternal';
+        } else {
+            group.style.display = 'none';
+            text.textContent = 'Gunakan URL Gambar Luar (Opsional)';
+        }
+    }
+
+    function previewManualUrl(url) {
+        const container = document.getElementById('liveUrlPreviewContainer');
+        const img = document.getElementById('liveUrlPreviewImg');
         if (url && url.trim().length > 10) {
             img.src = url.trim();
             container.style.display = 'block';
         } else {
             container.style.display = 'none';
         }
+    }
+
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
     }
 </script>
 

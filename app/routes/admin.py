@@ -2751,19 +2751,50 @@ def banner():
 def add_banner():
     if not session.get('admin_logged_in'):
         return redirect(url_for('admin.login'))
+        
     title = request.form.get('title', '').strip()
-    image_url = request.form.get('image_url', '').strip()
     link_url = request.form.get('link_url', '').strip()
     is_active = True if request.form.get('is_active') == '1' else False
     
-    if not title or not image_url:
-        flash('Judul dan URL gambar banner wajib diisi!', 'danger')
+    banner_file = request.files.get('banner_file')
+    manual_url = request.form.get('image_url', '').strip()
+    
+    if not title:
+        flash('Judul promo / label banner wajib diisi!', 'danger')
         return redirect(url_for('admin.banner'))
         
-    b = Banner(title=title, image_url=image_url, link_url=link_url, is_active=is_active)
+    final_image_url = ''
+    
+    # 1. Cek apakah ada file gambar yang diunggah
+    if banner_file and banner_file.filename:
+        filename_raw = banner_file.filename
+        allowed_exts = {'png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'}
+        if '.' in filename_raw and filename_raw.rsplit('.', 1)[1].lower() in allowed_exts:
+            ext = filename_raw.rsplit('.', 1)[1].lower()
+            import time, uuid
+            unique_name = f"banner_{int(time.time())}_{uuid.uuid4().hex[:8]}.{ext}"
+            
+            base_dir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+            upload_dir = os.path.join(base_dir, 'static', 'uploads', 'banners')
+            os.makedirs(upload_dir, exist_ok=True)
+            
+            file_dest = os.path.join(upload_dir, unique_name)
+            banner_file.save(file_dest)
+            final_image_url = f"/static/uploads/banners/{unique_name}"
+        else:
+            flash('Format file gambar tidak didukung! Gunakan format PNG, JPG, JPEG, WEBP, atau GIF.', 'danger')
+            return redirect(url_for('admin.banner'))
+    elif manual_url:
+        final_image_url = manual_url
+        
+    if not final_image_url:
+        flash('Silakan pilih file gambar banner untuk diunggah atau masukkan URL gambar!', 'danger')
+        return redirect(url_for('admin.banner'))
+        
+    b = Banner(title=title, image_url=final_image_url, link_url=link_url, is_active=is_active)
     db.session.add(b)
     db.session.commit()
-    flash('Banner berhasil ditambahkan!', 'success')
+    flash(f"Banner promo '{title}' berhasil diunggah dan disimpan!", 'success')
     return redirect(url_for('admin.banner'))
 
 @admin_bp.route('/banner/toggle/<int:id>', methods=['POST'])
@@ -2782,9 +2813,23 @@ def delete_banner(id):
     if not session.get('admin_logged_in'):
         return redirect(url_for('admin.login'))
     b = Banner.query.get_or_404(id)
+    banner_title = b.title
+    
+    # Hapus file gambar fisik di server jika diunggah secara lokal
+    if b.image_url and 'static/uploads/banners/' in b.image_url:
+        try:
+            base_dir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+            clean_url = b.image_url.split('?')[0].split('#')[0]
+            fname = os.path.basename(clean_url)
+            local_file = os.path.join(base_dir, 'static', 'uploads', 'banners', fname)
+            if os.path.exists(local_file):
+                os.remove(local_file)
+        except Exception as e_del:
+            pass
+            
     db.session.delete(b)
     db.session.commit()
-    flash('Banner berhasil dihapus!', 'success')
+    flash(f"Banner '{banner_title}' dan file gambarnya berhasil dihapus!", 'success')
     return redirect(url_for('admin.banner'))
 
 

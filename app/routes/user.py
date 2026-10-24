@@ -156,13 +156,21 @@ def dashboard():
         from app.models.transaction import Transaction
         recent_transactions = Transaction.query.filter_by(user_id=current_user.id).order_by(Transaction.created_at.desc()).limit(15).all()
 
+    active_banners = []
+    try:
+        from app.models.banner import Banner
+        active_banners = Banner.query.filter_by(is_active=True).order_by(Banner.id.desc()).all()
+    except Exception:
+        active_banners = []
+
     return render_template('user/dashboard.html',
                            kategori_utama=kategori_utama,
                            kategori_lainnya=kategori_lainnya,
                            notifications=notifications,
                            unread_notif_count=unread_notif_count,
                            read_ids=read_ids,
-                           recent_transactions=recent_transactions)
+                           recent_transactions=recent_transactions,
+                           banners=active_banners)
 
 @user_bp.route('/login')
 def login():
