@@ -671,6 +671,28 @@ def transactions():
     success_count = Transaction.query.filter_by(status='SUCCESS').count()
     total_revenue = db.session.query(db.func.sum(Transaction.amount)).filter(Transaction.status == 'SUCCESS').scalar() or 0.0
 
+    NON_PRODUCT_SKUS = ['DEPOSIT_SALDO', 'DEPOSIT_MANUAL', 'ADMIN_BALANCE', 'MANUAL_DEDUCTION', 'COMMISSION_PAYOUT']
+    DEPOSIT_SKUS = ['DEPOSIT_SALDO', 'DEPOSIT_MANUAL', 'ADMIN_BALANCE']
+
+    prod_count = Transaction.query.filter(
+        ~Transaction.sku_code.in_(NON_PRODUCT_SKUS),
+        Transaction.status == 'SUCCESS'
+    ).count()
+    deposit_count = Transaction.query.filter(
+        Transaction.sku_code.in_(DEPOSIT_SKUS),
+        Transaction.status == 'SUCCESS'
+    ).count()
+
+    prod_revenue = db.session.query(db.func.sum(Transaction.amount)).filter(
+        ~Transaction.sku_code.in_(NON_PRODUCT_SKUS),
+        Transaction.status == 'SUCCESS'
+    ).scalar() or 0.0
+
+    deposit_revenue = db.session.query(db.func.sum(Transaction.amount)).filter(
+        Transaction.sku_code.in_(DEPOSIT_SKUS),
+        Transaction.status == 'SUCCESS'
+    ).scalar() or 0.0
+
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     today_count = Transaction.query.filter(Transaction.created_at >= today_start).count()
 
@@ -711,7 +733,11 @@ def transactions():
                            all_stores=all_stores,
                            total_count=total_count,
                            success_count=success_count,
+                           prod_count=prod_count,
+                           deposit_count=deposit_count,
                            total_revenue=total_revenue,
+                           prod_revenue=prod_revenue,
+                           deposit_revenue=deposit_revenue,
                            today_count=today_count)
 
 @admin_bp.route('/user/adjust_balance', methods=['POST'])

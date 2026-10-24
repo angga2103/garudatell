@@ -377,15 +377,26 @@
         <div class="trx-stat-info">
             <div class="trx-stat-val">{{ "{:,}".format(success_count) }}</div>
             <div class="trx-stat-label">Trx Sukses</div>
+            <div style="font-size: 11px; color: #64748B; font-weight: 700; margin-top: 4px; display: flex; gap: 8px; flex-wrap: wrap;">
+                <span title="Transaksi Penjualan Produk Digital"><i class="fas fa-box" style="color: #0284C7;"></i> {{ "{:,}".format(prod_count or 0) }} Produk</span>
+                <span title="Transaksi Deposit Saldo"><i class="fas fa-arrow-circle-down" style="color: #10B981;"></i> {{ "{:,}".format(deposit_count or 0) }} Depo</span>
+            </div>
         </div>
     </div>
-    <div class="trx-stat-card">
+    <div class="trx-stat-card" title="Total Perputaran Gross Uang (Penjualan Produk + Deposit Saldo). Untuk omset penjualan produk murni, lihat menu Laporan.">
         <div class="trx-stat-icon-wrap" style="background: #E0F2FE; color: #0284C7;">
             <i class="fas fa-wallet"></i>
         </div>
         <div class="trx-stat-info">
             <div class="trx-stat-val">Rp {{ "{:,.0f}".format(total_revenue).replace(',', '.') }}</div>
-            <div class="trx-stat-label">Omset Sukses</div>
+            <div class="trx-stat-label" style="display: flex; align-items: center; gap: 4px;">
+                <span>Total Perputaran (Gross)</span>
+                <i class="fas fa-info-circle" style="color: #94A3B8; font-size: 11px; cursor: help;" title="Gross Volume akumulasi transaksi produk dan deposit saldo. Pada menu Laporan Keuangan, omset yang dihitung adalah penjualan produk murni (Rp {{ '{:,.0f}'.format(prod_revenue or 0).replace(',', '.') }}) agar tidak terjadi double-counting."></i>
+            </div>
+            <div style="font-size: 11px; color: #64748B; font-weight: 700; margin-top: 4px; display: flex; gap: 8px; flex-wrap: wrap;">
+                <span style="color: #0369A1;" title="Omset Penjualan Produk (Sama dengan menu Laporan)"><i class="fas fa-box" style="color: #0284C7;"></i> Produk: Rp {{ "{:,.0f}".format(prod_revenue or 0).replace(',', '.') }}</span>
+                <span style="color: #047857;" title="Akumulasi Deposit Saldo Member"><i class="fas fa-arrow-circle-down" style="color: #10B981;"></i> Depo: Rp {{ "{:,.0f}".format(deposit_revenue or 0).replace(',', '.') }}</span>
+            </div>
         </div>
     </div>
     <div class="trx-stat-card">
@@ -576,7 +587,7 @@
             <div style="font-size: 17px; font-weight: 900; color: #f87171;">{{ "{:,}".format(store_failed) }}</div>
         </a>
         <div style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); padding: 8px 14px; border-radius: 10px; text-align: center;">
-            <div style="font-size: 10px; color: #fbbf24; text-transform: uppercase; font-weight: 700;">💵 Omset Sukses</div>
+            <div style="font-size: 10px; color: #fbbf24; text-transform: uppercase; font-weight: 700;">💵 Total Transaksi Sukses</div>
             <div style="font-size: 17px; font-weight: 900; color: #fbbf24;">Rp {{ "{:,.0f}".format(store_revenue).replace(',', '.') }}</div>
         </div>
         <button type="button" onclick="openStoreAdjustBalanceModal('{{ selected_store.id }}', '{{ selected_store.name }}', '{{ selected_store.balance or 0 }}')"
