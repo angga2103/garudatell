@@ -88,11 +88,11 @@ fi
 echo -e "${BLUE}[*] Memperbarui daftar paket sistem...${NC}"
 apt-get update -y || true
 
-echo -e "${BLUE}[*] Memasang dependensi inti (Python3, Venv, SQLite3, Curl, Git, Build Tools)...${NC}"
-apt-get install -y python3 python3-venv python3-pip python3-dev sqlite3 curl git build-essential unzip libpq-dev || {
+echo -e "${BLUE}[*] Memasang dependensi inti (Python3, Venv, SQLite3, Curl, Git, Build Tools, Nginx, Certbot)...${NC}"
+apt-get install -y python3 python3-venv python3-pip python3-dev sqlite3 curl git build-essential unzip libpq-dev nginx certbot python3-certbot-nginx || {
     dpkg --configure -a
     apt-get install -f -y
-    apt-get install -y python3 python3-venv python3-pip python3-dev sqlite3 curl git build-essential unzip
+    apt-get install -y python3 python3-venv python3-pip python3-dev sqlite3 curl git build-essential unzip nginx
 }
 
 # Optimasi Jaringan: Prioritaskan IPv4 daripada IPv6 untuk mencegah timeout Telegram API & Webhook
@@ -243,6 +243,18 @@ systemctl enable garudatel-bot-admin.service
 systemctl restart garudatel-bot-admin.service
 
 echo -e "${GREEN}[✔] Service garudatel.service & garudatel-bot-admin.service AKTIF.${NC}"
+
+# Setup Nginx Reverse Proxy (Otomatis port 80/443 -> 5000)
+if command -v nginx >/dev/null 2>&1; then
+    echo -e "${BLUE}[*] Mengonfigurasi Nginx Reverse Proxy...${NC}"
+    if [ -f "$TARGET_DIR/deployment/nginx_garudatel.conf" ]; then
+        cp "$TARGET_DIR/deployment/nginx_garudatel.conf" /etc/nginx/sites-available/garudatel
+        ln -sf /etc/nginx/sites-available/garudatel /etc/nginx/sites-enabled/garudatel
+        rm -f /etc/nginx/sites-enabled/default
+        nginx -t 2>/dev/null && systemctl restart nginx || true
+        echo -e "${GREEN}[✔] Nginx Reverse Proxy (Port 5000) siap.${NC}"
+    fi
+fi
 
 # 7. Registrasi Shortcut CLI Global 'garudatell'
 echo -e "${BLUE}[*] Mendaftarkan shortcut global 'garudatell' ke /usr/local/bin/garudatell...${NC}"
