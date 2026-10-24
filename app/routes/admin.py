@@ -3273,22 +3273,136 @@ def reports():
     net_profit = operating_profit - tax_expense
     net_margin_percent = round((net_profit / total_omset * 100), 2) if total_omset > 0 else 0.0
 
-    # 8. TOP 5 PRODUK TERLARIS
-    top_products_raw = db.session.query(
-        Transaction.product_name,
-        db.func.count(Transaction.id).label('sales_count'),
-        db.func.sum(Transaction.amount).label('subtotal')
-    ).filter(
-        Transaction.status == 'SUCCESS',
-        ~Transaction.sku_code.in_(NON_PRODUCT_SKUS),
-        (Transaction.created_at >= start_utc) if start_utc else True,
-        (Transaction.created_at <= end_utc) if end_utc else True
-    ).group_by(Transaction.product_name).order_by(db.desc('sales_count')).limit(5).all()
+    # 8. ANALISIS DETAIL PRODUK TERLARIS, WAKTU SIBUK & REKOMENDASI PROMO
+    def detect_category(name, sku=''):
+        text = f"{name or ''} {sku or ''}".upper()
+        if 'PLN' in text or 'TOKEN' in text: return 'PLN Token'
+        if 'TELKOMSEL' in text or 'TSEL' in text or 'SIMPATI' in text or ' AS ' in text: return 'Telkomsel'
+        if 'INDOSAT' in text or 'ISAT' in text or 'IM3' in text: return 'Indosat'
+        if 'AXIS' in text: return 'Axis'
+        if 'XL' in text: return 'XL'
+        if 'TRI' in text or 'THREE' in text: return 'Tri'
+        if any(em in text for em in ['DANA', 'GOPAY', 'SHOPEE', 'OVO', 'LINKAJA', 'MAXIM']): return 'E-Money'
+        if any(g in text for g in ['FREE FIRE', 'MOBILE LEGEND', 'PUBG', 'GENSHIN', 'VALORANT']): return 'Game'
+        return 'Lainnya'
 
+    product_stats = {}
+    hourly_trx = [0] * 24
+    day_names = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu']
+    daily_trx = {d: 0 for d in day_names}
+    category_summary = {}
+
+    for t in successful_trxs:
+        t_amt = float(t.amount or 0.0)
+        t_base = float(t.base_price or 0.0)
+        if t_base <= 0:
+            t_base = product_base_map.get(t.sku_code, 0.0)
+        t_profit = t_amt - t_base
+
+        # Distribusi Waktu Transaksi (WIB = UTC+7)
+        if t.created_at:
+            dt_wib = t.created_at + timedelta(hours=7)
+            hourly_trx[dt_wib.hour] += 1
+            daily_trx[day_names[dt_wib.weekday()]] += 1
+
+        p_name = t.product_name or t.sku_code or 'Produk Digital'
+        cat = detect_category(p_name, t.sku_code or '')
+
+        if cat not in category_summary:
+            category_summary[cat] = {'name': cat, 'count': 0, 'omset': 0.0, 'profit': 0.0}
+        category_summary[cat]['count'] += 1
+        category_summary[cat]['omset'] += t_amt
+        category_summary[cat]['profit'] += t_profit
+
+        if p_name not in product_stats:
+            product_stats[p_name] = {
+                'name': p_name,
+                'sku_code': t.sku_code or '',
+                'category': cat,
+                'sales': 0,
+                'revenue': 0.0,
+                'cogs': 0.0,
+                'profit': 0.0,
+            }
+        product_stats[p_name]['sales'] += 1
+        product_stats[p_name]['revenue'] += t_amt
+        product_stats[p_name]['cogs'] += t_base
+        product_stats[p_name]['profit'] += t_profit
+
+    all_products_detailed = list(product_stats.values())
+    for p in all_products_detailed:
+        p['margin_pct'] = round((p['profit'] / p['revenue'] * 100), 1) if p['revenue'] > 0 else 0.0
+        p['share_pct'] = round((p['revenue'] / total_omset * 100), 1) if total_omset > 0 else 0.0
+
+        # Klasifikasi Produk & Rekomendasi Taktis Promo
+        if p['margin_pct'] >= 10.0 and p['profit'] >= 2000:
+            p['tag'] = 'HIGH_MARGIN'
+            p['tag_label'] = 'Margin Tebal'
+            p['promo_rec'] = 'Flash Sale Diskon'
+            p['promo_tip'] = 'Margin tebal! Diskon Rp 500 - 1.000 untuk genjot volume tanpa takut rugi.'
+        elif p['sales'] >= 15 and p['margin_pct'] < 5.0:
+            p['tag'] = 'VOLUME_DRIVER'
+            p['tag_label'] = 'Penarik Traffic'
+            p['promo_rec'] = 'Cashback Poin'
+            p['promo_tip'] = 'Jangan potong modal! Pasang promo Cashback Poin atau Umpan Banner.'
+        elif p['sales'] >= 15:
+            p['tag'] = 'STAR'
+            p['tag_label'] = 'Produk Star'
+            p['promo_rec'] = 'Banner Utama'
+            p['promo_tip'] = 'Produk andalan! Jadikan headline banner depan aplikasi & bundling.'
+        else:
+            p['tag'] = 'STANDARD'
+            p['tag_label'] = 'Reguler'
+            p['promo_rec'] = 'Poin Ekstra'
+            p['promo_tip'] = 'Beri promo poin ganda di jam tertentu untuk mendongkrak penjualan.'
+
+    # Urutkan berdasarkan volume penjualan terbanyak
+    all_products_detailed.sort(key=lambda x: x['sales'], reverse=True)
+
+    # Top 5 produk untuk kompatibilitas
     top_products = [
-        {'name': p[0], 'sales': p[1], 'revenue': float(p[2] or 0.0)}
-        for p in top_products_raw
+        {'name': p['name'], 'sales': p['sales'], 'revenue': p['revenue']}
+        for p in all_products_detailed[:5]
     ]
+
+    # Analisis Jam Puncak (Peak Hours)
+    max_h_val = max(hourly_trx) if hourly_trx else 0
+    peak_h_idx = hourly_trx.index(max_h_val) if max_h_val > 0 else 19
+    peak_hour_str = f"{peak_h_idx:02d}:00 - {(peak_h_idx+2)%24:02d}:00 WIB"
+
+    hourly_chart_data = [
+        {
+            'hour': h,
+            'label': f"{h:02d}:00",
+            'count': hourly_trx[h],
+            'pct': round((hourly_trx[h] / max_h_val * 100), 1) if max_h_val > 0 else 0,
+            'is_peak': (hourly_trx[h] == max_h_val and max_h_val > 0)
+        }
+        for h in range(24)
+    ]
+
+    # Analisis Hari Puncak (Peak Days)
+    max_d_val = max(daily_trx.values()) if daily_trx else 0
+    peak_day_str = max(daily_trx, key=daily_trx.get) if any(daily_trx.values()) else 'Sabtu'
+
+    daily_chart_data = [
+        {
+            'day': d,
+            'count': daily_trx[d],
+            'pct': round((daily_trx[d] / max_d_val * 100), 1) if max_d_val > 0 else 0,
+            'is_peak': (daily_trx[d] == max_d_val and max_d_val > 0)
+        }
+        for d in day_names
+    ]
+
+    hero_product = all_products_detailed[0] if all_products_detailed else None
+    
+    # Produk margin tebal untuk promo diskon
+    margin_booster = None
+    high_margin_candidates = [p for p in all_products_detailed if p['margin_pct'] >= 8.0]
+    if high_margin_candidates:
+        high_margin_candidates.sort(key=lambda x: x['profit'], reverse=True)
+        margin_booster = high_margin_candidates[0]
 
     # 9. METODE PEMBAYARAN
     methods_raw = db.session.query(
@@ -3361,6 +3475,14 @@ def reports():
                            net_margin_percent=net_margin_percent,
                            ratios=ratios,
                            top_products=top_products,
+                           all_products_detailed=all_products_detailed,
+                           hourly_chart_data=hourly_chart_data,
+                           daily_chart_data=daily_chart_data,
+                           peak_hour_str=peak_hour_str,
+                           peak_day_str=peak_day_str,
+                           hero_product=hero_product,
+                           margin_booster=margin_booster,
+                           category_summary=sorted(category_summary.values(), key=lambda x: x['count'], reverse=True),
                            payment_methods=payment_methods,
                            default_fin_settings=default_fin_settings)
 
