@@ -282,6 +282,88 @@
         display: none; /* Muncul di tablet */
     }
 
+    /* 3.5. Banner Promo Bundling Kombo (Compact & Harmonious) */
+    .bundling-highlight-banner {
+        margin: 0 15px 16px 15px;
+        background: #FFFFFF;
+        border-radius: 20px;
+        padding: 10px 14px;
+        color: #1E293B;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+        border: 1px solid #F1F5F9;
+        text-decoration: none;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+        box-sizing: border-box;
+    }
+    .bundling-highlight-banner:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 18px rgba(0, 135, 122, 0.08);
+        border-color: #CCFBF1;
+    }
+    .bnd-banner-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 11px;
+        background: linear-gradient(135deg, #00877A 0%, #00685D 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 15px;
+        color: white;
+        flex-shrink: 0;
+        box-shadow: 0 2px 6px rgba(0, 135, 122, 0.22);
+    }
+    .bnd-banner-title {
+        font-size: 13px;
+        font-weight: 800;
+        color: #1E293B;
+        line-height: 1.2;
+    }
+    .bnd-banner-badge {
+        font-size: 9px;
+        font-weight: 800;
+        background: #FEF2F2;
+        color: #DC2626;
+        border: 1px solid #FECACA;
+        padding: 1.5px 6px;
+        border-radius: 5px;
+        letter-spacing: 0.2px;
+        white-space: nowrap;
+    }
+    .bnd-banner-desc {
+        font-size: 10.5px;
+        color: #64748B;
+        margin-top: 1px;
+        line-height: 1.25;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .bnd-banner-btn {
+        background: #F0FDFA;
+        color: #00877A;
+        border: 1px solid #CCFBF1;
+        font-size: 11px;
+        font-weight: 800;
+        padding: 5px 11px;
+        border-radius: 20px;
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        flex-shrink: 0;
+        transition: all 0.15s ease;
+    }
+    .bundling-highlight-banner:hover .bnd-banner-btn {
+        background: #00877A;
+        color: white;
+        border-color: #00877A;
+    }
+
     /* 4. Layanan PPOB & Pembayaran (Dual Cards di Tablet & PC) */
     .services-dual-wrapper {
         display: flex;
@@ -672,6 +754,12 @@
         .tag-teal { background: #ccfbf1; color: #0d9488; }
         .tag-orange { background: #ffedd5; color: #ea580c; }
         .tag-blue { background: #dbeafe; color: #2563eb; }
+
+        .bundling-highlight-banner {
+            margin: 0 0 20px 0 !important;
+            border-radius: 28px !important;
+            padding: 12px 20px !important;
+        }
 
         /* Layanan 2 Kolom di Monitor PC */
         .services-dual-wrapper {
@@ -1183,24 +1271,26 @@
     </div>
 </div>
 
-<!-- BANNER PROMO BUNDLING HIGHLIGHT -->
-<div class="bundling-highlight-banner" style="margin: 0 15px 18px 15px; background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%); border-radius: 20px; padding: 14px 18px; color: white; display: flex; align-items: center; justify-content: space-between; gap: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); border: 1px solid rgba(255,255,255,0.08);">
-    <div style="display: flex; align-items: center; gap: 12px;">
-        <div style="width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%); display: flex; align-items: center; justify-content: center; font-size: 20px; color: white; flex-shrink: 0; box-shadow: 0 4px 10px rgba(245, 158, 11, 0.3);">
+<!-- BANNER PROMO BUNDLING HIGHLIGHT (COMPACT & BALANCED) -->
+<a href="/bundling" class="bundling-highlight-banner" title="Lihat Promo Bundling Produk">
+    <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
+        <div class="bnd-banner-icon">
             <i class="fas fa-boxes-stacked"></i>
         </div>
-        <div>
+        <div style="min-width: 0;">
             <div style="display: flex; align-items: center; gap: 6px;">
-                <span style="font-size: 14px; font-weight: 900; color: #FFFFFF;">Promo Bundling Kombo</span>
-                <span style="font-size: 9.5px; font-weight: 800; background: #EF4444; color: white; padding: 2px 6px; border-radius: 4px;">DISKON SPESIAL</span>
+                <span class="bnd-banner-title">Promo Bundling Kombo</span>
+                <span class="bnd-banner-badge">Hemat Diskon</span>
             </div>
-            <div style="font-size: 11px; color: #94A3B8; margin-top: 2px;">Beli 2 produk favorit sekaligus & nikmati diskon potongan langsung!</div>
+            <div class="bnd-banner-desc">
+                Beli 2 produk favorit sekaligus lebih hemat!
+            </div>
         </div>
     </div>
-    <a href="/bundling" style="background: linear-gradient(135deg, #00877A 0%, #00685D 100%); color: white; text-decoration: none; font-size: 11.5px; font-weight: 800; padding: 8px 14px; border-radius: 10px; white-space: nowrap; box-shadow: 0 2px 8px rgba(0, 135, 122, 0.3); display: inline-flex; align-items: center; gap: 5px;">
-        <span>Lihat Paket</span> <i class="fas fa-chevron-right" style="font-size: 10px;"></i>
-    </a>
-</div>
+    <div class="bnd-banner-btn">
+        <span>Lihat</span> <i class="fas fa-chevron-right" style="font-size: 9px;"></i>
+    </div>
+</a>
 
 <!-- ============================================================= -->
 <!-- LAYANAN PPOB & PEMBAYARAN (DUAL CARDS DI TABLET & DESKTOP) -->
