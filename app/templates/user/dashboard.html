@@ -924,37 +924,40 @@
         -webkit-overflow-scrolling: touch;
         scrollbar-width: none;
         border-radius: 16px;
+        align-items: stretch;
     }
     .banner-carousel-track::-webkit-scrollbar { display: none; }
     .banner-slide {
         flex: 0 0 100%;
-        scroll-snap-align: center;
+        min-width: 100%;
+        scroll-snap-align: start;
         border-radius: 16px;
         overflow: hidden;
         box-shadow: 0 4px 14px rgba(0,0,0,0.06);
-        background: #F1F5F9;
-        aspect-ratio: 16 / 7;
-    }
-    @media (min-width: 768px) {
-        .banner-slide {
-            aspect-ratio: 21 / 7;
-        }
+        background: transparent;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
     .banner-slide-link {
-        display: block;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         width: 100%;
         height: 100%;
         text-decoration: none;
+        line-height: 0;
     }
     .banner-slide-img {
         width: 100%;
-        height: 100%;
-        object-fit: cover;
+        height: auto;
         display: block;
+        border-radius: 16px;
+        object-fit: contain;
         transition: transform 0.25s ease;
     }
     .banner-slide-link:hover .banner-slide-img {
-        transform: scale(1.02);
+        transform: scale(1.01);
     }
     .banner-dots {
         display: flex;
