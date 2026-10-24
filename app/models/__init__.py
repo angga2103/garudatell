@@ -18,7 +18,8 @@ from app.models.trusted_device import TrustedDevice
 from app.models.inquiry import PostpaidInquiry
 from app.models.device_session_log import DeviceSessionLog
 from app.models.merchant import MerchantApiKey
+from app.models.bundling import PromoBundle
 
-__all__ = ['Admin', 'User', 'Product', 'Transaction', 'MarginTier', 'OtpCode', 'OtpManualRequest', 'Banner', 'BroadcastLog', 'DigiDepositTicket', 'PointLog', 'Setting', 'Notification', 'NotificationRead', 'SupportTicket', 'MuslimTrackRecord', 'CommissionLog', 'TrustedDevice', 'PostpaidInquiry', 'DeviceSessionLog', 'MerchantApiKey']
+__all__ = ['Admin', 'User', 'Product', 'Transaction', 'MarginTier', 'OtpCode', 'OtpManualRequest', 'Banner', 'BroadcastLog', 'DigiDepositTicket', 'PointLog', 'Setting', 'Notification', 'NotificationRead', 'SupportTicket', 'MuslimTrackRecord', 'CommissionLog', 'TrustedDevice', 'PostpaidInquiry', 'DeviceSessionLog', 'MerchantApiKey', 'PromoBundle']
 
 

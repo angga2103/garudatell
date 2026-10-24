@@ -699,6 +699,174 @@ def checkout():
         db.session.rollback()
         return jsonify({'status': 'error', 'message': f'Sistem Error: {str(e)}'}), 500
 
+
+@trx_bp.route('/checkout_bundle', methods=['POST'])
+@csrf.exempt
+@limiter.limit("20 per minute")
+def checkout_bundle():
+    """
+    Memproses pembelian paket promo bundling secara atomik:
+    1. Memotong saldo user sebesar harga paket bundling yang sudah didiskon.
+    2. Menghasilkan 2 transaksi terikat dan mengeksekusinya ke provider secara otomatis.
+    """
+    if not current_user.is_authenticated:
+        return jsonify({
+            'status': 'error',
+            'error': True,
+            'message': 'Anda harus login terlebih dahulu untuk membeli paket bundling',
+            'requires_login': True
+        }), 401
+
+    try:
+        req_data = request.get_json(silent=True) or request.form.to_dict() or {}
+        bundle_id = req_data.get('bundle_id')
+        target_1 = str(req_data.get('target_1') or '').strip()
+        target_2 = str(req_data.get('target_2') or '').strip()
+        pin = str(req_data.get('pin') or '').strip()
+
+        if not bundle_id or not target_1 or not target_2:
+            return jsonify({'status': 'error', 'message': 'Data paket bundling dan nomor tujuan wajib diisi lengkap.'}), 400
+
+        from app.models.bundling import PromoBundle
+        bundle = PromoBundle.query.get(bundle_id)
+        if not bundle or not bundle.is_active:
+            return jsonify({'status': 'error', 'message': 'Paket bundling ini tidak aktif atau tidak ditemukan.'}), 404
+
+        # Validasi PIN jika akun mengaktifkan PIN
+        if hasattr(current_user, 'pin_hash') and current_user.pin_hash:
+            if not pin:
+                return jsonify({'status': 'error', 'message': 'PIN Transaksi 6-digit wajib diisi!'}), 400
+            from werkzeug.security import check_password_hash
+            if not check_password_hash(current_user.pin_hash, pin):
+                return jsonify({'status': 'error', 'message': 'PIN Transaksi yang Anda masukkan salah!'}), 400
+
+        p1, p2 = bundle.get_products()
+        if not p1 or not p2 or not p1.is_active or not p2.is_active:
+            return jsonify({'status': 'error', 'message': 'Salah satu produk dalam paket bundling ini sedang mengalami gangguan/tidak aktif.'}), 400
+
+        # Cek cut off harian PLN jika ada produk PLN
+        from app.services.digiflazz import is_pln_cutoff_time, get_pln_cutoff_message
+        is_p1_pln = 'PLN' in (p1.category or '').upper() or 'PLN' in (p1.name or '').upper() or 'LISTRIK' in (p1.name or '').upper()
+        is_p2_pln = 'PLN' in (p2.category or '').upper() or 'PLN' in (p2.name or '').upper() or 'LISTRIK' in (p2.name or '').upper()
+        if (is_p1_pln or is_p2_pln) and is_pln_cutoff_time():
+            return jsonify({'status': 'error', 'message': get_pln_cutoff_message()}), 400
+
+        # Hitung harga paket
+        price_info = bundle.calculate_prices(current_user)
+        total_bundle_price = price_info['bundle_price']
+        discount = price_info['discount']
+
+        # Kunci user dan cek saldo
+        user_locked = User.query.with_for_update().get(current_user.id)
+        if not user_locked or user_locked.balance < total_bundle_price:
+            return jsonify({
+                'status': 'error',
+                'message': f"Saldo Anda tidak mencukupi! Sisa Saldo: Rp {int(user_locked.balance if user_locked else 0):,}, Total Paket: Rp {int(total_bundle_price):,}."
+            }), 400
+
+        # Potong saldo user secara atomic
+        old_balance = user_locked.balance
+        user_locked.balance -= total_bundle_price
+
+        # Buat 2 transaksi yang terikat kode bundling
+        ts = int(time.time())
+        rnd = random.randint(100, 999)
+        ref_1 = f"GTBND-{ts}{rnd}A"
+        ref_2 = f"GTBND-{ts}{rnd}B"
+
+        # Bagi nominal amount secara proporsional
+        disc_1 = round(discount / 2)
+        disc_2 = discount - disc_1
+        amt_1 = max(0.0, price_info['price_1'] - disc_1)
+        amt_2 = max(0.0, price_info['price_2'] - disc_2)
+
+        trx1 = Transaction(
+            ref_id=ref_1,
+            user_id=current_user.id,
+            sku_code=p1.sku_code,
+            product_name=f"[KOMBO] {p1.name}",
+            target_number=target_1,
+            amount=amt_1,
+            payment_method='saldo',
+            payment_status='PAID',
+            status='PROCESSING',
+            base_price=p1.base_price,
+            seller_name=p1.seller_name
+        )
+
+        trx2 = Transaction(
+            ref_id=ref_2,
+            user_id=current_user.id,
+            sku_code=p2.sku_code,
+            product_name=f"[KOMBO] {p2.name}",
+            target_number=target_2,
+            amount=amt_2,
+            payment_method='saldo',
+            payment_status='PAID',
+            status='PROCESSING',
+            base_price=p2.base_price,
+            seller_name=p2.seller_name
+        )
+
+        bundle.total_sold = (bundle.total_sold or 0) + 1
+        db.session.add(trx1)
+        db.session.add(trx2)
+        db.session.commit()
+
+        # Eksekusi dispatch ke provider untuk trx1 & trx2
+        from app.services.digiflazz import create_transaction, apply_digiflazz_seller_metadata
+        for trx_obj, prod_obj, tgt_num, amt_sub in [(trx1, p1, target_1, amt_1), (trx2, p2, target_2, amt_2)]:
+            try:
+                if str(prod_obj.brand).startswith('VIP-'):
+                    from app.services.vip_reseller import order_vip
+                    vip_ok, vip_res, vip_msg = order_vip(prod_obj.sku_code, tgt_num, trx_obj.ref_id)
+                    if not vip_ok:
+                        trx_obj.status = 'FAILED'
+                        trx_obj.sn = vip_msg
+                        user_locked.balance += amt_sub
+                else:
+                    digi_res = create_transaction(prod_obj.sku_code, tgt_num, trx_obj.ref_id)
+                    if digi_res and 'data' in digi_res:
+                        d_data = digi_res['data']
+                        apply_digiflazz_seller_metadata(trx_obj, d_data, prod_obj)
+                        d_status = str(d_data.get('status', '')).lower()
+                        d_rc = str(d_data.get('rc', '')).strip()
+                        if 'sukses' in d_status or 'success' in d_status or d_rc == '00':
+                            trx_obj.status = 'SUCCESS'
+                            trx_obj.sn = d_data.get('sn', '')
+                        elif 'gagal' in d_status or 'failed' in d_status or d_rc in ['01', '41', '42', '50', '52']:
+                            trx_obj.status = 'FAILED'
+                            trx_obj.sn = d_data.get('message', 'Gagal dari provider')
+                            user_locked.balance += amt_sub
+                        else:
+                            trx_obj.status = 'PROCESSING'
+                    else:
+                        trx_obj.status = 'PROCESSING'
+                db.session.commit()
+            except Exception:
+                trx_obj.status = 'PROCESSING'
+                db.session.commit()
+
+        # Notifikasi Telegram & Saldo Rendah jika perlu
+        try:
+            from app.services.telegram_service import async_send_trx_notification
+            async_send_trx_notification(trx1, title=f"PROMO BUNDLING (1/2) - {bundle.title}")
+            async_send_trx_notification(trx2, title=f"PROMO BUNDLING (2/2) - {bundle.title}")
+        except Exception:
+            pass
+
+        return jsonify({
+            'status': 'success',
+            'success': True,
+            'message': f"Pembelian Paket Bundling '{bundle.title}' berhasil! Anda hemat Rp {int(discount):,}!",
+            'redirect': '/riwayat'
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'status': 'error', 'message': f'Terjadi kendala sistem: {str(e)}'}), 500
+
+
 @trx_bp.route('/invoice/<ref_id>')
 @login_required
 def invoice(ref_id):

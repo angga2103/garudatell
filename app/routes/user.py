@@ -1654,6 +1654,26 @@ def download_mutasi_pdf():
 
 
 
+# --- ROUTE PROMO BUNDLING PRODUK ---
+@user_bp.route('/bundling')
+def bundling_promo():
+    """Halaman Publik & Member untuk Promo Bundling Produk."""
+    from app.models.bundling import PromoBundle
+    raw_bundles = PromoBundle.query.filter_by(is_active=True).order_by(PromoBundle.id.desc()).all()
+    
+    active_bundles = []
+    user_obj = current_user if current_user.is_authenticated else None
+    for b in raw_bundles:
+        info = b.calculate_prices(user_obj)
+        if info['is_available']:
+            active_bundles.append({
+                'bundle': b,
+                'info': info
+            })
+            
+    return render_template('user/bundling.html', bundles=active_bundles)
+
+
 # --- ROUTE PRODUK CUAN (SEMUA CUAN & DINAMIS PROVIDER) ---
 @user_bp.route('/cuan')
 @user_bp.route('/cuan/')

@@ -5,6 +5,7 @@ from app.models.margin import MarginTier
 from app.models.user import User
 from app.models.transaction import Transaction
 from app.models.banner import Banner
+from app.models.bundling import PromoBundle
 from app.models.broadcast import BroadcastLog
 from app.models.deposit_ticket import DigiDepositTicket
 from app.services.digiflazz import sync_products, check_balance, request_deposit
@@ -2831,6 +2832,134 @@ def delete_banner(id):
     db.session.commit()
     flash(f"Banner '{banner_title}' dan file gambarnya berhasil dihapus!", 'success')
     return redirect(url_for('admin.banner'))
+
+
+# =====================================================================
+# MANAJEMEN PROMO BUNDLING PRODUK
+# =====================================================================
+@admin_bp.route('/bundling')
+def bundling():
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin.login'))
+    
+    bundles = PromoBundle.query.order_by(PromoBundle.id.desc()).all()
+    total_bundles = len(bundles)
+    active_bundles = sum(1 for b in bundles if b.is_active)
+    total_sold = sum(b.total_sold or 0 for b in bundles)
+    
+    # Ambil katalog produk aktif untuk pilihan dropdown form
+    products = Product.query.filter_by(is_active=True).order_by(Product.category.asc(), Product.name.asc()).all()
+    
+    # Format data bundling dengan ringkasan harga
+    bundle_data = []
+    for b in bundles:
+        p_info = b.calculate_prices()
+        bundle_data.append({
+            'bundle': b,
+            'info': p_info
+        })
+        
+    return render_template('admin/bundling.html',
+                           bundles=bundle_data,
+                           total_bundles=total_bundles,
+                           active_bundles=active_bundles,
+                           total_sold=total_sold,
+                           products=products)
+
+@admin_bp.route('/bundling/add', methods=['POST'])
+def add_bundling():
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin.login'))
+        
+    title = request.form.get('title', '').strip()
+    badge_label = request.form.get('badge_label', 'Hemat Rp 500').strip()
+    description = request.form.get('description', '').strip()
+    sku_1 = request.form.get('sku_1', '').strip()
+    sku_2 = request.form.get('sku_2', '').strip()
+    target_label_1 = request.form.get('target_label_1', '').strip()
+    target_label_2 = request.form.get('target_label_2', '').strip()
+    discount_raw = request.form.get('discount_amount', '500').strip()
+    is_active = True if request.form.get('is_active') == '1' else False
+    
+    if not title or not sku_1 or not sku_2:
+        flash('Judul promo dan kedua produk paket wajib dipilih!', 'danger')
+        return redirect(url_for('admin.bundling'))
+        
+    p1 = Product.query.filter_by(sku_code=sku_1).first()
+    p2 = Product.query.filter_by(sku_code=sku_2).first()
+    
+    if not p1 or not p2:
+        flash('Salah satu produk yang dipilih tidak ditemukan dalam katalog!', 'danger')
+        return redirect(url_for('admin.bundling'))
+        
+    try:
+        discount_amount = max(0.0, float(discount_raw))
+    except (ValueError, TypeError):
+        discount_amount = 500.0
+
+    # Auto label target jika dikosongkan
+    if not target_label_1:
+        cat1 = (p1.category or '').upper()
+        if 'PLN' in cat1 or 'LISTRIK' in (p1.name or '').upper():
+            target_label_1 = 'No. Meter / ID Pelanggan PLN'
+        elif 'GAME' in cat1:
+            target_label_1 = 'User ID Game'
+        elif 'EMONEY' in cat1 or 'E-MONEY' in cat1:
+            target_label_1 = 'No. HP Akun E-Wallet'
+        else:
+            target_label_1 = 'Nomor HP Tujuan'
+
+    if not target_label_2:
+        cat2 = (p2.category or '').upper()
+        if 'PLN' in cat2 or 'LISTRIK' in (p2.name or '').upper():
+            target_label_2 = 'No. Meter / ID Pelanggan PLN'
+        elif 'GAME' in cat2:
+            target_label_2 = 'User ID Game'
+        elif 'EMONEY' in cat2 or 'E-MONEY' in cat2:
+            target_label_2 = 'No. HP Akun E-Wallet'
+        else:
+            target_label_2 = 'Nomor HP Tujuan'
+            
+    bundle = PromoBundle(
+        title=title,
+        badge_label=badge_label or 'Hemat Diskon',
+        description=description,
+        sku_1=p1.sku_code,
+        name_1=p1.name,
+        target_label_1=target_label_1,
+        sku_2=p2.sku_code,
+        name_2=p2.name,
+        target_label_2=target_label_2,
+        discount_amount=discount_amount,
+        is_active=is_active
+    )
+    db.session.add(bundle)
+    db.session.commit()
+    flash(f"Paket Bundling '{title}' berhasil dibuat & disimpan!", 'success')
+    return redirect(url_for('admin.bundling'))
+
+@admin_bp.route('/bundling/toggle/<int:id>', methods=['POST'])
+def toggle_bundling(id):
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin.login'))
+    b = PromoBundle.query.get_or_404(id)
+    b.is_active = not b.is_active
+    db.session.commit()
+    st = "diaktifkan" if b.is_active else "dinonaktifkan"
+    flash(f"Paket Bundling '{b.title}' berhasil {st}!", 'success')
+    return redirect(url_for('admin.bundling'))
+
+@admin_bp.route('/bundling/delete/<int:id>', methods=['POST'])
+def delete_bundling(id):
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin.login'))
+    b = PromoBundle.query.get_or_404(id)
+    title = b.title
+    db.session.delete(b)
+    db.session.commit()
+    flash(f"Paket Bundling '{title}' berhasil dihapus!", 'success')
+    return redirect(url_for('admin.bundling'))
+
 
 
 # =====================================================================

@@ -220,6 +220,10 @@
                     <i class="fas fa-image" style="color: #818cf8;"></i>
                     <span class="nav-label hide-on-slim">Banner Promo</span>
                 </a>
+                <a href="{{ url_for('admin.bundling') }}" class="nav-item {% if request.endpoint in ['admin.bundling'] %}active{% endif %}">
+                    <i class="fas fa-boxes-stacked" style="color: #f59e0b;"></i>
+                    <span class="nav-label hide-on-slim">Promo Bundling</span>
+                </a>
                 <a href="{{ url_for('admin.broadcast') }}" class="nav-item {% if request.endpoint in ['admin.broadcast'] %}active{% endif %}">
                     <i class="fas fa-bullhorn" style="color: #c084fc;"></i>
                     <span class="nav-label hide-on-slim">Pesan Broadcast</span>
