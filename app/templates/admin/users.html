@@ -8,6 +8,9 @@
 
 {% block topbar_actions %}
 <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+    <button type="button" onclick="openCreateUserModal()" class="adm-btn adm-btn-primary" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; font-weight: 700; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.25); cursor: pointer;">
+        <i class="fas fa-user-plus"></i> Tambah Member
+    </button>
     <a href="{{ url_for('admin.device_logs') }}" class="adm-btn adm-btn-secondary" style="background: #ede9fe; color: #6d28d9; border-color: #ddd6fe;">
         <i class="fas fa-mobile-alt"></i> Sesi Perangkat
     </a>
@@ -167,6 +170,93 @@
 {% endblock %}
 
 {% block admin_content %}
+
+<!-- MODAL TAMBAH USER / MEMBER BARU -->
+<div id="createUserModal" class="modal-overlay" style="display: none;">
+    <div class="modal-box" style="max-width: 560px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; border-bottom: 1px solid #E2E8F0; padding-bottom: 12px;">
+            <h3 style="margin: 0; color: #1e293b; font-size: 17px; font-weight: 800;">
+                <i class="fas fa-user-plus" style="color: #10b981;"></i> Tambah Member Baru
+            </h3>
+            <button type="button" onclick="closeCreateUserModal()" style="background: none; border: none; font-size: 20px; color: #94a3b8; cursor: pointer;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <form id="createUserForm" method="POST" action="{{ url_for('admin.create_user_action') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            
+            <div style="margin-bottom: 12px;">
+                <label style="display: block; font-size: 11px; font-weight: 800; color: #64748b; margin-bottom: 4px;">Nama Lengkap / Nama Toko <span style="color: #ef4444;">*</span></label>
+                <input type="text" name="name" required placeholder="Contoh: Toko Berkah / Budi Santoso" style="width: 100%; padding: 10px 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 13px; font-family: inherit; font-weight: 700; box-sizing: border-box; outline: none;">
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                <div style="flex: 1;">
+                    <label style="display: block; font-size: 11px; font-weight: 800; color: #64748b; margin-bottom: 4px;">Nomor WhatsApp <span style="color: #ef4444;">*</span></label>
+                    <input type="text" name="phone" required placeholder="081234567890" style="width: 100%; padding: 10px 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 13px; font-family: inherit; font-weight: 700; box-sizing: border-box; outline: none;">
+                </div>
+                <div style="flex: 1;">
+                    <label style="display: block; font-size: 11px; font-weight: 800; color: #64748b; margin-bottom: 4px;">Email (Opsional)</label>
+                    <input type="email" name="email" placeholder="email@contoh.com" style="width: 100%; padding: 10px 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 13px; font-family: inherit; box-sizing: border-box; outline: none;">
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                <div style="flex: 1;">
+                    <label style="display: block; font-size: 11px; font-weight: 800; color: #64748b; margin-bottom: 4px;">Password Akun</label>
+                    <input type="text" name="password" placeholder="Kosongkan: otomatis user+4digit HP" style="width: 100%; padding: 10px 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 12px; box-sizing: border-box; outline: none;">
+                </div>
+                <div style="flex: 1;">
+                    <label style="display: block; font-size: 11px; font-weight: 800; color: #64748b; margin-bottom: 4px;">PIN Transaksi (4-6 Angka)</label>
+                    <input type="password" name="pin" maxlength="6" pattern="[0-9]*" placeholder="Default: 1234" style="width: 100%; padding: 10px 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 12px; box-sizing: border-box; outline: none;">
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                <div style="flex: 1;">
+                    <label style="display: block; font-size: 11px; font-weight: 800; color: #64748b; margin-bottom: 4px;">Saldo Awal (Rp)</label>
+                    <input type="number" name="balance" value="0" min="0" step="any" style="width: 100%; padding: 10px 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-weight: 800; color: #059669; box-sizing: border-box; outline: none;">
+                </div>
+                <div style="flex: 1;">
+                    <label style="display: block; font-size: 11px; font-weight: 800; color: #64748b; margin-bottom: 4px;">Golongan / Tier Akun</label>
+                    <select id="cu_role" name="role" onchange="toggleCreateTierDays()" style="width: 100%; padding: 10px 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-weight: 700; box-sizing: border-box; background: white; outline: none;">
+                        <option value="user" selected>Member Biasa</option>
+                        <option value="reseller">Reseller</option>
+                        <option value="vip">VIP (Downline & Komisi)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- MASA AKTIF UNTUK RESELLER / VIP -->
+            <div id="cu_section_tier_expiry" style="display: none; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 12px; margin-bottom: 12px;">
+                <div style="font-size: 11px; font-weight: 800; color: #166534; margin-bottom: 6px;">
+                    <i class="fas fa-crown"></i> Masa Aktif Langganan (Reseller/VIP)
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <div style="flex: 1;">
+                        <label style="display: block; font-size: 10px; font-weight: 700; color: #166534; margin-bottom: 3px;">Durasi Aktif (Hari)</label>
+                        <input type="number" id="cu_role_days" name="role_days" value="30" min="1" placeholder="30" style="width: 100%; padding: 8px 10px; border: 1.5px solid #86efac; border-radius: 6px; font-size: 12px; font-family: inherit; font-weight: bold; background: white; box-sizing: border-box; outline: none;">
+                    </div>
+                    <div style="flex: 1; font-size: 11px; color: #15803d; line-height: 1.4; padding-top: 14px;">
+                        Masa aktif otomatis terhitung sejak tanggal pembuatan akun.
+                    </div>
+                </div>
+            </div>
+
+            <!-- UPLINE REFERRAL -->
+            <div style="margin-bottom: 18px;">
+                <label style="display: block; font-size: 11px; font-weight: 800; color: #64748b; margin-bottom: 4px;">Upline Referral (Opsional)</label>
+                <input type="text" name="upline_input" placeholder="Ketik Kode Referral atau Nomor WhatsApp Upline" style="width: 100%; padding: 10px 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 12px; font-family: inherit; box-sizing: border-box; outline: none;">
+                <small style="font-size: 10.5px; color: #94a3b8; display: block; margin-top: 3px;">Kosongkan jika member mendaftar tanpa upline sponsor.</small>
+            </div>
+
+            <button type="submit" style="width: 100%; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; padding: 12px; border-radius: 10px; font-size: 13.5px; font-weight: 800; cursor: pointer; box-shadow: 0 3px 6px rgba(16, 185, 129, 0.25); transition: 0.2s;">
+                <i class="fas fa-user-plus"></i> Simpan & Buat Akun Member
+            </button>
+        </form>
+    </div>
+</div>
 
 <!-- MODAL EDIT USER -->
 <div id="editUserModal" class="modal-overlay">
@@ -776,6 +866,12 @@
                                     style="background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; padding: 5px 11px; border-radius: 7px; font-weight: 800; font-size: 11.5px; cursor: pointer; transition: 0.2s;">
                                 <i class="fas fa-edit"></i> Edit
                             </button>
+                            <button type="button" 
+                                    onclick="confirmDeleteUser('{{ u.id }}', '{{ u.name|replace('\'', '\\\'') }}', '{{ u.phone }}', '{{ u.balance or 0 }}')" 
+                                    title="Hapus Akun Member Ini" 
+                                    style="background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; padding: 5px 9px; border-radius: 7px; font-weight: 800; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; transition: 0.2s;">
+                                <i class="fas fa-trash-alt"></i> Hapus
+                            </button>
                         </div>
                     </td>
                 </tr>
@@ -1186,6 +1282,124 @@
                 .catch(err => {
                     alert('Gagal menghubungi server.');
                 });
+            }
+        }
+    }
+
+    function openCreateUserModal() {
+        const form = document.getElementById('createUserForm');
+        if (form) form.reset();
+        toggleCreateTierDays();
+        document.getElementById('createUserModal').style.display = 'flex';
+    }
+
+    function closeCreateUserModal() {
+        document.getElementById('createUserModal').style.display = 'none';
+    }
+
+    function toggleCreateTierDays() {
+        const roleSelect = document.getElementById('cu_role');
+        const expirySec = document.getElementById('cu_section_tier_expiry');
+        if (!roleSelect || !expirySec) return;
+        if (roleSelect.value === 'reseller' || roleSelect.value === 'vip') {
+            expirySec.style.display = 'block';
+        } else {
+            expirySec.style.display = 'none';
+        }
+    }
+
+    function confirmDeleteUser(userId, userName, userPhone, userBalance) {
+        const balNum = Number(userBalance || 0);
+        const balFormatted = 'Rp ' + balNum.toLocaleString('id-ID');
+        
+        let balanceWarning = '';
+        if (balNum > 0) {
+            balanceWarning = `<div style="background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; padding: 10px; border-radius: 8px; font-size: 12px; margin-top: 10px; text-align: left; font-weight: 700;">
+                <i class="fas fa-exclamation-triangle"></i> PERHATIAN: Akun ini masih memiliki saldo aktif sebesar <b>${balFormatted}</b>. Menghapus akun akan menghapus saldo dan seluruh riwayatnya secara permanen!
+            </div>`;
+        }
+
+        const htmlContent = `
+            Apakah Anda yakin ingin menghapus member <b>${userName}</b> (${userPhone}) secara permanen?<br><br>
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; font-size: 12px; color: #475569; text-align: left;">
+                <div>👤 <b>Nama:</b> ${userName}</div>
+                <div>📱 <b>WhatsApp:</b> ${userPhone}</div>
+                <div>💰 <b>Saldo:</b> ${balFormatted}</div>
+            </div>
+            ${balanceWarning}
+            <br><span style="font-size: 11.5px; color: #ef4444; font-weight: 800;">Tindakan ini permanen dan tidak dapat dibatalkan!</span>
+        `;
+
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: 'Hapus Akun Member?',
+                html: htmlContent,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc2626',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: '<i class="fas fa-trash-alt"></i> Ya, Hapus Akun!',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'Menghapus Akun...',
+                        text: 'Sedang membersihkan seluruh data dan relasi member...',
+                        allowOutsideClick: false,
+                        didOpen: () => { Swal.showLoading(); }
+                    });
+
+                    fetch(`/admin/users/${userId}/delete`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': CSRF_TOKEN,
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Berhasil Dihapus!',
+                                text: data.message || 'Akun member berhasil dihapus permanen.',
+                                timer: 1800,
+                                showConfirmButton: false
+                            }).then(() => {
+                                location.reload();
+                            });
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Gagal Menghapus',
+                                text: data.message || 'Terjadi kesalahan sistem.'
+                            });
+                        }
+                    })
+                    .catch(err => {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Kesalahan Jaringan',
+                            text: 'Gagal menghubungi server saat menghapus akun.'
+                        });
+                    });
+                }
+            });
+        } else {
+            if (confirm(`YAKIN HAPUS MEMBER ${userName} (${userPhone})?\nSaldo saat ini: ${balFormatted}\nTindakan ini permanen!`)) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = `/admin/users/${userId}/delete`;
+                
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = 'csrf_token';
+                csrfInput.value = CSRF_TOKEN;
+                form.appendChild(csrfInput);
+                
+                document.body.appendChild(form);
+                form.submit();
             }
         }
     }

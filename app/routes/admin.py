@@ -1456,6 +1456,235 @@ def update_user_action():
     return redirect(url_for('admin.users'))
 
 
+@admin_bp.route('/users/create', methods=['POST'])
+@admin_bp.route('/user/create_action', methods=['POST'])
+def create_user_action():
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin.login'))
+
+    try:
+        import secrets
+        from app.models.user import User
+        from app.services.merchant_service import normalize_phone_08
+        from app.services.tier_service import get_wib_now, ensure_user_referral_code
+
+        name = request.form.get('name', '').strip()
+        phone_raw = request.form.get('phone', '').strip()
+        email_raw = request.form.get('email', '').strip()
+        password = request.form.get('password', '').strip()
+        pin = request.form.get('pin', '').strip()
+        balance_raw = request.form.get('balance', '0').strip()
+        role = request.form.get('role', 'user').strip().lower()
+        role_days_raw = request.form.get('role_days', '').strip()
+        upline_raw = request.form.get('upline_input', '').strip()
+
+        if not name:
+            flash('Gagal: Nama lengkap / toko wajib diisi!', 'error')
+            return redirect(url_for('admin.users'))
+
+        phone = normalize_phone_08(phone_raw)
+        if not phone or len(phone) < 9:
+            flash('Gagal: Nomor WhatsApp tidak valid (minimal 9 digit)!', 'error')
+            return redirect(url_for('admin.users'))
+
+        # Cek apakah nomor WA sudah digunakan
+        existing_phone = User.query.filter_by(phone=phone).first()
+        if existing_phone:
+            flash(f'Gagal: Nomor WhatsApp {phone} sudah terdaftar atas nama {existing_phone.name}!', 'error')
+            return redirect(url_for('admin.users'))
+
+        # Cek email jika diisi
+        email = None
+        if email_raw and email_raw not in ('', "''", '""', 'None', 'none', 'null'):
+            existing_email = User.query.filter_by(email=email_raw).first()
+            if existing_email:
+                flash(f'Gagal: Email {email_raw} sudah digunakan oleh {existing_email.name}!', 'error')
+                return redirect(url_for('admin.users'))
+            email = email_raw
+
+        # Default password jika tidak diisi oleh admin: user + 4 digit terakhir nomor HP
+        final_password = password if password else f"user{phone[-4:] if len(phone) >= 4 else '1234'}"
+        final_pin = pin if pin else '1234'
+
+        # Saldo awal
+        try:
+            initial_balance = max(0.0, float(balance_raw)) if balance_raw else 0.0
+        except ValueError:
+            initial_balance = 0.0
+
+        if role not in ('user', 'reseller', 'vip'):
+            role = 'user'
+
+        # Masa aktif untuk reseller / vip
+        role_expires_at = None
+        now = get_wib_now()
+        if role in ('reseller', 'vip'):
+            try:
+                days = int(role_days_raw) if role_days_raw else 30
+            except ValueError:
+                days = 30
+            days = max(1, days)
+            role_expires_at = now + timedelta(days=days)
+
+        # Upline check
+        upline_id = None
+        if upline_raw and upline_raw not in ('0', '-', 'none', 'null'):
+            up_user = User.query.filter(
+                (User.referral_code == upline_raw) |
+                (User.phone == upline_raw) |
+                (User.name == upline_raw) |
+                (User.id == (int(upline_raw) if upline_raw.isdigit() else -1))
+            ).first()
+            if up_user:
+                upline_id = up_user.id
+
+        new_user = User(
+            name=name,
+            phone=phone,
+            email=email,
+            balance=initial_balance,
+            points=0,
+            role=role,
+            role_expires_at=role_expires_at,
+            is_active=True,
+            upline_id=upline_id
+        )
+        new_user.set_password(final_password)
+        new_user.set_pin(final_pin)
+
+        db.session.add(new_user)
+        db.session.flush()
+
+        ensure_user_referral_code(new_user)
+
+        # Jika saldo awal > 0, catat riwayat transaksi deposit manual
+        if initial_balance > 0:
+            from app.models.transaction import Transaction
+            ref_id = f"ADM-INIT-{new_user.id}-{secrets.token_hex(4).upper()}"
+            init_trx = Transaction(
+                ref_id=ref_id,
+                user_id=new_user.id,
+                sku_code='DEPOSIT_MANUAL',
+                product_name='Saldo Awal Pendaftaran oleh Admin',
+                target_number=phone,
+                amount=initial_balance,
+                payment_method='ADMIN_MANUAL',
+                payment_status='PAID',
+                status='SUCCESS',
+                sn=f"Pemberian saldo awal akun member oleh Admin",
+                is_prepaid=True
+            )
+            db.session.add(init_trx)
+
+        db.session.commit()
+        flash(f"✅ Akun member {new_user.name} ({new_user.phone}) berhasil dibuat! Password: {final_password} | PIN: {final_pin}", "success")
+
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Terjadi kesalahan saat membuat member: {str(e)}", "error")
+
+    return redirect(url_for('admin.users'))
+
+
+@admin_bp.route('/users/<int:user_id>/delete', methods=['POST'])
+@admin_bp.route('/user/<int:user_id>/delete', methods=['POST'])
+def delete_user_action(user_id):
+    if not session.get('admin_logged_in'):
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'status': 'error', 'message': 'Akses ditolak. Silakan login kembali.'}), 403
+        return redirect(url_for('admin.login'))
+
+    from app.models.user import User
+    from app.models.transaction import Transaction
+    from app.models.support_ticket import SupportTicket
+    from app.models.commission import CommissionLog
+    from app.models.branch_mutation import BranchMutation
+    from app.models.trusted_device import TrustedDevice
+    from app.models.device_session_log import DeviceSessionLog
+    from app.models.notification import Notification, NotificationRead
+    from app.models.point_log import PointLog
+    from app.models.inquiry import PostpaidInquiry
+    from app.models.muslim_track import MuslimTrackRecord
+    from app.models.merchant import MerchantApiKey
+
+    user = User.query.get(user_id)
+    if not user:
+        msg = 'Pengguna tidak ditemukan atau sudah dihapus.'
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'status': 'error', 'message': msg}), 404
+        flash(f'Gagal: {msg}', 'error')
+        return redirect(url_for('admin.users'))
+
+    user_name = user.name
+    user_phone = user.phone
+
+    try:
+        # 1. Lepaskan seluruh downline agar tidak memiliki upline_id yang sudah dihapus
+        User.query.filter_by(upline_id=user.id).update({'upline_id': None}, synchronize_session=False)
+
+        # 2. Hapus log komisi terkait user (baik sebagai upline maupun downline)
+        CommissionLog.query.filter(
+            (CommissionLog.upline_id == user.id) | (CommissionLog.downline_id == user.id)
+        ).delete(synchronize_session=False)
+
+        # 3. Lepaskan atau bersihkan transaksi & tiket bantuan
+        user_trx_ids = [t.id for t in Transaction.query.filter_by(user_id=user.id).with_entities(Transaction.id).all()]
+        if user_trx_ids:
+            # Set tiket bantuan yang merujuk transaksi user ini menjadi None
+            SupportTicket.query.filter(SupportTicket.transaction_id.in_(user_trx_ids)).update({'transaction_id': None}, synchronize_session=False)
+            # Hapus komisi yang merujuk transaksi ini jika masih ada
+            CommissionLog.query.filter(CommissionLog.transaction_id.in_(user_trx_ids)).delete(synchronize_session=False)
+            # Hapus transaksi user
+            Transaction.query.filter(Transaction.id.in_(user_trx_ids)).delete(synchronize_session=False)
+
+        # 4. Lepaskan atau hapus tiket bantuan milik user ini
+        SupportTicket.query.filter_by(user_id=user.id).delete(synchronize_session=False)
+
+        # 5. Hapus mutasi cabang kasir milik user
+        BranchMutation.query.filter_by(user_id=user.id).delete(synchronize_session=False)
+
+        # 6. Hapus perangkat kasir terpercaya (TrustedDevice)
+        TrustedDevice.query.filter_by(user_id=user.id).delete(synchronize_session=False)
+
+        # 7. Hapus catatan sesi perangkat (DeviceSessionLog)
+        DeviceSessionLog.query.filter_by(user_id=user.id).delete(synchronize_session=False)
+
+        # 8. Hapus riwayat baca notifikasi & notifikasi khusus user
+        NotificationRead.query.filter_by(user_id=user.id).delete(synchronize_session=False)
+        Notification.query.filter_by(target_user_id=user.id).delete(synchronize_session=False)
+
+        # 9. Hapus log poin
+        PointLog.query.filter_by(user_id=user.id).delete(synchronize_session=False)
+
+        # 10. Hapus inquiry pascabayar
+        PostpaidInquiry.query.filter_by(user_id=user.id).delete(synchronize_session=False)
+
+        # 11. Hapus catatan muslim track jika ada
+        MuslimTrackRecord.query.filter_by(user_id=user.id).delete(synchronize_session=False)
+
+        # 12. Hapus API Key Merchant jika ada
+        MerchantApiKey.query.filter_by(user_id=user.id).delete(synchronize_session=False)
+
+        # 13. Hapus entitas User
+        db.session.delete(user)
+        db.session.commit()
+
+        success_msg = f"Akun member '{user_name}' ({user_phone}) berhasil dihapus permanen beserta seluruh data terkait."
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'status': 'success', 'message': success_msg})
+
+        flash(f"✅ {success_msg}", "success")
+
+    except Exception as e:
+        db.session.rollback()
+        err_msg = f"Terjadi kesalahan saat menghapus pengguna: {str(e)}"
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'status': 'error', 'message': err_msg}), 500
+        flash(f"❌ {err_msg}", "error")
+
+    return redirect(url_for('admin.users'))
+
+
 @admin_bp.route('/user/reset_points/<int:user_id>', methods=['POST'])
 def reset_user_points_action(user_id):
     if not session.get('admin_logged_in'):
