@@ -45,3 +45,14 @@ class BundlingTestCase(unittest.TestCase):
         # Harus merespon 200 OK
         self.assertEqual(res.status_code, 200)
         self.assertIn(b'Promo Bundling', res.data)
+
+    def test_search_products_api(self):
+        with self.client.session_transaction() as sess:
+            sess['admin_logged_in'] = True
+            sess['admin_id'] = 1
+
+        res = self.client.get('/admin/bundling/api/search_products?q=TSEL')
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertTrue(data['success'])
+        self.assertIsInstance(data['products'], list)

@@ -2847,8 +2847,22 @@ def bundling():
     active_bundles = sum(1 for b in bundles if b.is_active)
     total_sold = sum(b.total_sold or 0 for b in bundles)
     
-    # Ambil katalog produk aktif untuk pilihan dropdown form
+    # Ambil katalog produk aktif untuk pilihan form
     products = Product.query.filter_by(is_active=True).order_by(Product.category.asc(), Product.name.asc()).all()
+    
+    # Serialisasi ringkas untuk pencarian instan di frontend
+    products_json = [
+        {
+            'id': p.id,
+            'sku': p.sku_code,
+            'name': p.name,
+            'category': p.category or 'Umum',
+            'brand': p.brand or '',
+            'sell_price': float(p.sell_price or 0),
+            'base_price': float(p.base_price or 0)
+        }
+        for p in products
+    ]
     
     # Format data bundling dengan ringkasan harga
     bundle_data = []
@@ -2864,7 +2878,46 @@ def bundling():
                            total_bundles=total_bundles,
                            active_bundles=active_bundles,
                            total_sold=total_sold,
-                           products=products)
+                           products=products,
+                           products_json=products_json)
+
+@admin_bp.route('/bundling/api/search_products')
+def bundling_search_products():
+    if not session.get('admin_logged_in'):
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+    
+    q = request.args.get('q', '').strip()
+    cat = request.args.get('category', '').strip()
+    
+    query = Product.query.filter_by(is_active=True)
+    if cat and cat != 'ALL':
+        query = query.filter(Product.category.ilike(f"%{cat}%"))
+        
+    if q:
+        search_terms = q.split()
+        for term in search_terms:
+            pattern = f"%{term}%"
+            query = query.filter(
+                (Product.name.ilike(pattern)) |
+                (Product.sku_code.ilike(pattern)) |
+                (Product.brand.ilike(pattern)) |
+                (Product.category.ilike(pattern))
+            )
+            
+    matched = query.order_by(Product.category.asc(), Product.name.asc()).limit(60).all()
+    results = [
+        {
+            'id': p.id,
+            'sku': p.sku_code,
+            'name': p.name,
+            'category': p.category or 'Umum',
+            'brand': p.brand or '',
+            'sell_price': float(p.sell_price or 0),
+            'base_price': float(p.base_price or 0)
+        }
+        for p in matched
+    ]
+    return jsonify({'success': True, 'products': results})
 
 @admin_bp.route('/bundling/add', methods=['POST'])
 def add_bundling():

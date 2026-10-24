@@ -226,6 +226,343 @@
     }
     .btn-action-delete:hover { background: #FCA5A5; color: #991B1B; }
 
+    /* Product Picker Trigger & Selected State */
+    .prod-picker-box {
+        background: #FFFFFF;
+        border: 2px dashed #CBD5E1;
+        border-radius: 10px;
+        padding: 16px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        min-height: 120px;
+        box-sizing: border-box;
+    }
+    .prod-picker-box:hover {
+        border-color: #0D9488;
+        background: #F0FDFA;
+        transform: translateY(-1px);
+    }
+    .prod-picker-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        background: rgba(13, 148, 136, 0.1);
+        color: #0D9488;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+    }
+    .prod-picker-title {
+        font-size: 13px;
+        font-weight: 800;
+        color: #1E293B;
+    }
+    .prod-picker-desc {
+        font-size: 11px;
+        color: #64748B;
+    }
+    .prod-picker-btn {
+        background: #0D9488;
+        color: white;
+        border: none;
+        padding: 6px 14px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 800;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 4px;
+        pointer-events: none;
+    }
+
+    .prod-selected-box {
+        background: #FFFFFF;
+        border: 1.5px solid #0D9488;
+        border-radius: 10px;
+        padding: 14px;
+        box-shadow: 0 2px 6px rgba(13, 148, 136, 0.08);
+        display: none;
+        box-sizing: border-box;
+    }
+    .prod-selected-badge-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    .prod-selected-cat {
+        font-size: 10px;
+        font-weight: 900;
+        background: #CCFBF1;
+        color: #0F766E;
+        padding: 2px 8px;
+        border-radius: 4px;
+        text-transform: uppercase;
+    }
+    .prod-selected-sku {
+        font-family: monospace;
+        font-size: 10px;
+        font-weight: 800;
+        background: #F1F5F9;
+        color: #475569;
+        padding: 2px 6px;
+        border-radius: 4px;
+    }
+    .prod-selected-name {
+        font-size: 13px;
+        font-weight: 800;
+        color: #0F172A;
+        line-height: 1.35;
+        margin-bottom: 8px;
+    }
+    .prod-selected-prices {
+        background: #F8FAFC;
+        border-radius: 6px;
+        padding: 8px 10px;
+        font-size: 11px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 10px;
+    }
+    .prod-selected-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .btn-change-prod {
+        background: #F1F5F9;
+        color: #334155;
+        border: 1px solid #CBD5E1;
+        padding: 5px 10px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        transition: 0.15s;
+    }
+    .btn-change-prod:hover {
+        background: #E2E8F0;
+        color: #0F172A;
+    }
+    .btn-clear-prod {
+        background: #FEE2E2;
+        color: #DC2626;
+        border: 1px solid #FECACA;
+        padding: 5px 10px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        transition: 0.15s;
+    }
+    .btn-clear-prod:hover {
+        background: #FCA5A5;
+        color: #991B1B;
+    }
+
+    /* Modal Product Search Styles */
+    .modal-overlay-custom {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(15, 23, 42, 0.65);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        z-index: 99999;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        box-sizing: border-box;
+    }
+    .modal-overlay-custom.active {
+        display: flex;
+    }
+    .modal-dialog-custom {
+        background: #FFFFFF;
+        width: 100%;
+        max-width: 680px;
+        max-height: 85vh;
+        border-radius: 16px;
+        box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.35);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        animation: modalScaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes modalScaleIn {
+        from { transform: scale(0.95); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+    }
+    .modal-header-custom {
+        padding: 16px 20px;
+        border-bottom: 1px solid #E2E8F0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: #F8FAFC;
+    }
+    .modal-title-custom {
+        font-size: 15px;
+        font-weight: 900;
+        color: #0F172A;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .modal-close-btn {
+        background: transparent;
+        border: none;
+        font-size: 18px;
+        color: #64748B;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 6px;
+    }
+    .modal-close-btn:hover {
+        background: #E2E8F0;
+        color: #0F172A;
+    }
+    .modal-search-wrapper {
+        padding: 16px 20px;
+        border-bottom: 1px solid #E2E8F0;
+        background: #FFFFFF;
+    }
+    .modal-search-bar {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+    .modal-search-bar i.search-icon {
+        position: absolute;
+        left: 14px;
+        color: #94A3B8;
+        font-size: 14px;
+    }
+    .modal-search-input {
+        width: 100%;
+        padding: 12px 40px 12px 38px;
+        border: 2px solid #CBD5E1;
+        border-radius: 10px;
+        font-size: 13px;
+        font-family: inherit;
+        outline: none;
+        box-sizing: border-box;
+        transition: border-color 0.15s ease;
+    }
+    .modal-search-input:focus {
+        border-color: #0D9488;
+        box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
+    }
+    .modal-search-clear {
+        position: absolute;
+        right: 12px;
+        background: #E2E8F0;
+        color: #64748B;
+        border: none;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        cursor: pointer;
+    }
+    .modal-search-clear:hover {
+        background: #CBD5E1;
+        color: #0F172A;
+    }
+    .cat-chips-row {
+        display: flex;
+        gap: 6px;
+        overflow-x: auto;
+        padding: 10px 0 0 0;
+        scrollbar-width: thin;
+    }
+    .cat-chip {
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 700;
+        background: #F1F5F9;
+        color: #475569;
+        border: 1px solid #E2E8F0;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: all 0.15s ease;
+    }
+    .cat-chip:hover {
+        background: #E2E8F0;
+        color: #0F172A;
+    }
+    .cat-chip.active {
+        background: #0D9488;
+        color: white;
+        border-color: #0D9488;
+    }
+    .modal-body-custom {
+        padding: 14px 20px;
+        overflow-y: auto;
+        flex: 1;
+        max-height: 420px;
+    }
+    .prod-result-item {
+        background: white;
+        border: 1px solid #E2E8F0;
+        border-radius: 10px;
+        padding: 12px 14px;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        gap: 12px;
+    }
+    .prod-result-item:hover {
+        border-color: #0D9488;
+        background: #F0FDFA;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(13, 148, 136, 0.08);
+    }
+    .prod-result-btn {
+        background: #0D9488;
+        color: white;
+        border: none;
+        padding: 6px 14px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 800;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: 0.15s;
+    }
+    .prod-result-item:hover .prod-result-btn {
+        background: #0F766E;
+    }
+
     @media (max-width: 900px) {
         .bnd-stats-grid { grid-template-columns: 1fr; }
         .form-grid-2 { grid-template-columns: 1fr; }
@@ -291,47 +628,95 @@
             </div>
         </div>
 
-        <!-- PILIHAN 2 PRODUK -->
+        <!-- PILIHAN 2 PRODUK DENGAN FITUR PENCARIAN CEPAT -->
         <div class="form-grid-2">
             <!-- PRODUK 1 -->
-            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px;">
-                <div style="font-size: 12px; font-weight: 900; color: #00877A; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
-                    <i class="fas fa-box"></i> Produk Item Pertama (1)
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 14px;">
+                <div style="font-size: 12px; font-weight: 900; color: #00877A; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;">
+                    <span><i class="fas fa-box"></i> Produk Item Pertama (1) <span style="color:#EF4444;">*</span></span>
+                    <span id="slotStatus1" style="font-size: 10px; color: #EF4444; font-weight: 800; background: #FEE2E2; padding: 2px 8px; border-radius: 10px;">Belum Dipilih</span>
                 </div>
-                <div class="form-group">
-                    <label>Pilih Produk 1 <span style="color:#EF4444;">*</span></label>
-                    <select name="sku_1" id="selectProd1" required class="form-ctrl" onchange="calculateProfitMetrics()">
-                        <option value="">-- Pilih Produk Pertama --</option>
-                        {% for p in products %}
-                        <option value="{{ p.sku_code }}" data-name="{{ p.name }}" data-price="{{ p.sell_price }}" data-hpp="{{ p.base_price }}" data-cat="{{ p.category }}">
-                            [{{ p.category }}] {{ p.name }} - Jual: Rp {{ "{:,.0f}".format(p.sell_price) }} (Modal: Rp {{ "{:,.0f}".format(p.base_price) }})
-                        </option>
-                        {% endfor %}
-                    </select>
+                
+                <!-- Hidden SKU Input for Form Submit -->
+                <input type="hidden" name="sku_1" id="inputSku1" value="" required>
+
+                <!-- Box Unselected State -->
+                <div class="prod-picker-box" id="pickerBox1" onclick="openProductModal(1)" title="Klik untuk mencari produk">
+                    <div class="prod-picker-icon"><i class="fas fa-search-plus"></i></div>
+                    <div class="prod-picker-title">Cari & Pilih Produk 1</div>
+                    <div class="prod-picker-desc">Ketik nama, SKU, provider (cth: Telkomsel, PLN, Axis)</div>
+                    <div class="prod-picker-btn"><i class="fas fa-search"></i> Buka Pencarian Produk</div>
                 </div>
-                <div class="form-group" style="margin-bottom: 0;">
+
+                <!-- Box Selected State -->
+                <div class="prod-selected-box" id="selectedBox1">
+                    <div class="prod-selected-badge-row">
+                        <span class="prod-selected-cat" id="selCat1">KATEGORI</span>
+                        <span class="prod-selected-sku" id="selSku1">SKU: -</span>
+                    </div>
+                    <div class="prod-selected-name" id="selName1">-</div>
+                    <div class="prod-selected-prices">
+                        <div>Jual: <strong id="selPrice1" style="color: #0F172A;">Rp 0</strong></div>
+                        <div style="color: #64748B;">Modal: <span id="selHpp1">Rp 0</span></div>
+                        <div style="color: #047857; font-weight: 800;">Laba: <span id="selProfit1">+Rp 0</span></div>
+                    </div>
+                    <div class="prod-selected-actions">
+                        <button type="button" class="btn-change-prod" onclick="openProductModal(1)">
+                            <i class="fas fa-arrows-rotate"></i> Ganti Produk
+                        </button>
+                        <button type="button" class="btn-clear-prod" onclick="clearProduct(1)">
+                            <i class="fas fa-times"></i> Hapus
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 12px; margin-bottom: 0;">
                     <label>Label Input Tujuan 1 (Opsional)</label>
                     <input type="text" name="target_label_1" id="targetLabel1" placeholder="Otomatis: Nomor HP / No Meter" class="form-ctrl">
                 </div>
             </div>
 
             <!-- PRODUK 2 -->
-            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px;">
-                <div style="font-size: 12px; font-weight: 900; color: #F59E0B; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
-                    <i class="fas fa-box"></i> Produk Item Kedua (2)
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 14px;">
+                <div style="font-size: 12px; font-weight: 900; color: #F59E0B; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;">
+                    <span><i class="fas fa-box"></i> Produk Item Kedua (2) <span style="color:#EF4444;">*</span></span>
+                    <span id="slotStatus2" style="font-size: 10px; color: #EF4444; font-weight: 800; background: #FEE2E2; padding: 2px 8px; border-radius: 10px;">Belum Dipilih</span>
                 </div>
-                <div class="form-group">
-                    <label>Pilih Produk 2 <span style="color:#EF4444;">*</span></label>
-                    <select name="sku_2" id="selectProd2" required class="form-ctrl" onchange="calculateProfitMetrics()">
-                        <option value="">-- Pilih Produk Kedua --</option>
-                        {% for p in products %}
-                        <option value="{{ p.sku_code }}" data-name="{{ p.name }}" data-price="{{ p.sell_price }}" data-hpp="{{ p.base_price }}" data-cat="{{ p.category }}">
-                            [{{ p.category }}] {{ p.name }} - Jual: Rp {{ "{:,.0f}".format(p.sell_price) }} (Modal: Rp {{ "{:,.0f}".format(p.base_price) }})
-                        </option>
-                        {% endfor %}
-                    </select>
+                
+                <!-- Hidden SKU Input for Form Submit -->
+                <input type="hidden" name="sku_2" id="inputSku2" value="" required>
+
+                <!-- Box Unselected State -->
+                <div class="prod-picker-box" id="pickerBox2" onclick="openProductModal(2)" title="Klik untuk mencari produk">
+                    <div class="prod-picker-icon" style="background: rgba(245, 158, 11, 0.1); color: #F59E0B;"><i class="fas fa-search-plus"></i></div>
+                    <div class="prod-picker-title">Cari & Pilih Produk 2</div>
+                    <div class="prod-picker-desc">Ketik nama, SKU, provider (cth: Telkomsel, PLN, Axis)</div>
+                    <div class="prod-picker-btn" style="background: #F59E0B;"><i class="fas fa-search"></i> Buka Pencarian Produk</div>
                 </div>
-                <div class="form-group" style="margin-bottom: 0;">
+
+                <!-- Box Selected State -->
+                <div class="prod-selected-box" id="selectedBox2" style="border-color: #F59E0B;">
+                    <div class="prod-selected-badge-row">
+                        <span class="prod-selected-cat" id="selCat2" style="background: #FEF3C7; color: #B45309;">KATEGORI</span>
+                        <span class="prod-selected-sku" id="selSku2">SKU: -</span>
+                    </div>
+                    <div class="prod-selected-name" id="selName2">-</div>
+                    <div class="prod-selected-prices">
+                        <div>Jual: <strong id="selPrice2" style="color: #0F172A;">Rp 0</strong></div>
+                        <div style="color: #64748B;">Modal: <span id="selHpp2">Rp 0</span></div>
+                        <div style="color: #047857; font-weight: 800;">Laba: <span id="selProfit2">+Rp 0</span></div>
+                    </div>
+                    <div class="prod-selected-actions">
+                        <button type="button" class="btn-change-prod" onclick="openProductModal(2)">
+                            <i class="fas fa-arrows-rotate"></i> Ganti Produk
+                        </button>
+                        <button type="button" class="btn-clear-prod" onclick="clearProduct(2)">
+                            <i class="fas fa-times"></i> Hapus
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 12px; margin-bottom: 0;">
                     <label>Label Input Tujuan 2 (Opsional)</label>
                     <input type="text" name="target_label_2" id="targetLabel2" placeholder="Otomatis: No Meter PLN / ID Game" class="form-ctrl">
                 </div>
@@ -511,41 +896,426 @@
     </div>
 </div>
 
+<!-- MODAL PENCARIAN & PEMILIHAN PRODUK -->
+<div class="modal-overlay-custom" id="modalProductPicker" onclick="onModalOverlayClick(event)">
+    <div class="modal-dialog-custom" onclick="event.stopPropagation()">
+        <div class="modal-header-custom">
+            <div class="modal-title-custom">
+                <i class="fas fa-search" style="color: #0D9488;"></i>
+                <span>Cari & Pilih Produk (<span id="modalTargetSlotName">Item 1</span>)</span>
+            </div>
+            <button type="button" class="modal-close-btn" onclick="closeProductModal()" title="Tutup Modal (Esc)">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <div class="modal-search-wrapper">
+            <div class="modal-search-bar">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" id="modalSearchInput" class="modal-search-input" 
+                       placeholder="Ketik nama produk, SKU, brand (contoh: Telkomsel 20, PLN, Indosat, Free Fire)..." 
+                       oninput="onSearchInputChanged()" autocomplete="off">
+                <button type="button" id="modalSearchClear" class="modal-search-clear" onclick="clearSearchInput()" title="Hapus pencarian">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <!-- Quick Category Filter Chips -->
+            <div class="cat-chips-row" id="catChipsContainer">
+                <div class="cat-chip active" onclick="filterByCategory('ALL', this)">Semua Kategori</div>
+            </div>
+        </div>
+
+        <!-- Result count & status -->
+        <div style="padding: 8px 20px 4px 20px; font-size: 11px; color: #64748B; display: flex; justify-content: space-between; align-items: center; background: #FAFBFD; border-bottom: 1px solid #F1F5F9;">
+            <span id="searchResultStats">Memuat katalog...</span>
+            <span style="font-size: 10px; color: #94A3B8;"><i class="fas fa-hand-pointer"></i> Klik baris untuk memilih</span>
+        </div>
+
+        <!-- Scrollable Results -->
+        <div class="modal-body-custom" id="modalProductList">
+            <!-- Results injected here -->
+        </div>
+    </div>
+</div>
+
 <script>
+    // Data produk dari server
+    const ALL_PRODUCTS = {{ (products_json or [])|tojson|safe }};
+    
+    let activeSlot = 1;
+    let selectedProd1 = null;
+    let selectedProd2 = null;
+    let activeCategory = 'ALL';
+    let searchDebounceTimer = null;
+
+    // Inisialisasi Kategori Chips saat halaman dimuat
+    document.addEventListener('DOMContentLoaded', function() {
+        initCategoryChips();
+        renderProducts(ALL_PRODUCTS);
+        
+        // Cek jika sudah ada produk terpilih (misal jika ada nilai awal)
+        const initSku1 = document.getElementById('inputSku1').value;
+        if (initSku1) {
+            const found1 = ALL_PRODUCTS.find(p => p.sku === initSku1);
+            if (found1) applyProductSelection(1, found1);
+        }
+        const initSku2 = document.getElementById('inputSku2').value;
+        if (initSku2) {
+            const found2 = ALL_PRODUCTS.find(p => p.sku === initSku2);
+            if (found2) applyProductSelection(2, found2);
+        }
+
+        // Shortcut keyboard ESC untuk menutup modal
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeProductModal();
+        });
+
+        // Form submit validation
+        const form = document.getElementById('formAddBundle');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                const sku1 = document.getElementById('inputSku1').value;
+                const sku2 = document.getElementById('inputSku2').value;
+                if (!sku1) {
+                    e.preventDefault();
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Pilih Produk 1',
+                            text: 'Silakan cari dan pilih Produk Item Pertama terlebih dahulu.',
+                            confirmButtonColor: '#0D9488',
+                            confirmButtonText: 'Cari Produk 1'
+                        }).then(() => openProductModal(1));
+                    } else {
+                        alert('Silakan pilih Produk 1 terlebih dahulu!');
+                        openProductModal(1);
+                    }
+                    return false;
+                }
+                if (!sku2) {
+                    e.preventDefault();
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Pilih Produk 2',
+                            text: 'Silakan cari dan pilih Produk Item Kedua terlebih dahulu.',
+                            confirmButtonColor: '#F59E0B',
+                            confirmButtonText: 'Cari Produk 2'
+                        }).then(() => openProductModal(2));
+                    } else {
+                        alert('Silakan pilih Produk 2 terlebih dahulu!');
+                        openProductModal(2);
+                    }
+                    return false;
+                }
+            });
+        }
+    });
+
+    function initCategoryChips() {
+        const container = document.getElementById('catChipsContainer');
+        if (!container) return;
+        
+        const categories = new Set();
+        ALL_PRODUCTS.forEach(p => {
+            if (p.category) categories.add(p.category.trim());
+        });
+
+        const sortedCats = Array.from(categories).sort();
+        let html = '<div class="cat-chip active" onclick="filterByCategory(\'ALL\', this)">Semua Kategori</div>';
+        sortedCats.forEach(cat => {
+            html += `<div class="cat-chip" onclick="filterByCategory('${escapeHtml(cat)}', this)">${escapeHtml(cat)}</div>`;
+        });
+        container.innerHTML = html;
+    }
+
+    function openProductModal(slot) {
+        activeSlot = slot;
+        const slotName = slot === 1 ? 'Item Pertama (1)' : 'Item Kedua (2)';
+        document.getElementById('modalTargetSlotName').textContent = slotName;
+
+        const modal = document.getElementById('modalProductPicker');
+        modal.classList.add('active');
+
+        const searchInput = document.getElementById('modalSearchInput');
+        searchInput.value = '';
+        document.getElementById('modalSearchClear').style.display = 'none';
+
+        // Reset category filter to ALL
+        activeCategory = 'ALL';
+        const chips = document.querySelectorAll('.cat-chip');
+        chips.forEach((c, idx) => {
+            if (idx === 0) c.classList.add('active');
+            else c.classList.remove('active');
+        });
+
+        renderProducts(ALL_PRODUCTS);
+        setTimeout(() => searchInput.focus(), 80);
+    }
+
+    function closeProductModal() {
+        const modal = document.getElementById('modalProductPicker');
+        if (modal) modal.classList.remove('active');
+    }
+
+    function onModalOverlayClick(e) {
+        if (e.target.id === 'modalProductPicker') {
+            closeProductModal();
+        }
+    }
+
+    function filterByCategory(cat, element) {
+        activeCategory = cat;
+        document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('active'));
+        if (element) element.classList.add('active');
+        executeSearch();
+    }
+
+    function onSearchInputChanged() {
+        const val = document.getElementById('modalSearchInput').value;
+        document.getElementById('modalSearchClear').style.display = val.length > 0 ? 'flex' : 'none';
+        
+        clearTimeout(searchDebounceTimer);
+        searchDebounceTimer = setTimeout(() => {
+            executeSearch();
+        }, 120);
+    }
+
+    function clearSearchInput() {
+        const input = document.getElementById('modalSearchInput');
+        input.value = '';
+        document.getElementById('modalSearchClear').style.display = 'none';
+        input.focus();
+        executeSearch();
+    }
+
+    function executeSearch() {
+        const query = (document.getElementById('modalSearchInput').value || '').trim().toLowerCase();
+        
+        // Filter di data lokal terlebih dahulu
+        let results = ALL_PRODUCTS.filter(p => {
+            // Filter kategori
+            if (activeCategory !== 'ALL' && (p.category || '').toLowerCase() !== activeCategory.toLowerCase()) {
+                return false;
+            }
+            if (!query) return true;
+
+            const nameStr = (p.name || '').toLowerCase();
+            const skuStr = (p.sku || '').toLowerCase();
+            const brandStr = (p.brand || '').toLowerCase();
+            const catStr = (p.category || '').toLowerCase();
+
+            // Support multi-kata pencarian (cth: "telkomsel 20")
+            const words = query.split(/\s+/);
+            return words.every(w => 
+                nameStr.includes(w) || skuStr.includes(w) || brandStr.includes(w) || catStr.includes(w)
+            );
+        });
+
+        renderProducts(results, query);
+
+        // Jika hasil lokal sedikit dan ada query, panggil API pencarian dinamis
+        if (query.length >= 2 && results.length < 20) {
+            fetch(`/admin/bundling/api/search_products?q=${encodeURIComponent(query)}&category=${encodeURIComponent(activeCategory)}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data && data.success && Array.isArray(data.products)) {
+                        // Gabungkan hasil unik berdasarkan SKU
+                        const existingSkus = new Set(results.map(r => r.sku));
+                        data.products.forEach(p => {
+                            if (!existingSkus.has(p.sku)) {
+                                results.push(p);
+                                existingSkus.add(p.sku);
+                            }
+                        });
+                        renderProducts(results, query);
+                    }
+                })
+                .catch(() => {/* abaikan jika error offline */});
+        }
+    }
+
+    function renderProducts(list, query = '') {
+        const container = document.getElementById('modalProductList');
+        const stats = document.getElementById('searchResultStats');
+        if (!container) return;
+
+        if (!list || list.length === 0) {
+            stats.textContent = '0 produk ditemukan';
+            container.innerHTML = `
+                <div style="text-align: center; padding: 40px 10px; color: #64748B;">
+                    <i class="fas fa-search" style="font-size: 32px; color: #CBD5E1; margin-bottom: 10px;"></i>
+                    <div style="font-weight: 800; font-size: 13px; color: #334155;">Produk Tidak Ditemukan</div>
+                    <div style="font-size: 11px; color: #94A3B8; margin-top: 4px;">Coba gunakan kata kunci pencarian lain atau pilih kategori 'Semua'.</div>
+                </div>
+            `;
+            return;
+        }
+
+        const maxDisplay = 80;
+        const displayList = list.slice(0, maxDisplay);
+        stats.textContent = `Menampilkan ${displayList.length} dari ${list.length} produk`;
+
+        let html = '';
+        displayList.forEach(p => {
+            const sellFormatted = Math.round(p.sell_price).toLocaleString('id-ID');
+            const baseFormatted = Math.round(p.base_price).toLocaleString('id-ID');
+            const profit = p.sell_price - p.base_price;
+            const profitFormatted = Math.round(profit).toLocaleString('id-ID');
+            
+            // Highlight nama jika ada kata kunci
+            let displayName = escapeHtml(p.name);
+            if (query) {
+                const words = query.split(/\s+/).filter(w => w.length > 0);
+                words.forEach(w => {
+                    const regex = new RegExp(`(${escapeRegExp(w)})`, 'gi');
+                    displayName = displayName.replace(regex, '<mark style="background:#FEF08A; padding:0 2px; border-radius:2px; font-weight:800;">$1</mark>');
+                });
+            }
+
+            const pDataJson = JSON.stringify(p).replace(/"/g, '&quot;');
+
+            html += `
+                <div class="prod-result-item" onclick="onProductCardClicked(${pDataJson})">
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px; flex-wrap: wrap;">
+                            <span style="font-size: 9.5px; font-weight: 900; background: #CCFBF1; color: #0F766E; padding: 1.5px 6px; border-radius: 4px; text-transform: uppercase;">
+                                ${escapeHtml(p.category)}
+                            </span>
+                            ${p.brand ? `<span style="font-size: 9.5px; font-weight: 800; background: #F1F5F9; color: #475569; padding: 1.5px 6px; border-radius: 4px;">${escapeHtml(p.brand)}</span>` : ''}
+                            <span style="font-family: monospace; font-size: 10px; color: #64748B;">SKU: ${escapeHtml(p.sku)}</span>
+                        </div>
+                        <div style="font-size: 12.5px; font-weight: 800; color: #1E293B; line-height: 1.3;">
+                            ${displayName}
+                        </div>
+                        <div style="font-size: 11px; color: #64748B; margin-top: 4px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            <span>Jual: <strong style="color: #0F172A;">Rp ${sellFormatted}</strong></span>
+                            <span>•</span>
+                            <span>Modal: Rp ${baseFormatted}</span>
+                            <span>•</span>
+                            <span style="color: #059669; font-weight: 700;">Laba: +Rp ${profitFormatted}</span>
+                        </div>
+                    </div>
+                    <div>
+                        <button type="button" class="prod-result-btn">
+                            <i class="fas fa-check"></i> Pilih
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+
+        if (list.length > maxDisplay) {
+            html += `
+                <div style="text-align: center; padding: 10px; font-size: 11px; color: #64748B;">
+                    Masih ada ${list.length - maxDisplay} produk lainnya. Ketik nama produk lebih spesifik untuk mempersempit hasil.
+                </div>
+            `;
+        }
+
+        container.innerHTML = html;
+    }
+
+    function onProductCardClicked(prod) {
+        applyProductSelection(activeSlot, prod);
+        closeProductModal();
+    }
+
+    function applyProductSelection(slot, prod) {
+        if (slot === 1) {
+            selectedProd1 = prod;
+            document.getElementById('inputSku1').value = prod.sku;
+            document.getElementById('selCat1').textContent = prod.category || 'PRODUK';
+            document.getElementById('selSku1').textContent = 'SKU: ' + prod.sku;
+            document.getElementById('selName1').textContent = prod.name;
+            document.getElementById('selPrice1').textContent = 'Rp ' + Math.round(prod.sell_price).toLocaleString('id-ID');
+            document.getElementById('selHpp1').textContent = 'Rp ' + Math.round(prod.base_price).toLocaleString('id-ID');
+            document.getElementById('selProfit1').textContent = '+Rp ' + Math.round(prod.sell_price - prod.base_price).toLocaleString('id-ID');
+
+            document.getElementById('pickerBox1').style.display = 'none';
+            document.getElementById('selectedBox1').style.display = 'block';
+
+            const status1 = document.getElementById('slotStatus1');
+            status1.textContent = 'Terpilih';
+            status1.style.background = '#D1FAE5';
+            status1.style.color = '#065F46';
+
+            // Auto helper target label
+            const cat = (prod.category || '').toUpperCase();
+            const lbl = document.getElementById('targetLabel1');
+            if (!lbl.value || lbl.dataset.autofilled) {
+                if (cat.includes('PLN') || cat.includes('LISTRIK')) lbl.value = 'No. Meter / ID Pelanggan PLN';
+                else if (cat.includes('GAME')) lbl.value = 'User ID Game';
+                else if (cat.includes('EMONEY') || cat.includes('WALLET')) lbl.value = 'No. HP Akun E-Wallet';
+                else lbl.value = 'Nomor HP Tujuan (Pulsa/Data)';
+                lbl.dataset.autofilled = "true";
+            }
+        } else {
+            selectedProd2 = prod;
+            document.getElementById('inputSku2').value = prod.sku;
+            document.getElementById('selCat2').textContent = prod.category || 'PRODUK';
+            document.getElementById('selSku2').textContent = 'SKU: ' + prod.sku;
+            document.getElementById('selName2').textContent = prod.name;
+            document.getElementById('selPrice2').textContent = 'Rp ' + Math.round(prod.sell_price).toLocaleString('id-ID');
+            document.getElementById('selHpp2').textContent = 'Rp ' + Math.round(prod.base_price).toLocaleString('id-ID');
+            document.getElementById('selProfit2').textContent = '+Rp ' + Math.round(prod.sell_price - prod.base_price).toLocaleString('id-ID');
+
+            document.getElementById('pickerBox2').style.display = 'none';
+            document.getElementById('selectedBox2').style.display = 'block';
+
+            const status2 = document.getElementById('slotStatus2');
+            status2.textContent = 'Terpilih';
+            status2.style.background = '#D1FAE5';
+            status2.style.color = '#065F46';
+
+            // Auto helper target label
+            const cat = (prod.category || '').toUpperCase();
+            const lbl = document.getElementById('targetLabel2');
+            if (!lbl.value || lbl.dataset.autofilled) {
+                if (cat.includes('PLN') || cat.includes('LISTRIK')) lbl.value = 'No. Meter / ID Pelanggan PLN';
+                else if (cat.includes('GAME')) lbl.value = 'User ID Game';
+                else if (cat.includes('EMONEY') || cat.includes('WALLET')) lbl.value = 'No. HP Akun E-Wallet';
+                else lbl.value = 'Nomor HP Tujuan (Pulsa/Data)';
+                lbl.dataset.autofilled = "true";
+            }
+        }
+
+        calculateProfitMetrics();
+    }
+
+    function clearProduct(slot) {
+        if (slot === 1) {
+            selectedProd1 = null;
+            document.getElementById('inputSku1').value = '';
+            document.getElementById('selectedBox1').style.display = 'none';
+            document.getElementById('pickerBox1').style.display = 'flex';
+            
+            const status1 = document.getElementById('slotStatus1');
+            status1.textContent = 'Belum Dipilih';
+            status1.style.background = '#FEE2E2';
+            status1.style.color = '#EF4444';
+        } else {
+            selectedProd2 = null;
+            document.getElementById('inputSku2').value = '';
+            document.getElementById('selectedBox2').style.display = 'none';
+            document.getElementById('pickerBox2').style.display = 'flex';
+            
+            const status2 = document.getElementById('slotStatus2');
+            status2.textContent = 'Belum Dipilih';
+            status2.style.background = '#FEE2E2';
+            status2.style.color = '#EF4444';
+        }
+        calculateProfitMetrics();
+    }
+
     function calculateProfitMetrics() {
-        const sel1 = document.getElementById('selectProd1');
-        const sel2 = document.getElementById('selectProd2');
         const discInput = document.getElementById('inputDiscount');
+        const price1 = selectedProd1 ? parseFloat(selectedProd1.sell_price || 0) : 0;
+        const hpp1 = selectedProd1 ? parseFloat(selectedProd1.base_price || 0) : 0;
 
-        const opt1 = sel1.options[sel1.selectedIndex];
-        const opt2 = sel2.options[sel2.selectedIndex];
-
-        const price1 = opt1 && opt1.value ? parseFloat(opt1.getAttribute('data-price') || 0) : 0;
-        const hpp1 = opt1 && opt1.value ? parseFloat(opt1.getAttribute('data-hpp') || 0) : 0;
-        const cat1 = opt1 && opt1.value ? (opt1.getAttribute('data-cat') || '').toUpperCase() : '';
-
-        const price2 = opt2 && opt2.value ? parseFloat(opt2.getAttribute('data-price') || 0) : 0;
-        const hpp2 = opt2 && opt2.value ? parseFloat(opt2.getAttribute('data-hpp') || 0) : 0;
-        const cat2 = opt2 && opt2.value ? (opt2.getAttribute('data-cat') || '').toUpperCase() : '';
-
-        // Auto target label helpers
-        const lbl1 = document.getElementById('targetLabel1');
-        if (cat1 && (!lbl1.value || lbl1.dataset.autofilled)) {
-            if (cat1.includes('PLN') || cat1.includes('LISTRIK')) lbl1.value = 'No. Meter / ID Pelanggan PLN';
-            else if (cat1.includes('GAME')) lbl1.value = 'User ID Game';
-            else if (cat1.includes('EMONEY') || cat1.includes('WALLET')) lbl1.value = 'No. HP Akun E-Wallet';
-            else lbl1.value = 'Nomor HP Tujuan (Pulsa/Data)';
-            lbl1.dataset.autofilled = "true";
-        }
-
-        const lbl2 = document.getElementById('targetLabel2');
-        if (cat2 && (!lbl2.value || lbl2.dataset.autofilled)) {
-            if (cat2.includes('PLN') || cat2.includes('LISTRIK')) lbl2.value = 'No. Meter / ID Pelanggan PLN';
-            else if (cat2.includes('GAME')) lbl2.value = 'User ID Game';
-            else if (cat2.includes('EMONEY') || cat2.includes('WALLET')) lbl2.value = 'No. HP Akun E-Wallet';
-            else lbl2.value = 'Nomor HP Tujuan (Pulsa/Data)';
-            lbl2.dataset.autofilled = "true";
-        }
+        const price2 = selectedProd2 ? parseFloat(selectedProd2.sell_price || 0) : 0;
+        const hpp2 = selectedProd2 ? parseFloat(selectedProd2.base_price || 0) : 0;
 
         const disc = Math.max(0, parseFloat(discInput.value || 0));
 
@@ -561,12 +1331,12 @@
         document.getElementById('calcProfit').textContent = (grossProfit >= 0 ? '+ ' : '') + 'Rp ' + Math.round(grossProfit).toLocaleString('id-ID');
 
         const badge = document.getElementById('profitStatusBadge');
-        if (!price1 || !price2) {
+        if (!selectedProd1 || !selectedProd2) {
             badge.textContent = 'Pilih kedua produk untuk melihat analisis';
             badge.style.background = '#F1F5F9';
             badge.style.color = '#64748B';
         } else if (grossProfit > 0) {
-            const marginPct = totalNormal > 0 ? ((grossProfit / bundlePrice) * 100).toFixed(1) : 0;
+            const marginPct = bundlePrice > 0 ? ((grossProfit / bundlePrice) * 100).toFixed(1) : 0;
             badge.textContent = `Aman & Cuan! Margin Laba Toko: +${marginPct}% (Rp ${Math.round(grossProfit).toLocaleString('id-ID')})`;
             badge.style.background = '#D1FAE5';
             badge.style.color = '#065F46';
@@ -575,6 +1345,20 @@
             badge.style.background = '#FEE2E2';
             badge.style.color = '#DC2626';
         }
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function escapeRegExp(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 </script>
 
