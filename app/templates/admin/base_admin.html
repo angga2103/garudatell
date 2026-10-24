@@ -111,7 +111,7 @@
     </script>
     
     <!-- Modern Admin Stylesheet -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_modern.css') }}?v=2.1">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_modern.css') }}?v=2.2">
     
     {% block page_css %}{% endblock %}
     {% block head_extra %}{% endblock %}
@@ -291,14 +291,16 @@
                     </a>
 
                     <!-- Primary Quick Action -->
+                    <div class="topbar-actions-wrapper">
                     {% block topbar_actions %}
                     {% block topbar_action %}
-                    <a href="{{ url_for('admin.saldo') }}" class="btn-topbar-action">
+                    <a href="{{ url_for('admin.saldo') }}" class="btn-topbar-action" title="Deposit Saldo H2H">
                         <i class="fas fa-plus-circle"></i>
-                        <span>Deposit Saldo H2H</span>
+                        <span class="btn-action-label">Deposit Saldo H2H</span>
                     </a>
                     {% endblock %}
                     {% endblock %}
+                    </div>
                 </div>
             </header>
 

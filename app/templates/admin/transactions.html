@@ -8,9 +8,10 @@
 
 {% block topbar_actions %}
 <button type="button" onclick="syncAllPendingTrx(this)" 
-        title="Periksa dan perbarui otomatis seluruh transaksi yang berstatus PROCESSING/PENDING ke provider"
-        class="adm-btn adm-btn-primary" style="background: #0284c7; border-color: #0284c7;">
-    <i class="fas fa-sync-alt"></i> Sync Semua Processing
+        title="Periksa dan sinkronisasi transaksi PROCESSING ke provider"
+        class="btn-topbar-custom btn-topbar-sky">
+    <i class="fas fa-sync-alt"></i>
+    <span class="btn-action-label">Sync Processing</span>
 </button>
 {% endblock %}
 

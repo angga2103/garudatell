@@ -7,12 +7,14 @@
 {% block page_title %}Pengaturan Tier & Skema Downline VIP{% endblock %}
 
 {% block topbar_actions %}
-<div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-    <a href="/account/upgrade" target="_blank" class="adm-btn adm-btn-secondary" style="background: #e0f2fe; color: #0284c7; border-color: #bae6fd;">
-        <i class="fas fa-external-link-alt"></i> Halaman Upgrade
+<div class="topbar-actions-group">
+    <a href="/account/upgrade" target="_blank" class="btn-topbar-custom btn-topbar-sky" title="Buka Halaman Upgrade Member Publik">
+        <i class="fas fa-external-link-alt"></i>
+        <span class="btn-action-label">Halaman Upgrade</span>
     </a>
-    <a href="/vip/downline" target="_blank" class="adm-btn adm-btn-secondary" style="background: #fef3c7; color: #b45309; border-color: #fde68a;">
-        <i class="fas fa-network-wired"></i> Dashboard VIP
+    <a href="/vip/downline" target="_blank" class="btn-topbar-custom btn-topbar-amber" title="Buka Dashboard Jaringan VIP Downline">
+        <i class="fas fa-network-wired"></i>
+        <span class="btn-action-label">Dashboard VIP</span>
     </a>
 </div>
 {% endblock %}

@@ -8,57 +8,24 @@
 
 {% block topbar_actions %}
 <div class="topbar-actions-group">
-    <button type="button" class="btn-topbar-custom btn-topbar-primary" onclick="toggleExpenseConfig()">
-        <i class="fas fa-sliders-h"></i> Sesuaikan Beban & Pajak
+    <button type="button" class="btn-topbar-custom btn-topbar-primary" onclick="toggleExpenseConfig()" title="Sesuaikan Beban Operasional & Pajak">
+        <i class="fas fa-sliders-h"></i>
+        <span class="btn-action-label">Sesuaikan Beban</span>
     </button>
-    <button type="button" class="btn-topbar-custom btn-topbar-secondary" onclick="exportIncomeStatementCSV()">
-        <i class="fas fa-file-csv"></i> Unduh CSV
+    <button type="button" class="btn-topbar-custom btn-topbar-secondary" onclick="exportIncomeStatementCSV()" title="Unduh Rekap Format CSV">
+        <i class="fas fa-file-csv"></i>
+        <span class="btn-action-label">Unduh CSV</span>
     </button>
-    <button type="button" class="btn-topbar-custom btn-topbar-secondary" onclick="window.print()">
-        <i class="fas fa-print"></i> Cetak PDF
+    <button type="button" class="btn-topbar-custom btn-topbar-secondary" onclick="window.print()" title="Cetak Dokumen Laporan (PDF)">
+        <i class="fas fa-print"></i>
+        <span class="btn-action-label">Cetak PDF</span>
     </button>
 </div>
 {% endblock %}
 
 {% block page_css %}
 <style>
-    /* TOPBAR CUSTOM BUTTONS */
-    .topbar-actions-group {
-        display: flex;
-        gap: 8px;
-        align-items: center;
-        flex-wrap: wrap;
-    }
-    .btn-topbar-custom {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 7px 14px;
-        border-radius: 9px;
-        font-size: 12px;
-        font-weight: 800;
-        cursor: pointer;
-        transition: all 0.15s ease;
-        text-decoration: none;
-    }
-    .btn-topbar-primary {
-        background: #008779;
-        color: white;
-        border: 1px solid #008779;
-    }
-    .btn-topbar-primary:hover {
-        background: #006e63;
-        color: white;
-    }
-    .btn-topbar-secondary {
-        background: white;
-        color: #334155;
-        border: 1px solid #CBD5E1;
-    }
-    .btn-topbar-secondary:hover {
-        background: #F1F5F9;
-        color: #0F172A;
-    }
+    /* REPORTS SPECIFIC STYLING */
 
     /* HERO HEADER & ACTION COMMAND BAR */
     .report-hero-bar {

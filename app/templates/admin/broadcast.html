@@ -7,8 +7,9 @@
 {% block page_title %}Broadcast Center WhatsApp Massal{% endblock %}
 
 {% block topbar_actions %}
-<a href="{{ url_for('admin.users') }}" class="adm-btn adm-btn-secondary">
-    <i class="fas fa-users"></i> Kelola Pengguna
+<a href="{{ url_for('admin.users') }}" class="btn-topbar-custom btn-topbar-secondary" title="Kelola Data Pengguna / Member">
+    <i class="fas fa-users"></i>
+    <span class="btn-action-label">Kelola Pengguna</span>
 </a>
 {% endblock %}
 

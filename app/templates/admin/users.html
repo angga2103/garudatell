@@ -7,15 +7,18 @@
 {% block page_title %}User Center & Manajemen Toko{% endblock %}
 
 {% block topbar_actions %}
-<div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-    <button type="button" onclick="openCreateUserModal()" class="adm-btn adm-btn-primary" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; font-weight: 700; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.25); cursor: pointer;">
-        <i class="fas fa-user-plus"></i> Tambah Member
+<div class="topbar-actions-group">
+    <button type="button" onclick="openCreateUserModal()" class="btn-topbar-custom btn-topbar-success" title="Tambah Member Baru Manual">
+        <i class="fas fa-user-plus"></i>
+        <span class="btn-action-label">Tambah Member</span>
     </button>
-    <a href="{{ url_for('admin.device_logs') }}" class="adm-btn adm-btn-secondary" style="background: #ede9fe; color: #6d28d9; border-color: #ddd6fe;">
-        <i class="fas fa-mobile-alt"></i> Sesi Perangkat
+    <a href="{{ url_for('admin.device_logs') }}" class="btn-topbar-custom btn-topbar-purple" title="Log Sesi Perangkat Member">
+        <i class="fas fa-mobile-alt"></i>
+        <span class="btn-action-label">Sesi Perangkat</span>
     </a>
-    <a href="{{ url_for('admin.tier_settings') }}" class="adm-btn adm-btn-secondary" style="background: #fef3c7; color: #b45309; border-color: #fde68a;">
-        <i class="fas fa-crown"></i> Pengaturan Tier
+    <a href="{{ url_for('admin.tier_settings') }}" class="btn-topbar-custom btn-topbar-amber" title="Pengaturan Tier & Downline VIP">
+        <i class="fas fa-crown"></i>
+        <span class="btn-action-label">Pengaturan Tier</span>
     </a>
 </div>
 {% endblock %}

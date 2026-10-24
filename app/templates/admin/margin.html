@@ -7,8 +7,9 @@
 {% block page_title %}Setting Margin & Markup Keuntungan{% endblock %}
 
 {% block topbar_actions %}
-<a href="{{ url_for('admin.produk') }}" class="adm-btn adm-btn-secondary">
-    <i class="fas fa-box-open"></i> Katalog Produk
+<a href="{{ url_for('admin.produk') }}" class="btn-topbar-custom btn-topbar-secondary" title="Buka Katalog Seluruh Produk">
+    <i class="fas fa-box-open"></i>
+    <span class="btn-action-label">Katalog Produk</span>
 </a>
 {% endblock %}
 

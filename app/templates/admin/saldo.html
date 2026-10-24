@@ -7,10 +7,11 @@
 {% block page_title %}Saldo & Deposit Digiflazz Server{% endblock %}
 
 {% block topbar_actions %}
-<form method="POST" action="{{ url_for('admin.cek_saldo_digiflazz') }}" style="margin: 0;">
+<form method="POST" action="{{ url_for('admin.cek_saldo_digiflazz') }}" style="margin: 0; display: inline-flex;">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-    <button type="submit" class="adm-btn adm-btn-primary" style="background: #0284C7; border-color: #0284C7;">
-        <i class="fas fa-sync-alt"></i> Cek Saldo Server
+    <button type="submit" class="btn-topbar-custom btn-topbar-sky" title="Periksa saldo Digiflazz Anda saat ini">
+        <i class="fas fa-sync-alt"></i>
+        <span class="btn-action-label">Cek Saldo Server</span>
     </button>
 </form>
 {% endblock %}

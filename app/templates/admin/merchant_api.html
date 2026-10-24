@@ -7,12 +7,14 @@
 {% block page_title %}POS Command Center & Open API Gateway (ipaypos.my.id){% endblock %}
 
 {% block topbar_actions %}
-<div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-    <button type="button" onclick="document.getElementById('modalBroadcastPos').style.display='flex'" class="adm-btn adm-btn-secondary" style="background: #e0f2fe; color: #0284c7; border-color: #bae6fd;">
-        <i class="fas fa-bullhorn"></i> Broadcast Kasir
+<div class="topbar-actions-group">
+    <button type="button" onclick="document.getElementById('modalBroadcastPos').style.display='flex'" class="btn-topbar-custom btn-topbar-sky" title="Kirim Pesan Siaran ke Mesin Kasir POS">
+        <i class="fas fa-bullhorn"></i>
+        <span class="btn-action-label">Broadcast Kasir</span>
     </button>
-    <button type="button" onclick="document.getElementById('modalCreateApiKey').style.display='flex'" class="adm-btn adm-btn-primary">
-        <i class="fas fa-plus-circle"></i> Buat API Key Manual
+    <button type="button" onclick="document.getElementById('modalCreateApiKey').style.display='flex'" class="btn-topbar-custom btn-topbar-primary" title="Buat Kunci API Key Baru Manual">
+        <i class="fas fa-plus-circle"></i>
+        <span class="btn-action-label">Buat API Key</span>
     </button>
 </div>
 {% endblock %}

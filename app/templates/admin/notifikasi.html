@@ -7,8 +7,9 @@
 {% block page_title %}Pusat Notifikasi Aplikasi (In-App Bell){% endblock %}
 
 {% block topbar_actions %}
-<a href="{{ url_for('admin.broadcast') }}" class="adm-btn adm-btn-secondary">
-    <i class="fas fa-bullhorn"></i> Broadcast WhatsApp
+<a href="{{ url_for('admin.broadcast') }}" class="btn-topbar-custom btn-topbar-secondary" title="Kirim Pesan Siaran WhatsApp">
+    <i class="fas fa-bullhorn"></i>
+    <span class="btn-action-label">Broadcast WhatsApp</span>
 </a>
 {% endblock %}
 

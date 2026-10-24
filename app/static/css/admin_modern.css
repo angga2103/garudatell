@@ -533,6 +533,96 @@ body.admin-body {
     color: #ffffff;
 }
 
+/* Universal Topbar Custom Buttons & Actions Group */
+.topbar-actions-wrapper,
+.topbar-actions-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: nowrap;
+}
+.btn-topbar-custom {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: 9px;
+    font-size: 11.5px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-decoration: none;
+    line-height: 1;
+    border: 1px solid transparent;
+    white-space: nowrap;
+    flex-shrink: 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+.btn-topbar-custom:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+}
+.btn-topbar-custom:active {
+    transform: translateY(0);
+}
+.btn-topbar-primary {
+    background: var(--teal-primary);
+    color: #ffffff !important;
+    border-color: var(--teal-primary);
+}
+.btn-topbar-primary:hover {
+    background: var(--teal-dark);
+    color: #ffffff !important;
+}
+.btn-topbar-secondary {
+    background: #ffffff;
+    color: #334155 !important;
+    border-color: #cbd5e1;
+}
+.btn-topbar-secondary:hover {
+    background: #f8fafc;
+    color: #0f172a !important;
+    border-color: #94a3b8;
+}
+.btn-topbar-success {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: #ffffff !important;
+    border-color: #059669;
+    box-shadow: 0 2px 5px rgba(16, 185, 129, 0.25);
+}
+.btn-topbar-success:hover {
+    background: #047857;
+    color: #ffffff !important;
+}
+.btn-topbar-sky {
+    background: #e0f2fe;
+    color: #0284c7 !important;
+    border-color: #bae6fd;
+}
+.btn-topbar-sky:hover {
+    background: #bae6fd;
+    color: #0369a1 !important;
+}
+.btn-topbar-purple {
+    background: #ede9fe;
+    color: #6d28d9 !important;
+    border-color: #ddd6fe;
+}
+.btn-topbar-purple:hover {
+    background: #ddd6fe;
+    color: #5b21b6 !important;
+}
+.btn-topbar-amber {
+    background: #fef3c7;
+    color: #b45309 !important;
+    border-color: #fde68a;
+}
+.btn-topbar-amber:hover {
+    background: #fde68a;
+    color: #92400e !important;
+}
+
 /* ==========================================================================
    CONTENT CONTAINER
    ========================================================================== */
@@ -1075,20 +1165,142 @@ body.admin-body {
     }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
     .admin-topbar {
-        padding: 0 14px;
+        height: 58px !important;
+        min-height: 58px !important;
+        padding: 0 12px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 8px !important;
+        background: #ffffff !important;
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 1000 !important;
     }
-    .gateway-status-pill {
-        display: none;
+    .topbar-left {
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+        max-width: calc(100% - 130px) !important;
     }
-    .btn-topbar-action span {
-        display: none;
+    .btn-collapse-sidebar {
+        width: 34px !important;
+        height: 34px !important;
+        min-width: 34px !important;
+        border-radius: 9px !important;
+        font-size: 14px !important;
     }
-    .btn-topbar-action {
-        padding: 8px 10px;
+    .page-header-info {
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        min-width: 0 !important;
+        overflow: hidden !important;
+    }
+    .page-breadcrumbs {
+        display: none !important;
     }
     .page-title {
-        font-size: 14px;
+        font-size: 13.5px !important;
+        font-weight: 800 !important;
+        color: #0f172a !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        line-height: 1.2 !important;
+        margin: 0 !important;
+    }
+    .topbar-right {
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        flex-shrink: 0 !important;
+        margin-left: auto !important;
+    }
+    .gateway-status-pill {
+        display: none !important;
+    }
+    .topbar-btn-icon {
+        width: 34px !important;
+        height: 34px !important;
+        min-width: 34px !important;
+        border-radius: 9px !important;
+        font-size: 14px !important;
+    }
+    .topbar-actions-wrapper,
+    .topbar-actions-group,
+    .topbar-right > div {
+        display: flex !important;
+        align-items: center !important;
+        gap: 5px !important;
+        flex-wrap: nowrap !important;
+    }
+    .btn-topbar-action,
+    .btn-topbar-custom,
+    .topbar-actions-wrapper .adm-btn,
+    .topbar-actions-group .adm-btn {
+        height: 34px !important;
+        min-height: 34px !important;
+        line-height: 34px !important;
+        padding: 0 9px !important;
+        font-size: 11px !important;
+        border-radius: 9px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 5px !important;
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
+    }
+    .btn-topbar-action i,
+    .btn-topbar-custom i,
+    .adm-btn i {
+        font-size: 12.5px !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .topbar-left {
+        max-width: calc(100% - 125px) !important;
+    }
+    .page-title {
+        font-size: 13px !important;
+    }
+    /* Sembunyikan teks panjang pada tombol aksi jika ada lebih dari 1 tombol agar tidak bertumpuk */
+    .topbar-actions-group .btn-action-label,
+    .topbar-actions-wrapper .btn-action-label,
+    .topbar-actions-wrapper .btn-topbar-action span {
+        display: none !important;
+    }
+    .topbar-actions-group .btn-topbar-custom,
+    .topbar-actions-wrapper .btn-topbar-custom,
+    .topbar-actions-wrapper .btn-topbar-action,
+    .topbar-actions-group .adm-btn,
+    .topbar-actions-wrapper .adm-btn {
+        width: 34px !important;
+        min-width: 34px !important;
+        padding: 0 !important;
+        justify-content: center !important;
+    }
+    /* Jika hanya ada 1 tombol aksi, tampilkan teks pendeknya agar tetap informatif */
+    .topbar-actions-wrapper > .btn-topbar-custom:only-child .btn-action-label,
+    .topbar-actions-wrapper > .btn-topbar-action:only-child .btn-action-label,
+    .topbar-actions-wrapper > .btn-topbar-action:only-child span,
+    .topbar-actions-group:only-child > .btn-topbar-custom:only-child .btn-action-label,
+    .topbar-actions-wrapper > form:only-child button .btn-action-label,
+    .topbar-actions-wrapper > form:only-child button span {
+        display: inline !important;
+        font-size: 10.5px !important;
+    }
+    .topbar-actions-wrapper > .btn-topbar-custom:only-child,
+    .topbar-actions-wrapper > .btn-topbar-action:only-child,
+    .topbar-actions-group:only-child > .btn-topbar-custom:only-child,
+    .topbar-actions-wrapper > form:only-child button {
+        width: auto !important;
+        padding: 0 10px !important;
     }
 }

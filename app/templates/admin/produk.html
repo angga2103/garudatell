@@ -7,11 +7,11 @@
 {% block page_title %}Katalog Produk PPOB &amp; Status Provider{% endblock %}
 
 {% block topbar_action %}
-<form action="{{ url_for('admin.sync_digiflazz') }}" method="POST" style="margin: 0; display: inline-block;">
+<form action="{{ url_for('admin.sync_digiflazz') }}" method="POST" style="margin: 0; display: inline-flex;">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-    <button type="submit" class="btn-topbar-action" onclick="return confirm('Mulai sinkronisasi seluruh katalog produk Digiflazz sekarang?');" title="Tarik produk terbaru dari Digiflazz">
+    <button type="submit" class="btn-topbar-custom btn-topbar-primary" onclick="return confirm('Mulai sinkronisasi seluruh katalog produk Digiflazz sekarang?');" title="Tarik produk terbaru dari Digiflazz">
         <i class="fas fa-sync-alt"></i>
-        <span>Tarik Digiflazz</span>
+        <span class="btn-action-label">Tarik Digiflazz</span>
     </button>
 </form>
 {% endblock %}
