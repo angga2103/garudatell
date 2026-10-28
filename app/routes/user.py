@@ -685,6 +685,7 @@ def riwayat():
         downline_condition = and_(
             Transaction.user_id == current_user.id,
             or_(
+                Transaction.sn.is_(None),
                 not_(Transaction.sn.like("%UPLINE_TOPUP:%")),
                 Transaction.status == 'SUCCESS'
             )
