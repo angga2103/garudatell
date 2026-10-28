@@ -30,6 +30,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <!-- SweetAlert2 11 Synchronous Loaded in Head for Universal Dialog & Toast -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        window.isIpayNative = {{ 'true' if is_native_app else 'false' }};
+    </script>
     <style>
         :root {
             --primary: #008779; /* Warna Hijau Teal Sesuai Gambar */
@@ -1189,6 +1192,7 @@
         {% block content %}{% endblock %}
     </div>
 
+    {% if not is_native_app %}
     <!-- Smart Checklist 2-in-1 (Install APK Resmi + Aktifkan Notifikasi) -->
     <div id="pwa-install-banner" class="pwa-install-banner" style="display: none;">
         <div class="pwa-banner-card">
@@ -1272,6 +1276,7 @@
             </div>
         </div>
     </div>
+    {% endif %}
 
     <!-- NAVBAR BAWAH (Hanya muncul jika tidak disembunyikan via blok) -->
     {% block bottom_nav %}
@@ -1330,12 +1335,15 @@
 
     function openPrinterSettings() {
         if (window.PrintChannel && typeof window.PrintChannel.postMessage === 'function') {
-            window.PrintChannel.postMessage(JSON.stringify({ type: 'open_settings' }));
+            window.PrintChannel.postMessage(JSON.stringify({ action: 'open_settings', type: 'open_settings' }));
         } else {
             alert('Pengaturan printer thermal bluetooth native kasir dapat diakses langsung dari Aplikasi IPAY APK.');
         }
-        toggleSidebarDrawer(false);
+        if (typeof toggleSidebarDrawer === 'function') {
+            toggleSidebarDrawer(false);
+        }
     }
+    window.openNativePrinterSettings = openPrinterSettings;
 
     document.addEventListener('DOMContentLoaded', function() {
         try {

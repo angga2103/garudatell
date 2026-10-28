@@ -542,6 +542,23 @@ def create_app(test_config=None):
                 is_payment_gateway_enabled=True
             )
 
+    # Global Context Processor: Deteksi Lingkungan Klien Native (Flutter Android APK vs Web Browser)
+    @app.context_processor
+    def inject_native_app_status():
+        try:
+            from flask import request
+            ua = request.headers.get('User-Agent', '')
+            is_native = bool(
+                'IPAY_NATIVE_APP' in ua or 
+                'IPAY_APP_NATIVE' in ua or 
+                request.cookies.get('gt_native_client') == 'true' or
+                request.cookies.get('is_native_app') == '1' or
+                request.headers.get('X-Requested-With') == 'id.my.ipay'
+            )
+            return dict(is_native_app=is_native)
+        except Exception:
+            return dict(is_native_app=False)
+
     # Template Filter: Format SN / Keterangan Bersih untuk Pengguna
     @app.template_filter('format_sn')
     def format_sn(sn_val, status=None):

@@ -8,14 +8,14 @@ __pycache__/
 
 # Distribution / packaging
 .Python
-build/
+/build/
 develop-eggs/
 dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+/lib/
+/lib64/
 parts/
 sdist/
 var/
@@ -91,3 +91,9 @@ scratch/
 
 # Flutter Prototype
 flutterl_app/
+
+# Release Binaries (Avoid GitHub 100MB file limit)
+app/static/apk/*.apk
+app/static/apk/*.zip
+!app/static/apk/.gitkeep
+*.hprof

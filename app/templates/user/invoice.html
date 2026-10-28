@@ -1251,7 +1251,7 @@
                 </button>
             </div>
             <div style="text-align: center; margin-top: 12px;">
-                <button type="button" onclick="if(window.PrintChannel&&typeof window.PrintChannel.postMessage==='function'){window.PrintChannel.postMessage(JSON.stringify({type:'open_settings'}));}else{alert('Pengaturan printer thermal bluetooth native kasir dapat diakses langsung di Aplikasi IPAY APK.');}" style="background: none; border: none; color: #008779; font-weight: 700; font-size: 12.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px;">
+                <button type="button" onclick="openPrinterSettings()" style="background: none; border: none; color: #008779; font-weight: 700; font-size: 12.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px;">
                     <i class="fas fa-cog"></i> Pengaturan Printer Thermal Kasir
                 </button>
             </div>
@@ -2100,6 +2100,8 @@ function smartPrintReceipt() {
     const footer = {{ store.receipt_footer|tojson }};
 
     const payload = {
+        action: 'print_receipt',
+        type: 'print_receipt',
         storeName: storeName,
         refId: refId,
         product: produk,

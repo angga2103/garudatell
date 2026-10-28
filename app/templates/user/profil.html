@@ -155,6 +155,26 @@
         }
         </script>
 
+        {% if is_native_app %}
+        <!-- KONTROL PRINTER THERMAL KASIR (APK NATIVE) -->
+        <div style="background: #f0fdfa; border: 1.5px solid #99f6e4; border-radius: 14px; padding: 14px 15px; margin-bottom: 16px; text-align: left;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-print" style="color: #008779; font-size: 16px;"></i>
+                    <span style="font-weight: 800; color: #134e4a; font-size: 0.88rem;">Printer Thermal Bluetooth Kasir</span>
+                </div>
+                <span style="background: #008779; color: white; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 8px;">NATIVE POS</span>
+            </div>
+            <div style="font-size: 0.78rem; color: #475569; margin-bottom: 12px; line-height: 1.4;">
+                Aplikasi terhubung langsung dengan modul Bluetooth HP. Anda dapat menyambungkan mesin printer thermal 58mm / 80mm untuk cetak struk kasir otomatis.
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button type="button" onclick="openPrinterSettings()" style="flex: 1; padding: 9px 10px; border: none; background: #008779; color: white; border-radius: 10px; font-weight: 800; font-size: 0.78rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 3px 8px rgba(0,135,121,0.25);">
+                    <i class="fas fa-cog"></i> Pengaturan Printer
+                </button>
+            </div>
+        </div>
+        {% else %}
         <!-- STATUS APLIKASI PWA & TES NOTIFIKASI -->
         <div style="background: #f0fdfa; border: 1.5px solid #99f6e4; border-radius: 14px; padding: 14px 15px; margin-bottom: 16px; text-align: left;">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
@@ -182,6 +202,7 @@
                 </button>
             </div>
         </div>
+        {% endif %}
 
         <!-- PUSAT REGULASI, DOKUMEN & BANTUAN -->
         <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;">
@@ -393,6 +414,7 @@
                     </a>
                 </div>
             </div>
+        {% if not is_native_app %}
         <!-- STATUS APLIKASI PWA & TES NOTIFIKASI (GUEST) -->
         <div style="background: #f0fdfa; border: 1.5px solid #99f6e4; border-radius: 14px; padding: 14px 15px; margin-top: 22px; text-align: left;">
             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
@@ -418,6 +440,7 @@
                 </button>
             </div>
         </div>
+        {% endif %}
 
         <!-- Ketentuan Hukum Guest -->
         <div style="text-align: center; margin-top: 18px; padding-top: 14px; border-top: 1px dashed #E5E7EB; font-size: 0.76rem; color: #64748B; line-height: 1.5;">
