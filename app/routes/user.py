@@ -3528,22 +3528,40 @@ def download_sop_paket_data():
 def download_apk():
     """Mengunduh file resmi APK Android IPAY."""
     apk_dir = os.path.join(BASE_DIR, 'app', 'static', 'apk')
-    filename = 'IPAY-release.apk'
-    apk_path = os.path.join(apk_dir, filename)
 
-    if not os.path.exists(apk_path):
-        # Fallback jika belum tersinkron
-        flutter_apk = os.path.join(BASE_DIR, 'mobile-flutter', 'build', 'app', 'outputs', 'apk', 'release', 'app-release.apk')
-        if os.path.exists(flutter_apk):
-            os.makedirs(apk_dir, exist_ok=True)
-            import shutil
-            shutil.copy2(flutter_apk, apk_path)
+    # Cari nama file APK yang tersedia di static
+    candidate_files = ['IPAY.apk', 'IPAY-release.apk', 'app-release.apk']
+    selected_filename = None
+    for name in candidate_files:
+        if os.path.isfile(os.path.join(apk_dir, name)):
+            selected_filename = name
+            break
+
+    # Fallback jika belum ada di static tapi ada di build flutter lokal
+    if not selected_filename:
+        build_paths = [
+            os.path.join(BASE_DIR, 'mobile-flutter', 'build', 'app', 'outputs', 'flutter-apk', 'app-release.apk'),
+            os.path.join(BASE_DIR, 'mobile-flutter', 'build', 'app', 'outputs', 'apk', 'release', 'app-release.apk')
+        ]
+        for bp in build_paths:
+            if os.path.isfile(bp):
+                os.makedirs(apk_dir, exist_ok=True)
+                import shutil
+                shutil.copy2(bp, os.path.join(apk_dir, 'IPAY.apk'))
+                selected_filename = 'IPAY.apk'
+                break
+
+    if not selected_filename:
+        from flask import flash, redirect
+        flash('File APK resmi sedang disiapkan di server. Silakan coba beberapa saat lagi.', 'warning')
+        return redirect('/')
 
     return send_from_directory(
         apk_dir,
-        filename,
+        selected_filename,
         as_attachment=True,
-        download_name='IPAY.apk'
+        download_name='IPAY.apk',
+        mimetype='application/vnd.android.package-archive'
     )
 
 

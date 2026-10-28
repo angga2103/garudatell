@@ -92,8 +92,9 @@ scratch/
 # Flutter Prototype
 flutterl_app/
 
-# Release Binaries (Avoid GitHub 100MB file limit)
+# Release Binaries (Avoid GitHub 100MB file limit, allow optimized IPAY.apk < 50MB)
 app/static/apk/*.apk
 app/static/apk/*.zip
+!app/static/apk/IPAY.apk
 !app/static/apk/.gitkeep
 *.hprof

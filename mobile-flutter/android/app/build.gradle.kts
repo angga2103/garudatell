@@ -43,7 +43,6 @@ android {
     packaging {
         jniLibs {
             useLegacyPackaging = true
-            keepDebugSymbols.add("**/*.so")
         }
     }
 
@@ -57,7 +56,6 @@ tasks.configureEach {
     if (name.contains("lint", ignoreCase = true) ||
         name.contains("extractReleaseNativeSymbolTables", ignoreCase = true) ||
         name.contains("extractDebugNativeSymbolTables", ignoreCase = true) ||
-        name.contains("stripReleaseDebugSymbols", ignoreCase = true) ||
         name.contains("stripDebugDebugSymbols", ignoreCase = true)) {
         enabled = false
     }
