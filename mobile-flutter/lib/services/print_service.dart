@@ -41,8 +41,10 @@ class StrukPayload {
     try {
       final dynamic decoded = jsonDecode(raw);
       if (decoded is Map<String, dynamic>) {
+        final rawTextVal = decoded['raw_text']?.toString() ?? decoded['text']?.toString();
+        final cleanRawText = (rawTextVal != null && !rawTextVal.trim().startsWith('{')) ? rawTextVal : '';
         return StrukPayload(
-          rawText: decoded['raw_text']?.toString() ?? decoded['text']?.toString() ?? raw,
+          rawText: cleanRawText,
           storeName: decoded['storeName']?.toString() ?? decoded['store_name']?.toString(),
           refId: decoded['refId']?.toString() ?? decoded['ref_id']?.toString(),
           productName: decoded['product']?.toString() ?? decoded['product_name']?.toString(),
@@ -58,11 +60,53 @@ class StrukPayload {
       // Jika dikirim plain text / ESC-POS string langsung
     }
 
+    if (raw.trim().startsWith('{')) {
+      return StrukPayload(rawText: '');
+    }
     return StrukPayload(rawText: raw);
   }
 
   factory StrukPayload.fromPlainText(String raw) {
+    if (raw.trim().startsWith('{')) {
+      return StrukPayload.fromMessage(raw);
+    }
     return StrukPayload(rawText: raw);
+  }
+
+  /// Menghasilkan teks struk terformat rapi untuk RawBT atau printer thermal tanpa karakter acak
+  String buildReceiptText({int paperWidth = 32, String? headerStore, String? footerText}) {
+    if (rawText.isNotEmpty && !rawText.trim().startsWith('{')) {
+      return rawText.replaceAll(RegExp(r'\x1b[a-zA-Z0-9\x00-\x20]'), '');
+    }
+
+    final width = paperWidth <= 32 ? 32 : 48;
+    final divider = '-' * width;
+    final buffer = StringBuffer();
+
+    final store = (headerStore ?? storeName ?? 'IPAY').toUpperCase();
+    buffer.writeln(store);
+    buffer.writeln('Pusat Pembayaran PPOB Terpercaya');
+    buffer.writeln(divider);
+
+    if (refId != null && refId!.isNotEmpty) buffer.writeln('No. Ref : $refId');
+    if (time != null && time!.isNotEmpty) buffer.writeln('Waktu   : $time');
+    buffer.writeln('Status  : [ ${status ?? "BERHASIL"} ]');
+    buffer.writeln(divider);
+
+    if (productName != null && productName!.isNotEmpty) buffer.writeln('PRODUK  : $productName');
+    if (targetNumber != null && targetNumber!.isNotEmpty) buffer.writeln('TUJUAN  : $targetNumber');
+    if (sn != null && sn!.isNotEmpty) buffer.writeln('SN      : $sn');
+    buffer.writeln(divider);
+
+    if (amount != null && amount!.isNotEmpty) {
+      buffer.writeln('TOTAL   : $amount');
+      buffer.writeln(divider);
+    }
+
+    buffer.writeln(footerText ?? footer ?? 'Terima kasih !');
+    buffer.writeln('Simpan struk ini sebagai bukti sah\n\n\n');
+
+    return buffer.toString();
   }
 }
 
@@ -123,9 +167,9 @@ class PrintService {
   /// Menghubungkan ke printer bluetooth berdasarkan MAC Address dengan auto-retry & handshake delay
   Future<bool> connectPrinter(String macAddress) async {
     try {
-      // 1. Putuskan socket lama yang mungkin masih tersisa
+      // 1. Putuskan socket lama yang mungkin masih tersisa di Bluetooth stack
       await disconnect();
-      await Future.delayed(const Duration(milliseconds: 250));
+      await Future.delayed(const Duration(milliseconds: 400));
 
       // 2. Hubungkan ke printer
       final bool connected = await PrintBluetoothThermal.connect(
@@ -134,7 +178,7 @@ class PrintService {
 
       // 3. Jeda inisialisasi agar buffer printer siap menerima data ESC/POS
       if (connected) {
-        await Future.delayed(const Duration(milliseconds: 600));
+        await Future.delayed(const Duration(milliseconds: 500));
         await StorageService.instance.setSavedPrinterMac(macAddress);
       }
       return connected;
@@ -144,21 +188,23 @@ class PrintService {
     }
   }
 
-  /// Mengonversi teks struk biasa / ESC-POS ke byte Uint8List siap cetak
+  /// Mengonversi data struk transaksi ke byte ESC/POS Uint8List siap cetak
   Uint8List generateEscPosBytes(StrukPayload payload, {int? customWidth, int? customFeed}) {
     final List<int> bytes = [];
 
-    // Reset printer
+    // Reset printer ESC @
     bytes.addAll([0x1B, 0x40]);
 
-    if (payload.rawText.contains('\x1b') || payload.rawText.contains('---')) {
+    if (payload.rawText.isNotEmpty &&
+        !payload.rawText.trim().startsWith('{') &&
+        (payload.rawText.contains('\x1b') || payload.rawText.contains('---'))) {
       // Data sudah diformat ESC/POS di Web (seperti di invoice.html)
       bytes.addAll(payload.rawText.codeUnits);
     } else {
       final width = customWidth ?? 32;
       final divider = '-' * (width <= 32 ? 32 : 48);
 
-      void text(String s) => bytes.addAll(s.codeUnits);
+      void text(String s) => bytes.addAll(utf8.encode(s));
       void feed(int n) => bytes.addAll(List.filled(n, 0x0A));
       void alignCenter() => bytes.addAll([0x1B, 0x61, 1]);
       void alignLeft() => bytes.addAll([0x1B, 0x61, 0]);
@@ -167,23 +213,23 @@ class PrintService {
 
       alignCenter();
       boldOn();
-      text('${(payload.storeName ?? "GARUDATEL IPAY").toUpperCase()}\n');
+      text('${(payload.storeName ?? "IPAY").toUpperCase()}\n');
       boldOff();
       text('Pusat Pembayaran PPOB Terpercaya\n');
       text('$divider\n');
 
       alignLeft();
-      if (payload.refId != null) text('No. Ref : ${payload.refId}\n');
-      if (payload.time != null) text('Waktu   : ${payload.time}\n');
+      if (payload.refId != null && payload.refId!.isNotEmpty) text('No. Ref : ${payload.refId}\n');
+      if (payload.time != null && payload.time!.isNotEmpty) text('Waktu   : ${payload.time}\n');
       text('Status  : [ ${payload.status ?? "BERHASIL"} ]\n');
       text('$divider\n');
 
-      if (payload.productName != null) text('PRODUK  : ${payload.productName}\n');
-      if (payload.targetNumber != null) text('TUJUAN  : ${payload.targetNumber}\n');
+      if (payload.productName != null && payload.productName!.isNotEmpty) text('PRODUK  : ${payload.productName}\n');
+      if (payload.targetNumber != null && payload.targetNumber!.isNotEmpty) text('TUJUAN  : ${payload.targetNumber}\n');
       if (payload.sn != null && payload.sn!.isNotEmpty) text('SN      : ${payload.sn}\n');
       text('$divider\n');
 
-      if (payload.amount != null) {
+      if (payload.amount != null && payload.amount!.isNotEmpty) {
         boldOn();
         text('TOTAL   : ${payload.amount}\n');
         boldOff();
@@ -191,7 +237,7 @@ class PrintService {
       }
 
       alignCenter();
-      text('${payload.footer ?? "Terima kasih atas kunjungan Anda"}\n');
+      text('${payload.footer ?? "Terima kasih !"}\n');
       text('Simpan struk ini sebagai bukti sah\n');
       feed(customFeed ?? 4);
     }
@@ -201,27 +247,49 @@ class PrintService {
     return Uint8List.fromList(bytes);
   }
 
-  /// Cetak langsung via Bluetooth Thermal Printer
+  /// Cetak langsung via Bluetooth Thermal Printer dengan auto-reconnect cerdas
   Future<bool> printThermal(StrukPayload payload, {String? targetMac}) async {
     try {
       final mac = targetMac ?? await StorageService.instance.getSavedPrinterMac();
       if (mac == null || mac.isEmpty) {
+        debugPrint('[PrintService] printThermal: MAC address printer kosong.');
         return false;
       }
 
+      // Pastikan izin Bluetooth aktif
+      await checkAndRequestPermissions();
+
+      // 1. Cek status koneksi aktif
       bool isConnected = await PrintBluetoothThermal.connectionStatus;
       if (!isConnected) {
         isConnected = await connectPrinter(mac);
       }
 
       if (!isConnected) {
+        debugPrint('[PrintService] Gagal menyambungkan ke printer $mac');
         return false;
       }
 
       final paperWidth = await StorageService.instance.getPaperWidth();
       final feedMargin = await StorageService.instance.getFeedMargin();
       final bytes = generateEscPosBytes(payload, customWidth: paperWidth, customFeed: feedMargin);
-      final result = await PrintBluetoothThermal.writeBytes(bytes);
+
+      // 2. Coba cetak ke printer
+      bool result = await PrintBluetoothThermal.writeBytes(bytes);
+
+      // 3. JIKA GAGAL: Soket Bluetooth mungkin stale/tertutup idle oleh printer thermal.
+      // Lakukan disconnect bersih, jeda, reconnect, dan kirim ulang!
+      if (!result) {
+        debugPrint('[PrintService] writeBytes awal gagal. Mencoba reconnect otomatis ke $mac...');
+        await disconnect();
+        await Future.delayed(const Duration(milliseconds: 500));
+        final reconnected = await connectPrinter(mac);
+        if (reconnected) {
+          result = await PrintBluetoothThermal.writeBytes(bytes);
+          debugPrint('[PrintService] Hasil retry writeBytes: $result');
+        }
+      }
+
       return result;
     } catch (e) {
       debugPrint('[PrintService] Print thermal error: $e');
@@ -357,12 +425,20 @@ class PrintService {
     }
   }
 
-  /// Mengirim struk langsung ke aplikasi RawBT POS (1-Klik via Intent)
+  /// Mengirim struk langsung ke aplikasi RawBT POS (1-Klik via Intent) dengan format rapi
   Future<bool> printViaRawBt(StrukPayload payload) async {
     try {
-      final String text = payload.rawText.isNotEmpty
-          ? payload.rawText
-          : '${payload.storeName ?? "IPAY"}\nNo. Ref: ${payload.refId}\nProduk: ${payload.productName}\nTotal: ${payload.amount}';
+      final paperWidth = await StorageService.instance.getPaperWidth();
+      final header1 = await StorageService.instance.getHeader1();
+      final footer = await StorageService.instance.getFooter();
+
+      // Format teks struk secara rapi agar tidak mencetak JSON mentah
+      final String text = payload.buildReceiptText(
+        paperWidth: paperWidth,
+        headerStore: header1.isNotEmpty ? header1 : null,
+        footerText: footer.isNotEmpty ? footer : null,
+      );
+
       final base64Data = base64Encode(utf8.encode(text));
       final url = 'rawbt:data:text/plain;base64,$base64Data';
       final uri = Uri.parse(url);

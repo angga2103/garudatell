@@ -99,6 +99,7 @@ app/static/apk/*.zip
 !app/static/apk/.gitkeep
 *.hprof
 *.aab
+/IPAY.apk
 *.keystore
 *.jks
 key.properties

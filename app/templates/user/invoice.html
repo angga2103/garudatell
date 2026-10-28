@@ -2099,27 +2099,7 @@ function smartPrintReceipt() {
     const hargaTotal = 'Rp ' + Number({{ total_with_fee|default(trx.amount) }}).toLocaleString('id-ID');
     const footer = {{ store.receipt_footer|tojson }};
 
-    const payload = {
-        action: 'print_receipt',
-        type: 'print_receipt',
-        storeName: storeName,
-        refId: refId,
-        product: produk,
-        target: tujuan,
-        amount: isQrisWithFee ? hargaTotal : hargaPokok,
-        sn: snThermal,
-        time: waktu,
-        status: 'BERHASIL',
-        footer: footer
-    };
-
-    // A. Jika di dalam APK Native Android IPAY (via PrintChannel Flutter)
-    if (window.PrintChannel && typeof window.PrintChannel.postMessage === 'function') {
-        window.PrintChannel.postMessage(JSON.stringify(payload));
-        return;
-    }
-
-    // B. Format ESC/POS untuk RawBT atau printer thermal Android
+    // Format ESC/POS untuk RawBT atau printer thermal Android
     let text = `\x1b\x61\x01\x1b\x45\x01${storeName.toUpperCase()}\x1b\x45\x00\n`;
     text += `--------------------------------\n`;
     text += `\x1b\x61\x00No. Ref : ${refId}\n`;
@@ -2139,6 +2119,28 @@ function smartPrintReceipt() {
     }
     text += `--------------------------------\n`;
     text += `\x1b\x61\x01${footer}\n\n\n\n\n`;
+
+    const payload = {
+        action: 'print_receipt',
+        type: 'print_receipt',
+        storeName: storeName,
+        refId: refId,
+        product: produk,
+        target: tujuan,
+        amount: isQrisWithFee ? hargaTotal : hargaPokok,
+        sn: snThermal,
+        time: waktu,
+        status: 'BERHASIL',
+        footer: footer,
+        raw_text: text,
+        text: text
+    };
+
+    // A. Jika di dalam APK Native Android IPAY (via PrintChannel Flutter)
+    if (window.PrintChannel && typeof window.PrintChannel.postMessage === 'function') {
+        window.PrintChannel.postMessage(JSON.stringify(payload));
+        return;
+    }
 
     if (/android/i.test(navigator.userAgent)) {
         try {

@@ -192,7 +192,32 @@ class _WebViewScreenState extends State<WebViewScreen> {
 
           final payload = StrukPayload.fromMessage(message.message);
 
-          // Cek apakah ada printer yang tersimpan di MAC Address
+          // Cek preferensi metode cetak yang dipilih pengguna di Pengaturan
+          final printMethod = await StorageService.instance.getPrintMethod();
+          debugPrint('[PrintChannel] Print method chosen: $printMethod');
+
+          // JALUR 1: APLIKASI RawBT POS
+          if (printMethod == 'rawbt') {
+            final ok = await PrintService.instance.printViaRawBt(payload);
+            if (!ok && mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('⚠️ Gagal membuka RawBT. Pastikan aplikasi RawBT terpasang di HP Anda.'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+            }
+            return;
+          }
+
+          // JALUR 2: SISTEM CETAK ANDROID (PDF / LASER)
+          if (printMethod == 'pdf') {
+            if (!mounted) return;
+            await PrintService.instance.printLaserOrPdf(context, payload);
+            return;
+          }
+
+          // JALUR 3: BLUETOOTH THERMAL LANGSUNG (DIRECT NATIVE)
           final savedMac = await StorageService.instance.getSavedPrinterMac();
           if (savedMac != null && savedMac.isNotEmpty) {
             final success = await PrintService.instance.printThermal(payload, targetMac: savedMac);

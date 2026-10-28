@@ -505,7 +505,10 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
     final isSelected = _printMethod == value;
     return InkWell(
       borderRadius: BorderRadius.circular(12),
-      onTap: () => setState(() => _printMethod = value),
+      onTap: () async {
+        setState(() => _printMethod = value);
+        await StorageService.instance.setPrintMethod(value);
+      },
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(12),
@@ -571,7 +574,10 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
               children: [
                 Expanded(
                   child: InkWell(
-                    onTap: () => setState(() => _paperWidth = 32),
+                    onTap: () async {
+                      setState(() => _paperWidth = 32);
+                      await StorageService.instance.setPaperWidth(32);
+                    },
                     child: Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -603,7 +609,10 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: InkWell(
-                    onTap: () => setState(() => _paperWidth = 48),
+                    onTap: () async {
+                      setState(() => _paperWidth = 48);
+                      await StorageService.instance.setPaperWidth(48);
+                    },
                     child: Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
