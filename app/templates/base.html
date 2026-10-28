@@ -1162,6 +1162,12 @@
                 <i class="fas fa-user-gear sidebar-icon"></i>
                 <span class="sidebar-label">Profil & Toko</span>
             </a>
+
+            <a href="javascript:void(0)" onclick="openPrinterSettings();" class="sidebar-item" id="sidebarPrinterSettings">
+                <i class="fas fa-print sidebar-icon" style="color: #008779;"></i>
+                <span class="sidebar-label">Pengaturan Printer</span>
+                <span class="badge" style="background:#008779; color:#fff; font-size:10px; font-weight:700; padding:2px 7px; border-radius:6px; margin-left:auto;">POS</span>
+            </a>
         </div>
 
         <!-- FOOTER PROFIL PENGGUNA -->
@@ -1183,7 +1189,7 @@
         {% block content %}{% endblock %}
     </div>
 
-    <!-- PWA Smart Checklist 2-in-1 (Install Aplikasi + Aktifkan Notifikasi) -->
+    <!-- Smart Checklist 2-in-1 (Install APK Resmi + Aktifkan Notifikasi) -->
     <div id="pwa-install-banner" class="pwa-install-banner" style="display: none;">
         <div class="pwa-banner-card">
             <button type="button" class="pwa-btn-close" id="pwa-btn-dismiss" title="Nanti Saja">
@@ -1196,46 +1202,46 @@
                 </div>
                 <div class="pwa-text-wrapper">
                     <div class="pwa-app-title">
-                        <span>Pengaturan Aplikasi iPay</span>
+                        <span>Aplikasi Resmi IPAY Android</span>
                         <span class="pwa-tag-pill">Penting</span>
                     </div>
                     <div class="pwa-app-desc">
-                        Aktifkan 2 fitur di bawah agar akses sat-set & notifikasi info transaksi selalu muncul di HP Anda:
+                        Gunakan aplikasi Android resmi agar transaksi lebih sat-set, notifikasi real-time, dan support printer kasir:
                     </div>
                 </div>
             </div>
 
             <div class="pwa-checklist-box">
-                <!-- LANGKAH 1: PASANG APLIKASI PWA -->
+                <!-- LANGKAH 1: PASANG APLIKASI APK NATIVE -->
                 <div class="pwa-step-item" id="pwa-step-1-item">
                     <div class="pwa-step-left">
                         <div class="pwa-step-icon" id="pwa-step-1-icon">
-                            <i class="fas fa-mobile-screen-button"></i>
+                            <i class="fab fa-android" style="font-size: 1.15rem;"></i>
                         </div>
                         <div>
-                            <div class="pwa-step-title">1. Pasang Aplikasi di Layar HP</div>
-                            <div class="pwa-step-sub" id="pwa-step-1-sub">Buka lebih cepat tanpa ketik alamat web</div>
+                            <div class="pwa-step-title">1. Unduh & Instal APK Resmi</div>
+                            <div class="pwa-step-sub" id="pwa-step-1-sub">Aplikasi Android Native super cepat & stabil</div>
                         </div>
                     </div>
                     <div id="pwa-step-1-action">
-                        <button type="button" class="pwa-step-btn" id="pwa-btn-install">
-                            <i class="fas fa-download"></i> Pasang
-                        </button>
+                        <a href="/download/apk" class="pwa-step-btn" id="pwa-btn-install" style="text-decoration: none;">
+                            <i class="fas fa-download"></i> Unduh APK
+                        </a>
                     </div>
                 </div>
 
-                <!-- Panduan Manual Pasang Aplikasi (Muncul jika browser menahan prompt otomatis / iOS) -->
+                <!-- Panduan Manual Pasang Aplikasi -->
                 <div class="pwa-guide-box" id="pwa-manual-guide">
                     <div id="pwa-manual-guide-android">
-                        📌 <b>Cara Pasang Mudah (3 Detik):</b><br>
-                        1. Ketuk ikon <b>Titik Tiga (⋮)</b> di pojok kanan atas browser ini.<br>
-                        2. Pilih menu <b>"Instal aplikasi"</b> atau <b>"Tambahkan ke Layar Utama"</b>.<br>
-                        3. Ketuk <b>Instal / Tambah</b> — Ikon iPay langsung tampil di layar HP Anda!
+                        📌 <b>Cara Pasang APK di HP Android:</b><br>
+                        1. Ketuk tombol <b>Unduh APK</b> di atas.<br>
+                        2. Setelah selesai, buka file <b>IPAY.apk</b> di panel notifikasi atau folder Download HP.<br>
+                        3. Ketuk <b>Instal</b> dan nikmati kemudahan transaksi kasir PPOB!
                     </div>
                     <div id="pwa-manual-guide-ios" style="display: none;">
-                        📌 <b>Cara Pasang di iPhone / iPad:</b><br>
-                        1. Ketuk ikon <b>Bagikan / Share (<i class="fas fa-arrow-up-from-bracket"></i>)</b> di menu bawah Safari.<br>
-                        2. Geser ke bawah lalu pilih <b>"Tambah ke Layar Utama" ⊞</b>.
+                        📌 <b>Pengguna iPhone / Safari:</b><br>
+                        1. Ketuk ikon <b>Bagikan / Share (<i class="fas fa-arrow-up-from-bracket"></i>)</b> di menu Safari.<br>
+                        2. Pilih <b>"Tambah ke Layar Utama" ⊞</b>.
                     </div>
                 </div>
 
@@ -1320,6 +1326,15 @@
         try {
             localStorage.setItem('ipay_sidebar_slim', isSlim ? '1' : '0');
         } catch(e) {}
+    }
+
+    function openPrinterSettings() {
+        if (window.PrintChannel && typeof window.PrintChannel.postMessage === 'function') {
+            window.PrintChannel.postMessage(JSON.stringify({ type: 'open_settings' }));
+        } else {
+            alert('Pengaturan printer thermal bluetooth native kasir dapat diakses langsung dari Aplikasi IPAY APK.');
+        }
+        toggleSidebarDrawer(false);
     }
 
     document.addEventListener('DOMContentLoaded', function() {
@@ -1409,35 +1424,52 @@
 
         var isIos = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
 
+        function isNativeAppEnv() {
+            return !!(window.isIpayNative || window.isIpayNativeApp || window.isGarudaTelNativeApp || /IPAY_NATIVE_APP/i.test(navigator.userAgent));
+        }
+
         function checkIsStandalone() {
+            if (isNativeAppEnv()) return true;
             return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
         }
 
         function checkNotifPermission() {
+            if (isNativeAppEnv()) return 'granted'; // Di APK native dihandle langsung oleh FCM
             if (typeof Notification === 'undefined') return 'unsupported';
             return Notification.permission; // 'granted', 'default', 'denied'
         }
 
         // Fungsi Update Tampilan Checklist Popup & Kartu Profil
         window.refreshPwaChecklistUI = function() {
+            var isNative = isNativeAppEnv();
             var isStandalone = checkIsStandalone();
             var notifPerm = checkNotifPermission();
 
-            // Update Langkah 1 (PWA)
+            // Jika di dalam APK Native, sembunyikan banner pasang aplikasi selamanya
+            if (isNative && banner) {
+                banner.style.display = 'none';
+            }
+
+            // Update Langkah 1 (APK / PWA)
             var step1Item = document.getElementById('pwa-step-1-item');
             var step1Sub = document.getElementById('pwa-step-1-sub');
             var step1Action = document.getElementById('pwa-step-1-action');
 
             if (step1Item && step1Sub && step1Action) {
-                if (isStandalone) {
+                if (isNative) {
+                    step1Item.classList.add('done');
+                    step1Sub.innerText = 'Aplikasi Native Android IPAY Aktif';
+                    step1Action.innerHTML = '<span class="pwa-step-badge-done"><i class="fas fa-check-circle"></i> Terpasang</span>';
+                    if (manualGuide) manualGuide.style.display = 'none';
+                } else if (isStandalone) {
                     step1Item.classList.add('done');
                     step1Sub.innerText = 'Aplikasi sudah terpasang di layar HP';
                     step1Action.innerHTML = '<span class="pwa-step-badge-done"><i class="fas fa-check-circle"></i> Terpasang</span>';
                     if (manualGuide) manualGuide.style.display = 'none';
                 } else {
                     step1Item.classList.remove('done');
-                    step1Sub.innerText = 'Buka lebih cepat tanpa ketik alamat web';
-                    step1Action.innerHTML = '<button type="button" class="pwa-step-btn" onclick="window.aksiPasangPWA()"><i class="fas fa-download"></i> Pasang</button>';
+                    step1Sub.innerText = 'Aplikasi Android Native super cepat & stabil';
+                    step1Action.innerHTML = '<a href="/download/apk" class="pwa-step-btn" style="text-decoration: none;"><i class="fas fa-download"></i> Unduh APK</a>';
                 }
             }
 
@@ -1447,9 +1479,9 @@
             var step2Action = document.getElementById('pwa-step-2-action');
 
             if (step2Item && step2Sub && step2Action) {
-                if (notifPerm === 'granted') {
+                if (isNative || notifPerm === 'granted') {
                     step2Item.classList.add('done');
-                    step2Sub.innerText = 'Notifikasi & angka badge sudah aktif';
+                    step2Sub.innerText = isNative ? 'Notifikasi FCM Native Android Aktif' : 'Notifikasi & angka badge sudah aktif';
                     step2Action.innerHTML = '<span class="pwa-step-badge-done"><i class="fas fa-check-circle"></i> Aktif</span>';
                     if (deniedGuide) deniedGuide.style.display = 'none';
                 } else if (notifPerm === 'denied') {
@@ -1468,15 +1500,17 @@
             // Update Indikator di Halaman Profil (jika pengguna sedang di halaman /profil)
             var profPwaBadge = document.getElementById('profil-status-pwa');
             if (profPwaBadge) {
-                if (isStandalone) {
-                    profPwaBadge.innerHTML = '<span style="color:#15803d; background:#dcfce7; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:800;">✅ Terpasang</span>';
+                if (isNative) {
+                    profPwaBadge.innerHTML = '<span style="color:#008779; background:#e6f7f5; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:800;">🚀 APK Native Aktif</span>';
+                } else if (isStandalone) {
+                    profPwaBadge.innerHTML = '<span style="color:#15803d; background:#dcfce7; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:800;">✅ PWA Terpasang</span>';
                 } else {
-                    profPwaBadge.innerHTML = '<span style="color:#b45309; background:#fef3c7; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:800;">⚠️ Belum Dipasang</span>';
+                    profPwaBadge.innerHTML = '<a href="/download/apk" style="color:#008779; text-decoration:none; background:#e6f7f5; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:800;">⬇️ Unduh APK</a>';
                 }
             }
             var profNotifBadge = document.getElementById('profil-status-notif');
             if (profNotifBadge) {
-                if (notifPerm === 'granted') {
+                if (isNative || notifPerm === 'granted') {
                     profNotifBadge.innerHTML = '<span style="color:#15803d; background:#dcfce7; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:800;">✅ Aktif</span>';
                 } else if (notifPerm === 'denied') {
                     profNotifBadge.innerHTML = '<span style="color:#dc2626; background:#fee2e2; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:800;">🔒 Terkunci</span>';
@@ -1629,6 +1663,9 @@
 
             // Jangan tampilkan popup otomatis di halaman admin
             if (window.location.pathname.startsWith('/admin')) return;
+
+            // Jangan tampilkan popup jika pengguna sudah di dalam APK Native Android IPAY!
+            if (isNativeAppEnv()) return;
 
             // Jangan tampilkan popup otomatis di desktop (PC / Laptop)
             var isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (window.innerWidth < 768 && ('ontouchstart' in window));

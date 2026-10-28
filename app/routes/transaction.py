@@ -521,7 +521,7 @@ def checkout():
                     async_send_trx_notification(new_trx, title="TRANSAKSI DIPROSES (VIP)")
                     return jsonify({
                         'status': 'success', 'success': True, 'error': False,
-                        'message': 'Pesanan diproses VIP-Reseller!', 'redirect': '/riwayat'
+                        'message': 'Pesanan diproses VIP-Reseller!', 'redirect': f'/riwayat?highlight={ref_id}'
                     }), 200
                 else:
                     # Gagal di VIP -> Refund saldo user
@@ -568,7 +568,7 @@ def checkout():
                             pass
                         from app.services.telegram_service import async_send_trx_notification
                         async_send_trx_notification(new_trx, title="TRANSAKSI BERHASIL (PASCA)")
-                        return jsonify({'status': 'success', 'success': True, 'error': False, 'message': 'Transaksi berhasil diproses!', 'redirect': '/riwayat'}), 200
+                        return jsonify({'status': 'success', 'success': True, 'error': False, 'message': 'Transaksi berhasil diproses!', 'redirect': f'/riwayat?highlight={ref_id}'}), 200
                     else:
                         user_locked.balance += amount
                         new_trx.status = 'FAILED'
@@ -625,7 +625,7 @@ def checkout():
                         'success': True,
                         'error': False,
                         'message': 'Pembayaran tagihan berhasil diproses!',
-                        'redirect': '/riwayat'
+                        'redirect': f'/riwayat?highlight={ref_id}'
                     }), 200
                 else:
                     # Gagal di server Digiflazz -> Auto-refund saldo user
@@ -689,7 +689,7 @@ def checkout():
                     'status': 'success',
                     'message': 'Pesanan berhasil dibuat',
                     'ref_id': ref_id,
-                    'redirect': '/riwayat'
+                    'redirect': f'/riwayat?highlight={ref_id}'
                 }), 200
 
         else:
@@ -859,7 +859,7 @@ def checkout_bundle():
             'status': 'success',
             'success': True,
             'message': f"Pembelian Paket Bundling '{bundle.title}' berhasil! Anda hemat Rp {int(discount):,}!",
-            'redirect': '/riwayat'
+            'redirect': f'/riwayat?highlight={ref_1}'
         }), 200
 
     except Exception as e:

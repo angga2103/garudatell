@@ -1241,24 +1241,19 @@
                 </div>
             </div>
 
-            <!-- OPSI CETAK STRUK THERMAL -->
-            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 16px;">
-                <div style="display: flex; gap: 8px;">
-                    <button type="button" class="btn-bluetooth-print" onclick="connectAndPrintBluetooth()" title="Hubungkan langsung ke Printer Bluetooth via Browser">
-                        <i class="fab fa-bluetooth-b"></i> Cetak Bluetooth
-                    </button>
-                    <button type="button" class="btn-thermal-print" onclick="window.print()" title="Cetak Roll Thermal 58mm / Simpan PDF">
-                        <i class="fas fa-print"></i> Cetak 58mm / PDF
-                    </button>
-                </div>
-                <div style="display: flex; gap: 8px;">
-                    <button type="button" class="btn-thermal-print" onclick="printViaRawBT()" style="background: #475569;" title="Cetak 1-Klik via Aplikasi RawBT Android">
-                        <i class="fas fa-mobile-alt"></i> Buka di RawBT POS
-                    </button>
-                    <button type="button" class="btn-wa-share" onclick="shareReceiptWhatsApp()" title="Kirim struk teks rapi ke WhatsApp Pembeli">
-                        <i class="fab fa-whatsapp"></i> Bagikan Struk WA
-                    </button>
-                </div>
+            <!-- OPSI CETAK STRUK KASIR MODERN (NATIVE & WEB) -->
+            <div style="display: flex; gap: 8px; margin-top: 16px;">
+                <button type="button" class="btn-thermal-print" onclick="smartPrintReceipt()" style="flex: 1.2; padding: 12px 14px; background: #008779; color: white; border: none; border-radius: 10px; font-weight: 800; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 10px rgba(0, 135, 121, 0.25);" title="Cetak Struk ke Printer Thermal Kasir / PDF">
+                    <i class="fas fa-print"></i> Cetak Struk Kasir
+                </button>
+                <button type="button" class="btn-wa-share" onclick="shareReceiptWhatsApp()" style="flex: 1; padding: 12px 14px; background: #16a34a; color: white; border: none; border-radius: 10px; font-weight: 800; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 10px rgba(22, 163, 74, 0.25);" title="Kirim struk teks rapi ke WhatsApp Pembeli">
+                    <i class="fab fa-whatsapp"></i> Bagikan Struk WA
+                </button>
+            </div>
+            <div style="text-align: center; margin-top: 12px;">
+                <button type="button" onclick="if(window.PrintChannel&&typeof window.PrintChannel.postMessage==='function'){window.PrintChannel.postMessage(JSON.stringify({type:'open_settings'}));}else{alert('Pengaturan printer thermal bluetooth native kasir dapat diakses langsung di Aplikasi IPAY APK.');}" style="background: none; border: none; color: #008779; font-weight: 700; font-size: 12.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px;">
+                    <i class="fas fa-cog"></i> Pengaturan Printer Thermal Kasir
+                </button>
             </div>
         </div>
         {% endif %}
@@ -2089,8 +2084,8 @@ function shareReceiptWhatsApp() {
     window.location.href = `whatsapp://send?text=${encodeURIComponent(text)}`;
 }
 
-// 2. Kirim 1-Klik ke Aplikasi Android RawBT Printer
-function printViaRawBT() {
+// 2. Cetak Struk Kasir Pintar (Support APK Native Thermal Bluetooth, RawBT, & Printer Laser/PDF)
+function smartPrintReceipt() {
     const storeName = {{ store.name|tojson }};
     const refId = {{ trx.ref_id|tojson }};
     const waktu = {{ (trx.created_at_wib or 'Baru Saja')|tojson }};
@@ -2104,6 +2099,25 @@ function printViaRawBT() {
     const hargaTotal = 'Rp ' + Number({{ total_with_fee|default(trx.amount) }}).toLocaleString('id-ID');
     const footer = {{ store.receipt_footer|tojson }};
 
+    const payload = {
+        storeName: storeName,
+        refId: refId,
+        product: produk,
+        target: tujuan,
+        amount: isQrisWithFee ? hargaTotal : hargaPokok,
+        sn: snThermal,
+        time: waktu,
+        status: 'BERHASIL',
+        footer: footer
+    };
+
+    // A. Jika di dalam APK Native Android IPAY (via PrintChannel Flutter)
+    if (window.PrintChannel && typeof window.PrintChannel.postMessage === 'function') {
+        window.PrintChannel.postMessage(JSON.stringify(payload));
+        return;
+    }
+
+    // B. Format ESC/POS untuk RawBT atau printer thermal Android
     let text = `\x1b\x61\x01\x1b\x45\x01${storeName.toUpperCase()}\x1b\x45\x00\n`;
     text += `--------------------------------\n`;
     text += `\x1b\x61\x00No. Ref : ${refId}\n`;
@@ -2124,125 +2138,18 @@ function printViaRawBT() {
     text += `--------------------------------\n`;
     text += `\x1b\x61\x01${footer}\n\n\n\n\n`;
 
-    try {
-        window.location.href = `rawbt:data:text/plain;base64,` + btoa(unescape(encodeURIComponent(text)));
-    } catch (e) {
-        window.print();
+    if (/android/i.test(navigator.userAgent)) {
+        try {
+            window.location.href = `rawbt:data:text/plain;base64,` + btoa(unescape(encodeURIComponent(text)));
+            return;
+        } catch (e) {}
     }
+
+    // C. Fallback untuk Browser Laptop / PC Desktop
+    window.print();
 }
 
-// 3. Web Bluetooth Direct Connect & Print ESC/POS
-async function connectAndPrintBluetooth() {
-    if (!navigator.bluetooth) {
-        window.showGarudaAlert({
-            title: 'Bluetooth Tidak Didukung',
-            text: 'Browser Anda belum mendukung Web Bluetooth API secara langsung. Silakan gunakan tombol "Buka di RawBT POS" atau "Cetak 58mm / PDF".',
-            icon: 'warning'
-        });
-        return;
-    }
-
-    try {
-        const device = await navigator.bluetooth.requestDevice({
-            acceptAllDevices: true,
-            optionalServices: [
-                '000018f0-0000-1000-8000-00805f9b34fb',
-                '0000ffe0-0000-1000-8000-00805f9b34fb',
-                '49535343-fe7d-4ae5-8fa9-9fafd205e455',
-                'e7810a71-73ae-499d-8c15-faa9aef0c3f2'
-            ]
-        });
-
-        if (!device || !device.gatt) {
-            window.showToast('Perangkat Bluetooth tidak dipilih.', 'warning');
-            return;
-        }
-
-        const server = await device.gatt.connect();
-        let targetChar = null;
-        const services = await server.getPrimaryServices();
-        for (const s of services) {
-            try {
-                const chars = await s.getCharacteristics();
-                for (const c of chars) {
-                    if (c.properties.write || c.properties.writeWithoutResponse) {
-                        targetChar = c;
-                        break;
-                    }
-                }
-            } catch (ex) {}
-            if (targetChar) break;
-        }
-
-        if (!targetChar) {
-            window.showGarudaAlert({
-                title: 'Printer Tidak Kompatibel',
-                text: 'Karakteristik printer tidak ditemukan pada perangkat Bluetooth ini. Silakan gunakan RawBT.',
-                icon: 'warning'
-            });
-            return;
-        }
-
-        const isQrisWithFee = {{ 'true' if (trx.payment_method and trx.payment_method|upper == 'QRIS' and (pg_fee|default(0)) > 0) else 'false' }};
-        const hargaPokok = 'Rp ' + Number({{ trx.amount }}).toLocaleString('id-ID');
-        const feePg = 'Rp ' + Number({{ pg_fee|default(0) }}).toLocaleString('id-ID');
-        const hargaTotal = 'Rp ' + Number({{ total_with_fee|default(trx.amount) }}).toLocaleString('id-ID');
-
-        const encoder = new TextEncoder();
-        let commands = [];
-        commands.push(0x1B, 0x40); // Init
-        commands.push(0x1B, 0x61, 0x01); // Center
-        commands.push(0x1B, 0x45, 0x01); // Bold ON
-        commands.push(...encoder.encode({{ store.name|tojson }}.toUpperCase() + '\n'));
-        commands.push(0x1B, 0x45, 0x00); // Bold OFF
-        {% if store.tagline %}
-        commands.push(...encoder.encode({{ store.tagline|tojson }} + '\n'));
-        {% endif %}
-        commands.push(...encoder.encode('--------------------------------\n'));
-        commands.push(0x1B, 0x61, 0x00); // Left
-        commands.push(...encoder.encode('No. Ref : ' + {{ trx.ref_id|tojson }} + '\n'));
-        commands.push(...encoder.encode('Waktu   : ' + {{ (trx.created_at_wib or 'Baru Saja')|tojson }} + '\n'));
-        commands.push(...encoder.encode('Status  : [ BERHASIL ]\n'));
-        commands.push(...encoder.encode('--------------------------------\n'));
-        commands.push(...encoder.encode('PRODUK  : ' + {{ trx.product_name|tojson }} + '\n'));
-        commands.push(...encoder.encode('TUJUAN  : ' + {{ trx.target_number|tojson }} + '\n'));
-        {% if clean_trx_sn %}
-        const thermalSnBt = formatSnForThermal({{ clean_trx_sn|tojson }}, {{ trx.product_name|tojson }});
-        commands.push(...encoder.encode('{% if is_trx_failed %}KET     : {% else %}SN      : {% endif %}' + thermalSnBt + '\n'));
-        {% endif %}
-        commands.push(...encoder.encode('--------------------------------\n'));
-        if (isQrisWithFee) {
-            commands.push(...encoder.encode('HARGA   : ' + hargaPokok + '\n'));
-            commands.push(...encoder.encode('BIAYA PG: ' + feePg + '\n'));
-            commands.push(0x1B, 0x45, 0x01);
-            commands.push(...encoder.encode('TOTAL   : ' + hargaTotal + '\n'));
-            commands.push(0x1B, 0x45, 0x00);
-        } else {
-            commands.push(0x1B, 0x45, 0x01);
-            commands.push(...encoder.encode('TOTAL   : ' + hargaPokok + '\n'));
-            commands.push(0x1B, 0x45, 0x00);
-        }
-        commands.push(...encoder.encode('--------------------------------\n'));
-        commands.push(0x1B, 0x61, 0x01);
-        commands.push(...encoder.encode({{ store.receipt_footer|tojson }} + '\n\n\n\n'));
-
-        const u8 = new Uint8Array(commands);
-        const chunkSize = 100;
-        for (let i = 0; i < u8.length; i += chunkSize) {
-            const chunk = u8.slice(i, i + chunkSize);
-            if (targetChar.properties.write) {
-                await targetChar.writeValueWithResponse(chunk);
-            } else {
-                await targetChar.writeValueWithoutResponse(chunk);
-            }
-        }
-
-        window.showToast('Struk berhasil dicetak ke printer Bluetooth!', 'success');
-    } catch (err) {
-        if (err.name !== 'NotFoundError') {
-            window.showToast('Kendala koneksi Bluetooth: ' + err.message, 'error');
-        }
-    }
-}
+// Alias kompatibilitas
+window.printViaRawBT = smartPrintReceipt;
 </script>
 {% endblock %}

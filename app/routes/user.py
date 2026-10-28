@@ -745,10 +745,10 @@ def riwayat():
         except Exception:
             pass
         
-        count_sukses = sum(1 for t in transactions if getattr(t, 'status', '') == 'SUCCESS')
-        count_antri = sum(1 for t in transactions if getattr(t, 'status', '') in ['PENDING', 'UNPAID'])
-        count_proses = sum(1 for t in transactions if getattr(t, 'status', '') == 'PROCESSING')
-        count_gagal = sum(1 for t in transactions if getattr(t, 'status', '') in ['FAILED', 'CANCELLED'])
+        count_sukses = sum(1 for t in transactions if getattr(t, 'status', '') in ['SUCCESS', 'SUKSES'])
+        count_antri = sum(1 for t in transactions if (getattr(t, 'status', '') in ['PENDING', 'UNPAID', 'ANTRI'] and getattr(t, 'payment_status', '') != 'PAID'))
+        count_proses = sum(1 for t in transactions if (getattr(t, 'status', '') in ['PROCESSING', 'PROSES'] or (getattr(t, 'payment_status', '') == 'PAID' and getattr(t, 'status', '') in ['PENDING', 'ANTRI', 'PROCESSING', 'PROSES'])))
+        count_gagal = sum(1 for t in transactions if getattr(t, 'status', '') in ['FAILED', 'CANCELLED', 'GAGAL'])
         
         return render_template('user/riwayat.html',
                                transactions=transactions,
@@ -3519,6 +3519,30 @@ def download_sop_paket_data():
         filename,
         as_attachment=True,
         download_name='SOP_Transaksi_Paket_Data_IPAY.pdf'
+    )
+
+
+@user_bp.route('/download/apk')
+@user_bp.route('/download/app')
+def download_apk():
+    """Mengunduh file resmi APK Android IPAY."""
+    apk_dir = os.path.join(BASE_DIR, 'app', 'static', 'apk')
+    filename = 'IPAY-release.apk'
+    apk_path = os.path.join(apk_dir, filename)
+
+    if not os.path.exists(apk_path):
+        # Fallback jika belum tersinkron
+        flutter_apk = os.path.join(BASE_DIR, 'mobile-flutter', 'build', 'app', 'outputs', 'apk', 'release', 'app-release.apk')
+        if os.path.exists(flutter_apk):
+            os.makedirs(apk_dir, exist_ok=True)
+            import shutil
+            shutil.copy2(flutter_apk, apk_path)
+
+    return send_from_directory(
+        apk_dir,
+        filename,
+        as_attachment=True,
+        download_name='IPAY.apk'
     )
 
 

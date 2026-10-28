@@ -652,15 +652,20 @@
 
             if (resp.ok && data.status === 'success') {
                 closeCheckoutModal();
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Pesanan Berhasil!',
-                    text: data.message || 'Paket promo bundling berhasil dibeli!',
-                    confirmButtonText: 'Lihat Riwayat',
-                    confirmButtonColor: '#00877A'
-                }).then(() => {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Pesanan Diproses!',
+                        text: (data.message || 'Paket bundling berhasil dibeli!') + ' Mengalihkan ke riwayat...',
+                        timer: 1200,
+                        timerProgressBar: true,
+                        showConfirmButton: false
+                    }).then(() => {
+                        window.location.href = data.redirect || '/riwayat';
+                    });
+                } else {
                     window.location.href = data.redirect || '/riwayat';
-                });
+                }
             } else {
                 Swal.fire({
                     icon: 'error',

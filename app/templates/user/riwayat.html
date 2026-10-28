@@ -401,6 +401,15 @@
         transform: translateY(-2px);
         box-shadow: 0 6px 18px rgba(0, 135, 122, 0.08);
     }
+    .trx-card-highlighted {
+        border-color: #00877a !important;
+        box-shadow: 0 0 0 3px rgba(0, 135, 122, 0.22), 0 8px 24px rgba(0, 135, 122, 0.14) !important;
+        animation: cardPulseGlow 1.8s ease-in-out infinite alternate;
+    }
+    @keyframes cardPulseGlow {
+        from { box-shadow: 0 0 0 2px rgba(0, 135, 122, 0.2), 0 4px 12px rgba(0, 135, 122, 0.08); }
+        to { box-shadow: 0 0 0 5px rgba(0, 135, 122, 0.35), 0 10px 28px rgba(0, 135, 122, 0.2); }
+    }
 
     @media (min-width: 768px) {
         #containerRiwayat {
@@ -1019,9 +1028,15 @@
         {% if transactions %}
             {% for t in transactions %}
             {% set s = (t.status or 'PENDING')|upper %}
+            {% set pay_stat = (t.payment_status or 'PAID')|upper %}
+            {% set is_paid = (pay_stat == 'PAID') %}
+            {% set is_success = (s in ['SUCCESS', 'PAID', 'SUKSES']) %}
+            {% set is_failed = (s in ['FAILED', 'CANCELLED', 'GAGAL', 'EXPIRED']) %}
+            {% set is_processing = (is_paid and s in ['PROCESSING', 'PROSES', 'PENDING', 'ANTRI']) or (s in ['PROCESSING', 'PROSES']) %}
+            {% set effective_status = 'SUCCESS' if is_success else ('FAILED' if is_failed else ('PROCESSING' if is_processing else 'UNPAID')) %}
             <div class="trx-card" 
                  id="trx-card-{{ t.ref_id }}"
-                 data-status="{{ s }}"
+                 data-status="{{ effective_status }}"
                  data-ref="{{ t.ref_id|upper }}"
                  data-target="{{ (t.target_number or t.target or '')|upper }}"
                  data-product="{{ (t.product_name or '')|upper }}"
@@ -1031,14 +1046,14 @@
                     <span class="trx-product-title">
                         {{ t.product_name or 'Transaksi PPOB' }}
                     </span>
-                    {% if s in ['SUCCESS', 'PAID', 'SUKSES'] %}
+                    {% if is_success %}
                         <span class="badge-status sukses">Sukses</span>
-                    {% elif s in ['PROCESSING', 'PROSES'] %}
-                        <span class="badge-status proses">Proses</span>
-                    {% elif s in ['FAILED', 'CANCELLED', 'GAGAL'] %}
+                    {% elif is_processing %}
+                        <span class="badge-status proses"><i class="fas fa-spinner fa-spin" style="font-size: 10px; margin-right: 3px;"></i> Proses</span>
+                    {% elif is_failed %}
                         <span class="badge-status gagal">Gagal</span>
                     {% else %}
-                        <span class="badge-status antri">Antri / Unpaid</span>
+                        <span class="badge-status antri">Belum Bayar</span>
                     {% endif %}
                 </div>
 
@@ -1059,7 +1074,6 @@
                     </div>
 
                     {% if t.sn %}
-                    {% set is_failed = (s in ['FAILED', 'GAGAL', 'CANCELLED']) %}
                     {% set is_bal_err = ('saldo' in (t.sn|lower) or 'balance' in (t.sn|lower)) %}
                     {% set display_sn = "Jalur operator sedang gangguan sementara. Saldo aman & telah direfund." if (is_failed and is_bal_err) else t.sn %}
                     <div class="sn-wrapper" data-sn="{{ display_sn|escape }}" data-failed="{{ 'true' if is_failed else 'false' }}" data-product="{{ (t.product_name or '')|escape }}">
@@ -1083,19 +1097,19 @@
                         <a href="/bantuan?ref={{ t.ref_id }}" class="btn-action-sm btn-action-cs" title="Laporkan Masalah ke CS">
                             <i class="fas fa-headset"></i> CS
                         </a>
-                        {% if s in ['SUCCESS', 'PAID', 'SUKSES'] %}
+                        {% if is_success %}
                         <button type="button" class="btn-action-sm btn-action-wa" 
                                 onclick="bagikanStruk('{{ t.ref_id }}', '{{ (t.product_name or 'Produk')|escape }}', '{{ (t.target_number or t.target or '-')|escape }}', '{{ '{:,.0f}'.format(t.amount or t.price or 0).replace(',', '.') }}', '{{ (t.sn or '-')|escape }}', '{{ t.created_at_wib }}', 'SUKSES')" 
                                 title="Kirim Struk ke WhatsApp">
                             <i class="fab fa-whatsapp"></i> Struk WA
                         </button>
-                        {% elif s in ['PROCESSING', 'PROSES'] %}
+                        {% elif is_processing %}
                         <button type="button" class="btn-action-sm btn-action-check" 
                                 onclick="cekStatusTrx('{{ t.ref_id }}', this)" 
                                 title="Cek Status Terkini ke Provider">
                             <i class="fas fa-sync-alt"></i> Cek Status
                         </button>
-                        {% elif s in ['UNPAID', 'PENDING'] %}
+                        {% elif not is_failed %}
                         <a href="/trx/invoice/{{ t.ref_id }}" class="btn-action-sm btn-action-pay" title="Bayar Sekarang via QRIS">
                             <i class="fas fa-qrcode"></i> Bayar
                         </a>
@@ -1737,7 +1751,7 @@
         window.location.href = `whatsapp://send?text=${encoded}`;
     }
 
-    function cekStatusTrx(refId, btn) {
+    function cekStatusTrx(refId, btn, isAutoPoll = false) {
         if (!refId) return;
         let originalHtml = '';
         if (btn) {
@@ -1746,7 +1760,7 @@
             btn.disabled = true;
         }
 
-        fetch('/trx/detail/' + refId)
+        fetch('/trx/detail/' + encodeURIComponent(refId))
             .then(res => res.json())
             .then(data => {
                 if (btn) {
@@ -1754,7 +1768,10 @@
                     btn.disabled = false;
                 }
                 if (data.status === 'success') {
-                    const card = document.getElementById('trx-card-' + refId) || document.querySelector(`.trx-card[data-ref="${refId.toUpperCase()}"]`);
+                    const cleanRef = String(refId).trim().toUpperCase();
+                    const card = document.getElementById('trx-card-' + refId) || 
+                                 document.getElementById('trx-card-' + cleanRef) || 
+                                 document.querySelector(`.trx-card[data-ref="${cleanRef}"]`);
                     const statusUpper = (data.trx_status || '').toUpperCase();
                     
                     if (['SUCCESS', 'SUKSES'].includes(statusUpper)) {
@@ -1821,10 +1838,14 @@
                             if (btn) btn.remove();
                         }
                     } else {
-                        showToast('⏳ Masih diproses operator. Silakan cek berkala.');
+                        if (!isAutoPoll) {
+                            showToast('⏳ Masih diproses operator. Silakan cek berkala.');
+                        }
                     }
                 } else {
-                    showToast(data.message || 'Gagal memeriksa status');
+                    if (!isAutoPoll) {
+                        showToast(data.message || 'Gagal memeriksa status');
+                    }
                 }
             })
             .catch(err => {
@@ -1832,7 +1853,9 @@
                     btn.innerHTML = originalHtml;
                     btn.disabled = false;
                 }
-                showToast('Terjadi kesalahan jaringan.');
+                if (!isAutoPoll) {
+                    showToast('Terjadi kesalahan jaringan.');
+                }
             });
     }
 
@@ -1840,25 +1863,56 @@
     initSnFormatting();
     document.addEventListener('DOMContentLoaded', () => {
         initSnFormatting();
+
+        // 1. Cek parameter highlight dari URL (misal: /riwayat?highlight=TRX-12345)
+        const urlParams = new URLSearchParams(window.location.search);
+        const highlightRef = urlParams.get('highlight');
+        if (highlightRef) {
+            const cleanRef = highlightRef.trim().toUpperCase();
+            const targetCard = document.getElementById('trx-card-' + cleanRef) ||
+                               document.querySelector(`.trx-card[data-ref="${cleanRef}"]`);
+            if (targetCard) {
+                targetCard.classList.add('trx-card-highlighted');
+                targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                // Segera jalankan cek status untuk kartu yang di-highlight
+                const checkBtn = targetCard.querySelector('.btn-action-check');
+                if (checkBtn) {
+                    setTimeout(() => {
+                        cekStatusTrx(cleanRef, checkBtn, false);
+                    }, 800);
+                }
+            }
+        }
+
+        // 2. Auto-polling responsif untuk semua kartu yang sedang diproses
         const processingCards = document.querySelectorAll('.trx-card[data-status="PROCESSING"], .trx-card[data-status="PROSES"]');
         if (processingCards.length > 0) {
             let pollCount = 0;
-            const maxPolls = 6;
-            const pollInterval = setInterval(() => {
+            const maxPolls = 8;
+            let pollInterval = null;
+
+            const executePoll = () => {
                 pollCount++;
                 const stillProcessing = document.querySelectorAll('.trx-card[data-status="PROCESSING"], .trx-card[data-status="PROSES"]');
-                if (stillProcessing.length === 0 || pollCount >= maxPolls) {
-                    clearInterval(pollInterval);
+                if (stillProcessing.length === 0 || pollCount > maxPolls) {
+                    if (pollInterval) clearInterval(pollInterval);
                     return;
                 }
                 stillProcessing.forEach(card => {
                     const ref = card.getAttribute('data-ref');
                     if (ref) {
                         const checkBtn = card.querySelector('.btn-action-check');
-                        cekStatusTrx(ref, checkBtn);
+                        cekStatusTrx(ref, checkBtn, true);
                     }
                 });
-            }, 6000);
+            };
+
+            // Polling pertama dimulai cepat (1.2 detik setelah halaman terbuka)
+            setTimeout(executePoll, 1200);
+
+            // Polling berkala setiap 3.5 detik
+            pollInterval = setInterval(executePoll, 3500);
         }
     });
 </script>
