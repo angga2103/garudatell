@@ -1,0 +1,463 @@
+{% extends "base.html" %}
+
+{% block title %}Kebijakan Privasi - {{ store.name if store and store.name else 'IPAY.my.id' }}{% endblock %}
+
+{% block head %}
+<style>
+    .privasi-page-wrapper {
+        max-width: 780px;
+        margin: 0 auto;
+        padding-bottom: 50px;
+    }
+    .privasi-header {
+        background: linear-gradient(135deg, #0f172a 0%, #134e4a 100%);
+        border-bottom-left-radius: 28px;
+        border-bottom-right-radius: 28px;
+        padding: 22px 20px 32px 20px;
+        margin: -15px -15px 22px -15px;
+        color: white;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.2);
+    }
+    .privasi-top-nav {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+    .privasi-back-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: white;
+        text-decoration: none;
+        font-weight: 800;
+        font-size: 13px;
+        background: rgba(255, 255, 255, 0.15);
+        padding: 6px 14px;
+        border-radius: 20px;
+        backdrop-filter: blur(8px);
+        transition: all 0.2s ease;
+    }
+    .privasi-back-btn:hover { background: rgba(255, 255, 255, 0.25); color: white; }
+
+    .privasi-badge-official {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 10.5px;
+        font-weight: 800;
+        background: rgba(45, 212, 191, 0.2);
+        color: #5eead4;
+        border: 1px solid rgba(45, 212, 191, 0.4);
+        padding: 4px 10px;
+        border-radius: 20px;
+        letter-spacing: 0.5px;
+    }
+
+    .privasi-summary-box {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 16px;
+        padding: 14px;
+        margin-top: 16px;
+        font-size: 11.5px;
+        line-height: 1.55;
+        color: #e2e8f0;
+    }
+
+    /* QUICK TOC (DAFTAR ISI) */
+    .privasi-toc-container {
+        background: white;
+        border-radius: 18px;
+        padding: 16px;
+        margin-bottom: 22px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+    }
+    .privasi-toc-title {
+        font-size: 12px;
+        font-weight: 800;
+        color: #475569;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .privasi-toc-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+    @media (max-width: 600px) {
+        .privasi-toc-grid { grid-template-columns: 1fr; }
+    }
+    .privasi-toc-link {
+        font-size: 11px;
+        font-weight: 700;
+        color: #0d9488;
+        background: #f0fdfa;
+        border: 1px solid #ccfbf1;
+        padding: 7px 10px;
+        border-radius: 8px;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: 0.15s;
+    }
+    .privasi-toc-link:hover {
+        background: #ccfbf1;
+        border-color: #99f6e4;
+    }
+
+    /* PASAL CARDS */
+    .pasal-card {
+        background: white;
+        border-radius: 20px;
+        padding: 20px;
+        margin-bottom: 18px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.03);
+        scroll-margin-top: 20px;
+    }
+    .pasal-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 12px;
+        padding-bottom: 10px;
+        border-bottom: 1.5px solid #f1f5f9;
+    }
+    .pasal-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        flex-shrink: 0;
+    }
+    .pasal-title {
+        font-size: 13.5px;
+        font-weight: 900;
+        color: #1e293b;
+        margin: 0;
+        line-height: 1.35;
+    }
+
+    .privasi-alert {
+        border-radius: 12px;
+        padding: 12px 14px;
+        margin: 12px 0;
+        font-size: 11.5px;
+        line-height: 1.5;
+    }
+    .privasi-alert.info {
+        background: #f0fdfa;
+        border: 1.5px solid #99f6e4;
+        color: #0f766e;
+    }
+    .privasi-alert.warning {
+        background: #fffbeb;
+        border: 1.5px solid #fde68a;
+        color: #92400e;
+    }
+
+    .pasal-body ol, .pasal-body ul {
+        margin: 0;
+        padding-left: 18px;
+        color: #334155;
+        font-size: 12.5px;
+        line-height: 1.65;
+    }
+    .pasal-body li {
+        margin-bottom: 8px;
+    }
+    .pasal-body li:last-child {
+        margin-bottom: 0;
+    }
+
+    .btn-print-snk {
+        background: #f1f5f9;
+        border: 1px solid #cbd5e1;
+        color: #334155;
+        padding: 10px 18px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: 0.15s;
+    }
+    .btn-print-snk:hover { background: #e2e8f0; }
+
+    @media print {
+        .privasi-top-nav, .bottom-nav, .privasi-toc-container, .btn-print-snk, .privasi-footer-actions { display: none !important; }
+        .privasi-header { background: #0f172a !important; color: black !important; -webkit-print-color-adjust: exact; }
+        .pasal-card { box-shadow: none !important; border: 1px solid #ccc !important; page-break-inside: avoid; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="privasi-page-wrapper">
+    <!-- HEADER -->
+    <div class="privasi-header">
+        <div class="privasi-top-nav">
+            <a href="javascript:void(0)" onclick="if(window.history.length > 1) { window.history.back(); } else { window.location.href='/'; }" class="privasi-back-btn">
+                <i class="fas fa-arrow-left"></i>
+                <span>Kembali</span>
+            </a>
+            <span class="privasi-badge-official">
+                <i class="fas fa-user-shield"></i> PERLINDUNGAN DATA PRIBADI
+            </span>
+        </div>
+
+        <div>
+            <h1 style="font-size: 21px; font-weight: 900; margin: 0; letter-spacing: -0.3px;">Kebijakan Privasi</h1>
+            <div style="font-size: 12px; opacity: 0.85; margin-top: 4px;">Pemberitahuan Pengelolaan & Perlindungan Data Pengguna Platform {{ store.name if store and store.name else 'IPAY' }}</div>
+        </div>
+
+        <div class="privasi-summary-box">
+            <b>KOMITMEN TRANSPARANSI:</b> Platform kami berkomitmen melindungi keamanan dan kerahasiaan data pribadi Pengguna sesuai ketentuan Undang-Undang Republik Indonesia No. 27 Tahun 2022 tentang Perlindungan Data Pribadi (UU PDP) serta standar industri perlindungan privasi global. Dokumen ini menjelaskan rincian data yang kami kelola, tujuan penggunaannya, serta hak penuh Anda atas data tersebut.
+        </div>
+    </div>
+
+    <!-- QUICK DAFTAR ISI (TOC) -->
+    <div class="privasi-toc-container">
+        <div class="privasi-toc-title">
+            <i class="fas fa-list-ol"></i> Daftar Bagian Kebijakan
+        </div>
+        <div class="privasi-toc-grid">
+            <a href="#bagian-1" class="privasi-toc-link"><i class="fas fa-file-invoice" style="color: #0d9488;"></i> 1. Landasan & Prinsip Privasi</a>
+            <a href="#bagian-2" class="privasi-toc-link"><i class="fas fa-database" style="color: #0284c7;"></i> 2. Rincian Data yang Dikumpulkan</a>
+            <a href="#bagian-3" class="privasi-toc-link"><i class="fas fa-bluetooth-b" style="color: #3b82f6;"></i> 3. Izin Perangkat HP & Bluetooth</a>
+            <a href="#bagian-4" class="privasi-toc-link"><i class="fas fa-cogs" style="color: #f59e0b;"></i> 4. Tujuan Pengolahan Data</a>
+            <a href="#bagian-5" class="privasi-toc-link"><i class="fas fa-handshake" style="color: #10b981;"></i> 5. Pembagian Data Mitra Resmi</a>
+            <a href="#bagian-6" class="privasi-toc-link"><i class="fas fa-shield-virus" style="color: #6366f1;"></i> 6. Keamanan & Retensi Penyimpanan</a>
+            <a href="#bagian-7" class="privasi-toc-link"><i class="fas fa-user-minus" style="color: #ef4444;"></i> 7. Hak Pengguna & Hapus Akun</a>
+            <a href="#bagian-8" class="privasi-toc-link"><i class="fas fa-headset" style="color: #8b5cf6;"></i> 8. Kontak Layanan Bantuan</a>
+        </div>
+    </div>
+
+    <!-- BAGIAN 1 -->
+    <div class="pasal-card" id="bagian-1">
+        <div class="pasal-header">
+            <div class="pasal-icon" style="background: #e0f2fe; color: #0284c7;">
+                <i class="fas fa-file-invoice"></i>
+            </div>
+            <div>
+                <h3 class="pasal-title">1. LANDASAN HUKUM & PRINSIP PRIVASI</h3>
+            </div>
+        </div>
+        <div class="pasal-body">
+            <div class="privasi-alert info">
+                <i class="fas fa-check-shield"></i> Platform mematuhi prinsip keadilan, transparansi, batasan tujuan, dan integritas data pribadi sebagaimana diatur dalam peraturan perundang-undangan Negara Republik Indonesia.
+            </div>
+            <ol>
+                <li>Kebijakan Privasi ini berlaku bagi seluruh pengguna yang mengakses situs web, layanan mobile, maupun aplikasi Android resmi <b>{{ store.name if store and store.name else 'IPAY' }}</b> ("Platform", "Aplikasi", "Kami").</li>
+                <li>Dengan mendaftarkan akun, mengakses fitur transaksi, atau menggunakan aplikasi, Anda menyatakan telah membaca, memahami, dan menyetujui pengumpulan serta pengelolaan informasi Anda sesuai ketentuan kebijakan ini.</li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- BAGIAN 2 -->
+    <div class="pasal-card" id="bagian-2">
+        <div class="pasal-header">
+            <div class="pasal-icon" style="background: #ccfbf1; color: #0f766e;">
+                <i class="fas fa-database"></i>
+            </div>
+            <div>
+                <h3 class="pasal-title">2. RINCIAN DATA PRIBADI YANG DIKUMPULKAN</h3>
+            </div>
+        </div>
+        <div class="pasal-body">
+            <p style="font-size: 12.5px; color: #334155; margin-bottom: 10px;">Untuk menjalankan fungsi transaksi operasional dan fitur kasir secara optimal, Platform mengumpulkan data dalam kategori berikut:</p>
+            <ol>
+                <li><b>Data Identitas Akun Pengguna:</b>
+                    <ul>
+                        <li>Nama akun / nama toko mitra.</li>
+                        <li>Nomor handphone / WhatsApp aktif (digunakan sebagai identitas utama login dan verifikasi kode sandi sekali pakai/OTP).</li>
+                        <li>Kredensial keamanan berupa PIN Transaksi terenkripsi dan kata sandi berhashing satu arah (*salt hash*).</li>
+                    </ul>
+                </li>
+                <li><b>Data Transaksi & Finansial Operasional:</b>
+                    <ul>
+                        <li>Nomor ID tujuan pengisian yang dimasukkan pengguna (nomor telepon seluler target, nomor meter PLN, ID pelanggan BPJS/PDAM, dsb).</li>
+                        <li>Catatan riwayat transaksi produk, Serial Number (SN) pelunasan, nominal pembayaran, metode pembayaran, serta riwayat mutasi saldo deposit.</li>
+                    </ul>
+                </li>
+                <li><b>Data Perangkat Teknis & Diagnostik:</b>
+                    <ul>
+                        <li>Alamat Protokol Internet (IP Address), model perangkat seluler, versi sistem operasi, dan log aktivitas sesi keamanan guna mencegah penyalahgunaan akun ganda (*anti-dual login fraud*).</li>
+                        <li>Token Notifikasi Cloud Perangkat (FCM Token) untuk mengirimkan bunyi serta pemberitahuan otomatis saat transaksi berhasil, pending, atau gagal.</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- BAGIAN 3 -->
+    <div class="pasal-card" id="bagian-3">
+        <div class="pasal-header">
+            <div class="pasal-icon" style="background: #eff6ff; color: #2563eb;">
+                <i class="fas fa-bluetooth-b"></i>
+            </div>
+            <div>
+                <h3 class="pasal-title">3. IZIN AKSES PERANGKAT KHUSUS (BLUETOOTH & NOTIFIKASI)</h3>
+            </div>
+        </div>
+        <div class="pasal-body">
+            <div class="privasi-alert info">
+                <i class="fas fa-print"></i> <b>Keterbukaan Izin Perangkat Keras:</b> Aplikasi Android resmi Kami meminta izin sistem tertentu semata-mata untuk mendukung fungsionalitas mesin kasir POS.
+            </div>
+            <ol>
+                <li><b>Izin Bluetooth (BLUETOOTH_CONNECT & BLUETOOTH_SCAN):</b>
+                    Digunakan <b>secara eksklusif</b> untuk memindai dan menyambungkan ponsel ke perangkat mesin pencetak struk thermal (*Thermal Printer ESC/POS 58mm/80mm*). Izin ini dilengkapi penanda sistem <i>neverForLocation</i> dan <b>sama sekali TIDAK digunakan untuk melacak koordinat lokasi fisik Pengguna</b>.
+                </li>
+                <li><b>Izin Notifikasi (POST_NOTIFICATIONS):</b>
+                    Digunakan untuk menampilkan notifikasi instan pada bilah status ponsel ketika saldo bertambah, deposit terverifikasi, atau transaksi pesanan produk digital selesai diproses.
+                </li>
+                <li><b>Penegasan Pembatasan Izin:</b> Aplikasi Kami <b>TIDAK PERNAH</b> meminta izin akses ke Buku Kontak Pribadi, Galeri Foto, Kamera, Mikrofon, maupun Berkas Penyimpanan Pribadi di luar keperluan cache aplikasi.</li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- BAGIAN 4 -->
+    <div class="pasal-card" id="bagian-4">
+        <div class="pasal-header">
+            <div class="pasal-icon" style="background: #fef3c7; color: #b45309;">
+                <i class="fas fa-cogs"></i>
+            </div>
+            <div>
+                <h3 class="pasal-title">4. TUJUAN PENGUMPULAN & PENGOLAHAN DATA</h3>
+            </div>
+        </div>
+        <div class="pasal-body">
+            <ol>
+                <li><b>Pemrosesan Transaksi:</b> Memverifikasi saldo, meneruskan instruksi pemesanan produk kepada sistem mitra penyedia biller resmi, dan mencatat Serial Number transaksi sebagai bukti sah pembayaran.</li>
+                <li><b>Otentikasi & Keamanan:</b> Memastikan akun hanya diakses oleh pemilik sah melalui verifikasi OTP dan PIN transaksi, serta mendeteksi upaya login tidak sah dari lokasi atau perangkat mencurigakan.</li>
+                <li><b>Dukungan Pelanggan (Customer Support):</b> Membantu penelusuran status pemesanan saat Pengguna menyampaikan pengaduan atau tiket kendala operasional.</li>
+                <li><b>Pencetakan Bukti Kasir:</b> Menghasilkan tata letak struk kasir yang rapi untuk dicetak ke printer Bluetooth atau dibagikan sebagai tanda bukti sah kepada konsumen akhir.</li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- BAGIAN 5 -->
+    <div class="pasal-card" id="bagian-5">
+        <div class="pasal-header">
+            <div class="pasal-icon" style="background: #dcfce7; color: #15803d;">
+                <i class="fas fa-handshake"></i>
+            </div>
+            <div>
+                <h3 class="pasal-title">5. PENGUNGKAPAN DATA KEPADA MITRA RESMI</h3>
+            </div>
+        </div>
+        <div class="pasal-body">
+            <div class="privasi-alert warning">
+                <i class="fas fa-ban"></i> <b>Kebijakan Anti-Jual Data:</b> Kami tidak pernah menjual, menyewakan, atau memperdagangkan data pribadi Pengguna kepada pihak ketiga mana pun untuk tujuan periklanan atau telemarketing.
+            </div>
+            <p style="font-size: 12.5px; color: #334155; margin-bottom: 8px;">Data Pengguna hanya diteruskan secara aman dan terbatas kepada mitra terpercaya berikut demi kelancaran transaksi:</p>
+            <ul>
+                <li><b>Mitra Penyedia Server Agregator Biller Produk Digital:</b> Untuk memproses instruksi pengisian pulsa, paket kuota, token PLN, atau verifikasi tagihan bulanan langsung ke sistem operator telekomunikasi dan utilitas resmi.</li>
+                <li><b>Mitra Penyedia Gerbang Pembayaran Resmi Terlisensi:</b> Untuk memfasilitasi pembuatan kode pembayaran QRIS standar Bank Indonesia dan verifikasi pembayaran deposit masuk secara otomatis.</li>
+                <li><b>Penyedia Infrastruktur Cloud & Pesan Notifikasi:</b> Untuk mengalirkan pengiriman push notification terenkripsi ke perangkat seluler Pengguna.</li>
+                <li><b>Kewajiban Hukum:</b> Apabila diperintahkan secara sah oleh aparat penegak hukum yang berwenang berdasarkan putusan hukum atau peraturan perundang-undangan yang berlaku di Indonesia.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- BAGIAN 6 -->
+    <div class="pasal-card" id="bagian-6">
+        <div class="pasal-header">
+            <div class="pasal-icon" style="background: #ede9fe; color: #7c3aed;">
+                <i class="fas fa-shield-virus"></i>
+            </div>
+            <div>
+                <h3 class="pasal-title">6. KEAMANAN & PENYIMPANAN DATA</h3>
+            </div>
+        </div>
+        <div class="pasal-body">
+            <ol>
+                <li><b>Enkripsi Komunikasi:</b> Seluruh pertukaran data antara aplikasi di ponsel dan server dilindungi dengan protokol enkripsi modern <b>Transport Layer Security (TLS 1.3 / HTTPS)</b>.</li>
+                <li><b>Penyimpanan Kredensial:</b> Kata sandi dan PIN transaksi disimpan dalam bentuk hash kriptografi acak (*cryptographic hashing*) yang tidak dapat dibaca oleh staf operasional maupun pihak lain.</li>
+                <li><b>Retensi Penyimpanan:</b> Data akun disimpan selama Pengguna mempertahankan status keanggotaan aktif. Data riwayat transaksi keuangan disimpan sesuai periode retensi pembukuan dan akuntansi yang disyaratkan oleh regulasi perundang-undangan di Indonesia.</li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- BAGIAN 7 -->
+    <div class="pasal-card" id="bagian-7">
+        <div class="pasal-header">
+            <div class="pasal-icon" style="background: #fee2e2; color: #dc2626;">
+                <i class="fas fa-user-minus"></i>
+            </div>
+            <div>
+                <h3 class="pasal-title">7. HAK PENGGUNA & PENGHAPUSAN AKUN</h3>
+            </div>
+        </div>
+        <div class="pasal-body">
+            <div class="privasi-alert info" style="background: #fff1f2; border-color: #fecdd3; color: #9f1239;">
+                <i class="fas fa-user-check"></i> <b>Hak Penuh Pengguna:</b> Anda memiliki hak penuh untuk memeriksa, memperbarui data profil, maupun meminta penutupan akun dan penghapusan data identitas pribadi Anda kapan saja.
+            </div>
+            <ol>
+                <li>Pengguna berhak mengakses profil dan memperbarui identitas toko atau mengganti kredensial PIN secara mandiri melalui menu <b>Profil & Pengaturan Akun</b>.</li>
+                <li><b>Prosedur Permintaan Penghapusan Akun & Data (*Account Deletion Request*):</b>
+                    Pengguna dapat mengajukan permohonan penutupan akun dan penghapusan data secara mudah melalui:
+                    <ul>
+                        <li><b>Halaman Web Resmi Permintaan Hapus Akun:</b> Kunjungi tautan mandiri berikut: <br>
+                            <a href="/hapus-akun" style="color: #0d9488; font-weight: 800; text-decoration: underline;">👉 https://ipay.my.id/hapus-akun</a> (dapat diakses baik saat login maupun tanpa login).
+                        </li>
+                        <li><b>Pusat Bantuan WhatsApp:</b> Menghubungi Customer Service resmi Kami dengan menyertakan nomor terdaftar untuk verifikasi kepemilikan akun.</li>
+                    </ul>
+                </li>
+                <li>Setelah verifikasi selesai, seluruh identitas personal, token sesi login, preferensi aplikasi, dan akses akun akan dinonaktifkan secara permanen dari server aktif Kami. Catatan transaksi finansial yang telah selesai akan diarsipkan dalam bentuk anonim murni demi kepatuhan audit hukum keuangan negara.</li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- BAGIAN 8 -->
+    <div class="pasal-card" id="bagian-8">
+        <div class="pasal-header">
+            <div class="pasal-icon" style="background: #f5f3ff; color: #6d28d9;">
+                <i class="fas fa-headset"></i>
+            </div>
+            <div>
+                <h3 class="pasal-title">8. PEMBARUAN KEBIJAKAN & KONTAK BANTUAN</h3>
+            </div>
+        </div>
+        <div class="pasal-body">
+            <p style="font-size: 12.5px; color: #334155; margin-bottom: 10px;">Kami dapat memperbarui Kebijakan Privasi ini dari waktu ke waktu seiring peningkatan fitur teknis atau penyesuaian regulasi hukum yang berlaku. Tanggal pembaruan terakhir akan selalu tertera pada bagian bawah dokumen ini.</p>
+            <p style="font-size: 12.5px; color: #334155; margin-bottom: 6px;">Apabila Anda memiliki pertanyaan, klarifikasi, atau keluhan terkait privasi data Anda, silakan hubungi saluran resmi Kami:</p>
+            <ul>
+                <li><b>Platform:</b> {{ store.name if store and store.name else 'IPAY Super-App & POS' }}</li>
+                <li><b>Situs Web Resmi:</b> <a href="/" style="color: #0d9488; font-weight: 700;">https://ipay.my.id</a></li>
+                {% if store and store.whatsapp %}
+                <li><b>Layanan WhatsApp CS:</b> <a href="https://wa.me/{{ store.whatsapp }}" target="_blank" style="color: #16a34a; font-weight: 700;">+{{ store.whatsapp }}</a></li>
+                {% endif %}
+                <li><b>Dokumen Syarat & Ketentuan:</b> <a href="/syarat-ketentuan" style="color: #0284c7; font-weight: 700;">Baca Syarat & Ketentuan Layanan</a></li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- FOOTER ACTIONS -->
+    <div class="privasi-footer-actions" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 25px; padding: 15px 0; border-top: 1px solid #e2e8f0; flex-wrap: wrap;">
+        <button type="button" class="btn-print-snk" onclick="window.print()">
+            <i class="fas fa-print"></i> Cetak / Simpan Dokumen
+        </button>
+        <div style="display: flex; gap: 8px;">
+            <a href="/syarat-ketentuan" style="background: #f1f5f9; color: #334155; text-decoration: none; padding: 10px 16px; border-radius: 12px; font-weight: 800; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #cbd5e1;">
+                <i class="fas fa-file-contract"></i> Syarat & Ketentuan
+            </a>
+            <a href="/" style="background: #008779; color: white; text-decoration: none; padding: 10px 18px; border-radius: 12px; font-weight: 800; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(0, 135, 121, 0.25);">
+                <i class="fas fa-check-circle"></i> Saya Memahami
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

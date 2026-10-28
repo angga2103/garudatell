@@ -3585,6 +3585,61 @@ def syarat_ketentuan():
     return render_template('legal/syarat_ketentuan.html')
 
 
+@user_bp.route('/kebijakan-privasi')
+@user_bp.route('/privacy-policy')
+@user_bp.route('/privacy')
+def kebijakan_privasi():
+    """Halaman resmi Kebijakan Privasi (Privacy Policy) sesuai UU PDP & Google Play Policy."""
+    return render_template('legal/kebijakan_privasi.html')
+
+
+@user_bp.route('/hapus-akun', methods=['GET', 'POST'])
+@user_bp.route('/account-deletion', methods=['GET', 'POST'])
+@user_bp.route('/delete-account', methods=['GET', 'POST'])
+def hapus_akun():
+    """Halaman dan alur permohonan penutupan akun & penghapusan data pengguna (Google Play Account Deletion)."""
+    if request.method == 'POST':
+        phone = request.form.get('phone', '').strip()
+        pin = request.form.get('pin', '').strip()
+        reason = request.form.get('reason', 'Permintaan Pengguna').strip()
+
+        target_user = None
+        if current_user.is_authenticated:
+            target_user = current_user
+        elif phone:
+            from app.models.user import User
+            clean_phone = phone.replace(' ', '').replace('-', '').replace('+62', '0')
+            if clean_phone.startswith('62'):
+                clean_phone = '0' + clean_phone[2:]
+            target_user = User.query.filter((User.phone == phone) | (User.phone == clean_phone)).first()
+
+        if not target_user:
+            flash('Akun dengan nomor telepon tersebut tidak ditemukan.', 'danger')
+            return redirect(url_for('user.hapus_akun'))
+
+        if not target_user.check_pin(pin):
+            flash('PIN verifikasi keamanan salah. Silakan coba kembali atau hubungi CS.', 'danger')
+            return redirect(url_for('user.hapus_akun'))
+
+        try:
+            target_user.is_active = False
+            target_user.current_session_token = None
+            db.session.commit()
+
+            if current_user.is_authenticated and current_user.id == target_user.id:
+                from flask_login import logout_user
+                logout_user()
+
+            flash('Permohonan penutupan akun berhasil diproses. Seluruh kredensial dan akses akun Anda telah dinonaktifkan.', 'success')
+            return redirect('/')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Terjadi kendala saat memproses permohonan: {str(e)}', 'danger')
+            return redirect(url_for('user.hapus_akun'))
+
+    return render_template('legal/hapus_akun.html')
+
+
 # ==========================================
 # REST API RESMI UNTUK MOBILE APP NATIVE (FLUTTER)
 # ==========================================

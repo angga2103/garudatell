@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% block title %}Pengajuan Hapus Akun & Data Pribadi - {{ store.name if store and store.name else 'IPAY' }}{% endblock %}
+
+{% block head %}
+<style>
+    .delete-page-wrapper {
+        max-width: 650px;
+        margin: 0 auto;
+        padding-bottom: 50px;
+    }
+    .delete-header {
+        background: linear-gradient(135deg, #450a0a 0%, #7f1d1d 100%);
+        border-bottom-left-radius: 28px;
+        border-bottom-right-radius: 28px;
+        padding: 22px 20px 30px 20px;
+        margin: -15px -15px 22px -15px;
+        color: white;
+        box-shadow: 0 8px 24px rgba(127, 29, 29, 0.25);
+    }
+    .delete-card {
+        background: white;
+        border-radius: 20px;
+        padding: 24px 20px;
+        margin-bottom: 20px;
+        border: 1px solid #fee2e2;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+    }
+    .delete-btn-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: white;
+        text-decoration: none;
+        font-weight: 800;
+        font-size: 13px;
+        background: rgba(255, 255, 255, 0.15);
+        padding: 6px 14px;
+        border-radius: 20px;
+        backdrop-filter: blur(8px);
+        margin-bottom: 14px;
+    }
+    .info-list-box {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 14px 16px;
+        margin: 16px 0;
+        font-size: 12.5px;
+        line-height: 1.6;
+        color: #334155;
+    }
+    .danger-alert-box {
+        background: #fef2f2;
+        border: 1.5px solid #fecaca;
+        border-radius: 14px;
+        padding: 14px 16px;
+        margin: 16px 0;
+        font-size: 12px;
+        line-height: 1.55;
+        color: #991b1b;
+    }
+    .form-group-del {
+        margin-bottom: 16px;
+        text-align: left;
+    }
+    .form-label-del {
+        display: block;
+        font-size: 12px;
+        font-weight: 800;
+        color: #1e293b;
+        margin-bottom: 6px;
+    }
+    .form-input-del {
+        width: 100%;
+        padding: 11px 14px;
+        border-radius: 10px;
+        border: 1.5px solid #cbd5e1;
+        font-size: 13px;
+        box-sizing: border-box;
+        transition: 0.15s;
+    }
+    .form-input-del:focus {
+        border-color: #ef4444;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+    }
+    .btn-submit-delete {
+        width: 100%;
+        padding: 13px 18px;
+        background: #dc2626;
+        color: white;
+        border: none;
+        border-radius: 12px;
+        font-size: 13.5px;
+        font-weight: 900;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+        transition: 0.15s;
+    }
+    .btn-submit-delete:hover {
+        background: #b91c1c;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="delete-page-wrapper">
+    <!-- HEADER -->
+    <div class="delete-header">
+        <a href="javascript:void(0)" onclick="if(window.history.length > 1) { window.history.back(); } else { window.location.href='/'; }" class="delete-btn-back">
+            <i class="fas fa-arrow-left"></i>
+            <span>Kembali</span>
+        </a>
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+            <i class="fas fa-user-xmark" style="font-size: 20px; color: #fca5a5;"></i>
+            <h1 style="font-size: 20px; font-weight: 900; margin: 0;">Pengajuan Hapus Akun & Data</h1>
+        </div>
+        <div style="font-size: 12px; opacity: 0.9; line-height: 1.45;">
+            Layanan resmi permohonan penutupan akun permanen dan pembersihan data pribadi Pengguna platform {{ store.name if store and store.name else 'IPAY' }}.
+        </div>
+    </div>
+
+    <!-- KARTU INFORMASI RESMI GOOGLE PLAY & UU PDP -->
+    <div class="delete-card">
+        <h2 style="font-size: 15px; font-weight: 900; color: #1e293b; margin: 0 0 10px 0;">
+            <i class="fas fa-shield-halved" style="color: #ef4444; margin-right: 6px;"></i> Transparansi Kebijakan Penghapusan Data
+        </h2>
+        <p style="font-size: 12.5px; color: #475569; line-height: 1.6; margin: 0;">
+            Sesuai dengan <b>Kebijakan Privasi Google Play Store</b> dan <b>UU No. 27 Tahun 2022 tentang Perlindungan Data Pribadi</b>, Anda berhak sepenuhnya untuk mengajukan penutupan akun dan penghapusan data pribadi yang tersimpan di sistem Kami.
+        </p>
+
+        <div class="info-list-box">
+            <b style="color: #0f172a; display: block; margin-bottom: 6px;">Data yang AKAN DIHAPUS Secara Permanen:</b>
+            <ul style="margin: 0; padding-left: 18px;">
+                <li>Nomor telepon / WhatsApp terdaftar dan nama akun Anda.</li>
+                <li>Seluruh kredensial keamanan (kata sandi terenkripsi & PIN transaksi).</li>
+                <li>Token perangkat seluler, riwayat sesi login aktif, dan token Firebase Notifikasi (FCM).</li>
+                <li>Daftar perangkat kasir Bluetooth terpercaya yang tertaut ke akun Anda.</li>
+            </ul>
+        </div>
+
+        <div class="danger-alert-box">
+            <b><i class="fas fa-exclamation-triangle"></i> PENTING - RETENSI DATA KEUANGAN RESMI:</b><br>
+            Sesuai regulasi hukum keuangan dan pembukuan di Indonesia, catatan riwayat transaksi produk yang telah selesai akan <b>dianonimkan murni</b> (tanpa identitas nama/nomor Anda) dan disimpan dalam arsip audit kepatuhan hukum transaksi digital, namun akun Anda tidak dapat lagi digunakan atau diakses kembali.
+        </div>
+
+        {% if current_user and current_user.is_authenticated and current_user.balance and current_user.balance > 0 %}
+        <div class="danger-alert-box" style="background: #fffbeb; border-color: #fde68a; color: #92400e;">
+            <b><i class="fas fa-wallet"></i> PERHATIAN SISA SALDO DEPOSIT:</b><br>
+            Akun Anda saat ini masih memiliki sisa saldo sebesar <b>Rp {{ "{:,}".format(current_user.balance|int).replace(',', '.') }}</b>. Harap habiskan saldo Anda untuk transaksi pulsa/tagihan atau lakukan penarikan sebelum mengajukan penutupan akun permanen.
+        </div>
+        {% endif %}
+
+        <!-- FORMULIR PENGAJUAN -->
+        <form method="POST" action="/hapus-akun" onsubmit="return confirmSubmitDelete();" style="margin-top: 20px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+
+            {% if current_user and current_user.is_authenticated %}
+            <div class="form-group-del">
+                <label class="form-label-del">Nama Akun Terdaftar</label>
+                <input type="text" class="form-input-del" value="{{ current_user.name or current_user.username }}" readonly style="background: #f1f5f9; color: #64748b;">
+            </div>
+            <div class="form-group-del">
+                <label class="form-label-del">Nomor WhatsApp Terdaftar</label>
+                <input type="text" name="phone" class="form-input-del" value="{{ current_user.phone }}" readonly style="background: #f1f5f9; color: #64748b;">
+            </div>
+            <div class="form-group-del">
+                <label class="form-label-del">Konfirmasi PIN Transaksi Akun (6 Digit) <span style="color:#ef4444;">*</span></label>
+                <input type="password" name="pin" class="form-input-del" placeholder="Masukkan 6 digit PIN akun Anda" maxlength="6" inputmode="numeric" required>
+            </div>
+            {% else %}
+            <!-- FORMULIR UNTUK PENGGUNA YANG SUDAH UNINSTALL APLIKASI (SYARAT WAJIB GOOGLE PLAY) -->
+            <div class="form-group-del">
+                <label class="form-label-del">Nomor WhatsApp Terdaftar di Akun <span style="color:#ef4444;">*</span></label>
+                <input type="tel" name="phone" class="form-input-del" placeholder="Contoh: 081234567890" required>
+            </div>
+            <div class="form-group-del">
+                <label class="form-label-del">Nama Pemilik Akun <span style="color:#ef4444;">*</span></label>
+                <input type="text" name="name" class="form-input-del" placeholder="Nama lengkap sesuai akun" required>
+            </div>
+            <div class="form-group-del">
+                <label class="form-label-del">PIN Akun / Kode Verifikasi Keamanan <span style="color:#ef4444;">*</span></label>
+                <input type="password" name="pin" class="form-input-del" placeholder="Masukkan 6 digit PIN untuk verifikasi" maxlength="6" inputmode="numeric" required>
+            </div>
+            {% endif %}
+
+            <div class="form-group-del">
+                <label class="form-label-del">Alasan Penutupan Akun (Opsional)</label>
+                <select name="reason" class="form-input-del" style="background: white;">
+                    <option value="Tidak lagi menggunakan layanan PPOB">Tidak lagi menggunakan layanan PPOB</option>
+                    <option value="Pindah ke nomor WhatsApp baru">Pindah ke nomor WhatsApp baru</option>
+                    <option value="Ingin menghapus data privasi">Ingin menghapus data privasi saya</option>
+                    <option value="Lainnya">Alasan lainnya</option>
+                </select>
+            </div>
+
+            <div style="margin-bottom: 20px; display: flex; align-items: flex-start; gap: 10px;">
+                <input type="checkbox" id="checkAgreement" required style="margin-top: 3px; transform: scale(1.15); cursor: pointer;">
+                <label for="checkAgreement" style="font-size: 12px; color: #334155; line-height: 1.5; cursor: pointer;">
+                    Saya menyatakan secara sadar ingin menutup akun ini secara permanen dan memahami bahwa data profil serta kredensial akun saya akan dihapus dari server aktif.
+                </label>
+            </div>
+
+            <button type="submit" class="btn-submit-delete">
+                <i class="fas fa-trash-can"></i> Ajukan Penutupan & Penghapusan Akun
+            </button>
+        </form>
+
+        <!-- BANTUAN CS MANUAL -->
+        {% if store and store.whatsapp %}
+        <div style="text-align: center; margin-top: 24px; padding-top: 18px; border-top: 1px dashed #e2e8f0;">
+            <div style="font-size: 12px; color: #64748b; margin-bottom: 8px;">Mengalami kesulitan atau lupa PIN verifikasi?</div>
+            <a href="https://wa.me/{{ store.whatsapp }}?text=Halo%20Admin%20iPay,%20saya%20ingin%20mengajukan%20penutupan%20dan%20penghapusan%20akun%20saya" target="_blank" style="color: #16a34a; font-weight: 800; font-size: 12.5px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                <i class="fab fa-whatsapp" style="font-size: 16px;"></i> Hubungi Customer Service WhatsApp Resmi
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function confirmSubmitDelete() {
+    var check = document.getElementById('checkAgreement');
+    if (!check.checked) {
+        alert('Harap centang konfirmasi persetujuan penghapusan akun terlebih dahulu.');
+        return false;
+    }
+    return confirm('APAKAH ANDA YAKIN?\n\nPenutupan akun ini bersifat PERMANEN dan tidak dapat dibatalkan. Lanjutkan pengajuan penghapusan akun?');
+}
+</script>
+{% endblock %}
