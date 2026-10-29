@@ -48,7 +48,7 @@
         
         <hr style="margin: 18px 0; border-top: 1px dashed #E5E7EB;">
 
-        <!-- MENU TINGKATAN AKUN & DOWNLINE VIP -->
+        <!-- MENU FITUR BISNIS & KASIR CABANG VIP -->
         <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; text-align: left;">
             <a href="/account/upgrade" style="text-decoration: none; background: #f0fdfa; border: 1.5px solid #99f6e4; padding: 12px 16px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; transition: 0.2s;">
                 <div style="display: flex; align-items: center; gap: 12px;">
@@ -56,27 +56,11 @@
                         <i class="fas fa-crown"></i>
                     </div>
                     <div>
-                        <div style="font-weight: 800; color: #134e4a; font-size: 0.9rem;">Upgrade / Langganan Akun</div>
-                        <div style="font-size: 0.75rem; color: #0f766e;">Nikmati potongan harga reseller & VIP</div>
+                        <div style="font-weight: 800; color: #134e4a; font-size: 0.9rem;">Langganan Fitur VIP Bisnis</div>
+                        <div style="font-size: 0.75rem; color: #0f766e;">Akses Kunci Kasir & Multi-Cabang Eksklusif</div>
                     </div>
                 </div>
                 <i class="fas fa-chevron-right" style="color: #0d9488; font-size: 13px;"></i>
-            </a>
-
-            {% if user_eff_role == 'vip' %}
-            <a href="/vip/downline" style="text-decoration: none; background: #fffbeb; border: 1.5px solid #fde68a; padding: 12px 16px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; transition: 0.2s;">
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <div style="width: 38px; height: 38px; border-radius: 10px; background: #fef3c7; color: #d97706; display: flex; align-items: center; justify-content: center; font-size: 18px;">
-                        <i class="fas fa-users"></i>
-                    </div>
-                    <div>
-                        <div style="font-weight: 800; color: #78350f; font-size: 0.9rem;">Kemitraan & Downline (VIP)</div>
-                        <div style="font-size: 0.75rem; color: #b45309; font-weight: 700;">
-                            Komisi Siap Cair: Rp {{ "{:,.0f}".format(current_user.commission_balance or 0).replace(',', '.') }}
-                        </div>
-                    </div>
-                </div>
-                <i class="fas fa-chevron-right" style="color: #d97706; font-size: 13px;"></i>
             </a>
 
             <a href="/vip/devices" style="text-decoration: none; background: #f0fdf4; border: 1.5px solid #bbf7d0; padding: 12px 16px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; transition: 0.2s;">
@@ -87,17 +71,20 @@
                     <div>
                         <div style="font-weight: 800; color: #14532d; font-size: 0.9rem;">Kunci Kasir & Cabang (VIP)</div>
                         <div style="font-size: 0.75rem; font-weight: 700;">
-                            {% if current_user.is_device_lock_enabled %}
-                            <span style="color: #15803d;">● Proteksi Kasir Aktif</span>
+                            {% if user_eff_role == 'vip' %}
+                                {% if current_user.is_device_lock_enabled %}
+                                <span style="color: #15803d;">● Proteksi Kasir Aktif</span>
+                                {% else %}
+                                <span style="color: #64748b;">○ Proteksi Belum Aktif</span>
+                                {% endif %}
                             {% else %}
-                            <span style="color: #64748b;">○ Proteksi Belum Aktif</span>
+                                <span style="color: #d97706;"><i class="fas fa-lock"></i> Fitur Khusus Akun VIP</span>
                             {% endif %}
                         </div>
                     </div>
                 </div>
                 <i class="fas fa-chevron-right" style="color: #166534; font-size: 13px;"></i>
             </a>
-            {% endif %}
         </div>
         
         <div style="display: flex; justify-content: space-between; align-items: center; text-align: left; margin-bottom: 15px;">

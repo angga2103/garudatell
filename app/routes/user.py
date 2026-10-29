@@ -1526,27 +1526,16 @@ def account_upgrade():
 
 @user_bp.route('/vip/downline')
 def vip_downline():
-    """Dashboard manajemen downline, komisi bulanan, dan referral eksklusif VIP."""
+    """Pengalihan fitur downline ke sistem Kunci Kasir & Multi-Cabang VIP (Model SaaS)."""
     if not current_user.is_authenticated:
-        flash('Silakan masuk terlebih dahulu untuk mengakses halaman ini.', 'warning')
+        flash('Silakan masuk terlebih dahulu untuk mengakses fitur VIP.', 'warning')
         return redirect('/profil')
 
     if not current_user.is_vip_active():
-        flash('Fitur Kemitraan & Manajemen Downline eksklusif untuk akun VIP. Silakan upgrade ke VIP untuk menikmati fitur ini.', 'info')
+        flash('Fitur Kunci Kasir & Multi-Cabang eksklusif untuk akun VIP. Silakan aktifkan VIP Bisnis untuk toko Anda.', 'info')
         return redirect(url_for('user.account_upgrade'))
 
-    ref_code = ensure_user_referral_code(current_user)
-    stats = get_vip_downline_stats(current_user.id)
-    base_url = request.host_url.rstrip('/')
-    referral_link = f"{base_url}/register?ref={ref_code}"
-
-    return render_template(
-        'user/downline.html',
-        title='MANAJEMEN DOWNLINE VIP',
-        stats=stats,
-        ref_code=ref_code,
-        referral_link=referral_link
-    )
+    return redirect('/vip/devices')
 
 @user_bp.route('/vip/downline/claim', methods=['POST'])
 def vip_claim_commission():

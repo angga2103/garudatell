@@ -34,34 +34,15 @@ def get_tier_settings():
 
 def get_user_product_price(user, product_or_sell_price, base_price=None):
     """
-    Menghitung harga produk dinamis berdasarkan tingkatan akun pengguna.
-    - Member: harga normal (sell_price)
-    - Reseller: sell_price - discount_reseller (dengan floor base_price + 100)
-    - VIP: sell_price - discount_vip (dengan floor base_price + 100)
+    Menghitung harga produk.
+    [MODEL SAAS VIP]: Seluruh tingkatan akun (Member, Reseller, VIP) mendapatkan 
+    satu harga jual katalog resmi yang sama persis (Direct Single Pricing).
+    Status VIP diperuntukkan murni untuk akses fitur software bisnis, Kunci Kasir & 
+    Multi-Cabang, serta tools eksklusif toko.
     """
     if hasattr(product_or_sell_price, 'sell_price'):
-        sell_price = float(product_or_sell_price.sell_price or 0.0)
-        prod_base = float(getattr(product_or_sell_price, 'base_price', 0.0) or 0.0)
-    else:
-        sell_price = float(product_or_sell_price or 0.0)
-        prod_base = float(base_price or 0.0)
-
-    if not user or not getattr(user, 'is_authenticated', False):
-        return sell_price
-
-    role = user.get_effective_role() if hasattr(user, 'get_effective_role') else getattr(user, 'role', 'user')
-
-    if role == 'vip':
-        discount = get_setting_float('discount_vip', 200.0)
-        floor = (prod_base + 50.0) if prod_base > 0 else (sell_price - discount)
-        return round(max(floor, sell_price - discount), 2)
-
-    elif role == 'reseller':
-        discount = get_setting_float('discount_reseller', 100.0)
-        floor = (prod_base + 50.0) if prod_base > 0 else (sell_price - discount)
-        return round(max(floor, sell_price - discount), 2)
-
-    return sell_price
+        return float(product_or_sell_price.sell_price or 0.0)
+    return float(product_or_sell_price or 0.0)
 
 def ensure_user_referral_code(user):
     """Memastikan user (terutama VIP) memiliki kode referral unik."""

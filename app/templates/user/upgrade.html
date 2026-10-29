@@ -7,8 +7,8 @@
     <div style="display: inline-flex; align-items: center; justify-content: center; width: 50px; height: 50px; border-radius: 50%; background: rgba(255,255,255,0.2); margin-bottom: 10px;">
         <i class="fas fa-crown" style="font-size: 24px; color: #fef08a;"></i>
     </div>
-    <h4 style="margin: 0; font-weight: 900; font-size: 1.25rem;">Tingkatan Akun & Langganan</h4>
-    <p style="margin: 6px 0 0 0; font-size: 0.85rem; opacity: 0.9;">Nikmati potongan harga eksklusif dan komisi pasif kemitraan downline.</p>
+    <h4 style="margin: 0; font-weight: 900; font-size: 1.25rem;">Langganan Fitur VIP Bisnis</h4>
+    <p style="margin: 6px 0 0 0; font-size: 0.85rem; opacity: 0.9;">Buka fitur eksklusif Kunci Kasir & Multi-Cabang untuk keamanan toko Anda.</p>
 </div>
 
 <div style="padding: 0 10px 90px 10px; margin-top: -20px;">
@@ -60,7 +60,7 @@
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
                 <div>
                     <h5 style="margin: 0; font-size: 1.15rem; font-weight: 900; color: #334155;">Member Reguler</h5>
-                    <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #64748b;">Akun standar untuk kebutuhan pribadi.</p>
+                    <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #64748b;">Akun standar untuk kebutuhan transaksi pribadi & eceran dasar.</p>
                 </div>
                 <span style="background: #f1f5f9; color: #475569; font-weight: 900; font-size: 0.8rem; padding: 4px 10px; border-radius: 12px;">
                     GRATIS
@@ -73,16 +73,16 @@
 
             <ul style="list-style: none; padding: 0; margin: 0 0 20px 0; font-size: 0.85rem; color: #475569;">
                 <li style="padding: 6px 0; display: flex; align-items: center; gap: 8px;">
-                    <i class="fas fa-check-circle" style="color: #10b981;"></i> Akses ke seluruh katalog pulsa, paket data & game
+                    <i class="fas fa-check-circle" style="color: #10b981;"></i> Akses ke seluruh katalog pulsa, paket data, PLN & game
                 </li>
                 <li style="padding: 6px 0; display: flex; align-items: center; gap: 8px;">
                     <i class="fas fa-check-circle" style="color: #10b981;"></i> Dapatkan Reward Poin di setiap transaksi sukses
                 </li>
-                <li style="padding: 6px 0; display: flex; align-items: center; gap: 8px; color: #94a3b8;">
-                    <i class="fas fa-times-circle" style="color: #cbd5e1;"></i> Harga beli standar pasar (tanpa diskon khusus)
+                <li style="padding: 6px 0; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-check-circle" style="color: #10b981;"></i> Cetak struk transaksi standar
                 </li>
                 <li style="padding: 6px 0; display: flex; align-items: center; gap: 8px; color: #94a3b8;">
-                    <i class="fas fa-times-circle" style="color: #cbd5e1;"></i> Tidak memiliki Link Referral & Downline
+                    <i class="fas fa-times-circle" style="color: #cbd5e1;"></i> Tanpa fitur Kunci Kasir & Multi-Cabang
                 </li>
             </ul>
 
@@ -91,54 +91,18 @@
             </button>
         </div>
 
-        <!-- 2. KARTU RESELLER -->
-        <div style="background: white; border-radius: 20px; padding: 22px 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.06); border: 2px solid #818cf8; position: relative;">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
-                <div>
-                    <h5 style="margin: 0; font-size: 1.15rem; font-weight: 900; color: #3730a3;">Paket Reseller</h5>
-                    <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #64748b;">Cocok untuk konter pulsa & pedagang kecil.</p>
-                </div>
-                <span style="background: #e0e7ff; color: #4338ca; font-weight: 900; font-size: 0.8rem; padding: 4px 10px; border-radius: 12px;">
-                    HEMAT
-                </span>
-            </div>
-
-            <div style="font-size: 1.6rem; font-weight: 900; color: #312e81; margin-bottom: 15px;">
-                Rp {{ "{:,.0f}".format(tier_cfg.upgrade_fee_reseller).replace(',', '.') }} <span style="font-size: 0.8rem; font-weight: 700; color: #64748b;">/ 30 Hari</span>
-            </div>
-
-            <ul style="list-style: none; padding: 0; margin: 0 0 20px 0; font-size: 0.85rem; color: #334155;">
-                <li style="padding: 6px 0; display: flex; align-items: center; gap: 8px;">
-                    <i class="fas fa-check-circle" style="color: #6366f1;"></i> <strong>Potongan Rp {{ "{:,.0f}".format(tier_cfg.discount_reseller).replace(',', '.') }}</strong> langsung di setiap produk
-                </li>
-                <li style="padding: 6px 0; display: flex; align-items: center; gap: 8px;">
-                    <i class="fas fa-check-circle" style="color: #6366f1;"></i> Margin keuntungan lebih tebal saat jual eceran
-                </li>
-                <li style="padding: 6px 0; display: flex; align-items: center; gap: 8px;">
-                    <i class="fas fa-check-circle" style="color: #6366f1;"></i> Masa aktif 30 hari (dapat diperpanjang fleksibel)
-                </li>
-                <li style="padding: 6px 0; display: flex; align-items: center; gap: 8px; color: #94a3b8;">
-                    <i class="fas fa-times-circle" style="color: #cbd5e1;"></i> Tidak memiliki Link Referral & Downline
-                </li>
-            </ul>
-
-            <button type="button" onclick="confirmUpgrade('reseller', {{ tier_cfg.upgrade_fee_reseller }}, 'Reseller')" style="width: 100%; padding: 13px; border-radius: 12px; border: none; background: #4f46e5; color: white; font-weight: 800; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 10px rgba(79, 70, 229, 0.3);">
-                <i class="fas fa-arrow-circle-up"></i> {% if effective_role == 'reseller' %}Perpanjang Langganan Reseller{% else %}Pilih Paket Reseller{% endif %}
-            </button>
-        </div>
-
-        <!-- 3. KARTU VIP (PALING DIREKOMENDASIKAN & EKSKLUSIF) -->
+        <!-- 2. KARTU VIP BISNIS (HERO SAAS FEATURE) -->
         <div style="background: linear-gradient(to bottom, #ffffff, #fffbeb); border-radius: 20px; padding: 24px 20px; box-shadow: 0 8px 25px rgba(245, 158, 11, 0.15); border: 2.5px solid #f59e0b; position: relative; overflow: hidden;">
             <div style="position: absolute; top: 12px; right: -30px; background: #f59e0b; color: white; font-size: 0.65rem; font-weight: 900; padding: 4px 35px; transform: rotate(45deg); letter-spacing: 0.5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-                TERBAIK
+                BISNIS
             </div>
 
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
                 <div>
                     <h5 style="margin: 0; font-size: 1.25rem; font-weight: 900; color: #92400e; display: flex; align-items: center; gap: 6px;">
-                        <i class="fas fa-crown" style="color: #f59e0b;"></i> Mitra VIP Eksklusif
+                        <i class="fas fa-crown" style="color: #f59e0b;"></i> Mitra VIP Bisnis
                     </h5>
-                    <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #78350f;">Level tertinggi dengan benefit finansial maksimal.</p>
+                    <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #78350f;">Akses lengkap software kasir & keamanan multi-cabang toko.</p>
                 </div>
             </div>
 
@@ -147,35 +111,29 @@
             </div>
 
             <ul style="list-style: none; padding: 0; margin: 0 0 22px 0; font-size: 0.85rem; color: #451a03;">
-                <li style="padding: 7px 0; display: flex; align-items: center; gap: 8px;">
-                    <i class="fas fa-check-circle" style="color: #f59e0b;"></i> <strong>Harga Termurah: Diskon Rp {{ "{:,.0f}".format(tier_cfg.discount_vip).replace(',', '.') }}</strong> mendekati modal server
-                </li>
-                <li style="padding: 7px 0; display: flex; align-items: center; gap: 8px; background: rgba(254, 243, 199, 0.6); padding-left: 8px; border-radius: 8px; margin: 4px 0;">
-                    <i class="fas fa-link" style="color: #d97706;"></i> <strong>Satu-satunya Tier dengan Link Referral & Downline</strong>
-                </li>
-                <li style="padding: 7px 0; display: flex; align-items: center; gap: 8px; background: rgba(254, 243, 199, 0.6); padding-left: 8px; border-radius: 8px; margin: 4px 0;">
-                    <i class="fas fa-coins" style="color: #d97706;"></i> <strong>Bonus Komisi Pasif Flat Rp {{ "{:,.0f}".format(tier_cfg.commission_flat).replace(',', '.') }}</strong> / trx belanja downline
-                </li>
-                <li style="padding: 7px 0; display: flex; align-items: center; gap: 8px; background: rgba(220, 252, 231, 0.6); padding-left: 8px; border-radius: 8px; margin: 4px 0;">
+                <li style="padding: 7px 0; display: flex; align-items: center; gap: 8px; background: rgba(220, 252, 231, 0.7); padding-left: 8px; border-radius: 8px; margin: 4px 0;">
                     <i class="fas fa-shield-alt" style="color: #15803d;"></i> <strong>Kunci Kasir & Multi-Cabang:</strong> 1 Saldo bersama banyak cabang, aman dari transaksi ilegal di luar shift
                 </li>
-                <li style="padding: 7px 0; display: flex; align-items: center; gap: 8px;">
-                    <i class="fas fa-calendar-check" style="color: #f59e0b;"></i> Pencairan komisi tiap tanggal {{ tier_cfg.payout_date }} langsung ke Saldo Utama
+                <li style="padding: 7px 0; display: flex; align-items: center; gap: 8px; background: rgba(220, 252, 231, 0.7); padding-left: 8px; border-radius: 8px; margin: 4px 0;">
+                    <i class="fas fa-cash-register" style="color: #15803d;"></i> <strong>Manajemen Saldo Kasir Cabang:</strong> Kontrol jatah saldo harian untuk masing-masing HP kasir karyawan
                 </li>
                 <li style="padding: 7px 0; display: flex; align-items: center; gap: 8px;">
-                    <i class="fas fa-chart-pie" style="color: #f59e0b;"></i> Dashboard analitik transaksi & riwayat 4 bulan
+                    <i class="fas fa-print" style="color: #f59e0b;"></i> <strong>Integrasi POS Kasir:</strong> Cetak struk printer thermal bluetooth untuk transaksi toko
+                </li>
+                <li style="padding: 7px 0; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-chart-pie" style="color: #f59e0b;"></i> <strong>Dashboard Analitik Toko:</strong> Monitoring riwayat transaksi cabang & rekap mutasi kasir
+                </li>
+                <li style="padding: 7px 0; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-sparkles" style="color: #f59e0b;"></i> <strong>Prioritas Fitur Eksklusif:</strong> Otomatis mendapatkan fitur-fitur kasir dan bisnis terbaru
                 </li>
             </ul>
 
             {% if effective_role == 'vip' %}
             <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                <a href="/vip/downline" style="flex: 1; min-width: 130px; text-decoration: none; padding: 11px 8px; border-radius: 12px; background: #fff; border: 2px solid #f59e0b; color: #b45309; font-weight: 800; font-size: 0.85rem; text-align: center; display: flex; align-items: center; justify-content: center; gap: 6px;">
-                    <i class="fas fa-users"></i> Downline
-                </a>
                 <a href="/vip/devices" style="flex: 1; min-width: 130px; text-decoration: none; padding: 11px 8px; border-radius: 12px; background: #fff; border: 2px solid #059669; color: #065f46; font-weight: 800; font-size: 0.85rem; text-align: center; display: flex; align-items: center; justify-content: center; gap: 6px;">
-                    <i class="fas fa-shield-alt"></i> Kunci Kasir
+                    <i class="fas fa-shield-alt"></i> Kelola Kunci Kasir
                 </a>
-                <button type="button" onclick="confirmUpgrade('vip', {{ tier_cfg.upgrade_fee_vip }}, 'VIP')" style="flex: 100%; padding: 12px; border-radius: 12px; border: none; background: #d97706; color: white; font-weight: 800; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 4px 12px rgba(217, 119, 6, 0.35); margin-top: 4px;">
+                <button type="button" onclick="confirmUpgrade('vip', {{ tier_cfg.upgrade_fee_vip }}, 'VIP')" style="flex: 1; min-width: 130px; padding: 12px; border-radius: 12px; border: none; background: #d97706; color: white; font-weight: 800; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 4px 12px rgba(217, 119, 6, 0.35);">
                     <i class="fas fa-sync-alt"></i> Perpanjang VIP
                 </button>
             </div>
