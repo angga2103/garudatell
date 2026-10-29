@@ -175,8 +175,8 @@
             backdrop-filter: none !important;
         }
 
-        /* 3. Hardware Acceleration Layers untuk Komponen Kunci (60 FPS Smooth Scrolling) */
-        .bottom-nav, .header-bg, .app-container, .swal2-popup, .swal2-container {
+        /* 3. Hardware Acceleration Layers untuk Komponen Navigasi Bawah (Mencegah Stutter) */
+        .bottom-nav {
             transform: translateZ(0);
             -webkit-transform: translateZ(0);
             backface-visibility: hidden;

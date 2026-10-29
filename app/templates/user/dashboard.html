@@ -878,13 +878,19 @@
         background: #f8fafc;
         border-radius: 28px 28px 0 0;
         z-index: 99999;
-        transition: bottom 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        transition: bottom 0.35s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.35s;
         max-height: 85vh;
         display: flex;
         flex-direction: column;
         box-shadow: 0 -10px 40px rgba(0,0,0,0.25);
+        visibility: hidden;
+        pointer-events: none;
     }
-    .modal-lainnya-sheet.show { bottom: 0; }
+    .modal-lainnya-sheet.show { 
+        bottom: 0; 
+        visibility: visible;
+        pointer-events: auto;
+    }
     .modal-lainnya-header {
         display: flex;
         justify-content: space-between;
