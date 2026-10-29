@@ -611,9 +611,9 @@ def create_app(test_config=None):
         response.headers['X-XSS-Protection'] = '1; mode=block'
         response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
 
-        # Cache-Control untuk Aset Statis Lokal (Browser Caching)
+        # Cache-Control untuk Aset Statis Lokal (Akselerasi Mobile WebView & Browser Caching)
         if request.path.startswith('/static/') and response.status_code == 200:
-            response.headers['Cache-Control'] = 'public, max-age=86400'
+            response.headers['Cache-Control'] = 'public, max-age=604800, stale-while-revalidate=86400'
 
         # Gzip compression
         import gzip

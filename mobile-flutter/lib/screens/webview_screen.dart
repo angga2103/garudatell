@@ -36,7 +36,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
 
     controller
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(Colors.white)
+      ..setBackgroundColor(const Color(0xFFF5F8FA))
       ..setUserAgent("Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36 IPAY_NATIVE_APP/1.0")
       ..setNavigationDelegate(
         NavigationDelegate(
@@ -247,11 +247,14 @@ class _WebViewScreenState extends State<WebViewScreen> {
         },
       );
 
-    // Konfigurasi Khusus Android WebKit untuk mengelola Cookie Session Flask secara persisten
+    // Konfigurasi Khusus Android WebKit untuk performa maksimal & persistensi sesi Flask
     if (controller.platform is AndroidWebViewController) {
       final androidController = controller.platform as AndroidWebViewController;
-      // Aktifkan DOM Storage (localStorage & sessionStorage)
+      // Aktifkan DOM Storage, matikan overscroll jank, izinkan akses konten cepat
       androidController.setMediaPlaybackRequiresUserGesture(false);
+      androidController.setOverScrollMode(WebViewOverScrollMode.never);
+      androidController.setAllowContentAccess(true);
+      androidController.setAllowFileAccess(true);
 
       // Konfigurasi Cookie Manager Android agar sesi login Flask tidak mudah logout
       final cookieManager = WebViewCookieManager();

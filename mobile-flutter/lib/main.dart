@@ -17,11 +17,11 @@ void main() async {
     ),
   );
 
-  // Inisialisasi Layanan Native Storage
-  await StorageService.instance.init();
-
-  // Inisialisasi Layanan Notifikasi FCM (Aman dari crash jika belum ada konfigurasi)
-  await FcmService.instance.init();
+  // Inisialisasi Layanan Native Storage & FCM secara paralel agar first-paint instan
+  Future.wait([
+    StorageService.instance.init(),
+    FcmService.instance.init(),
+  ]);
 
   runApp(const GarudaTelApp());
 }

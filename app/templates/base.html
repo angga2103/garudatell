@@ -50,11 +50,11 @@
         .swal2-container {
             z-index: 100000 !important;
         }
-        /* Modal Dialog Normal (Alert & Confirm): Ada Backdrop Blur */
+        /* Modal Dialog Normal (Alert & Confirm): Bebas GPU Blur, Flat Dark Tint Super Ringan */
         .swal2-container:not(.swal2-no-backdrop):not(.swal2-top):not(.swal2-bottom):not(:has(.swal2-toast)) {
-            backdrop-filter: blur(8px) !important;
-            -webkit-backdrop-filter: blur(8px) !important;
-            background: rgba(15, 23, 42, 0.58) !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            background: rgba(15, 23, 42, 0.65) !important;
         }
         /* Toast Notification: 100% BEBAS DARI BACKDROP HITAM / BLUR VERTIKAL */
         body.swal2-toast-shown .swal2-container,
@@ -76,10 +76,10 @@
             max-width: 90vw !important;
         }
         .swal2-popup.garudatel-swal {
-            border-radius: 26px !important;
+            border-radius: 24px !important;
             font-family: 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif !important;
-            padding: 26px 24px 24px 24px !important;
-            box-shadow: 0 25px 50px -12px rgba(0, 135, 122, 0.28), 0 0 0 1px rgba(0, 135, 122, 0.12) !important;
+            padding: 24px 22px 22px 22px !important;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15) !important;
             background: #ffffff !important;
             max-width: 92% !important;
             width: 440px !important;
@@ -157,18 +157,47 @@
             font-size: 0.92rem !important;
             font-weight: 700 !important;
         }
-        * { box-sizing: border-box; font-family: 'Nunito', sans-serif; -webkit-tap-highlight-color: transparent; }
+        * { 
+            box-sizing: border-box; 
+            font-family: 'Nunito', sans-serif; 
+            -webkit-tap-highlight-color: transparent; 
+        }
+
+        /* 1. Hilangkan 300ms Click Delay & Sentuhan Instan di HP / WebView */
+        html, body, button, a, input, select, textarea, .nav-item, .nav-fab, .card-menu-item, .btn-action, .swal2-confirm, .swal2-cancel {
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* 2. Matikan Live GPU Blur yang Membebani Chipset Mobile / WebView */
+        *, *::before, *::after {
+            -webkit-backdrop-filter: none !important;
+            backdrop-filter: none !important;
+        }
+
+        /* 3. Hardware Acceleration Layers untuk Komponen Kunci (60 FPS Smooth Scrolling) */
+        .bottom-nav, .header-bg, .app-container, .swal2-popup, .swal2-container {
+            transform: translateZ(0);
+            -webkit-transform: translateZ(0);
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+
         html, body { 
             margin: 0; 
             padding: 0; 
             background: var(--bg); 
             color: var(--text-dark); 
             max-width: 100vw;
+            text-rendering: optimizeSpeed;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
         body { 
             padding-bottom: 80px; 
             overflow-x: hidden;
             -webkit-overflow-scrolling: touch;
+            overscroll-behavior-y: contain;
         }
         a { text-decoration: none; color: inherit; }
         
@@ -1820,6 +1849,56 @@
                 }
             });
         });
+    })();
+    </script>
+
+    <!-- ====================================================
+         4. INSTANT TOUCH PREFETCH & ACCELERATION ENGINE (IPAY ULTRA-SMOOTH)
+         ==================================================== -->
+    <script>
+    (function() {
+        if (!('fetch' in window)) return;
+        var prefetched = new Set();
+
+        function prefetchTarget(href) {
+            if (!href || prefetched.has(href)) return;
+            try {
+                var url = new URL(href, window.location.origin);
+                if (url.origin !== window.location.origin) return;
+                var p = url.pathname;
+                if (p.startsWith('/admin') || p.startsWith('/auth/logout') || p.includes('/delete') || p.includes('/bayar') || p.includes('/claim')) return;
+
+                prefetched.add(href);
+                var link = document.createElement('link');
+                link.rel = 'prefetch';
+                link.href = href;
+                link.as = 'document';
+                document.head.appendChild(link);
+            } catch(e) {}
+        }
+
+        function onPointerStart(e) {
+            var el = e.target.closest('a');
+            if (el && el.href && !el.target && el.origin === window.location.origin) {
+                prefetchTarget(el.href);
+            }
+        }
+
+        document.addEventListener('touchstart', onPointerStart, { passive: true });
+        document.addEventListener('pointerdown', onPointerStart, { passive: true });
+
+        document.addEventListener('click', function(e) {
+            var el = e.target.closest('a');
+            if (el && el.href && !el.target && el.origin === window.location.origin && !el.href.includes('#') && !el.href.startsWith('javascript:')) {
+                var navItem = el.closest('.nav-item');
+                if (navItem) {
+                    document.querySelectorAll('.bottom-nav .nav-item').forEach(function(item) {
+                        item.classList.remove('active');
+                    });
+                    navItem.classList.add('active');
+                }
+            }
+        }, { passive: true });
     })();
     </script>
 </body>
