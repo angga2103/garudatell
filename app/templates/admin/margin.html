@@ -132,16 +132,57 @@
     </form>
 </div>
 
+<!-- KARTU INFORMASI STRATEGI MARGIN KATEGORI CERDAS -->
+<div class="tier-config-card" style="border-left: 5px solid #00877a; background: #f0fdfa;">
+    <div style="margin-bottom: 14px;">
+        <h4 style="margin: 0; color: #005a52; font-size: 15px; font-weight: 800; display: flex; align-items: center; gap: 8px;">
+            <i class="fas fa-layer-group" style="color: #00877a;"></i> Aturan Margin Khusus Kategori (Direct Net-Pricing)
+        </h4>
+        <p style="font-size: 12px; color: #134e4a; margin: 6px 0 0 0; line-height: 1.5;">
+            Untuk menjaga daya saing maksimal bagi pemilik konter pulsa dan loket pembayaran, sistem menerapkan margin cerdas per kategori:
+        </p>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; font-size: 12px;">
+        <div style="background: white; border: 1px solid #ccfbf1; padding: 10px 14px; border-radius: 8px;">
+            <b style="color: #0f766e;"><i class="fas fa-mobile-alt"></i> Pulsa Reguler:</b><br>
+            <span style="color: #475569;">Modal &le; 12k: <b>+Rp 250</b><br>Modal 12k–50k: <b>+Rp 450</b><br>Modal &gt; 50k: <b>+Rp 750</b></span>
+        </div>
+        <div style="background: white; border: 1px solid #ccfbf1; padding: 10px 14px; border-radius: 8px;">
+            <b style="color: #0f766e;"><i class="fas fa-bolt"></i> Token Listrik PLN:</b><br>
+            <span style="color: #475569;">Semua Nominal: <b>+Rp 250 Flat</b><br><i>(Daya saing utama mitra konter)</i></span>
+        </div>
+        <div style="background: white; border: 1px solid #ccfbf1; padding: 10px 14px; border-radius: 8px;">
+            <b style="color: #0f766e;"><i class="fas fa-wifi"></i> Paket Data:</b><br>
+            <span style="color: #475569;">Modal &le; 25k: <b>+Rp 600</b><br>Modal 25k–75k: <b>+Rp 1.000</b><br>Modal &gt; 75k: <b>+Rp 1.500</b></span>
+        </div>
+        <div style="background: white; border: 1px solid #ccfbf1; padding: 10px 14px; border-radius: 8px;">
+            <b style="color: #0f766e;"><i class="fas fa-wallet"></i> E-Wallet:</b><br>
+            <span style="color: #475569;">Modal &le; 25k: <b>+Rp 400</b><br>Modal 25k–100k: <b>+Rp 700</b><br>Modal &gt; 100k: <b>+Rp 1.200</b></span>
+        </div>
+        <div style="background: white; border: 1px solid #ccfbf1; padding: 10px 14px; border-radius: 8px;">
+            <b style="color: #0f766e;"><i class="fas fa-gamepad"></i> Voucher Game:</b><br>
+            <span style="color: #475569;">Modal &le; 25k: <b>+Rp 500</b><br>Modal 25k–100k: <b>+Rp 1.000</b><br>Modal &gt; 100k: <b>+Rp 2.000</b></span>
+        </div>
+        <div style="background: white; border: 1px solid #ccfbf1; padding: 10px 14px; border-radius: 8px;">
+            <b style="color: #0f766e;"><i class="fas fa-file-invoice-dollar"></i> Tagihan Pascabayar:</b><br>
+            <span style="color: #475569;">Margin <b>+Rp 1.500</b><br>Biaya Admin Toko: <b>Rp 3.500 – Rp 4.000</b><br><i>(Proteksi anti-defisit gateway)</i></span>
+        </div>
+    </div>
+    <div style="margin-top: 10px; font-size: 11.5px; color: #0f766e;">
+        <i class="fas fa-shield-alt"></i> <b>Kategori Umum / Lainnya:</b> Menggunakan rumus 5 Level Tier di atas sebagai fallback.
+    </div>
+</div>
+
 <!-- KARTU EKSEKUSI MASSAL -->
 <div class="tier-config-card" style="border-left: 5px solid #F59E0B; background: #FFFDF8;">
     <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap;">
         <div style="max-width: 680px;">
             <h4 style="margin: 0; color: #92400E; font-size: 16px; font-weight: 800; display: flex; align-items: center; gap: 8px;">
-                <i class="fas fa-rocket" style="color: #F59E0B;"></i> Terapkan Rumus Auto-Tier ke Seluruh Produk
+                <i class="fas fa-rocket" style="color: #F59E0B;"></i> Terapkan Rumus Harga Cerdas ke Seluruh Produk
             </h4>
             <p style="font-size: 12.5px; color: #78350F; margin: 8px 0 0 0; line-height: 1.6;">
-                Sistem akan menghitung ulang dan memperbarui Harga Jual <b>seluruh produk</b> di database berdasarkan rumus 5 level di atas.<br>
-                <span style="font-size: 11.5px; color: #92400E;"><b>Catatan Proteksi:</b> Produk yang harga jualnya telah Anda kunci atau atur secara <b>MANUAL</b> tidak akan ikut tertimpa (otomatis di-bypass dengan aman).</span>
+                Sistem akan menghitung ulang dan memperbarui Harga Jual <b>seluruh produk</b> di database berdasarkan strategi harga cerdas kategori di atas.<br>
+                <span style="font-size: 11.5px; color: #047857;"><b>Proteksi Safety Floor:</b> Produk kunci manual admin tidak akan tertimpa. Namun jika harga modal Digiflazz naik melampaui harga manual Anda, sistem secara otomatis memasang Safety Floor agar terhindar dari kerugian.</span>
             </p>
         </div>
         <form action="{{ url_for('admin.apply_auto_tier') }}" method="POST" style="margin: 0;">

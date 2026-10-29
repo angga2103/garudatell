@@ -53,12 +53,12 @@ def get_user_product_price(user, product_or_sell_price, base_price=None):
 
     if role == 'vip':
         discount = get_setting_float('discount_vip', 200.0)
-        floor = (prod_base + 100.0) if prod_base > 0 else (sell_price - discount)
+        floor = (prod_base + 50.0) if prod_base > 0 else (sell_price - discount)
         return round(max(floor, sell_price - discount), 2)
 
     elif role == 'reseller':
         discount = get_setting_float('discount_reseller', 100.0)
-        floor = (prod_base + 100.0) if prod_base > 0 else (sell_price - discount)
+        floor = (prod_base + 50.0) if prod_base > 0 else (sell_price - discount)
         return round(max(floor, sell_price - discount), 2)
 
     return sell_price

@@ -1035,17 +1035,27 @@ def margin():
 
 @admin_bp.route('/apply_auto_tier', methods=['POST'])
 def apply_auto_tier():
+    from app.services.pricing_service import calculate_smart_price, enforce_manual_price_safety_guard
     tiers = MarginTier.query.order_by(MarginTier.level).all()
     products = Product.query.filter_by(is_manual_margin=False).all()
     update_count = 0
     for p in products:
-        for t in tiers:
-            if t.min_price <= p.base_price <= t.max_price:
-                p.sell_price = p.base_price + t.margin
-                update_count += 1
-                break
+        new_price = calculate_smart_price(p, tiers)
+        if new_price > 0:
+            p.sell_price = new_price
+            update_count += 1
+            
+    # Periksa safety guard pada produk yang dikunci manual
+    manual_products = Product.query.filter_by(is_manual_margin=True).all()
+    safety_count = 0
+    for mp in manual_products:
+        is_trig, _ = enforce_manual_price_safety_guard(mp, mp.base_price)
+        if is_trig:
+            safety_count += 1
+            
     db.session.commit()
-    flash(f'SUKSES: {update_count} produk diupdate!', 'success')
+    safety_note = f" ({safety_count} produk manual dilindungi Safety Floor)" if safety_count > 0 else ""
+    flash(f'SUKSES: {update_count} produk berhasil diperbarui dengan rumus harga cerdas!{safety_note}', 'success')
     return redirect(url_for('admin.produk'))
 
 @admin_bp.route('/edit_margin/<int:id>', methods=['POST'])
@@ -2083,13 +2093,8 @@ def sync_vipreseller():
         flash(f"❌ Gagal menarik data dari VIP-Reseller: {detail_msg}{hint}", 'danger')
         return redirect(url_for('admin.dashboard'))
         
+    from app.services.pricing_service import calculate_smart_price, enforce_manual_price_safety_guard
     tiers = MarginTier.query.all()
-    def get_margin(base_price):
-        for t in tiers:
-            if t.min_price <= base_price <= t.max_price:
-                return t.margin
-        return 0
-        
     new_count, update_count = 0, 0
     
     for p in products_data:
@@ -2102,7 +2107,6 @@ def sync_vipreseller():
         else:
             base_price = float(p.get('price', 0))
             
-        sell_price = base_price + get_margin(base_price)
         status_str = str(p.get('status', '')).lower()
         is_active = 1 if status_str in ['available', 'normal', '1'] else 0
         
@@ -2118,10 +2122,21 @@ def sync_vipreseller():
         raw_name = str(p.get('name', 'Tanpa Nama')).replace('[VIP] ', '')
         name_vip = f"[VIP] {raw_name}"
         
+        # Hitung harga jual cerdas
+        sell_price = calculate_smart_price({
+            'base_price': base_price,
+            'category': category_name,
+            'brand': brand_vip,
+            'name': name_vip,
+            'sku_code': sku
+        }, tiers)
+        
         existing = Product.query.filter_by(sku_code=sku).first()
         if existing:
             if not existing.is_manual_margin:
                 existing.sell_price = sell_price
+            else:
+                enforce_manual_price_safety_guard(existing, base_price)
             existing.base_price = base_price
             existing.is_active = is_active
             existing.name = name_vip

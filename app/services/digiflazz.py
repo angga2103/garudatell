@@ -148,14 +148,12 @@ DIGIFLAZZ_TEST_CASES = {
     "NOMOR_SALAH": "087800001234",  # Respon Cut Off / Nomor Salah (RC: 42)
 }
 
-def calculate_sell_price(base_price, tiers):
-    """Hitung harga jual dinamis berdasarkan tabel MarginTier."""
-    if not tiers:
-        return base_price + 500
-    for t in tiers:
-        if t.min_price <= base_price <= t.max_price:
-            return base_price + t.margin
-    return base_price + tiers[-1].margin
+def calculate_sell_price(base_price, tiers, item_or_prod=None):
+    """Hitung harga jual dinamis berdasarkan Pricing Service Cerdas & tabel MarginTier."""
+    from app.services.pricing_service import calculate_smart_price
+    if item_or_prod:
+        return calculate_smart_price(item_or_prod, tiers)
+    return calculate_smart_price({'base_price': base_price}, tiers)
 
 # =====================================================================
 # 2. DAFTAR HARGA (https://developer.digiflazz.com/api/buyer/daftar-harga/)
@@ -294,7 +292,8 @@ def sync_products(force=False, notify_admin_bot=True, include_pasca=False):
             except (ValueError, TypeError):
                 price = 0.0
 
-            sell_price_calc = calculate_sell_price(price, tiers)
+            from app.services.pricing_service import calculate_smart_price, enforce_manual_price_safety_guard
+            sell_price_calc = calculate_smart_price(item, tiers)
 
             # Ekstrak deskripsi produk & nama seller dari Digiflazz jika tersedia
             raw_desc = clean_str(item.get('desc'))
@@ -327,7 +326,23 @@ def sync_products(force=False, notify_admin_bot=True, include_pasca=False):
                     product.base_price = price
                     if not product.is_manual_margin:
                         product.sell_price = sell_price_calc
+                    else:
+                        # Safety Guard Anti-Rugi: Naikkan otomatis ke Safety Floor jika modal melampaui harga manual
+                        is_trig, alert_msg = enforce_manual_price_safety_guard(product, price)
+                        if is_trig:
+                            print(f"[DIGIFLAZZ SAFETY GUARD] {alert_msg}")
+                            try:
+                                from app.services.telegram_service import send_sync_report_to_admin_bot
+                                send_sync_report_to_admin_bot(alert_msg, is_cron=False, is_error=True)
+                            except Exception:
+                                pass
                     update_count += 1
+                else:
+                    # Pengecekan safety guard berkala jika ada ketidaksesuaian modal dan harga manual
+                    if product.is_manual_margin and price > float(product.sell_price or 0.0):
+                        is_trig, alert_msg = enforce_manual_price_safety_guard(product, price)
+                        if is_trig:
+                            update_count += 1
                 
                 # Sinkronkan status aktif / gangguan secara real-time
                 # ATURAN BAKU ANTI-JEBOL:

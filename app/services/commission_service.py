@@ -20,18 +20,11 @@ EXCLUDED_SKUS = {
 
 def award_downline_commission(transaction):
     """
-    Memberikan komisi kepada Upline VIP jika transaksi downline berhasil (SUCCESS).
-    - Memverifikasi apakah pembeli memiliki Upline.
-    - Memverifikasi Upline berstatus VIP Aktif.
-    - Menghitung komisi dengan proteksi margin (safety guard).
-    - Menambahkan ke commission_balance Upline dan mencatat CommissionLog.
+    [DINONAKTIFKAN SECARA RESMI]:
+    Fitur komisi upline-downline telah dinonaktifkan untuk mengalihkan seluruh margin
+    menjadi harga modal termurah langsung bagi seluruh mitra konter (Direct Net-Pricing).
     """
-    if not transaction or transaction.status != 'SUCCESS':
-        return False
-
-    sku = str(getattr(transaction, 'sku_code', '') or '').strip()
-    if sku in EXCLUDED_SKUS or 'DEPOSIT' in sku.upper() or 'UPGRADE' in sku.upper():
-        return False
+    return False
 
     # Cek apakah transaksi sudah pernah diberi komisi (Idempotency)
     existing_log = CommissionLog.query.filter_by(transaction_id=transaction.id).first()
