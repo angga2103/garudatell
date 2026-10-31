@@ -38,11 +38,12 @@ jobs:
       - name: Run Unit Tests
         run: flutter test
 
-      - name: Ensure gradlew is executable
-        run: chmod +x android/gradlew
-
       - name: Build Release APK
-        run: flutter build apk --release
+        run: |
+          if [ -f "android/gradlew" ]; then
+            chmod +x android/gradlew
+          fi
+          flutter build apk --release
 
       - name: Prepare Release APK Files
         id: vars
