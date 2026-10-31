@@ -1,130 +1,63 @@
-# GarudaTel iPay - Native Mobile Flutter (Hybrid Bridge)
+# GarudaTel iPay - Native Mobile Hybrid (Flutter POS)
 
-Aplikasi Native Android untuk **GarudaTel PPOB (https://ipay.my.id)** berbasis Flutter WebView dengan jembatan perangkat keras (Hardware Native Bridge).
+[![Build & Release Android APK](https://github.com/angga2103/ipayHybirdapk/actions/workflows/build_apk.yml/badge.svg)](https://github.com/angga2103/ipayHybirdapk/actions/workflows/build_apk.yml)
+[![GitHub Release](https://img.shields.io/github/v/release/angga2103/ipayHybirdapk?color=teal&label=Download%20APK)](https://github.com/angga2103/ipayHybirdapk/releases/latest)
 
-Aplikasi ini dibuat secara terisolasi di dalam sub-folder `/mobile-flutter` tanpa mengubah atau mengganggu file web aplikasi produksi `ipay.my.id`.
+Aplikasi Android Native Hybrid resmi untuk **GarudaTel PPOB (https://ipay.my.id)** dengan jembatan hardware printer thermal Bluetooth ala *DrinkPOS Lite*.
 
----
-
-## 🚀 Fitur Utama & Jembatan Native (Bridge)
-
-### 1. WebView Layar Penuh (PPOB Fullscreen)
-- Memuat `https://ipay.my.id` secara penuh tanpa App Bar.
-- **Manajemen Sesi & Cookie Flask:**
-  - Mengaktifkan DOM Storage (`localStorage` & `sessionStorage`).
-  - Mengelola cookie sesi `session` dan `gt_device_token` agar login kasir/agen tidak mudah ter-logout.
-  - Interseptor tombol *Back* fisik HP (`PopScope`): jika kasir menekan tombol kembali di HP, halaman web akan mundur ke riwayat sebelumnya (`controller.goBack()`), bukan langsung keluar aplikasi.
+Setiap pembaruan kode yang di-push ke repositori ini akan **secara otomatis diuji dan dibuild oleh GitHub Actions**, dan file APK rilisnya dapat langsung diunduh dari halaman **[GitHub Releases](https://github.com/angga2103/ipayHybirdapk/releases)**.
 
 ---
 
-### 2. Jembatan Cetak Struk (`PrintChannel`)
-Ketika halaman web (misal `invoice.html` atau `pos.html`) memanggil:
-```javascript
-if (window.PrintChannel) {
-    PrintChannel.postMessage(JSON.stringify({
-        storeName: "KONTER GARUDA",
-        refId: "TRX-100234",
-        product: "Pulsa Telkomsel 10K",
-        target: "08123456789",
-        amount: "Rp 12.000",
-        sn: "1234567890",
-        time: "23-10-2026 17:30",
-        status: "BERHASIL",
-        footer: "Terima kasih atas kunjungan Anda"
-    }));
-} else {
-    window.print(); // Fallback untuk browser laptop/PC
-}
-```
-Aplikasi Flutter akan:
-1. Menangkap data struk tersebut secara instan.
-2. Membuka **Modal Dialog Kasir** di layar HP yang menampilkan daftar printer bluetooth yang terpasang (*paired devices*).
-3. **Cetak Thermal Bluetooth:** Mengirim byte ESC/POS langsung ke printer thermal mini 58mm / 80mm kasir tanpa perlu aplikasi pihak ketiga seperti RawBT.
-4. **Cetak Laser / PDF:** Menyediakan tombol *"Cetak via Printer Laser / PDF"* yang memanfaatkan sistem cetak bawaan Android (`Printing.layoutPdf`) untuk mencetak ke printer WiFi/LAN atau menyimpan sebagai file PDF.
+## 📥 Download APK Terbaru
+
+Anda dapat langsung mengunduh APK terbaru melalui tautan berikut:
+- 🚀 **[Halaman Rilis GitHub (Daftar Semua Versi)](https://github.com/angga2103/ipayHybirdapk/releases)**
+- 📲 **[Download Langsung IPAY-release.apk (Versi Terbaru)](https://github.com/angga2103/ipayHybirdapk/releases/latest/download/IPAY-release.apk)**
 
 ---
 
-### 3. Jembatan Penyimpanan Permanen (`StorageChannel`)
-Frontend web dapat menyimpan preferensi kasir, MAC address printer langganan, atau backup data Muslim Daily Tracker langsung ke memori internal native HP Android (`SharedPreferences`), bebas dari risiko terhapus saat pembersihan cache browser:
+## 🚀 Fitur Utama & Jembatan Native
 
-```javascript
-// 1. Menyimpan Data
-StorageChannel.postMessage(JSON.stringify({
-    action: "set",
-    key: "favorite_printer_mac",
-    value: "00:11:22:33:44:55"
-}));
+### 1. Bluetooth Thermal POS Printer (DrinkPOS Lite System)
+- **Dukungan Multi-Brand Printer**: Mendukung berbagai printer thermal kasir (RPP02N, Goojprt, Panda, Iware, VSC, MiniPOS, Zjiang, dsb) secara *offline-first*.
+- **Pilihan Ukuran Kertas**:
+  - `58 mm` (Struk Kecil / Standar Kasir - 32 Karakter per baris).
+  - `80 mm` (Struk Lebar / Restoran - 48 Karakter per baris).
+- **Format Struk Presisi (`_formatTwoColumns`)**: Perataan dua kolom rata kiri-kanan dinamis dan rapi.
+- **Cetak Hemat Kertas**: Feed 1 baris di akhir struk untuk menghemat konsumsi kertas thermal kasir.
+- **Logo Toko Grayscale (`imageRaster`)**: Mendukung cetak logo toko hitam-putih presisi.
+- **Koneksi Manual MAC Address**: Memungkinkan koneksi langsung ke printer yang menyembunyikan broadcast namanya (misal `66:02:BD:06:18:7B`).
 
-// 2. Mengambil Data (dengan fungsi callback JS)
-function onGetPrinterResult(value, key) {
-    console.log("Printer tersimpan:", value);
-}
+### 2. Layar Pengaturan Printer Kasir Mandiri
+- Status Card interaktif: Kotak hijau saat terhubung dengan tombol "Putuskan", kotak ramah saat belum terhubung.
+- Tombol **Test Print** instan untuk pengujian cetak nota thermal.
+- Tombol **Pindai Ulang Bluetooth** dengan animasi loading.
+- Tombol pintas **[Kasir Web]** di pojok kanan atas untuk beralih kembali ke transaksi kasir PPOB.
+- Bebas diakses kasir tanpa perlu memasukkan PIN Owner.
 
-StorageChannel.postMessage(JSON.stringify({
-    action: "get",
-    key: "favorite_printer_mac",
-    callback: "onGetPrinterResult"
-}));
-
-// 3. Menghapus Data
-StorageChannel.postMessage(JSON.stringify({
-    action: "remove",
-    key: "favorite_printer_mac"
-}));
-```
+### 3. PPOB Fullscreen & WebView Bridge
+- Memuat `https://ipay.my.id` secara penuh tanpa address bar browser.
+- Sesi login aman dengan `WebViewCookieManager` dan DOM storage persisten.
+- Interseptor tombol *Back* fisik HP (`PopScope`).
+- Mendukung cetak struk via JavaScript Bridge `PrintChannel` dan penyimpanan native `StorageChannel`.
 
 ---
 
-### 4. Push Notification (FCM) & Sinkronisasi Token
-- Modul `FcmService` membaca token perangkat `FCM_TOKEN`.
-- Begitu halaman web selesai dimuat (`onPageFinished`), token secara otomatis disuntikkan ke JavaScript web:
-  - Tersedia di variabel global: `window.GARUDATEL_FCM_TOKEN`
-  - Memicu fungsi: `window.onReceiveFcmToken(token)`
-  - Memicu event DOM: `window.dispatchEvent(new CustomEvent('fcm_token_ready', { detail: { token: token } }))`
-- **Konfigurasi Firebase:**
-  Cukup unduh file `google-services.json` dari Firebase Console Anda (package name: `com.garudatel.ipay.mobile_flutter`), lalu letakkan di:
-  `mobile-flutter/android/app/google-services.json`.
+## 🛠️ Build & Development Lokal
 
----
+Jika ingin membuild secara manual di komputer/laptop:
 
-### 5. Ikon Aplikasi & Izin Lengkap Android
-- **Ikon Aplikasi:** Dibuat otomatis dari file master logo `app/static/img/icons/icon-512x512.png` ke seluruh varian mipmap Android (`xxxhdpi`, `xxhdpi`, `xhdpi`, `hdpi`, `mdpi`) via `flutter_launcher_icons`.
-- **Izin `AndroidManifest.xml`:**
-  - `INTERNET` & `ACCESS_NETWORK_STATE`
-  - `BLUETOOTH` & `BLUETOOTH_ADMIN` (Legacy Android)
-  - `BLUETOOTH_SCAN` & `BLUETOOTH_CONNECT` (Android 12+) dengan atribut `neverForLocation` agar tidak memaksa menyalakan GPS.
-  - `POST_NOTIFICATIONS` (Android 13+).
+```bash
+# 1. Ambil dependensi
+flutter pub get
 
----
+# 2. Jalankan unit test
+flutter test
 
-## 🛠️ Cara Menjalankan & Menguji
-
-Masuk ke folder `mobile-flutter`:
-```powershell
-cd c:\garudatelv2\garudatel\mobile-flutter
+# 3. Build APK Rilis Universal
+flutter build apk --release
 ```
 
-### 1. Menjalankan Pengujian Otomatis (Unit Tests)
-```powershell
-C:\src\flutter\bin\flutter.bat test
-```
-*Hasil: 7 of 7 unit tests PASSED (100%).*
-
-### 2. Menjalankan Analisis Statis Kode
-```powershell
-C:\src\flutter\bin\flutter.bat analyze --no-fatal-infos
-```
-*Hasil: No issues found! 0 errors, 0 warnings.*
-
-### 3. Menjalankan di HP Android Kasir via USB
-Hubungkan HP Android kasir dengan kabel USB (aktifkan USB Debugging), lalu jalankan:
-```powershell
-C:\src\flutter\bin\flutter.bat run
-```
-
-### 4. Mengkompilasi APK Release
-Buka folder `mobile-flutter/android` di Android Studio, atau jalankan:
-```powershell
-C:\src\flutter\bin\flutter.bat build apk --release
-```
-File APK siap instal akan berada di `build/app/outputs/flutter-apk/app-release.apk`.
+Hasil build APK akan berada di:
+`build/app/outputs/flutter-apk/app-release.apk`

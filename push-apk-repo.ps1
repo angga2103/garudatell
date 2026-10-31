@@ -10,7 +10,7 @@ Write-Host "========================================================" -Foregroun
 
 Set-Location -Path $PSScriptRoot
 
-Write-Host "[1/3] Memeriksa perubahan git di mobile-flutter..." -ForegroundColor Cyan
+Write-Host "[1/4] Memeriksa perubahan git di mobile-flutter..." -ForegroundColor Cyan
 git add mobile-flutter
 $gitDiff = git status -s mobile-flutter
 if ($gitDiff) {
@@ -20,14 +20,18 @@ if ($gitDiff) {
     Write-Host "Tidak ada perubahan baru di mobile-flutter yang belum di-commit." -ForegroundColor Gray
 }
 
-Write-Host "[2/3] Memperbarui branch hybrid-apk-main..." -ForegroundColor Cyan
+Write-Host "[2/4] Memperbarui branch hybrid-apk-main..." -ForegroundColor Cyan
 git subtree split --prefix=mobile-flutter -b hybrid-apk-main
 
-Write-Host "[3/3] Melakukan push ke GitHub (ipay-apk)..." -ForegroundColor Cyan
+Write-Host "[3/4] Melakukan push branch main ke GitHub (ipay-apk)..." -ForegroundColor Cyan
 git push ipay-apk hybrid-apk-main:main --force
+
+Write-Host "[4/4] Memperbarui Release Tag v1.0.4 ke GitHub (ipay-apk)..." -ForegroundColor Cyan
+git tag -f v1.0.4 hybrid-apk-main
+git push ipay-apk v1.0.4 --force
 
 Write-Host ""
 Write-Host "========================================================" -ForegroundColor Green
-Write-Host " Sukses! Kode terbaru sudah ter-push ke GitHub:" -ForegroundColor Green
-Write-Host " https://github.com/angga2103/ipayHybirdapk.git" -ForegroundColor Yellow
+Write-Host " Sukses! GitHub Actions akan otomatis membuild APK rilis." -ForegroundColor Green
+Write-Host " Halaman Rilis: https://github.com/angga2103/ipayHybirdapk/releases" -ForegroundColor Yellow
 Write-Host "========================================================" -ForegroundColor Green

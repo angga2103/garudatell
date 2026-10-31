@@ -2,12 +2,18 @@ name: Build & Release Android APK
 
 on:
   push:
-    branches: [ main, master ]
+    branches:
+      - main
+    tags:
+      - 'v*'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
-  build:
-    name: Build Flutter APK
+  release:
+    name: Build & Publish Release APK
     runs-on: ubuntu-latest
 
     steps:
@@ -36,9 +42,55 @@ jobs:
       - name: Build Release APK
         run: flutter build apk --release
 
-      - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
+      - name: Prepare Release APK Files
+        run: |
+          mkdir -p release-files
+          cp build/app/outputs/flutter-apk/app-release.apk release-files/IPAY-release.apk
+          cp build/app/outputs/flutter-apk/app-release.apk release-files/IPAY-v1.0.4.apk
+
+      - name: Determine Release Tag
+        id: vars
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG_NAME="${GITHUB_REF#refs/tags/}"
+          else
+            TAG_NAME="v1.0.4"
+          fi
+          echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
+
+      - name: Publish to GitHub Releases
+        uses: softprops/action-gh-release@v2
         with:
-          name: IPAY-release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
-          retention-days: 14
+          tag_name: ${{ steps.vars.outputs.tag }}
+          name: "IPAY Mobile POS ${{ steps.vars.outputs.tag }}"
+          body: |
+            ## 📱 GarudaTel iPay - Mobile POS (${{ steps.vars.outputs.tag }})
+
+            Aplikasi Android Native Hybrid resmi untuk **GarudaTel iPay (https://ipay.my.id)** dengan integrasi hardware kasir offline-first.
+
+            ### 🌟 Fitur Unggulan (Bluetooth Thermal POS Printer):
+            - **Dukungan Printer Kasir Mini Thermal**:
+              - Ukuran kertas: **58 mm** (32 karakter) & **80 mm** (48 karakter).
+              - Kompatibel dengan berbagai printer: RPP02N, Goojprt, Panda, Iware, VSC, MiniPOS, Zjiang, dsb.
+              - Format 2 kolom presisi rata kiri-kanan otomatis (`_formatTwoColumns`).
+              - Cetak logo toko raster hitam-putih (`imageRaster`).
+              - Cetak hemat kertas (*paper-saving feed 1 baris*).
+              - Tombol **Test Print** instan untuk memastikan koneksi printer.
+              - Fitur sambung manual via MAC Address jika printer menyembunyikan nama.
+            - **Layar Pengaturan Kasir Mandiri**:
+              - Status koneksi real-time (hijau saat terhubung / abu-abu saat belum).
+              - Akses mandiri kasir tanpa perlu PIN Owner.
+              - Tombol pintas **[Kasir Web]** di pojok kanan atas untuk langsung bertransaksi di web kasir PPOB.
+
+            ---
+            ### 📥 Download File APK:
+            Unduh langsung file `.apk` di bagian **Assets** di bawah:
+            - 🔹 **IPAY-release.apk** (Versi rilis universal terbaru)
+            - 🔹 **IPAY-v1.0.4.apk** (Versi rilis v1.0.4)
+          files: |
+            release-files/IPAY-release.apk
+            release-files/IPAY-v1.0.4.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
