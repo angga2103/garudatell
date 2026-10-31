@@ -1,7 +1,9 @@
+import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mobile_flutter/config/app_config.dart';
-import 'package:mobile_flutter/services/print_service.dart';
+import 'package:mobile_flutter/providers/printer_provider.dart';
+import 'package:mobile_flutter/services/printer_service.dart';
 import 'package:mobile_flutter/services/storage_service.dart';
 
 void main() {
@@ -44,7 +46,7 @@ void main() {
     });
   });
 
-  group('PrintService & StrukPayload Unit Tests', () {
+  group('PrinterService & StrukPayload Unit Tests', () {
     test('Parses JSON Struk from Web correctly', () {
       const jsonStruk = '{"storeName":"KONTER GARUDA","refId":"GT-100234","product":"Pulsa Telkomsel 10K","amount":"Rp 12.000","sn":"1234567890","status":"BERHASIL"}';
       final payload = StrukPayload.fromMessage(jsonStruk);
@@ -75,9 +77,61 @@ void main() {
         sn: '9988776655',
       );
 
-      final bytes = PrintService.instance.generateEscPosBytes(payload);
+      final bytes = PrinterService.instance.generateEscPosBytes(payload);
       expect(bytes, isNotEmpty);
       expect(bytes.length, greaterThan(20));
+    });
+
+    test('Formats two columns with precise dynamic spacing', () {
+      final service = PrinterService.instance;
+      // 58mm default width: 32 chars
+      final line58 = service.formatTwoColumns('Kopi Susu', 'Rp 18.000', maxChars: 32);
+      expect(line58.length, equals(32));
+      expect(line58.startsWith('Kopi Susu'), isTrue);
+      expect(line58.endsWith('Rp 18.000'), isTrue);
+
+      // 80mm width: 48 chars
+      final line80 = service.formatTwoColumns('Croissant Butter', 'Rp 22.000', maxChars: 48);
+      expect(line80.length, equals(48));
+      expect(line80.startsWith('Croissant Butter'), isTrue);
+      expect(line80.endsWith('Rp 22.000'), isTrue);
+    });
+
+    test('Handles paper size switching between 58mm and 80mm', () async {
+      SharedPreferences.setMockInitialValues({});
+      final service = PrinterService.instance;
+
+      await service.setPaperSize(PaperSize.mm58);
+      expect(service.paperSize, equals(PaperSize.mm58));
+      expect(service.maxCharsPerLine, equals(32));
+      expect(service.dividerLine.length, equals(32));
+
+      await service.setPaperSize(PaperSize.mm80);
+      expect(service.paperSize, equals(PaperSize.mm80));
+      expect(service.maxCharsPerLine, equals(48));
+      expect(service.dividerLine.length, equals(48));
+    });
+  });
+
+  group('PrinterProvider State Tests', () {
+    setUp(() {
+      SharedPreferences.setMockInitialValues({});
+    });
+
+    test('Initializes with default properties', () {
+      final provider = PrinterProvider();
+      expect(provider.isConnected, isFalse);
+      expect(provider.connectedMac, isNull);
+      expect(provider.isScanning, isFalse);
+      expect(provider.availableDevices, isEmpty);
+      expect(provider.paperSize, equals(PaperSize.mm58));
+      expect(provider.errorMessage, isNull);
+    });
+
+    test('Can update paper size in state', () async {
+      final provider = PrinterProvider();
+      await provider.setPaperSize(PaperSize.mm80);
+      expect(provider.paperSize, equals(PaperSize.mm80));
     });
   });
 }

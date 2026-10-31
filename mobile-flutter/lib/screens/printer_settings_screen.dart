@@ -1,9 +1,12 @@
+import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../config/app_config.dart';
-import '../services/print_service.dart';
-import '../services/storage_service.dart';
+import '../providers/printer_provider.dart';
 import 'webview_screen.dart';
 
+/// Halaman Pengaturan Bluetooth Thermal POS Printer
+/// Bersih, elegan, offline-first, dan ramah kasir (DrinkPOS Lite style)
 class PrinterSettingsScreen extends StatefulWidget {
   const PrinterSettingsScreen({super.key});
 
@@ -12,658 +15,418 @@ class PrinterSettingsScreen extends StatefulWidget {
 }
 
 class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
-  String? _savedMac;
-  String? _savedName;
-  String _printMethod = 'direct';
-  int _paperWidth = 32;
-  int _feedMargin = 4;
-
-  final TextEditingController _header1Controller = TextEditingController();
-  final TextEditingController _header2Controller = TextEditingController();
-  final TextEditingController _header3Controller = TextEditingController();
-  final TextEditingController _footerController = TextEditingController();
-
-  bool _isLoading = true;
-  bool _isTestingPrint = false;
+  final TextEditingController _manualMacController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _loadSettings();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<PrinterProvider>().init();
+    });
   }
 
   @override
   void dispose() {
-    _header1Controller.dispose();
-    _header2Controller.dispose();
-    _header3Controller.dispose();
-    _footerController.dispose();
+    _manualMacController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadSettings() async {
-    final storage = StorageService.instance;
-    final mac = await storage.getSavedPrinterMac();
-    final name = await storage.getSavedPrinterName();
-    final method = await storage.getPrintMethod();
-    final width = await storage.getPaperWidth();
-    final feed = await storage.getFeedMargin();
-    final h1 = await storage.getHeader1();
-    final h2 = await storage.getHeader2();
-    final h3 = await storage.getHeader3();
-    final foot = await storage.getFooter();
-
-    if (mounted) {
-      setState(() {
-        _savedMac = mac;
-        _savedName = name;
-        _printMethod = method;
-        _paperWidth = width;
-        _feedMargin = feed;
-        _header1Controller.text = h1;
-        _header2Controller.text = h2;
-        _header3Controller.text = h3;
-        _footerController.text = foot;
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _saveSettings() async {
-    final storage = StorageService.instance;
-    await storage.setPrintMethod(_printMethod);
-    await storage.setPaperWidth(_paperWidth);
-    await storage.setFeedMargin(_feedMargin);
-    await storage.setHeader1(_header1Controller.text.trim());
-    await storage.setHeader2(_header2Controller.text.trim());
-    await storage.setHeader3(_header3Controller.text.trim());
-    await storage.setFooter(_footerController.text.trim());
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ Pengaturan printer kasir berhasil disimpan!'),
-          backgroundColor: AppConfig.primaryTeal,
-          duration: Duration(seconds: 2),
-        ),
+  void _navigateToWeb() {
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const WebViewScreen()),
       );
     }
-  }
-
-  Future<void> _doTestPrint() async {
-    if (_savedMac == null || _savedMac!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Pilih printer Bluetooth kasir terlebih dahulu.'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    setState(() => _isTestingPrint = true);
-    final success = await PrintService.instance.testPrint(targetMac: _savedMac);
-    if (!mounted) return;
-    setState(() => _isTestingPrint = false);
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Icon(
-              success ? Icons.check_circle_rounded : Icons.error_outline_rounded,
-              color: success ? AppConfig.primaryTeal : Colors.red,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              success ? 'Test Print Berhasil!' : 'Test Print Gagal',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-            ),
-          ],
-        ),
-        content: Text(
-          success
-              ? 'Data ESC/POS berhasil dikirim ke printer $_savedName ($_savedMac). Periksa kertas struk Anda.'
-              : 'Gagal menghubungkan ke printer $_savedName ($_savedMac).\n\nTips:\n1. Pastikan printer menyala.\n2. Pastikan printer tidak sedang terhubung ke aplikasi lain (seperti RawBT).\n3. Coba matikan dan hidupkan kembali Bluetooth HP.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Tutup', style: TextStyle(fontWeight: FontWeight.w700)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showSelectPrinterModal() async {
-    await PrintService.instance.checkAndRequestPermissions();
-    final printers = await PrintService.instance.getPairedPrinters();
-
-    if (!mounted) return;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Pilih Printer Bluetooth',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppConfig.textDark),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'Pilih printer kasir Anda dari daftar perangkat yang sudah dipasangkan di HP:',
-              style: TextStyle(fontSize: 12, color: AppConfig.textMuted),
-            ),
-            const SizedBox(height: 16),
-            if (printers.isEmpty)
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.amber.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.amber.shade200),
-                ),
-                child: const Text(
-                  'Tidak ada perangkat Bluetooth yang terpasang (paired). Pasangkan printer kasir Anda terlebih dahulu di menu Pengaturan Bluetooth HP.',
-                  style: TextStyle(fontSize: 12, color: Colors.black87),
-                ),
-              )
-            else
-              Flexible(
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  itemCount: printers.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    final p = printers[index];
-                    final isCurrent = p.macAdress == _savedMac;
-
-                    return ListTile(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(
-                          color: isCurrent ? AppConfig.primaryTeal : Colors.grey.shade200,
-                          width: isCurrent ? 2 : 1,
-                        ),
-                      ),
-                      tileColor: isCurrent ? AppConfig.primaryLight : Colors.grey.shade50,
-                      leading: Icon(
-                        Icons.print_rounded,
-                        color: isCurrent ? AppConfig.primaryTeal : Colors.grey,
-                      ),
-                      title: Text(
-                        p.name.isNotEmpty ? p.name : 'Printer Thermal',
-                        style: TextStyle(
-                          fontWeight: isCurrent ? FontWeight.w800 : FontWeight.w600,
-                          fontSize: 14,
-                        ),
-                      ),
-                      subtitle: Text(p.macAdress, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                      trailing: isCurrent
-                          ? const Icon(Icons.check_circle, color: AppConfig.primaryTeal)
-                          : const Icon(Icons.radio_button_unchecked, color: Colors.grey),
-                      onTap: () async {
-                        final storage = StorageService.instance;
-                        final mac = p.macAdress;
-                        final name = p.name;
-                        Navigator.pop(ctx);
-                        await storage.setSavedPrinterMac(mac);
-                        await storage.setSavedPrinterName(name);
-                        if (!mounted) return;
-                        setState(() {
-                          _savedMac = mac;
-                          _savedName = name;
-                        });
-                      },
-                    );
-                  },
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: AppConfig.primaryTeal)),
-      );
-    }
-
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        title: const Text(
-          'Pengaturan Printer Kasir',
-          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Colors.white),
-        ),
-        backgroundColor: AppConfig.primaryTeal,
-        elevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () {
-            if (Navigator.canPop(context)) {
-              Navigator.pop(context);
-            } else {
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const WebViewScreen()));
-            }
-          },
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8.0),
-            child: TextButton.icon(
-              style: TextButton.styleFrom(
-                backgroundColor: Colors.white.withAlpha(40),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              ),
-              icon: const Icon(Icons.storefront_rounded, size: 16, color: Colors.white),
-              label: const Text(
-                'Kasir Web',
-                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Colors.white),
-              ),
-              onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const WebViewScreen()));
-              },
+    return Consumer<PrinterProvider>(
+      builder: (context, provider, _) {
+        return Scaffold(
+          backgroundColor: const Color(0xFFF6F8FA),
+          appBar: AppBar(
+            elevation: 0,
+            backgroundColor: AppConfig.primaryTeal,
+            foregroundColor: Colors.white,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_rounded),
+              onPressed: _navigateToWeb,
+              tooltip: 'Kembali ke Kasir',
             ),
+            title: const Text(
+              'Pengaturan Printer Kasir',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+            actions: [
+              // Tombol Pintas Akses Mandiri Kasir ke Web Kasir PPOB
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: AppConfig.primaryTeal,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  ),
+                  icon: const Icon(Icons.point_of_sale_rounded, size: 18),
+                  label: const Text(
+                    'Kasir Web',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  onPressed: _navigateToWeb,
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // KARTU 1: PRINTER BLUETOOTH TERPILIH
-            _buildPrinterCard(),
-            const SizedBox(height: 16),
-
-            // KARTU 2: METODE / JALUR CETAK
-            _buildMethodCard(),
-            const SizedBox(height: 16),
-
-            // KARTU 3: FORMAT KERTAS & STRUK
-            _buildPaperCard(),
-            const SizedBox(height: 16),
-
-            // KARTU 4: NAMA TOKO & FOOTER
-            _buildReceiptIdentityCard(),
-            const SizedBox(height: 24),
-
-            // TOMBOL SIMPAN
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppConfig.primaryTeal,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  elevation: 2,
-                ),
-                icon: const Icon(Icons.save_rounded),
-                label: const Text(
-                  'SIMPAN PENGATURAN',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, letterSpacing: 0.5),
-                ),
-                onPressed: _saveSettings,
-              ),
-            ),
-            const SizedBox(height: 24),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPrinterCard() {
-    final hasPrinter = _savedMac != null && _savedMac!.isNotEmpty;
-
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: hasPrinter ? AppConfig.primaryTeal.withAlpha(80) : Colors.grey.shade300),
-      ),
-      color: Colors.white,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+          body: RefreshIndicator(
+            color: AppConfig.primaryTeal,
+            onRefresh: () => provider.scanDevices(),
+            child: ListView(
+              padding: const EdgeInsets.all(16),
               children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppConfig.primaryLight,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.print_rounded, color: AppConfig.primaryTeal, size: 24),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Printer Kasir Utama',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppConfig.textMuted),
-                      ),
-                      Text(
-                        hasPrinter ? (_savedName ?? 'Printer Thermal') : 'Belum Ada Printer',
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppConfig.textDark),
-                      ),
-                      if (hasPrinter)
-                        Text(
-                          _savedMac!,
-                          style: const TextStyle(fontSize: 11, color: AppConfig.textMuted),
-                        ),
-                    ],
-                  ),
-                ),
-                if (hasPrinter)
+                // 1. STATUS CARD DI BAGIAN ATAS
+                _buildStatusCard(context, provider),
+                const SizedBox(height: 16),
+
+                // Error Banner bila ada
+                if (provider.errorMessage != null) ...[
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.green.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.green.shade200),
+                      color: const Color(0xFFFFECEB),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFFFB4AE)),
                     ),
-                    child: const Text('Aktif', style: TextStyle(color: Colors.green, fontSize: 11, fontWeight: FontWeight.w700)),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppConfig.primaryTeal,
-                      side: const BorderSide(color: AppConfig.primaryTeal),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      padding: const EdgeInsets.symmetric(vertical: 11),
-                    ),
-                    icon: const Icon(Icons.bluetooth_searching, size: 18),
-                    label: Text(
-                      hasPrinter ? 'Ganti Printer' : 'Pilih Printer',
-                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-                    ),
-                    onPressed: _showSelectPrinterModal,
-                  ),
-                ),
-                if (hasPrinter) ...[
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppConfig.primaryTeal,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(vertical: 11),
-                      ),
-                      icon: _isTestingPrint
-                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : const Icon(Icons.receipt_long_rounded, size: 18),
-                      label: const Text('Test Print', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                      onPressed: _isTestingPrint ? null : _doTestPrint,
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error_outline, color: Colors.red, size: 22),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            provider.errorMessage!,
+                            style: const TextStyle(color: Color(0xFF900000), fontSize: 13),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
+                  const SizedBox(height: 16),
                 ],
+
+                // 2. PILIHAN UKURAN KERTAS
+                _buildPaperSizeSection(context, provider),
+                const SizedBox(height: 16),
+
+                // 3. TOMBOL TINDAKAN UTAMA
+                _buildActionButtons(context, provider),
+                const SizedBox(height: 20),
+
+                // 4. DAFTAR PRINTER BLUETOOTH DITEMUKAN
+                _buildDeviceListSection(context, provider),
+                const SizedBox(height: 20),
+
+                // 5. KONEKSI MANUAL
+                _buildManualConnectionSection(context, provider),
+                const SizedBox(height: 30),
               ],
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMethodCard() {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.shade200),
-      ),
-      color: Colors.white,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Metode / Jalur Cetak Struk',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppConfig.textDark),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'Pilih bagaimana aplikasi mengirim struk transaksi saat tombol Cetak ditekan:',
-              style: TextStyle(fontSize: 12, color: AppConfig.textMuted),
-            ),
-            const SizedBox(height: 12),
-            _buildMethodTile(
-              value: 'direct',
-              title: 'Bluetooth Thermal Langsung (Direct Native)',
-              subtitle: 'Cetak langsung ke printer kasir tanpa aplikasi pihak ketiga (cepat & instan).',
-              icon: Icons.bluetooth_connected_rounded,
-            ),
-            _buildMethodTile(
-              value: 'rawbt',
-              title: 'Aplikasi RawBT POS (1-Klik via Intent)',
-              subtitle: 'Gunakan jika printer bluetooth memiliki pembatasan soket oleh sistem HP.',
-              icon: Icons.phone_android_rounded,
-            ),
-            _buildMethodTile(
-              value: 'pdf',
-              title: 'Sistem Cetak Android (PDF / Laser)',
-              subtitle: 'Buka print spooler resmi Android atau simpan bukti transaksi sebagai PDF.',
-              icon: Icons.picture_as_pdf_rounded,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMethodTile({
-    required String value,
-    required String title,
-    required String subtitle,
-    required IconData icon,
-  }) {
-    final isSelected = _printMethod == value;
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: () async {
-        setState(() => _printMethod = value);
-        await StorageService.instance.setPrintMethod(value);
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isSelected ? AppConfig.primaryLight : Colors.grey.shade50,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? AppConfig.primaryTeal : Colors.grey.shade200,
-            width: isSelected ? 1.8 : 1,
           ),
+        );
+      },
+    );
+  }
+
+  // ==========================================
+  // 1. STATUS CARD
+  // ==========================================
+  Widget _buildStatusCard(BuildContext context, PrinterProvider provider) {
+    final bool isConnected = provider.isConnected;
+    final String printerName = provider.connectedName ?? 'Printer POS';
+    final String? mac = provider.connectedMac;
+
+    if (isConnected) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFE8F5E9),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFA5D6A7), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.green.withValues(alpha: 0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Row(
           children: [
-            Icon(icon, color: isSelected ? AppConfig.primaryTeal : Colors.grey, size: 22),
-            const SizedBox(width: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: const BoxDecoration(
+                color: Color(0xFF2E7D32),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.print_rounded, color: Colors.white, size: 28),
+            ),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF2E7D32),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Text(
+                        'STATUS: TERHUBUNG',
+                        style: TextStyle(
+                          color: Color(0xFF2E7D32),
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
                   Text(
-                    title,
-                    style: TextStyle(
-                      fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                      fontSize: 13,
-                      color: isSelected ? AppConfig.primaryTeal : AppConfig.textDark,
+                    printerName,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1B5E20),
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(subtitle, style: const TextStyle(fontSize: 11, color: AppConfig.textMuted)),
+                  if (mac != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      'MAC: $mac',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontFamily: 'monospace',
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
-            Icon(
-              isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
-              color: isSelected ? AppConfig.primaryTeal : Colors.grey,
-              size: 20,
+            OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFFC62828),
+                side: const BorderSide(color: Color(0xFFEF9A9A)),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () => provider.disconnect(),
+              child: const Text('Putuskan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
             ),
           ],
         ),
-      ),
-    );
-  }
+      );
+    }
 
-  Widget _buildPaperCard() {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
+    // Kotak abu-abu jika belum terhubung
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.shade200),
+        border: Border.all(color: Colors.grey.shade300),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
-      color: Colors.white,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Format Kertas & Spasi Baris',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppConfig.textDark),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              shape: BoxShape.circle,
             ),
-            const SizedBox(height: 12),
-            Row(
+            child: Icon(Icons.print_disabled_rounded, color: Colors.grey.shade600, size: 28),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: InkWell(
-                    onTap: () async {
-                      setState(() => _paperWidth = 32);
-                      await StorageService.instance.setPaperWidth(32);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: _paperWidth == 32 ? AppConfig.primaryLight : Colors.grey.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: _paperWidth == 32 ? AppConfig.primaryTeal : Colors.grey.shade200,
-                          width: _paperWidth == 32 ? 2 : 1,
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            '58 mm',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              color: _paperWidth == 32 ? AppConfig.primaryTeal : AppConfig.textDark,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          const Text('32 Karakter / Baris', style: TextStyle(fontSize: 11, color: AppConfig.textMuted)),
-                          const Text('(Kasir Portable)', style: TextStyle(fontSize: 10, color: AppConfig.textMuted)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: InkWell(
-                    onTap: () async {
-                      setState(() => _paperWidth = 48);
-                      await StorageService.instance.setPaperWidth(48);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: _paperWidth == 48 ? AppConfig.primaryLight : Colors.grey.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: _paperWidth == 48 ? AppConfig.primaryTeal : Colors.grey.shade200,
-                          width: _paperWidth == 48 ? 2 : 1,
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            '80 mm',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              color: _paperWidth == 48 ? AppConfig.primaryTeal : AppConfig.textDark,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          const Text('48 Karakter / Baris', style: TextStyle(fontSize: 11, color: AppConfig.textMuted)),
-                          const Text('(Kasir Desktop)', style: TextStyle(fontSize: 10, color: AppConfig.textMuted)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                Row(
                   children: [
-                    Text('Margin Bawah (Feed Spacing)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
-                    Text('Jumlah baris kosong sebelum potong kertas', style: TextStyle(fontSize: 11, color: AppConfig.textMuted)),
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade500,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'STATUS: BELUM TERHUBUNG',
+                      style: TextStyle(
+                        color: Colors.grey.shade700,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                   ],
                 ),
-                DropdownButton<int>(
-                  value: _feedMargin,
-                  items: [2, 3, 4, 5, 6].map((n) {
-                    return DropdownMenuItem(value: n, child: Text('$n Baris'));
-                  }).toList(),
-                  onChanged: (val) {
-                    if (val != null) setState(() => _feedMargin = val);
-                  },
+                const SizedBox(height: 4),
+                const Text(
+                  'Printer Belum Dipilih',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Pilih printer di daftar bawah atau masukkan MAC',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================
+  // 2. PILIHAN UKURAN KERTAS
+  // ==========================================
+  Widget _buildPaperSizeSection(BuildContext context, PrinterProvider provider) {
+    final is58 = provider.paperSize == PaperSize.mm58;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.receipt_long_rounded, color: AppConfig.primaryTeal, size: 22),
+              const SizedBox(width: 8),
+              const Text(
+                'Ukuran Kertas Struk',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppConfig.primaryTeal.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  is58 ? '32 Karakter/Baris' : '48 Karakter/Baris',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: AppConfig.primaryTeal,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _buildPaperSizeOption(
+                  title: '58 mm',
+                  subtitle: 'Struk Kecil (Standar Kasir)',
+                  selected: is58,
+                  onTap: () => provider.setPaperSize(PaperSize.mm58),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildPaperSizeOption(
+                  title: '80 mm',
+                  subtitle: 'Struk Lebar / Resto',
+                  selected: !is58,
+                  onTap: () => provider.setPaperSize(PaperSize.mm80),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaperSizeOption({
+    required String title,
+    required String subtitle,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+        decoration: BoxDecoration(
+          color: selected ? AppConfig.primaryTeal.withValues(alpha: 0.08) : Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected ? AppConfig.primaryTeal : Colors.grey.shade300,
+            width: selected ? 2 : 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  selected ? Icons.radio_button_checked : Icons.radio_button_off,
+                  color: selected ? AppConfig.primaryTeal : Colors.grey.shade400,
+                  size: 18,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: selected ? AppConfig.primaryTeal : Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 11,
+                color: selected ? AppConfig.primaryTeal : Colors.grey.shade600,
+              ),
             ),
           ],
         ),
@@ -671,65 +434,347 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
     );
   }
 
-  Widget _buildReceiptIdentityCard() {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.shade200),
-      ),
-      color: Colors.white,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Identitas Konter / Toko di Struk',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppConfig.textDark),
+  // ==========================================
+  // 3. TOMBOL TINDAKAN UTAMA
+  // ==========================================
+  Widget _buildActionButtons(BuildContext context, PrinterProvider provider) {
+    return Column(
+      children: [
+        // Tombol Tes Cetak Struk Thermal (Hijau menonjol)
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2E7D32),
+              foregroundColor: Colors.white,
+              elevation: 2,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _header1Controller,
-              decoration: const InputDecoration(
-                labelText: 'Header 1 (Nama Toko / Konter)',
-                hintText: 'Contoh: WARUNG BU YAYUK / IPAY',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
+            icon: const Icon(Icons.receipt_rounded, size: 22),
+            label: const Text(
+              'Tes Cetak Struk Thermal',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
             ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _header2Controller,
-              decoration: const InputDecoration(
-                labelText: 'Header 2 (Slogan / Alamat)',
-                hintText: 'Contoh: Pusat Pembayaran PPOB Terpercaya',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _header3Controller,
-              decoration: const InputDecoration(
-                labelText: 'Header 3 (No. HP / WA Konter)',
-                hintText: 'Contoh: 08123456789',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _footerController,
-              decoration: const InputDecoration(
-                labelText: 'Catatan Footer Struk',
-                hintText: 'Contoh: Terima kasih atas kunjungan Anda',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-            ),
-          ],
+            onPressed: () async {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('⏳ Mengirim data cetak struk pengujian...'),
+                  duration: Duration(seconds: 1),
+                ),
+              );
+
+              final success = await provider.testPrint();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      success
+                          ? '✅ Berhasil mencetak struk pengujian ke printer!'
+                          : (provider.errorMessage ?? '⚠️ Gagal mencetak. Hubungkan printer terlebih dahulu.'),
+                    ),
+                    backgroundColor: success ? const Color(0xFF2E7D32) : Colors.red.shade700,
+                    duration: const Duration(seconds: 3),
+                  ),
+                );
+              }
+            },
+          ),
         ),
+        const SizedBox(height: 10),
+
+        // Tombol Pindai Ulang Bluetooth
+        SizedBox(
+          width: double.infinity,
+          height: 46,
+          child: OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppConfig.primaryTeal,
+              side: const BorderSide(color: AppConfig.primaryTeal),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+            icon: provider.isScanning
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: AppConfig.primaryTeal),
+                  )
+                : const Icon(Icons.sync_rounded, size: 20),
+            label: Text(
+              provider.isScanning ? 'Memindai Perangkat Bluetooth...' : 'Pindai Ulang Bluetooth',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            ),
+            onPressed: provider.isScanning ? null : () => provider.scanDevices(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ==========================================
+  // 4. DAFTAR PRINTER BLUETOOTH DITEMUKAN
+  // ==========================================
+  Widget _buildDeviceListSection(BuildContext context, PrinterProvider provider) {
+    final devices = provider.availableDevices;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+            child: Row(
+              children: [
+                const Icon(Icons.devices_rounded, color: AppConfig.primaryTeal, size: 20),
+                const SizedBox(width: 8),
+                const Text(
+                  'Printer Bluetooth Ditemukan',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87),
+                ),
+                const Spacer(),
+                Text(
+                  '${devices.length} Perangkat',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          if (provider.isScanning && devices.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(28.0),
+              child: Center(
+                child: Column(
+                  children: [
+                    CircularProgressIndicator(color: AppConfig.primaryTeal),
+                    SizedBox(height: 12),
+                    Text('Mencari printer Bluetooth kasir di sekitar...'),
+                  ],
+                ),
+              ),
+            )
+          else if (devices.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Center(
+                child: Column(
+                  children: [
+                    Icon(Icons.bluetooth_searching, size: 40, color: Colors.grey.shade400),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Tidak ada printer Bluetooth yang terpasang',
+                      style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black87),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Pasangkan (Pair) printer thermal Anda di Menu Bluetooth HP Android terlebih dahulu, lalu klik "Pindai Ulang".',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: devices.length,
+              separatorBuilder: (context, index) => const Divider(height: 1, indent: 60),
+              itemBuilder: (ctx, index) {
+                final device = devices[index];
+                final bool isCurrent = provider.isConnected &&
+                    provider.connectedMac?.toUpperCase() == device.macAdress.toUpperCase();
+
+                return ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  leading: CircleAvatar(
+                    backgroundColor: isCurrent
+                        ? const Color(0xFFE8F5E9)
+                        : AppConfig.primaryTeal.withValues(alpha: 0.1),
+                    child: Icon(
+                      Icons.print,
+                      color: isCurrent ? const Color(0xFF2E7D32) : AppConfig.primaryTeal,
+                      size: 22,
+                    ),
+                  ),
+                  title: Text(
+                    device.name.isEmpty ? 'Printer Tanpa Nama' : device.name,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: isCurrent ? const Color(0xFF1B5E20) : Colors.black87,
+                    ),
+                  ),
+                  subtitle: Text(
+                    device.macAdress,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontFamily: 'monospace',
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                  trailing: isCurrent
+                      ? Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE8F5E9),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFA5D6A7)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.check_circle, size: 14, color: Color(0xFF2E7D32)),
+                              SizedBox(width: 4),
+                              Text(
+                                'Terhubung',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF2E7D32),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppConfig.primaryTeal,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          onPressed: () async {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Menghubungkan ke ${device.name.isEmpty ? device.macAdress : device.name}...'),
+                                duration: const Duration(seconds: 1),
+                              ),
+                            );
+                            final ok = await provider.connect(device.macAdress, deviceName: device.name);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    ok ? '✅ Terhubung ke ${device.name}!' : '⚠️ Gagal terhubung ke ${device.name}',
+                                  ),
+                                  backgroundColor: ok ? const Color(0xFF2E7D32) : Colors.red,
+                                ),
+                              );
+                            }
+                          },
+                          child: const Text('Hubungkan', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                        ),
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================
+  // 5. KONEKSI MANUAL
+  // ==========================================
+  Widget _buildManualConnectionSection(BuildContext context, PrinterProvider provider) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.edit_note_rounded, color: AppConfig.primaryTeal, size: 22),
+              SizedBox(width: 8),
+              Text(
+                'Koneksi Manual MAC Address',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Gunakan opsi ini jika nama printer tidak muncul di daftar pemindaian (misal: 66:02:BD:06:18:7B).',
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _manualMacController,
+                  textCapitalization: TextCapitalization.characters,
+                  decoration: InputDecoration(
+                    hintText: 'Contoh: 66:02:BD:06:18:7B',
+                    hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: AppConfig.primaryTeal, width: 2),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppConfig.primaryTeal,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: () async {
+                  final inputMac = _manualMacController.text.trim();
+                  if (inputMac.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Masukkan MAC Address printer terlebih dahulu.'),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                    return;
+                  }
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Menghubungkan ke $inputMac...')),
+                  );
+
+                  final ok = await provider.connect(inputMac, deviceName: 'Printer Manual ($inputMac)');
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          ok ? '✅ Terhubung ke printer $inputMac!' : '⚠️ Gagal terhubung ke $inputMac',
+                        ),
+                        backgroundColor: ok ? const Color(0xFF2E7D32) : Colors.red,
+                      ),
+                    );
+                  }
+                },
+                child: const Text('Sambungkan', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

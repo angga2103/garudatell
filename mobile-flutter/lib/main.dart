@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'config/app_config.dart';
+import 'providers/printer_provider.dart';
 import 'screens/webview_screen.dart';
 import 'screens/printer_settings_screen.dart';
 import 'services/fcm_service.dart';
@@ -23,7 +25,14 @@ void main() async {
     FcmService.instance.init(),
   ]);
 
-  runApp(const GarudaTelApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => PrinterProvider()),
+      ],
+      child: const GarudaTelApp(),
+    ),
+  );
 }
 
 class GarudaTelApp extends StatelessWidget {
