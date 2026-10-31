@@ -29,7 +29,6 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.x'
           channel: 'stable'
           cache: true
 
@@ -39,30 +38,33 @@ jobs:
       - name: Run Unit Tests
         run: flutter test
 
+      - name: Ensure gradlew is executable
+        run: chmod +x android/gradlew
+
       - name: Build Release APK
         run: flutter build apk --release
 
       - name: Prepare Release APK Files
+        id: vars
         run: |
           mkdir -p release-files
           cp build/app/outputs/flutter-apk/app-release.apk release-files/IPAY-release.apk
-          cp build/app/outputs/flutter-apk/app-release.apk release-files/IPAY-v1.0.4.apk
-
-      - name: Determine Release Tag
-        id: vars
-        run: |
+          
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
             TAG_NAME="${GITHUB_REF#refs/tags/}"
           else
-            TAG_NAME="v1.0.4"
+            VERSION=$(grep '^version:' pubspec.yaml | head -n 1 | awk '{print $2}' | cut -d'+' -f1)
+            TAG_NAME="v$VERSION"
           fi
+          
+          cp build/app/outputs/flutter-apk/app-release.apk release-files/IPAY-${TAG_NAME}.apk
           echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
 
       - name: Publish to GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.vars.outputs.tag }}
-          name: "IPAY Mobile POS ${{ steps.vars.outputs.tag }}"
+          name: "GarudaTel iPay Mobile POS ${{ steps.vars.outputs.tag }}"
           body: |
             ## 📱 GarudaTel iPay - Mobile POS (${{ steps.vars.outputs.tag }})
 
@@ -86,10 +88,10 @@ jobs:
             ### 📥 Download File APK:
             Unduh langsung file `.apk` di bagian **Assets** di bawah:
             - 🔹 **IPAY-release.apk** (Versi rilis universal terbaru)
-            - 🔹 **IPAY-v1.0.4.apk** (Versi rilis v1.0.4)
+            - 🔹 **IPAY-${{ steps.vars.outputs.tag }}.apk** (Versi rilis ${{ steps.vars.outputs.tag }})
           files: |
             release-files/IPAY-release.apk
-            release-files/IPAY-v1.0.4.apk
+            release-files/IPAY-*.apk
           draft: false
           prerelease: false
         env:
