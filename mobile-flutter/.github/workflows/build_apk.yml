@@ -41,9 +41,22 @@ jobs:
       - name: Build Release APK
         run: |
           if [ -f "android/gradlew" ]; then
+            sed -i 's/\r$//' android/gradlew || true
             chmod +x android/gradlew
           fi
-          flutter build apk --release
+          flutter build apk --release > build.log 2>&1 || BUILD_FAILED=1
+          if [ "$BUILD_FAILED" = "1" ]; then
+            echo "=== BUILD FAILED ==="
+            tail -n 120 build.log > build_error.txt
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git checkout -B debug-log
+            git add build_error.txt
+            git commit -m "ci: capture build error log"
+            git push origin debug-log --force
+            cat build_error.txt
+            exit 1
+          fi
 
       - name: Prepare Release APK Files
         id: vars
