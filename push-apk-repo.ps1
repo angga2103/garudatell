@@ -26,9 +26,9 @@ git subtree split --prefix=mobile-flutter -b hybrid-apk-main
 Write-Host "[3/4] Melakukan push branch main ke GitHub (ipay-apk)..." -ForegroundColor Cyan
 git push ipay-apk hybrid-apk-main:main --force
 
-Write-Host "[4/4] Memperbarui Release Tag v1.0.4 ke GitHub (ipay-apk)..." -ForegroundColor Cyan
-git tag -f v1.0.4 hybrid-apk-main
-git push ipay-apk v1.0.4 --force
+Write-Host "[4/4] Memperbarui Release Tag v1.0.5 ke GitHub (ipay-apk)..." -ForegroundColor Cyan
+git tag -f v1.0.5 hybrid-apk-main
+git push ipay-apk v1.0.5 --force
 
 Write-Host ""
 Write-Host "========================================================" -ForegroundColor Green
