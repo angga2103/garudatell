@@ -6,7 +6,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 import '../config/app_config.dart';
 import '../services/fcm_service.dart';
-import '../services/print_service.dart';
+import '../services/printer_service.dart';
 import '../services/storage_service.dart';
 import 'printer_settings_screen.dart';
 
@@ -198,7 +198,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
 
           // JALUR 1: APLIKASI RawBT POS
           if (printMethod == 'rawbt') {
-            final ok = await PrintService.instance.printViaRawBt(payload);
+            final ok = await PrinterService.instance.printViaRawBt(payload);
             if (!ok && mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
@@ -213,14 +213,14 @@ class _WebViewScreenState extends State<WebViewScreen> {
           // JALUR 2: SISTEM CETAK ANDROID (PDF / LASER)
           if (printMethod == 'pdf') {
             if (!mounted) return;
-            await PrintService.instance.printLaserOrPdf(context, payload);
+            await PrinterService.instance.printLaserOrPdf(context, payload);
             return;
           }
 
           // JALUR 3: BLUETOOTH THERMAL LANGSUNG (DIRECT NATIVE)
           final savedMac = await StorageService.instance.getSavedPrinterMac();
           if (savedMac != null && savedMac.isNotEmpty) {
-            final success = await PrintService.instance.printThermal(payload, targetMac: savedMac);
+            final success = await PrinterService.instance.printThermal(payload, targetMac: savedMac);
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -234,7 +234,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
           }
 
           if (mounted) {
-            PrintService.instance.showPrintSelectionModal(context, payload);
+            PrinterService.instance.showPrintSelectionModal(context, payload);
           }
         },
       )
@@ -288,7 +288,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
         final rawText = utf8.decode(decodedBytes, allowMalformed: true);
         final payload = StrukPayload.fromPlainText(rawText);
         if (mounted) {
-          PrintService.instance.showPrintSelectionModal(context, payload);
+          PrinterService.instance.showPrintSelectionModal(context, payload);
         }
       }
     } catch (e) {

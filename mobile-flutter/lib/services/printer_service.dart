@@ -1,7 +1,9 @@
 import 'dart:convert';
-import 'dart:typed_data';
+import 'dart:io';
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:image/image.dart' as img;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -25,6 +27,10 @@ class StrukPayload {
   final String? time;
   final String? status;
   final String? footer;
+  final String? logoBase64;
+  final String? logoUrl;
+  final bool hasLogo;
+  Uint8List? cachedLogoBytes;
 
   StrukPayload({
     required this.rawText,
@@ -37,6 +43,10 @@ class StrukPayload {
     this.time,
     this.status,
     this.footer,
+    this.logoBase64,
+    this.logoUrl,
+    this.hasLogo = true,
+    this.cachedLogoBytes,
   });
 
   factory StrukPayload.fromMessage(String raw) {
@@ -45,6 +55,10 @@ class StrukPayload {
       if (decoded is Map<String, dynamic>) {
         final rawTextVal = decoded['raw_text']?.toString() ?? decoded['text']?.toString();
         final cleanRawText = (rawTextVal != null && !rawTextVal.trim().startsWith('{')) ? rawTextVal : '';
+        final logoB64 = decoded['logo_base64']?.toString() ?? decoded['logoBase64']?.toString() ?? decoded['logo']?.toString();
+        final logoUrlVal = decoded['logo_url']?.toString() ?? decoded['logoUrl']?.toString();
+        final hasLogoVal = decoded['has_logo'] != false;
+
         return StrukPayload(
           rawText: cleanRawText,
           storeName: decoded['storeName']?.toString() ?? decoded['store_name']?.toString(),
@@ -56,6 +70,9 @@ class StrukPayload {
           time: decoded['time']?.toString() ?? decoded['date']?.toString(),
           status: decoded['status']?.toString() ?? 'BERHASIL',
           footer: decoded['footer']?.toString(),
+          logoBase64: logoB64,
+          logoUrl: logoUrlVal,
+          hasLogo: hasLogoVal,
         );
       }
     } catch (_) {}
@@ -71,6 +88,61 @@ class StrukPayload {
       return StrukPayload.fromMessage(raw);
     }
     return StrukPayload(rawText: raw);
+  }
+
+  /// Mengambil byte gambar logo dari Base64, URL download, atau cache lokal
+  Future<Uint8List?> getLogoBytes() async {
+    if (cachedLogoBytes != null && cachedLogoBytes!.isNotEmpty) {
+      return cachedLogoBytes;
+    }
+
+    // 1. Ekstrak dari Base64 jika tersedia (instan & 100% offline-ready)
+    if (logoBase64 != null && logoBase64!.isNotEmpty) {
+      try {
+        String cleanB64 = logoBase64!;
+        if (cleanB64.contains(',')) {
+          cleanB64 = cleanB64.split(',').last;
+        }
+        final bytes = base64Decode(cleanB64.trim());
+        if (bytes.isNotEmpty) {
+          cachedLogoBytes = bytes;
+          await PrinterService.instance.cacheStoreLogo(bytes);
+          return bytes;
+        }
+      } catch (e) {
+        debugPrint('[StrukPayload] Error decode logoBase64: $e');
+      }
+    }
+
+    // 2. Unduh dari URL jika ada
+    if (logoUrl != null && logoUrl!.isNotEmpty) {
+      try {
+        final client = HttpClient()..connectionTimeout = const Duration(seconds: 4);
+        final request = await client.getUrl(Uri.parse(logoUrl!));
+        final response = await request.close();
+        if (response.statusCode == 200) {
+          final bytes = await consolidateHttpClientResponseBytes(response);
+          if (bytes.isNotEmpty) {
+            cachedLogoBytes = bytes;
+            await PrinterService.instance.cacheStoreLogo(bytes);
+            return bytes;
+          }
+        }
+      } catch (e) {
+        debugPrint('[StrukPayload] Error download logoUrl: $e');
+      }
+    }
+
+    // 3. Fallback ke logo toko yang tersimpan di cache lokal
+    if (hasLogo) {
+      final cached = await PrinterService.instance.getCachedStoreLogo();
+      if (cached != null && cached.isNotEmpty) {
+        cachedLogoBytes = cached;
+        return cached;
+      }
+    }
+
+    return null;
   }
 
   String buildReceiptText({int paperWidth = 32, String? headerStore, String? footerText}) {
@@ -134,22 +206,21 @@ class PrinterService {
   /// Memeriksa dan meminta izin Bluetooth runtime untuk Android 11 maupun Android 12+ (API 31+)
   Future<bool> checkAndRequestPermissions() async {
     try {
-      // 1. Android 12+ (API 31+) membutuhkan Bluetooth Scan & Connect
       final scanStatus = await Permission.bluetoothScan.request();
       final connectStatus = await Permission.bluetoothConnect.request();
 
-      // 2. Android 11 ke bawah (API <= 30) membutuhkan Location
-      if (!await Permission.location.isRestricted && !await Permission.location.isPermanentlyDenied) {
-        try {
-          await Permission.locationWhenInUse.request();
-        } catch (_) {}
+      if (scanStatus.isGranted && connectStatus.isGranted) {
+        return true;
       }
 
-      return (scanStatus.isGranted || scanStatus.isLimited) &&
-          (connectStatus.isGranted || connectStatus.isLimited);
+      await Permission.bluetooth.request();
+      await Permission.location.request();
+
+      final hasPermission = await PrintBluetoothThermal.isPermissionBluetoothGranted;
+      return hasPermission;
     } catch (e) {
-      debugPrint('[PrinterService] checkAndRequestPermissions error: $e');
-      return true;
+      debugPrint('[PrinterService] Error checkAndRequestPermissions: $e');
+      return false;
     }
   }
 
@@ -157,46 +228,35 @@ class PrinterService {
   Future<List<BluetoothInfo>> getPairedDevices() async {
     try {
       await checkAndRequestPermissions();
-
-      final bool isEnabled = await PrintBluetoothThermal.bluetoothEnabled;
-      if (!isEnabled) {
-        debugPrint('[PrinterService] Bluetooth belum aktif');
-        return [];
-      }
-
       final List<BluetoothInfo> devices = await PrintBluetoothThermal.pairedBluetooths;
-      debugPrint('[PrinterService] Ditemukan ${devices.length} perangkat Bluetooth dipasangkan');
       return devices;
     } catch (e) {
-      debugPrint('[PrinterService] Gagal mengambil daftar printer paired: $e');
+      debugPrint('[PrinterService] Error getPairedDevices: $e');
       return [];
     }
   }
 
-  /// Alias getPairedPrinters untuk kompatibilitas
-  Future<List<BluetoothInfo>> getPairedPrinters() => getPairedDevices();
-
   /// Menghubungkan ke printer via MAC Address dengan error-handling aman
   Future<bool> connect(String macAddress) async {
     try {
+      await checkAndRequestPermissions();
+
       final cleanMac = macAddress.trim().toUpperCase();
-      if (cleanMac.isEmpty) return false;
+      if (cleanMac.isEmpty) {
+        debugPrint('[PrinterService] MAC Address kosong');
+        return false;
+      }
 
-      // Cek apakah sudah terhubung ke printer ini
       final isAlreadyConnected = await checkConnectionStatus();
-      final savedMac = await getSavedMac();
-      if (isAlreadyConnected && savedMac == cleanMac) {
-        debugPrint('[PrinterService] Sudah terhubung ke $cleanMac');
-        return true;
-      }
-
-      // Putuskan koneksi sebelumnya bila ada
       if (isAlreadyConnected) {
+        final currentMac = await getSavedMac();
+        if (currentMac?.toUpperCase() == cleanMac) {
+          debugPrint('[PrinterService] Sudah terhubung ke $cleanMac');
+          return true;
+        }
         await disconnect();
-        await Future.delayed(const Duration(milliseconds: 300));
       }
 
-      debugPrint('[PrinterService] Menghubungkan ke MAC: $cleanMac...');
       final bool connected = await PrintBluetoothThermal.connect(macPrinterAddress: cleanMac);
 
       if (connected) {
@@ -234,7 +294,7 @@ class PrinterService {
   }
 
   // ==========================================
-  // 2. KUSTOMISASI KERTAS & STORAGE
+  // 2. KUSTOMISASI KERTAS, LOGO & STORAGE
   // ==========================================
 
   Future<void> loadSavedPaperSize() async {
@@ -269,6 +329,50 @@ class PrinterService {
     return prefs.getString('printer_saved_mac') ?? await StorageService.instance.getSavedPrinterMac();
   }
 
+  /// Cache logo toko lokal untuk mendukung cetak offline permanen
+  Future<void> cacheStoreLogo(Uint8List bytes) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('cached_store_logo_b64', base64Encode(bytes));
+    } catch (e) {
+      debugPrint('[PrinterService] Error cacheStoreLogo: $e');
+    }
+  }
+
+  /// Mengambil logo toko dari cache lokal
+  Future<Uint8List?> getCachedStoreLogo() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final b64 = prefs.getString('cached_store_logo_b64');
+      if (b64 != null && b64.isNotEmpty) {
+        return base64Decode(b64);
+      }
+    } catch (e) {
+      debugPrint('[PrinterService] Error getCachedStoreLogo: $e');
+    }
+    return null;
+  }
+
+  /// Cek apakah fitur cetak logo di struk sedang diaktifkan pengguna
+  Future<bool> isLogoPrintEnabled() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool('printer_print_logo_enabled') ?? true;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  /// Mengubah toggle fitur cetak logo
+  Future<void> setLogoPrintEnabled(bool enabled) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('printer_print_logo_enabled', enabled);
+    } catch (e) {
+      debugPrint('[PrinterService] Error setLogoPrintEnabled: $e');
+    }
+  }
+
   // ==========================================
   // 3. FORMAT STRUK ESC/POS
   // ==========================================
@@ -295,16 +399,43 @@ class PrinterService {
   String get dividerLine => '-' * maxCharsPerLine;
 
   /// Memproses dan merasterisasi logo toko ke format thermal hitam-putih
+  /// Dilengkapi penanganan transparansi PNG ke putih agar tidak menjadi blok hitam pekat
   List<int> processLogoRaster(Uint8List logoBytes, Generator generator) {
     try {
-      final img.Image? decoded = img.decodeImage(logoBytes);
+      img.Image? decoded = img.decodeImage(logoBytes);
       if (decoded == null) return [];
 
-      final int targetWidth = _paperSize == PaperSize.mm58 ? 240 : 360;
-      final img.Image resized = img.copyResize(decoded, width: targetWidth);
+      // 1. Flatten transparansi PNG ke background putih solid
+      if (decoded.hasAlpha) {
+        final whiteBg = img.Image(
+          width: decoded.width,
+          height: decoded.height,
+          numChannels: 3,
+        )..clear(img.ColorRgb8(255, 255, 255));
+        decoded = img.compositeImage(whiteBg, decoded);
+      }
+
+      // 2. Resize proporsional: 58mm (lebar ideal 240-280px) & 80mm (lebar ideal 384px)
+      final int targetWidth = _paperSize == PaperSize.mm58 ? 256 : 384;
+      final img.Image resized = img.copyResize(
+        decoded,
+        width: targetWidth,
+        interpolation: img.Interpolation.linear,
+      );
+
+      // 3. Konversi ke Grayscale monokrom
       final img.Image gray = img.grayscale(resized);
 
-      return generator.imageRaster(gray, align: PosAlign.center);
+      // 4. Buat raster ESC/POS bytes (GS v 0)
+      List<int> bytes = [];
+      bytes += generator.imageRaster(
+        gray,
+        align: PosAlign.center,
+        highDensityHorizontal: true,
+        highDensityVertical: true,
+      );
+      bytes += generator.feed(1);
+      return bytes;
     } catch (e) {
       debugPrint('[PrinterService] Error processLogoRaster: $e');
       return [];
@@ -315,7 +446,7 @@ class PrinterService {
   // 4. FUNGSI CETAK (TEST & TRANSAKSI)
   // ==========================================
 
-  /// Cetak struk uji coba koneksi untuk memastikan printer mencetak dengan jelas
+  /// Cetak struk uji coba koneksi untuk memastikan printer mencetak dengan jelas (termasuk Logo)
   Future<bool> printTestReceipt({Map<String, dynamic>? storeInfo}) async {
     try {
       final isConnected = await checkConnectionStatus();
@@ -336,7 +467,25 @@ class PrinterService {
       // Reset
       bytes += generator.reset();
 
-      // Header Toko
+      // 1. Logo Toko (Jika Ada & Aktif)
+      final logoEnabled = await isLogoPrintEnabled();
+      if (logoEnabled) {
+        Uint8List? logoBytes = await getCachedStoreLogo();
+        if (logoBytes == null || logoBytes.isEmpty) {
+          try {
+            final byteData = await rootBundle.load('assets/icon/app_logo.png');
+            logoBytes = byteData.buffer.asUint8List();
+          } catch (_) {}
+        }
+        if (logoBytes != null && logoBytes.isNotEmpty) {
+          final logoRaster = processLogoRaster(logoBytes, generator);
+          if (logoRaster.isNotEmpty) {
+            bytes += logoRaster;
+          }
+        }
+      }
+
+      // 2. Header Toko
       final storeName = (storeInfo?['store_name'] ?? 'GARUDATEL POS').toString().toUpperCase();
       final address = (storeInfo?['address'] ?? 'Pusat Pembayaran PPOB & Kasir').toString();
 
@@ -554,7 +703,7 @@ class PrinterService {
         if (!ok) return false;
       }
 
-      final bytes = generateEscPosBytes(payload);
+      final bytes = await generateEscPosBytesAsync(payload);
       return await PrintBluetoothThermal.writeBytes(bytes);
     } catch (e) {
       debugPrint('[PrinterService] Error printStrukPayload: $e');
@@ -562,7 +711,85 @@ class PrinterService {
     }
   }
 
-  /// Menghasilkan ESC/POS bytes dari StrukPayload (kompatibel unit tests & direct raw)
+  /// Menghasilkan ESC/POS bytes asinkron lengkap dengan raster Logo Toko
+  Future<List<int>> generateEscPosBytesAsync(
+    StrukPayload payload, {
+    int? customWidth,
+    int? customFeed,
+    bool forceNoLogo = false,
+  }) async {
+    final profile = await CapabilityProfile.load();
+    final generator = Generator(_paperSize, profile);
+    final List<int> bytes = [];
+
+    // 1. Reset ESC @
+    bytes.addAll(generator.reset());
+
+    // 2. Cetak Logo Toko (Jika Aktif & Tersedia)
+    final logoEnabled = await isLogoPrintEnabled();
+    if (!forceNoLogo && logoEnabled && payload.hasLogo) {
+      final logoBytes = await payload.getLogoBytes();
+      if (logoBytes != null && logoBytes.isNotEmpty) {
+        final logoRaster = processLogoRaster(logoBytes, generator);
+        if (logoRaster.isNotEmpty) {
+          bytes.addAll(logoRaster);
+        }
+      }
+    }
+
+    // 3. Cetak Isi Teks Struk
+    if (payload.rawText.contains('\x1b') || payload.rawText.contains('---')) {
+      bytes.addAll(payload.rawText.codeUnits);
+    } else if (payload.storeName != null || payload.refId != null || payload.productName != null) {
+      final width = customWidth ?? maxCharsPerLine;
+      final divider = '-' * (width <= 32 ? 32 : 48);
+
+      void text(String s) => bytes.addAll(s.codeUnits);
+      void feed(int n) => bytes.addAll(List.filled(n, 0x0A));
+      void alignCenter() => bytes.addAll([0x1B, 0x61, 1]);
+      void alignLeft() => bytes.addAll([0x1B, 0x61, 0]);
+      void boldOn() => bytes.addAll([0x1B, 0x45, 1]);
+      void boldOff() => bytes.addAll([0x1B, 0x45, 0]);
+
+      alignCenter();
+      boldOn();
+      text('${(payload.storeName ?? "GARUDATEL IPAY").toUpperCase()}\n');
+      boldOff();
+      text('Pusat Pembayaran PPOB Terpercaya\n');
+      text('$divider\n');
+
+      alignLeft();
+      if (payload.refId != null && payload.refId!.isNotEmpty) text('No. Ref : ${payload.refId}\n');
+      if (payload.time != null && payload.time!.isNotEmpty) text('Waktu   : ${payload.time}\n');
+      text('Status  : [ ${payload.status ?? "BERHASIL"} ]\n');
+      text('$divider\n');
+
+      if (payload.productName != null && payload.productName!.isNotEmpty) text('PRODUK  : ${payload.productName}\n');
+      if (payload.targetNumber != null && payload.targetNumber!.isNotEmpty) text('TUJUAN  : ${payload.targetNumber}\n');
+      if (payload.sn != null && payload.sn!.isNotEmpty) text('SN      : ${payload.sn}\n');
+      text('$divider\n');
+
+      if (payload.amount != null && payload.amount!.isNotEmpty) {
+        text('TOTAL   : ${payload.amount}\n');
+        text('$divider\n');
+      }
+
+      alignCenter();
+      text('${payload.footer ?? "Terima kasih!"}\n');
+      feed(customFeed ?? 1);
+    } else {
+      bytes.addAll(payload.rawText.codeUnits);
+      bytes.addAll([0x0A]);
+    }
+
+    if (_paperSize == PaperSize.mm80) {
+      bytes.addAll([0x1D, 0x56, 0x42, 0x00]);
+    }
+
+    return bytes;
+  }
+
+  /// Menghasilkan ESC/POS bytes sinkron (kompatibel unit tests & direct raw)
   List<int> generateEscPosBytes(StrukPayload payload, {int? customWidth, int? customFeed}) {
     final List<int> bytes = [];
 
@@ -614,7 +841,6 @@ class PrinterService {
     }
 
     if (_paperSize == PaperSize.mm80) {
-      // Partial cut GS V 66 0
       bytes.addAll([0x1D, 0x56, 0x42, 0x00]);
     }
 
@@ -651,116 +877,83 @@ class PrinterService {
 
       await Printing.layoutPdf(
         onLayout: (PdfPageFormat format) async => doc.save(),
-        name: 'Struk_iPay_${payload.refId ?? DateTime.now().millisecondsSinceEpoch}',
+        name: 'Struk_${payload.refId ?? "Transaksi"}.pdf',
       );
     } catch (e) {
-      debugPrint('[PrinterService] printLaserOrPdf error: $e');
+      debugPrint('[PrinterService] Error printLaserOrPdf: $e');
     }
   }
 
-  /// Buka aplikasi RawBT sebagai fallback jika dipilih kasir
+  /// Cetak via aplikasi pihak ketiga RawBT POS Printer
   Future<bool> printViaRawBt(StrukPayload payload) async {
     try {
-      final text = payload.buildReceiptText(paperWidth: maxCharsPerLine);
-      final base64Content = base64.encode(utf8.encode(text));
-      final rawBtUri = Uri.parse('rawbt:data:text/plain;base64,$base64Content');
+      final text = payload.rawText.isNotEmpty ? payload.rawText : payload.buildReceiptText();
+      final base64String = base64Encode(utf8.encode(text));
+      final rawBtUri = Uri.parse('rawbt:data:text/plain;base64,$base64String');
 
       if (await canLaunchUrl(rawBtUri)) {
-        return await launchUrl(rawBtUri, mode: LaunchMode.externalApplication);
+        await launchUrl(rawBtUri, mode: LaunchMode.externalApplication);
+        return true;
       }
       return false;
     } catch (e) {
-      debugPrint('[PrinterService] printViaRawBt error: $e');
+      debugPrint('[PrinterService] Error printViaRawBt: $e');
       return false;
     }
   }
 
-  /// Menampilkan modal pilihan cepat printer saat ada permintaan cetak dari web
+  /// Menampilkan modal pemilih printer jika belum ada printer tersimpan
   void showPrintSelectionModal(BuildContext context, StrukPayload payload) {
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (ctx) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Pilih Metode Cetak Struk',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-              ),
-              const SizedBox(height: 12),
-              const Row(
-                children: [
-                  Icon(Icons.print_rounded, color: AppConfig.primaryTeal, size: 26),
-                  SizedBox(width: 10),
-                  Text(
-                    'Cetak Struk Kasir',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppConfig.primaryTeal,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                const SizedBox(height: 12),
+                ListTile(
+                  leading: const Icon(Icons.bluetooth_audio, color: AppConfig.primaryTeal),
+                  title: const Text('Printer Bluetooth Thermal (POS)'),
+                  subtitle: const Text('Cetak langsung ke printer kasir 58mm/80mm'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    printStrukPayload(payload);
+                  },
                 ),
-                icon: const Icon(Icons.bluetooth),
-                label: const Text('Cetak via Bluetooth Thermal', style: TextStyle(fontWeight: FontWeight.bold)),
-                onPressed: () async {
-                  Navigator.pop(ctx);
-                  final ok = await printStrukPayload(payload);
-                  if (!ok && context.mounted) {
-                    Navigator.pushNamed(context, '/printer');
-                  }
-                },
-              ),
-              const SizedBox(height: 10),
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppConfig.primaryTeal,
-                  side: const BorderSide(color: AppConfig.primaryTeal),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ListTile(
+                  leading: const Icon(Icons.picture_as_pdf, color: Colors.blueAccent),
+                  title: const Text('Sistem Cetak Android / PDF'),
+                  subtitle: const Text('Gunakan printer WiFi, Laser, atau Simpan PDF'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    printLaserOrPdf(context, payload);
+                  },
                 ),
-                icon: const Icon(Icons.picture_as_pdf),
-                label: const Text('Cetak via PDF / Printer Laser'),
-                onPressed: () async {
-                  Navigator.pop(ctx);
-                  await printLaserOrPdf(context, payload);
-                },
-              ),
-              const SizedBox(height: 10),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  Navigator.pushNamed(context, '/printer');
-                },
-                child: const Text('Buka Pengaturan Printer Kasir'),
-              ),
-            ],
+                ListTile(
+                  leading: const Icon(Icons.print, color: Colors.deepPurple),
+                  title: const Text('Cetak via RawBT App'),
+                  subtitle: const Text('Kirim data langsung ke aplikasi RawBT'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    printViaRawBt(payload);
+                  },
+                ),
+              ],
+            ),
           ),
         );
       },
     );
   }
 }
-
-/// Alias kompatibilitas penuh untuk kode yang merujuk `PrintService`
-typedef PrintService = PrinterService;

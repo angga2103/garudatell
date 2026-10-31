@@ -14,6 +14,7 @@ class PrinterProvider extends ChangeNotifier {
   List<BluetoothInfo> _availableDevices = [];
   bool _isScanning = false;
   PaperSize _paperSize = PaperSize.mm58;
+  bool _isLogoPrintEnabled = true;
   String? _errorMessage;
 
   // Getters
@@ -23,6 +24,7 @@ class PrinterProvider extends ChangeNotifier {
   List<BluetoothInfo> get availableDevices => _availableDevices;
   bool get isScanning => _isScanning;
   PaperSize get paperSize => _paperSize;
+  bool get isLogoPrintEnabled => _isLogoPrintEnabled;
   String? get errorMessage => _errorMessage;
 
   /// Inisialisasi awal: Muat printer tersimpan dan cek status koneksi
@@ -30,6 +32,7 @@ class PrinterProvider extends ChangeNotifier {
     _paperSize = _service.paperSize;
     _connectedMac = await _service.getSavedMac();
     _connectedName = await StorageService.instance.getSavedPrinterName();
+    _isLogoPrintEnabled = await _service.isLogoPrintEnabled();
 
     await checkConnection();
     await scanDevices();
@@ -127,6 +130,13 @@ class PrinterProvider extends ChangeNotifier {
   Future<void> setPaperSize(PaperSize size) async {
     _paperSize = size;
     await _service.setPaperSize(size);
+    notifyListeners();
+  }
+
+  /// Mengubah toggle cetak logo toko pada struk
+  Future<void> setLogoPrintEnabled(bool enabled) async {
+    _isLogoPrintEnabled = enabled;
+    await _service.setLogoPrintEnabled(enabled);
     notifyListeners();
   }
 

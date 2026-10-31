@@ -196,6 +196,21 @@
                     </button>
                 </div>
                 {% endif %}
+
+                <div style="margin-top: 14px; background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                    <div>
+                        <div style="font-size: 13px; font-weight: 800; color: #1e293b;">
+                            <i class="fas fa-print" style="color: #00877a;"></i> Cetak Logo pada Struk Thermal & Kasir
+                        </div>
+                        <div style="font-size: 11px; color: #64748b; margin-top: 2px;">
+                            Aktifkan agar logo toko otomatis dicetak di bagian paling atas struk kasir & printer bluetooth.
+                        </div>
+                    </div>
+                    <label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer; margin: 0; font-weight: 700; font-size: 13px; color: #00877a;">
+                        <input type="checkbox" name="receipt_show_logo" value="1" {% if store.receipt_show_logo %}checked{% endif %} style="width: 20px; height: 20px; accent-color: #00877a; cursor: pointer;">
+                        <span>Aktif</span>
+                    </label>
+                </div>
             </div>
 
             <button type="submit" class="btn-save-store">

@@ -116,6 +116,7 @@ def get_store_settings():
         'tagline': get_setting_value('store_tagline', DEFAULT_TAGLINE),
         'whatsapp_group': get_setting_value('store_whatsapp_group', ''),
         'receipt_footer': get_setting_value('receipt_footer', DEFAULT_FOOTER),
+        'receipt_show_logo': get_setting_value('receipt_show_logo', '1') == '1',
         'logo': logo_path,
         'logo_url': logo_path if logo_path else ''
     }
@@ -135,6 +136,7 @@ def save_store_settings(form_data, logo_file=None, upload_folder=None):
         'store_tagline': form_data.get('store_tagline', '').strip(),
         'store_whatsapp_group': form_data.get('store_whatsapp_group', '').strip(),
         'receipt_footer': form_data.get('receipt_footer', '').strip() or DEFAULT_FOOTER,
+        'receipt_show_logo': '1' if form_data.get('receipt_show_logo') in ['1', 'true', 'on'] else '0',
     }
 
     for k, val in mapping.items():

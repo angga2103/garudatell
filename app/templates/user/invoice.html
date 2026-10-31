@@ -1160,8 +1160,8 @@
 
             <!-- TAMPILAN FISIK STRUK THERMAL 58mm -->
             <div class="thermal-receipt" id="printableReceipt">
-                {% if store.logo_url %}
-                <img src="{{ store.logo_url }}" alt="Logo Toko" class="receipt-logo" id="storeReceiptLogo">
+                {% if store.logo_url and (store.receipt_show_logo is not defined or store.receipt_show_logo) %}
+                <img src="{{ store.logo_url }}" alt="Logo Toko" class="receipt-logo" id="storeReceiptLogo" crossorigin="anonymous">
                 {% endif %}
                 <div class="receipt-center receipt-bold" style="font-size: 15px; letter-spacing: 0.5px;">
                     {{ store.name|upper }}
@@ -2098,6 +2098,31 @@ function smartPrintReceipt() {
     const feePg = 'Rp ' + Number({{ pg_fee|default(0) }}).toLocaleString('id-ID');
     const hargaTotal = 'Rp ' + Number({{ total_with_fee|default(trx.amount) }}).toLocaleString('id-ID');
     const footer = {{ store.receipt_footer|tojson }};
+    const showLogo = {{ 'true' if (store.receipt_show_logo is not defined or store.receipt_show_logo) else 'false' }};
+    const logoUrl = {{ (store.logo_url or '')|tojson }};
+
+    // Ekstrak base64 logo langsung dari gambar yang sudah dimuat di DOM (instan, bersih & offline-first)
+    let logoBase64 = null;
+    if (showLogo) {
+        const imgEl = document.getElementById('storeReceiptLogo');
+        if (imgEl && imgEl.complete && imgEl.naturalWidth > 0) {
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = imgEl.naturalWidth;
+                canvas.height = imgEl.naturalHeight;
+                const ctx = canvas.getContext('2d');
+                // Isi background putih solid agar transparansi tidak berubah jadi hitam pekat di printer thermal
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(imgEl, 0, 0);
+                logoBase64 = canvas.toDataURL('image/png');
+            } catch (e) {
+                console.warn('Gagal ekstrak base64 logo dari canvas:', e);
+            }
+        }
+    }
+
+    const fullLogoUrl = (showLogo && logoUrl) ? (logoUrl.startsWith('http') ? logoUrl : (window.location.origin + (logoUrl.startsWith('/') ? '' : '/') + logoUrl)) : '';
 
     // Format ESC/POS untuk RawBT atau printer thermal Android
     let text = `\x1b\x61\x01\x1b\x45\x01${storeName.toUpperCase()}\x1b\x45\x00\n`;
@@ -2133,7 +2158,10 @@ function smartPrintReceipt() {
         status: 'BERHASIL',
         footer: footer,
         raw_text: text,
-        text: text
+        text: text,
+        logo_base64: logoBase64,
+        logo_url: fullLogoUrl,
+        has_logo: Boolean(showLogo && (logoUrl || logoBase64))
     };
 
     // A. Jika di dalam APK Native Android IPAY (via PrintChannel Flutter)

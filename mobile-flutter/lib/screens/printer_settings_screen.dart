@@ -122,6 +122,10 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
                 _buildPaperSizeSection(context, provider),
                 const SizedBox(height: 16),
 
+                // 2b. OPSI CETAK LOGO STRUK
+                _buildLogoOptionSection(context, provider),
+                const SizedBox(height: 16),
+
                 // 3. TOMBOL TINDAKAN UTAMA
                 _buildActionButtons(context, provider),
                 const SizedBox(height: 20),
@@ -430,6 +434,56 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // ==========================================
+  // 2b. PENGATURAN LOGO STRUK THERMAL
+  // ==========================================
+  Widget _buildLogoOptionSection(BuildContext context, PrinterProvider provider) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppConfig.primaryTeal.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.image_outlined, color: AppConfig.primaryTeal, size: 24),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Cetak Logo di Struk',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Cetak gambar logo toko di bagian atas struk thermal',
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                ),
+              ],
+            ),
+          ),
+          Switch.adaptive(
+            value: provider.isLogoPrintEnabled,
+            activeTrackColor: AppConfig.primaryTeal,
+            onChanged: (val) {
+              provider.setLogoPrintEnabled(val);
+            },
+          ),
+        ],
       ),
     );
   }
